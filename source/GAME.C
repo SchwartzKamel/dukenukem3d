@@ -7400,7 +7400,20 @@ int main(int argc,char **argv)
 
     printf("\n\n");
 
-    initgroupfile("duke3d.grp");
+    {
+        const char *grp_path = find_game_file("duke3d.grp");
+        if (grp_path == NULL) {
+            grp_path = find_game_file("DUKE3D.GRP");
+        }
+        if (grp_path == NULL) {
+            printf("ERROR: DUKE3D.GRP not found!\n");
+            printf("Searched: current directory, executable directory, ./data/, $DUKE3D_DATA\n");
+            printf("Generate assets with: python3 tools/generate_assets.py --no-ai\n");
+            exit(1);
+        }
+        printf("Loading: %s\n", grp_path);
+        initgroupfile((char *)grp_path);
+    }
 
     checkcommandline(argc,argv);
 

@@ -538,4 +538,75 @@ extern unsigned long sdl_timer_getticks(void);
 
 #define sync duke3d_sync
 
+/* ======================================================================
+ * GRP / game file path resolution
+ *
+ * Searches for a game file in multiple locations:
+ *   1. Current working directory
+ *   2. Directory containing the executable
+ *   3. ./data/ subdirectory
+ *   4. $DUKE3D_DATA environment variable directory
+ * Returns pointer to found path (static buffer), or NULL.
+ * ====================================================================== */
+
+static const char *find_game_file(const char *filename)
+{
+    static char pathbuf[1024];
+
+    /* 1. Current working directory */
+    if (access(filename, R_OK) == 0)
+        return filename;
+
+    /* 2. Directory of the executable */
+#ifdef _WIN32
+    {
+        DWORD len = GetModuleFileNameA(NULL, pathbuf, sizeof(pathbuf) - 1);
+        if (len > 0) {
+            char *slash;
+            pathbuf[len] = 0;
+            slash = strrchr(pathbuf, '\\');
+            if (!slash) slash = strrchr(pathbuf, '/');
+            if (slash) {
+                slash[1] = 0;
+                strncat(pathbuf, filename, sizeof(pathbuf) - strlen(pathbuf) - 1);
+                if (_access(pathbuf, 4) == 0)
+                    return pathbuf;
+            }
+        }
+    }
+#else
+    {
+        ssize_t len = readlink("/proc/self/exe", pathbuf, sizeof(pathbuf) - 1);
+        if (len > 0) {
+            char *slash;
+            pathbuf[len] = 0;
+            slash = strrchr(pathbuf, '/');
+            if (slash) {
+                slash[1] = 0;
+                strncat(pathbuf, filename, sizeof(pathbuf) - strlen(pathbuf) - 1);
+                if (access(pathbuf, R_OK) == 0)
+                    return pathbuf;
+            }
+        }
+    }
+#endif
+
+    /* 3. ./data/ subdirectory */
+    snprintf(pathbuf, sizeof(pathbuf), "data/%s", filename);
+    if (access(pathbuf, R_OK) == 0)
+        return pathbuf;
+
+    /* 4. DUKE3D_DATA environment variable */
+    {
+        const char *datadir = getenv("DUKE3D_DATA");
+        if (datadir) {
+            snprintf(pathbuf, sizeof(pathbuf), "%s/%s", datadir, filename);
+            if (access(pathbuf, R_OK) == 0)
+                return pathbuf;
+        }
+    }
+
+    return NULL;
+}
+
 #endif /* COMPAT_H_ */
