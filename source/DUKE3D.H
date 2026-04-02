@@ -24,16 +24,7 @@ Prepared for public release: 03/21/2003 - Charlie Wiederhold, 3D Realms
 */
 //-------------------------------------------------------------------------
 
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <malloc.h>
-#include <dos.h>
-#include <bios.h>
-#include <io.h>
-#include <fcntl.H>
-#include <time.h>
-#include <ctype.h>
+#include "compat.h"
 #include "pragmas.h"
 #include "function.h"
 #include "build.h"
@@ -86,7 +77,7 @@ Prepared for public release: 03/21/2003 - Charlie Wiederhold, 3D Realms
 #include "sndcards.h"
 
 #include "names.h"
-#include "funct.h"
+/* funct.h moved after struct definitions - see bottom of this file */
 
 
 #define TICRATE (120)
@@ -96,12 +87,8 @@ Prepared for public release: 03/21/2003 - Charlie Wiederhold, 3D Realms
 
 #define NUM_SOUNDS 450
 
-#pragma aux sgn =\
-        "add ebx, ebx",\
-        "sbb eax, eax",\
-        "cmp eax, ebx",\
-        "adc eax, 0",\
-        parm [ebx]\
+/* sgn: replaced Watcom #pragma aux with C function */
+static inline int sgn(int x) { return (x > 0) - (x < 0); }\
 
 #define    ALT_IS_PRESSED ( KB_KeyPressed( sc_RightAlt ) || KB_KeyPressed( sc_LeftAlt ) )
 #define    SHIFTS_IS_PRESSED ( KB_KeyPressed( sc_RightShift ) || KB_KeyPressed( sc_LeftShift ) )
@@ -236,6 +223,7 @@ typedef struct
     int voice;
 } SOUNDOWNER;
 
+#ifndef __USRHOOKS_H
 #define __USRHOOKS_H
 
 enum USRHOOKS_Errors
@@ -244,6 +232,8 @@ enum USRHOOKS_Errors
    USRHOOKS_Error   = -1,
    USRHOOKS_Ok      = 0
    };
+
+#endif /* __USRHOOKS_H */
 
 typedef struct
 {
@@ -264,7 +254,7 @@ typedef struct
     int  length, num;
 } SAMPLE;
 
-static struct animwalltype
+struct animwalltype
 {
         short wallnum;
         long tag;

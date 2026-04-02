@@ -24,13 +24,11 @@ Prepared for public release: 03/21/2003 - Charlie Wiederhold, 3D Realms
 */
 //-------------------------------------------------------------------------
 
-#include <conio.h>
+#include "compat.h"
+#include "audio_stub.h"
 #include <stdio.h>
 #include <string.h>
 #include "types.h"
-#include "sndcards.h"
-#include "fx_man.h"
-#include "music.h"
 #include "util_lib.h"
 #include "duke3d.h"
 
@@ -209,7 +207,7 @@ void MusicShutdown( void )
       }
    }
 
-int USRHOOKS_GetMem(char **ptr, unsigned long size )
+int USRHOOKS_GetMem(void **ptr, unsigned long size )
 {
    *ptr = malloc(size);
 
@@ -220,7 +218,7 @@ int USRHOOKS_GetMem(char **ptr, unsigned long size )
 
 }
 
-int USRHOOKS_FreeMem(char *ptr)
+int USRHOOKS_FreeMem(void *ptr)
 {
    free(ptr);
    return( USRHOOKS_Ok);
@@ -619,7 +617,7 @@ void pan3dsound(void)
     }
 }
 
-void TestCallBack(long num)
+void TestCallBack(unsigned long num)
 {
     short tempi,tempj,tempk;
 

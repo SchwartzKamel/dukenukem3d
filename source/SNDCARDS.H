@@ -27,6 +27,11 @@ Prepared for public release: 03/21/2003 - Charlie Wiederhold, 3D Realms
 #ifndef __SNDCARDS_H
 #define __SNDCARDS_H
 
+#if defined(__GNUC__) || !defined(__WATCOMC__)
+/* On GCC/Linux, sound card defs are provided by audio_stub.h */
+#include "audio_stub.h"
+#else
+
 #define ASS_VERSION_STRING "1.1"
 
 typedef enum
@@ -48,4 +53,5 @@ typedef enum
    NumSoundCards
    } soundcardnames;
 
-#endif
+#endif /* __WATCOMC__ */
+#endif /* __SNDCARDS_H */

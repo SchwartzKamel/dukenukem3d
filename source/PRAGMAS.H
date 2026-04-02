@@ -24,7 +24,16 @@ Prepared for public release: 03/21/2003 - Charlie Wiederhold, 3D Realms
 */
 //-------------------------------------------------------------------------
 
-static long dmval;
+/*
+ * On GCC/Linux, replace all Watcom #pragma aux inline assembly with
+ * portable C implementations from pragmas_gcc.h in the compat layer.
+ */
+#ifndef PRAGMAS_H_
+#define PRAGMAS_H_
+
+#if defined(__GNUC__) || !defined(__WATCOMC__)
+#include "pragmas_gcc.h"
+#else
 
 #pragma aux sqr =\
 	"imul eax, eax",\
@@ -1958,3 +1967,7 @@ static long timeroffs1mhz;
 #pragma aux printchrasm =\
         "rep stosw",\
         parm [edi][ecx][eax]\
+
+
+#endif /* __WATCOMC__ */
+#endif /* PRAGMAS_H_ */

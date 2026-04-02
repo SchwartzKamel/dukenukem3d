@@ -26,6 +26,10 @@ Prepared for public release: 03/21/2003 - Charlie Wiederhold, 3D Realms
 
 #ifndef _keyboard_public
 #define _keyboard_public
+#if defined(__GNUC__) || !defined(__WATCOMC__)
+/* On GCC/Linux, keyboard API is provided by audio_stub.h */
+#include "audio_stub.h"
+#else
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -221,4 +225,5 @@ void    KB_Shutdown( void );
 #ifdef __cplusplus
 };
 #endif
-#endif
+#endif /* __WATCOMC__ */
+#endif /* _keyboard_public */

@@ -24,19 +24,18 @@ Prepared for public release: 03/21/2003 - Charlie Wiederhold, 3D Realms
 */
 //-------------------------------------------------------------------------
 
+#include "compat.h"
+#include "pragmas_gcc.h"
+#include "audio_stub.h"
+#include "sdl_driver.h"
 #include "types.h"
 #include "develop.h"
 #include "scriplib.h"
 #include "file_lib.h"
 #include "gamedefs.h"
-#include "keyboard.h"
 #include "util_lib.h"
 #include "function.h"
-#include "control.h"
-#include "fx_man.h"
-#include "sounds.h"
 #include "config.h"
-#include "sndcards.h"
 
 #include "duke3d.h"
 
@@ -83,7 +82,7 @@ char firstdemofile[80] = { '\0' };
         scale(x2,xdim,320)-1,scale(y2,ydim,200)-1);                        \
 }
 
-void __interrupt __far newint24( int errval, int ax, int bp, int si );
+/* void __interrupt __far newint24(...); -- DOS-only interrupt handler, removed for Linux */
 
 int recfilep,totalreccnt;
 char debug_on = 0,actor_tog = 0,*rtsptr,memorycheckoveride=0;
@@ -2831,7 +2830,7 @@ void displayrooms(short snum,long smoothratio)
                 else
                     setviewtotile(MAXTILES-2,320L>>(1-ud.detail),320L>>(1-ud.detail));
                 if ((tang&1023) == 512)
-                {     //Block off unscreen section of 90ø tilted screen
+                {     //Block off unscreen section of 90ï¿½ tilted screen
                     j = ((320-60)>>(1-ud.detail));
                     for(i=(60>>(1-ud.detail))-1;i>=0;i--)
                     {
@@ -7357,7 +7356,7 @@ void copyprotect(void)
     }
 }
 
-void main(int argc,char **argv)
+int main(int argc,char **argv)
 {
     long i, j, k, l;
     int32 tempautorun;

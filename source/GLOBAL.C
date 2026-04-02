@@ -24,6 +24,8 @@ Prepared for public release: 03/21/2003 - Charlie Wiederhold, 3D Realms
 */
 //-------------------------------------------------------------------------
 
+#include "compat.h"
+#include "audio_stub.h"
 #include "duke3d.h"
 
 char *mymembuf;
@@ -94,7 +96,6 @@ long avgfvel, avgsvel, avgavel, avghorz, avgbits;
 
 
 input inputfifo[MOVEFIFOSIZ][MAXPLAYERS];
-input recsync[RECSYNCBUFSIZ];
 
 long movefifosendplc;
 

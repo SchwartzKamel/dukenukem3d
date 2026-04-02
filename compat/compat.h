@@ -13,6 +13,7 @@
  * Standard headers that replace DOS equivalents
  * ====================================================================== */
 
+#define _GNU_SOURCE      /* FNM_CASEFOLD, etc. on glibc */
 #define _DEFAULT_SOURCE  /* usleep, etc. on glibc >= 2.19 */
 #define _BSD_SOURCE      /* usleep on older glibc */
 
@@ -271,6 +272,10 @@ static inline void segread(struct SREGS *seg)
 #define FP_SEG(p)   (0)
 #define MK_FP(s, o) ((void *)(uintptr_t)(o))
 
+/* Underscore-prefixed aliases (some Watcom code uses both forms) */
+#define _REGS REGS
+#define _SREGS SREGS
+
 /* dos_getvect / dos_setvect - interrupt vector manipulation */
 #define _dos_getvect(n)       ((void(*)(void))0)
 #define _dos_setvect(n, h)    ((void)0)
@@ -315,6 +320,84 @@ static inline unsigned short _bios_keybrd(unsigned cmd)
 static inline void delay(unsigned int ms)
 {
     usleep((unsigned int)ms * 1000u);
+}
+
+/* ======================================================================
+ * DOS directory search stubs (find_t, _dos_findfirst, _dos_findnext)
+ * ====================================================================== */
+#include <dirent.h>
+#include <fnmatch.h>
+
+/* FNM_CASEFOLD may not be available if _GNU_SOURCE was defined too late */
+#ifndef FNM_CASEFOLD
+#define FNM_CASEFOLD 0
+#endif
+
+/* DOS file attribute bits */
+#ifndef _A_NORMAL
+#define _A_NORMAL  0x00
+#define _A_RDONLY  0x01
+#define _A_HIDDEN  0x02
+#define _A_SYSTEM  0x04
+#define _A_VOLID   0x08
+#define _A_SUBDIR  0x10
+#define _A_ARCH    0x20
+#endif
+
+struct find_t {
+    char           reserved[21];
+    char           attrib;
+    unsigned short wr_time;
+    unsigned short wr_date;
+    unsigned long  size;
+    char           name[256];
+    /* internal: POSIX directory state */
+    DIR           *_dir;
+    char           _pattern[256];
+    char           _path[256];
+};
+
+static inline int _dos_findnext(struct find_t *f)
+{
+    struct dirent *de;
+    struct stat st;
+    char fullpath[512];
+    if (!f->_dir) return 1;
+    while ((de = readdir(f->_dir)) != NULL) {
+        if (fnmatch(f->_pattern, de->d_name, FNM_CASEFOLD) == 0) {
+            strncpy(f->name, de->d_name, sizeof(f->name)-1);
+            snprintf(fullpath, sizeof(fullpath), "%s/%s", f->_path, de->d_name);
+            if (stat(fullpath, &st) == 0) {
+                f->size = st.st_size;
+                f->attrib = S_ISDIR(st.st_mode) ? _A_SUBDIR : _A_NORMAL;
+            }
+            return 0;
+        }
+    }
+    closedir(f->_dir);
+    f->_dir = NULL;
+    return 1;
+}
+
+static inline int _dos_findfirst(const char *path, unsigned attr, struct find_t *f)
+{
+    char dirpart[256], *slash;
+    (void)attr;
+    strncpy(dirpart, path, sizeof(dirpart)-1);
+    dirpart[sizeof(dirpart)-1] = 0;
+    slash = strrchr(dirpart, '/');
+    if (!slash) slash = strrchr(dirpart, '\\');
+    if (slash) {
+        strncpy(f->_pattern, slash+1, sizeof(f->_pattern)-1);
+        *slash = 0;
+        strncpy(f->_path, dirpart, sizeof(f->_path)-1);
+    } else {
+        strncpy(f->_pattern, path, sizeof(f->_pattern)-1);
+        strcpy(f->_path, ".");
+    }
+    f->_dir = opendir(f->_path);
+    if (!f->_dir) return 1;
+    return _dos_findnext(f);
 }
 
 /* clock tick / timing */
@@ -375,5 +458,14 @@ extern void sdl_audio_shutdown(void);
 extern void sdl_timer_init(void);
 extern void sdl_timer_shutdown(void);
 extern unsigned long sdl_timer_getticks(void);
+
+/* ======================================================================
+ * POSIX name conflicts
+ *
+ * The game uses a global variable named 'sync' which clashes with
+ * the POSIX sync() function declared in <unistd.h>.
+ * ====================================================================== */
+
+#define sync duke3d_sync
 
 #endif /* COMPAT_H_ */

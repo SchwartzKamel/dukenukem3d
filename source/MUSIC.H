@@ -27,6 +27,11 @@ Prepared for public release: 03/21/2003 - Charlie Wiederhold, 3D Realms
 #ifndef __MUSIC_H
 #define __MUSIC_H
 
+#if defined(__GNUC__) || !defined(__WATCOMC__)
+/* On GCC/Linux, music API is provided by audio_stub.h */
+#include "audio_stub.h"
+#else
+
 #include "sndcards.h"
 
 extern int MUSIC_ErrorCode;
@@ -85,4 +90,5 @@ void  MUSIC_StopFade( void );
 void  MUSIC_RerouteMidiChannel( int channel, int cdecl ( *function )( int event, int c1, int c2 ) );
 void  MUSIC_RegisterTimbreBank( unsigned char *timbres );
 
-#endif
+#endif /* __WATCOMC__ */
+#endif /* __MUSIC_H */

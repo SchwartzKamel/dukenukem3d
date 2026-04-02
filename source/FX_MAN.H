@@ -27,6 +27,11 @@ Prepared for public release: 03/21/2003 - Charlie Wiederhold, 3D Realms
 #ifndef __FX_MAN_H
 #define __FX_MAN_H
 
+#if defined(__GNUC__) || !defined(__WATCOMC__)
+/* On GCC/Linux, FX API is provided by audio_stub.h */
+#include "audio_stub.h"
+#else
+
 #include "sndcards.h"
 
 typedef struct
@@ -127,4 +132,5 @@ int FX_StartDemandFeedPlayback( void ( *function )( char **ptr, unsigned long *l
 int  FX_StartRecording( int MixRate, void ( *function )( char *ptr, int length ) );
 void FX_StopRecord( void );
 
-#endif
+#endif /* __WATCOMC__ */
+#endif /* __FX_MAN_H */

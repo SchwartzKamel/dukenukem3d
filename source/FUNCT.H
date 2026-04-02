@@ -24,6 +24,9 @@ Prepared for public release: 03/21/2003 - Charlie Wiederhold, 3D Realms
 */
 //-------------------------------------------------------------------------
 
+#ifndef FUNCT_H_
+#define FUNCT_H_
+
 extern void sendscore(char *s);
 //#line "sounds.c" 25
 extern void SoundStartup(void );
@@ -34,9 +37,9 @@ extern void MusicStartup(void );
 //#line "sounds.c" 166
 extern void MusicShutdown(void );
 //#line "sounds.c" 181
-extern int USRHOOKS_GetMem(char **ptr,unsigned long size);
+extern int USRHOOKS_GetMem(void **ptr,unsigned long size);
 //#line "sounds.c" 192
-extern int USRHOOKS_FreeMem(char *ptr);
+extern int USRHOOKS_FreeMem(void *ptr);
 //#line "sounds.c" 200
 extern void intomenusounds(void );
 //#line "sounds.c" 227
@@ -56,7 +59,7 @@ extern void stopenvsound(short num,short i);
 //#line "sounds.c" 494
 extern void pan3dsound(void );
 //#line "sounds.c" 571
-extern void TestCallBack(long num);
+extern void TestCallBack(unsigned long num);
 //#line "sector.c" 9
 extern short callsound(short sn,short whatsprite);
 //#line "sector.c" 56
@@ -410,7 +413,7 @@ extern void Startup(void );
 //#line "game.c" 6284
 extern void getnames(void );
 //#line "game.c" 6309
-extern void main(int argc,char **argv);
+extern int main(int argc,char **argv);
 //#line "game.c" 6563
 extern char opendemoread(char which_demo);
 //#line "game.c" 6589
@@ -580,3 +583,5 @@ extern void moveactors(void );
 //#line "actors.c" 6005
 extern void moveexplosions(void );
 
+
+#endif /* FUNCT_H_ */

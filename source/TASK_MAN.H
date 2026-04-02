@@ -27,6 +27,11 @@ Prepared for public release: 03/21/2003 - Charlie Wiederhold, 3D Realms
 #ifndef __TASK_MAN_H
 #define __TASK_MAN_H
 
+#if defined(__GNUC__) || !defined(__WATCOMC__)
+/* On GCC/Linux, task manager API is provided by audio_stub.h */
+#include "audio_stub.h"
+#else
+
 enum TASK_ERRORS
    {
    TASK_Warning = -2,
@@ -61,4 +66,5 @@ void    TS_SetTaskRate( task *Task, int rate );
 void    TS_UnlockMemory( void );
 int     TS_LockMemory( void );
 
-#endif
+#endif /* __WATCOMC__ */
+#endif /* __TASK_MAN_H */

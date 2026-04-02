@@ -272,11 +272,16 @@ void   timer_update(void);
    USRHOOKS.H – memory allocation hooks (called by audiolib internals)
    ═══════════════════════════════════════════════════════════════════ */
 
+#ifndef __USRHOOKS_H
+#define __USRHOOKS_H
+
 enum USRHOOKS_Errors {
     USRHOOKS_Warning = -2,
     USRHOOKS_Error   = -1,
     USRHOOKS_Ok      =  0
 };
+
+#endif /* __USRHOOKS_H */
 
 int  USRHOOKS_GetMem(void **ptr, unsigned long size);
 int  USRHOOKS_FreeMem(void *ptr);
