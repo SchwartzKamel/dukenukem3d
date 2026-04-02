@@ -8,5 +8,13 @@
 .smith/config.yml
 .env
 
+# Build artifacts
 build/
 duke3d
+duke3d.exe
+*.o
+*.obj
+*.exe
+
+# Generated assets (can be rebuilt)
+generated_assets/
