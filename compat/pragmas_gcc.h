@@ -292,9 +292,17 @@ static inline void copybufreverse(void *src, void *dst, long n)
 static inline void clearbuf(void *dst, long n, long val)
 {
     int32_t *d = (int32_t *)dst;
-    long i;
-    for (i = 0; i < n; i++)
-        d[i] = (int32_t)val;
+    /* If all 4 bytes are identical, use memset (GCC vectorizes this) */
+    unsigned long uv = (unsigned long)val;
+    if ((uv & 0xFF) == ((uv >> 8) & 0xFF) &&
+        (uv & 0xFF) == ((uv >> 16) & 0xFF) &&
+        (uv & 0xFF) == ((uv >> 24) & 0xFF)) {
+        memset(d, (int)(uv & 0xFF), (size_t)n * 4);
+    } else {
+        long i;
+        for (i = 0; i < n; i++)
+            d[i] = (int32_t)val;
+    }
 }
 
 static inline void clearbufbyte(void *dst, long n, long val)

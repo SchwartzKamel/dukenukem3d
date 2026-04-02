@@ -322,18 +322,20 @@ long setuphlineasm4(long p1, long p2) {
 	return 0;
 }
 
+__attribute__((hot))
 long hlineasm4(long cnt, long p2, long shade, long xv, long yv, long dest) {
-	char *d = (char *)(intptr_t)dest;
-	char *src = (char *)(intptr_t)asm3;
-	char *pal = (char *)(intptr_t)shade;
-	long xinc = asm1, yinc = asm2;
+	unsigned char * __restrict__ d = (unsigned char *)(intptr_t)dest;
+	const unsigned char * __restrict__ src = (const unsigned char *)(intptr_t)asm3;
+	const unsigned char * __restrict__ pal = (const unsigned char *)(intptr_t)shade;
+	const long xinc = asm1, yinc = asm2;
+	const long llogx = rasm_logx, llogy = rasm_logy;
 	long i;
 	(void)p2;
 	if (!src || !d) return 0;
 	for (i = cnt; i >= 0; i--) {
-		long idx = ((((unsigned long)yv) >> (32 - rasm_logx)) << rasm_logy) +
-		           (((unsigned long)xv) >> (32 - rasm_logy));
-		*d = pal ? pal[(unsigned char)src[idx]] : src[idx];
+		long idx = ((((unsigned long)yv) >> (32 - llogx)) << llogy) +
+		           (((unsigned long)xv) >> (32 - llogy));
+		*d = pal ? pal[src[idx]] : src[idx];
 		d--;
 		xv -= xinc;
 		yv -= yinc;
@@ -367,27 +369,33 @@ long fixtransluscence(long transptr) {
 	return 0;
 }
 
+__attribute__((hot))
 long prevlineasm1(long vinc, long paloffs, long cnt, long vplc, long bufplc, long dest) {
-	char *d = (char *)(intptr_t)dest;
-	char *buf = (char *)(intptr_t)bufplc;
-	char *pal = (char *)(intptr_t)paloffs;
+	unsigned char * __restrict__ d = (unsigned char *)(intptr_t)dest;
+	const unsigned char * __restrict__ buf = (const unsigned char *)(intptr_t)bufplc;
+	const unsigned char * __restrict__ pal = (const unsigned char *)(intptr_t)paloffs;
+	const long lbpl = rasm_bpl;
+	const long lshift = rasm_shift;
 	long i;
 	for (i = cnt; i >= 0; i--) {
-		*d = pal[(unsigned char)buf[vplc >> rasm_shift]];
-		d += rasm_bpl;
+		*d = pal[buf[(unsigned long)vplc >> lshift]];
+		d += lbpl;
 		vplc -= vinc;
 	}
 	return vplc;
 }
 
+__attribute__((hot))
 long vlineasm1(long vinc, long paloffs, long cnt, long vplc, long bufplc, long dest) {
-	char *d = (char *)(intptr_t)dest;
-	char *buf = (char *)(intptr_t)bufplc;
-	char *pal = (char *)(intptr_t)paloffs;
+	unsigned char * __restrict__ d = (unsigned char *)(intptr_t)dest;
+	const unsigned char * __restrict__ buf = (const unsigned char *)(intptr_t)bufplc;
+	const unsigned char * __restrict__ pal = (const unsigned char *)(intptr_t)paloffs;
+	const long lbpl = rasm_bpl;
+	const long lshift = rasm_shift;
 	long i;
 	for (i = cnt; i >= 0; i--) {
-		*d = pal[(unsigned char)buf[vplc >> rasm_shift]];
-		d += rasm_bpl;
+		*d = pal[buf[(unsigned long)vplc >> lshift]];
+		d += lbpl;
 		vplc += vinc;
 	}
 	return vplc;
@@ -395,17 +403,21 @@ long vlineasm1(long vinc, long paloffs, long cnt, long vplc, long bufplc, long d
 
 long setuptvlineasm(long shift) { rasm_shift = shift; return 0; }
 
+__attribute__((hot))
 long tvlineasm1(long vinc, long paloffs, long cnt, long vplc, long bufplc, long dest) {
-	char *d = (char *)(intptr_t)dest;
-	char *buf = (char *)(intptr_t)bufplc;
-	char *pal = (char *)(intptr_t)paloffs;
+	unsigned char * __restrict__ d = (unsigned char *)(intptr_t)dest;
+	const unsigned char * __restrict__ buf = (const unsigned char *)(intptr_t)bufplc;
+	const unsigned char * __restrict__ pal = (const unsigned char *)(intptr_t)paloffs;
+	const unsigned char * __restrict__ ltrans = (const unsigned char *)rasm_trans;
+	const long lbpl = rasm_bpl;
+	const long lshift = rasm_shift;
 	long i;
-	if (!rasm_trans) return vlineasm1(vinc,paloffs,cnt,vplc,bufplc,dest);
+	if (!ltrans) return vlineasm1(vinc,paloffs,cnt,vplc,bufplc,dest);
 	for (i = cnt; i >= 0; i--) {
-		char ch = buf[vplc >> rasm_shift];
-		if (ch != 255)
-			*d = rasm_trans[((unsigned char)(*d)) + (((unsigned char)pal[(unsigned char)ch]) << 8)];
-		d += rasm_bpl;
+		unsigned char ch = buf[(unsigned long)vplc >> lshift];
+		if (__builtin_expect(ch != 255, 1))
+			*d = ltrans[(*d) + (pal[ch] << 8)];
+		d += lbpl;
 		vplc += vinc;
 	}
 	return vplc;
@@ -417,16 +429,19 @@ long tvlineasm2(long a, long b, long c, long d, long e, long f) {
 	(void)a;(void)b;(void)c;(void)d;(void)e;(void)f; return 0;
 }
 
+__attribute__((hot))
 long mvlineasm1(long vinc, long paloffs, long cnt, long vplc, long bufplc, long dest) {
-	char *d = (char *)(intptr_t)dest;
-	char *buf = (char *)(intptr_t)bufplc;
-	char *pal = (char *)(intptr_t)paloffs;
+	unsigned char * __restrict__ d = (unsigned char *)(intptr_t)dest;
+	const unsigned char * __restrict__ buf = (const unsigned char *)(intptr_t)bufplc;
+	const unsigned char * __restrict__ pal = (const unsigned char *)(intptr_t)paloffs;
+	const long lbpl = rasm_bpl;
+	const long lshift = rasm_shift;
 	long i;
 	for (i = cnt; i >= 0; i--) {
-		char ch = buf[vplc >> rasm_shift];
-		if (ch != 255)
-			*d = pal[(unsigned char)ch];
-		d += rasm_bpl;
+		unsigned char ch = buf[(unsigned long)vplc >> lshift];
+		if (__builtin_expect(ch != 255, 1))
+			*d = pal[ch];
+		d += lbpl;
 		vplc += vinc;
 	}
 	return vplc;
@@ -434,39 +449,62 @@ long mvlineasm1(long vinc, long paloffs, long cnt, long vplc, long bufplc, long 
 
 long setupvlineasm(long shift) { rasm_shift = shift; return 0; }
 
+__attribute__((hot))
 long vlineasm4(long cnt, long dest) {
-	char *d = (char *)(intptr_t)dest;
-	long i, j;
+	unsigned char *d = (unsigned char *)(intptr_t)dest;
+	const long lbpl = rasm_bpl;
+	const long lshift = rasm_shift;
+	const unsigned char *pal0 = (const unsigned char *)(intptr_t)palookupoffse[0];
+	const unsigned char *pal1 = (const unsigned char *)(intptr_t)palookupoffse[1];
+	const unsigned char *pal2 = (const unsigned char *)(intptr_t)palookupoffse[2];
+	const unsigned char *pal3 = (const unsigned char *)(intptr_t)palookupoffse[3];
+	const unsigned char *buf0 = (const unsigned char *)(intptr_t)bufplce[0];
+	const unsigned char *buf1 = (const unsigned char *)(intptr_t)bufplce[1];
+	const unsigned char *buf2 = (const unsigned char *)(intptr_t)bufplce[2];
+	const unsigned char *buf3 = (const unsigned char *)(intptr_t)bufplce[3];
+	long v0 = vplce[0], v1 = vplce[1], v2 = vplce[2], v3 = vplce[3];
+	const long vi0 = vince[0], vi1 = vince[1], vi2 = vince[2], vi3 = vince[3];
+	long i;
 	for (i = cnt - 1; i >= 0; i--) {
-		for (j = 3; j >= 0; j--) {
-			char *pal = (char *)(intptr_t)palookupoffse[j];
-			char *buf = (char *)(intptr_t)bufplce[j];
-			if (pal && buf)
-				d[j] = pal[(unsigned char)buf[vplce[j] >> rasm_shift]];
-			vplce[j] += vince[j];
-		}
-		d += rasm_bpl;
+		if (pal3 && buf3) d[3] = pal3[buf3[(unsigned long)v3 >> lshift]];
+		if (pal2 && buf2) d[2] = pal2[buf2[(unsigned long)v2 >> lshift]];
+		if (pal1 && buf1) d[1] = pal1[buf1[(unsigned long)v1 >> lshift]];
+		if (pal0 && buf0) d[0] = pal0[buf0[(unsigned long)v0 >> lshift]];
+		v0 += vi0; v1 += vi1; v2 += vi2; v3 += vi3;
+		d += lbpl;
 	}
+	vplce[0] = v0; vplce[1] = v1; vplce[2] = v2; vplce[3] = v3;
 	return 0;
 }
 
 long setupmvlineasm(long shift) { rasm_shift = shift; return 0; }
 
+__attribute__((hot))
 long mvlineasm4(long cnt, long dest) {
-	char *d = (char *)(intptr_t)dest;
-	long i, j;
+	unsigned char *d = (unsigned char *)(intptr_t)dest;
+	const long lbpl = rasm_bpl;
+	const long lshift = rasm_shift;
+	const unsigned char *pal0 = (const unsigned char *)(intptr_t)palookupoffse[0];
+	const unsigned char *pal1 = (const unsigned char *)(intptr_t)palookupoffse[1];
+	const unsigned char *pal2 = (const unsigned char *)(intptr_t)palookupoffse[2];
+	const unsigned char *pal3 = (const unsigned char *)(intptr_t)palookupoffse[3];
+	const unsigned char *buf0 = (const unsigned char *)(intptr_t)bufplce[0];
+	const unsigned char *buf1 = (const unsigned char *)(intptr_t)bufplce[1];
+	const unsigned char *buf2 = (const unsigned char *)(intptr_t)bufplce[2];
+	const unsigned char *buf3 = (const unsigned char *)(intptr_t)bufplce[3];
+	long v0 = vplce[0], v1 = vplce[1], v2 = vplce[2], v3 = vplce[3];
+	const long vi0 = vince[0], vi1 = vince[1], vi2 = vince[2], vi3 = vince[3];
+	long i;
+	unsigned char ch;
 	for (i = cnt - 1; i >= 0; i--) {
-		for (j = 3; j >= 0; j--) {
-			char *pal = (char *)(intptr_t)palookupoffse[j];
-			char *buf = (char *)(intptr_t)bufplce[j];
-			if (pal && buf) {
-				char ch = buf[vplce[j] >> rasm_shift];
-				if (ch != 255) d[j] = pal[(unsigned char)ch];
-			}
-			vplce[j] += vince[j];
-		}
-		d += rasm_bpl;
+		if (pal3 && buf3) { ch = buf3[(unsigned long)v3 >> lshift]; if (__builtin_expect(ch != 255, 1)) d[3] = pal3[ch]; }
+		if (pal2 && buf2) { ch = buf2[(unsigned long)v2 >> lshift]; if (__builtin_expect(ch != 255, 1)) d[2] = pal2[ch]; }
+		if (pal1 && buf1) { ch = buf1[(unsigned long)v1 >> lshift]; if (__builtin_expect(ch != 255, 1)) d[1] = pal1[ch]; }
+		if (pal0 && buf0) { ch = buf0[(unsigned long)v0 >> lshift]; if (__builtin_expect(ch != 255, 1)) d[0] = pal0[ch]; }
+		v0 += vi0; v1 += vi1; v2 += vi2; v3 += vi3;
+		d += lbpl;
 	}
+	vplce[0] = v0; vplce[1] = v1; vplce[2] = v2; vplce[3] = v3;
 	return 0;
 }
 
@@ -474,73 +512,88 @@ void setupspritevline(long a, long b, long c, long d, long e, long f) {
 	rasm_svinc = a; rasm_svpal = b; rasm_svsiz = c;
 	(void)d; (void)e; (void)f;
 }
+__attribute__((hot))
 void spritevline(long a, long b, long cnt, long d, long bufplc, long dest) {
-	char *dd = (char *)(intptr_t)dest;
-	char *buf = (char *)(intptr_t)bufplc;
-	char *pal = (char *)(intptr_t)rasm_svpal;
+	unsigned char * __restrict__ dd = (unsigned char *)(intptr_t)dest;
+	const unsigned char * __restrict__ buf = (const unsigned char *)(intptr_t)bufplc;
+	const unsigned char * __restrict__ pal = (const unsigned char *)(intptr_t)rasm_svpal;
 	long vplc = d;
+	const long lbpl = rasm_bpl;
+	const long lshift = rasm_shift;
+	const long lvinc = rasm_svinc;
 	long i;
 	(void)a; (void)b;
 	for (i = cnt; i > 0; i--) {
-		if (pal && buf) *dd = pal[(unsigned char)buf[vplc >> rasm_shift]];
-		dd += rasm_bpl;
-		vplc += rasm_svinc;
+		if (pal && buf) *dd = pal[buf[(unsigned long)vplc >> lshift]];
+		dd += lbpl;
+		vplc += lvinc;
 	}
 }
 void msetupspritevline(long a, long b, long c, long d, long e, long f) {
 	setupspritevline(a,b,c,d,e,f);
 }
+__attribute__((hot))
 void mspritevline(long a, long b, long cnt, long d, long bufplc, long dest) {
-	char *dd = (char *)(intptr_t)dest;
-	char *buf = (char *)(intptr_t)bufplc;
-	char *pal = (char *)(intptr_t)rasm_svpal;
+	unsigned char * __restrict__ dd = (unsigned char *)(intptr_t)dest;
+	const unsigned char * __restrict__ buf = (const unsigned char *)(intptr_t)bufplc;
+	const unsigned char * __restrict__ pal = (const unsigned char *)(intptr_t)rasm_svpal;
 	long vplc = d;
+	const long lbpl = rasm_bpl;
+	const long lshift = rasm_shift;
+	const long lvinc = rasm_svinc;
 	long i;
 	(void)a; (void)b;
 	for (i = cnt; i > 0; i--) {
 		if (buf) {
-			char ch = buf[vplc >> rasm_shift];
-			if (ch != 255 && pal) *dd = pal[(unsigned char)ch];
+			unsigned char ch = buf[(unsigned long)vplc >> lshift];
+			if (__builtin_expect(ch != 255, 1) && pal) *dd = pal[ch];
 		}
-		dd += rasm_bpl;
-		vplc += rasm_svinc;
+		dd += lbpl;
+		vplc += lvinc;
 	}
 }
 void tsetupspritevline(long a, long b, long c, long d, long e, long f) {
 	setupspritevline(a,b,c,d,e,f);
 }
+__attribute__((hot))
 void tspritevline(long a, long b, long cnt, long d, long bufplc, long dest) {
-	char *dd = (char *)(intptr_t)dest;
-	char *buf = (char *)(intptr_t)bufplc;
-	char *pal = (char *)(intptr_t)rasm_svpal;
+	unsigned char * __restrict__ dd = (unsigned char *)(intptr_t)dest;
+	const unsigned char * __restrict__ buf = (const unsigned char *)(intptr_t)bufplc;
+	const unsigned char * __restrict__ pal = (const unsigned char *)(intptr_t)rasm_svpal;
+	const unsigned char * __restrict__ ltrans = (const unsigned char *)rasm_trans;
 	long vplc = d;
+	const long lbpl = rasm_bpl;
+	const long lshift = rasm_shift;
+	const long lvinc = rasm_svinc;
 	long i;
 	(void)a; (void)b;
 	for (i = cnt; i > 0; i--) {
-		if (buf && rasm_trans) {
-			char ch = buf[vplc >> rasm_shift];
-			if (ch != 255 && pal)
-				*dd = rasm_trans[((unsigned char)(*dd)) + (((unsigned char)pal[(unsigned char)ch]) << 8)];
+		if (buf && ltrans) {
+			unsigned char ch = buf[(unsigned long)vplc >> lshift];
+			if (__builtin_expect(ch != 255, 1) && pal)
+				*dd = ltrans[(*dd) + (pal[ch] << 8)];
 		}
-		dd += rasm_bpl;
-		vplc += rasm_svinc;
+		dd += lbpl;
+		vplc += lvinc;
 	}
 }
 
+__attribute__((hot))
 long mhline(long bufplc, long bx, long cntup, long junk, long by, long dest) {
-	char *d = (char *)(intptr_t)dest;
-	char *buf = (char *)(intptr_t)bufplc;
-	long xinc = asm1, yinc = asm2;
-	long cnt = cntup >> 16;
+	unsigned char * __restrict__ d = (unsigned char *)(intptr_t)dest;
+	const unsigned char * __restrict__ buf = (const unsigned char *)(intptr_t)bufplc;
+	const unsigned char * __restrict__ pal = (const unsigned char *)(intptr_t)asm3;
+	const long xinc = asm1, yinc = asm2;
+	const long lhs1 = rasm_hshift1, lhs2 = rasm_hshift2;
+	const long cnt = cntup >> 16;
 	long i;
 	(void)junk;
 	for (i = cnt; i >= 0; i--) {
-		long idx = (((unsigned long)bx >> (32 - rasm_hshift1)) << rasm_hshift2) +
-		           ((unsigned long)by >> (32 - rasm_hshift2));
-		char ch = buf[idx];
-		if (ch != 255) {
-			char *pal = (char *)(intptr_t)asm3;
-			if (pal) *d = pal[(unsigned char)ch];
+		long idx = (((unsigned long)bx >> (32 - lhs1)) << lhs2) +
+		           ((unsigned long)by >> (32 - lhs2));
+		unsigned char ch = buf[idx];
+		if (__builtin_expect(ch != 255, 1)) {
+			if (pal) *d = pal[ch];
 		}
 		d++;
 		bx += xinc;
@@ -557,22 +610,25 @@ long msethlineshift(long a, long b) {
 	return 0;
 }
 
+__attribute__((hot))
 long thline(long bufplc, long bx, long cntup, long junk, long by, long dest) {
-	char *d = (char *)(intptr_t)dest;
-	char *buf = (char *)(intptr_t)bufplc;
-	long xinc = asm1, yinc = asm2;
-	long cnt = cntup >> 16;
+	unsigned char * __restrict__ d = (unsigned char *)(intptr_t)dest;
+	const unsigned char * __restrict__ buf = (const unsigned char *)(intptr_t)bufplc;
+	const unsigned char * __restrict__ pal = (const unsigned char *)(intptr_t)asm3;
+	const unsigned char * __restrict__ ltrans = (const unsigned char *)rasm_trans;
+	const long xinc = asm1, yinc = asm2;
+	const long lhs1 = rasm_hshift1, lhs2 = rasm_hshift2;
+	const long cnt = cntup >> 16;
 	long i;
 	(void)junk;
-	if (!rasm_trans) return mhline(bufplc,bx,cntup,junk,by,dest);
+	if (!ltrans) return mhline(bufplc,bx,cntup,junk,by,dest);
 	for (i = cnt; i >= 0; i--) {
-		long idx = (((unsigned long)bx >> (32 - rasm_hshift1)) << rasm_hshift2) +
-		           ((unsigned long)by >> (32 - rasm_hshift2));
-		char ch = buf[idx];
-		if (ch != 255) {
-			char *pal = (char *)(intptr_t)asm3;
+		long idx = (((unsigned long)bx >> (32 - lhs1)) << lhs2) +
+		           ((unsigned long)by >> (32 - lhs2));
+		unsigned char ch = buf[idx];
+		if (__builtin_expect(ch != 255, 1)) {
 			if (pal)
-				*d = rasm_trans[((unsigned char)(*d)) + (((unsigned char)pal[(unsigned char)ch]) << 8)];
+				*d = ltrans[(*d) + (pal[ch] << 8)];
 		}
 		d++;
 		bx += xinc;
@@ -607,18 +663,20 @@ long setupdrawslab(long a, long b) {
 	return 0;
 }
 
+__attribute__((hot))
 long drawslab(long dx, long v, long cnt, long vinc, long bufplc, long dest) {
-	char *d = (char *)(intptr_t)dest;
-	char *buf = (char *)(intptr_t)bufplc;
-	long i, j;
+	unsigned char *d = (unsigned char *)(intptr_t)dest;
+	const unsigned char *buf = (const unsigned char *)(intptr_t)bufplc;
+	const long lslabbpl = rasm_slabbpl;
+	const long lslabcnt = rasm_slabcnt;
+	long i;
 	(void)v;
 	for (i = 0; i < cnt; i++) {
 		if (buf) {
-			for (j = 0; j < dx; j++)
-				d[j] = buf[0];
+			memset(d, buf[0], (size_t)dx);
 		}
-		d += rasm_slabbpl;
-		buf += rasm_slabcnt;
+		d += lslabbpl;
+		buf += lslabcnt;
 	}
 	return 0;
 }
