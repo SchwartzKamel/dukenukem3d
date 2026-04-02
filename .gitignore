@@ -18,3 +18,4 @@ duke3d.exe
 
 # Generated assets (can be rebuilt)
 generated_assets/
+__pycache__/
