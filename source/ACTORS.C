@@ -609,7 +609,8 @@ void hitradius( short i, long  r, long  hp1, long  hp2, long  hp3, long  hp4 )
 
 movesprite(short spritenum, long xchange, long ychange, long zchange, unsigned long cliptype)
 {
-    long daz,h, oldx, oldy;
+    int32_t daz, oldx, oldy;
+    long h;
     short retval, dasectnum, a, cd;
     char bg;
 
@@ -755,7 +756,7 @@ void lotsofpaper(spritetype *s, short n)
      
 void guts(spritetype *s,short gtype, short n, short p)
 {
-    long gutz,floorz;
+    int32_t gutz,floorz;
     short i,a,j;
     char sx,sy;
     signed char pal;
@@ -793,7 +794,7 @@ void guts(spritetype *s,short gtype, short n, short p)
 
 void gutsdir(spritetype *s,short gtype, short n, short p)
 {
-    long gutz,floorz;
+    int32_t gutz,floorz;
     short i,a,j;
     char sx,sy;
 
@@ -863,7 +864,8 @@ void ms(short i)
     //T1,T2 and T3 are used for all the sector moving stuff!!!
 
     short startwall,endwall,x;
-    long tx,ty,j,k;
+    int32_t tx,ty;
+    long j,k;
     spritetype *s;
 
     s = &sprite[i];
@@ -2396,7 +2398,8 @@ void movestandables(void)
 
 void bounce(short i)
 {
-    long k, l, daang, dax, day, daz, xvect, yvect, zvect;
+    int32_t dax, day, daz;
+    long k, l, daang, xvect, yvect, zvect;
     short hitsect;
     spritetype *s = &sprite[i];
 
@@ -2436,7 +2439,8 @@ void bounce(short i)
 void moveweapons(void)
 {
     short i, j, k, nexti, p, q, tempsect;
-    long dax,day,daz, x, l, ll, x1, y1;
+    int32_t dax,day,daz;
+    long x, l, ll, x1, y1;
     unsigned long qq;
     spritetype *s;
 
@@ -5041,15 +5045,18 @@ void moveeffectors(void)   //STATNUM 3
 
                             ps[p].posz += zchange;
 
+                            {
+                            int32_t rotx, roty;
                             rotatepoint( sprite[j].x,sprite[j].y,
                                 ps[p].posx,ps[p].posy,(q*l),
-                                &m,&x);
+                                &rotx,&roty);
 
-                            ps[p].bobposx += m-ps[p].posx;
-                            ps[p].bobposy += x-ps[p].posy;
+                            ps[p].bobposx += rotx-ps[p].posx;
+                            ps[p].bobposy += roty-ps[p].posy;
 
-                            ps[p].posx = m;
-                            ps[p].posy = x;
+                            ps[p].posx = rotx;
+                            ps[p].posy = roty;
+                            }
 
                             if(sprite[ps[p].i].extra <= 0)
                             {
@@ -6467,32 +6474,35 @@ void moveeffectors(void)   //STATNUM 3
                 break;
 
             case 21: // Cascading effect
+            {
+                int32_t *zptr;
 
                 if( t[0] == 0 ) break;
 
                 if( s->ang == 1536 )
-                    l = (long) &sc->ceilingz;
+                    zptr = &sc->ceilingz;
                 else
-                    l = (long) &sc->floorz;
+                    zptr = &sc->floorz;
 
                 if( t[0] == 1 ) //Decide if the s->sectnum should go up or down
                 {
-                    s->zvel = ksgn(s->z-*(long *)l) * (SP<<4);
+                    s->zvel = ksgn(s->z-*zptr) * (SP<<4);
                     t[0]++;
                 }
 
                 if( sc->extra == 0 )
                 {
-                    *(long *)l += s->zvel;
+                    *zptr += s->zvel;
 
-                    if(klabs(*(long *)l-s->z) < 1024)
+                    if(klabs(*zptr-s->z) < 1024)
                     {
-                        *(long *)l = s->z;
+                        *zptr = s->z;
                         KILLIT(i); //All done
                     }
                 }
                 else sc->extra--;
                 break;
+            }
 
             case 22:
 

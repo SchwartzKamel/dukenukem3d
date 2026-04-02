@@ -596,8 +596,8 @@ void operatesectors(short sn,short ii)
 
         case 9:
         {
-            long dax,day,dax2,day2,sp;
-            long wallfind[2];
+            int32_t dax,day,dax2,day2;
+            long sp;            long wallfind[2];
 
             startwall = sptr->wallptr;
             endwall = startwall+sptr->wallnum-1;

@@ -147,7 +147,7 @@ short weaponsandammosprites[15] = {
 long impact_damage;
 
         //GLOBAL.C - replace the end "my's" with this
-long myx, omyx, myxvel, myy, omyy, myyvel, myz, omyz, myzvel;
+int32_t myx, omyx, myxvel, myy, omyy, myyvel, myz, omyz, myzvel;
 short myhoriz, omyhoriz, myhorizoff, omyhorizoff;
 short myang, omyang, mycursectnum, myjumpingcounter,frags[MAXPLAYERS][MAXPLAYERS];
 
@@ -155,7 +155,7 @@ char myjumpingtoggle, myonground, myhardlanding, myreturntocenter;
 signed char multiwho, multipos, multiwhat, multiflag;
 
 long fakemovefifoplc,movefifoplc;
-long myxbak[MOVEFIFOSIZ], myybak[MOVEFIFOSIZ], myzbak[MOVEFIFOSIZ];
+int32_t myxbak[MOVEFIFOSIZ], myybak[MOVEFIFOSIZ], myzbak[MOVEFIFOSIZ];
 long myhorizbak[MOVEFIFOSIZ],dukefriction = 0xcc00, show_shareware;
 
 short myangbak[MOVEFIFOSIZ];

@@ -2275,7 +2275,7 @@ transmaskwallscan(long x1, long x2)
 	faketimerhandler();
 }
 
-loadboard(char *filename, long *daposx, long *daposy, long *daposz,
+loadboard(char *filename, int32_t *daposx, int32_t *daposy, int32_t *daposz,
 			 short *daang, short *dacursectnum)
 {
 	short fil, i, numsprites;
@@ -2319,7 +2319,7 @@ loadboard(char *filename, long *daposx, long *daposy, long *daposz,
 	return(0);
 }
 
-saveboard(char *filename, long *daposx, long *daposy, long *daposz,
+saveboard(char *filename, int32_t *daposx, int32_t *daposy, int32_t *daposz,
 			 short *daang, short *dacursectnum)
 {
 	short fil, i, j, numsprites;
@@ -5395,7 +5395,7 @@ lastwall(short point)
 }                                                        \
 
 long clipmoveboxtracenum = 3;
-clipmove (long *x, long *y, long *z, short *sectnum,
+clipmove (int32_t *x, int32_t *y, int32_t *z, short *sectnum,
 			 long xvect, long yvect,
 			 long walldist, long ceildist, long flordist, unsigned long cliptype)
 {
@@ -5764,7 +5764,7 @@ raytrace (long x3, long y3, long *x4, long *y4)
 	return(hitwall);
 }
 
-pushmove (long *x, long *y, long *z, short *sectnum,
+pushmove (int32_t *x, int32_t *y, int32_t *z, short *sectnum,
 			 long walldist, long ceildist, long flordist, unsigned long cliptype)
 {
 	sectortype *sec, *sec2;
@@ -5932,7 +5932,7 @@ updatesector(long x, long y, short *sectnum)
 	*sectnum = -1;
 }
 
-rotatepoint(long xpivot, long ypivot, long x, long y, short daang, long *x2, long *y2)
+rotatepoint(long xpivot, long ypivot, long x, long y, short daang, int32_t *x2, int32_t *y2)
 {
 	long dacos, dasin;
 

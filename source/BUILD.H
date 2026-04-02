@@ -24,6 +24,8 @@ Prepared for public release: 03/21/2003 - Charlie Wiederhold, 3D Realms
 */
 //-------------------------------------------------------------------------
 
+#include <stdint.h>
+
 #define MAXSECTORS 1024
 #define MAXWALLS 8192
 #define MAXSPRITES 4096
@@ -59,10 +61,11 @@ Prepared for public release: 03/21/2003 - Charlie Wiederhold, 3D Realms
 //   bits 7-15: reserved
 
 	//40 bytes
+#pragma pack(push,1)
 typedef struct
 {
 	short wallptr, wallnum;
-	long ceilingz, floorz;
+	int32_t ceilingz, floorz;
 	short ceilingstat, floorstat;
 	short ceilingpicnum, ceilingheinum;
 	signed char ceilingshade;
@@ -90,7 +93,7 @@ typedef struct
 	//32 bytes
 typedef struct
 {
-	long x, y;
+	int32_t x, y;
 	short point2, nextwall, nextsector, cstat;
 	short picnum, overpicnum;
 	signed char shade;
@@ -116,7 +119,7 @@ typedef struct
 	//44 bytes
 typedef struct
 {
-	long x, y, z;
+	int32_t x, y, z;
 	short cstat, picnum;
 	signed char shade;
 	char pal, clipdist, filler;
@@ -126,6 +129,11 @@ typedef struct
 	short ang, owner, xvel, yvel, zvel;
 	short lotag, hitag, extra;
 } spritetype;
+#pragma pack(pop)
+
+_Static_assert(sizeof(sectortype) == 40, "sectortype must be 40 bytes");
+_Static_assert(sizeof(walltype) == 32, "walltype must be 32 bytes");
+_Static_assert(sizeof(spritetype) == 44, "spritetype must be 44 bytes");
 
 EXTERN sectortype sector[MAXSECTORS];
 EXTERN walltype wall[MAXWALLS];

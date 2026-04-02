@@ -316,8 +316,11 @@ extern long fricxv,fricyv;
 typedef struct player_struct
 {
     long zoom,exitx,exity,loogiex[64],loogiey[64],numloogs,loogcnt;
-    long posx, posy, posz, horiz, ohoriz, ohorizoff, invdisptime;
-    long bobposx,bobposy,oposx,oposy,oposz,pyoff,opyoff;
+    int32_t posx, posy, posz;
+    long horiz, ohoriz, ohorizoff, invdisptime;
+    long bobposx,bobposy;
+    int32_t oposx,oposy,oposz;
+    long pyoff,opyoff;
     long posxv,posyv,poszv,last_pissed_time,truefz,truecz;
     long player_par,visibility;
     long bobcounter,weapon_sway;
@@ -480,12 +483,12 @@ extern char networkmode;
 extern char lumplockbyte[11];
 
     //DUKE3D.H - replace the end "my's" with this
-extern long myx, omyx, myxvel, myy, omyy, myyvel, myz, omyz, myzvel;
+extern int32_t myx, omyx, myxvel, myy, omyy, myyvel, myz, omyz, myzvel;
 extern short myhoriz, omyhoriz, myhorizoff, omyhorizoff, globalskillsound;
 extern short myang, omyang, mycursectnum, myjumpingcounter;
 extern char myjumpingtoggle, myonground, myhardlanding,myreturntocenter;
 extern long fakemovefifoplc;
-extern long myxbak[MOVEFIFOSIZ], myybak[MOVEFIFOSIZ], myzbak[MOVEFIFOSIZ];
+extern int32_t myxbak[MOVEFIFOSIZ], myybak[MOVEFIFOSIZ], myzbak[MOVEFIFOSIZ];
 extern long myhorizbak[MOVEFIFOSIZ];
 extern short myangbak[MOVEFIFOSIZ];
 

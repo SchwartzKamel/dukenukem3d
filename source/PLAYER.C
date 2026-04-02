@@ -3964,14 +3964,15 @@ static long fdmatrix[12][12] =
      128, 128, 128, 128,2560, 128,2560,2560, 128, 128, 128, 128,   //EXPA
 };
 
-static long goalx[MAXPLAYERS], goaly[MAXPLAYERS], goalz[MAXPLAYERS];
+static int32_t goalx[MAXPLAYERS], goaly[MAXPLAYERS], goalz[MAXPLAYERS];
 static long goalsect[MAXPLAYERS], goalwall[MAXPLAYERS], goalsprite[MAXPLAYERS];
 static long goalplayer[MAXPLAYERS], clipmovecount[MAXPLAYERS];
 short searchsect[MAXSECTORS], searchparent[MAXSECTORS];
 char dashow2dsector[(MAXSECTORS+7)>>3];
 void computergetinput(long snum, input *syn)
 {
-    long i, j, k, l, x1, y1, z1, x2, y2, z2, x3, y3, z3, dx, dy;
+    long i, j, k, l, dx, dy;
+    int32_t x1, y1, z1, x2, y2, z2, x3, y3, z3;
     long dist, daang, zang, fightdist, damyang, damysect;
     long startsect, endsect, splc, send, startwall, endwall;
     short dasect, dawall, daspr;
