@@ -2,9 +2,12 @@
 // Ken Silverman's official web site: "http://www.advsys.net/ken"
 // See the included license file "BUILDLIC.TXT" for license info.
 
-#include <dos.h>
+#include "compat.h"
 #include <stdio.h>
-#include "pragmas.h"
+#include "pragmas_gcc.h"
+
+extern void *kmalloc(size_t);
+extern void kfree(void *);
 
 //   This module keeps track of a standard linear cacheing system.
 //   To use this module, here's all you need to do:
@@ -201,10 +204,7 @@ reportandexit(char *errormessage)
 
 
 
-#include <fcntl.h>
-#include <io.h>
-#include <sys\types.h>
-#include <sys\stat.h>
+/* fcntl.h, sys/types.h, sys/stat.h already included via compat.h */
 
 #define MAXGROUPFILES 4     //Warning: Fix groupfil if this is changed
 #define MAXOPENFILES 64     //Warning: Fix filehan if this is changed

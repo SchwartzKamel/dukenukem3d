@@ -2,13 +2,12 @@
 // Ken Silverman's official web site: "http://www.advsys.net/ken"
 // See the included license file "BUILDLIC.TXT" for license info.
 
+#include "compat.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <dos.h>
-#include <process.h>
 #include <stdarg.h>
-#include "pragmas.h"
+#include "pragmas_gcc.h"
 
 #define MAXPLAYERS 16
 #define BAKSIZ 16384
@@ -43,8 +42,10 @@ short myconnectindex, numplayers;
 short connecthead, connectpoint2[MAXPLAYERS];
 char syncstate = 0;
 
-extern int _argc;
-extern char **_argv;
+/* Watcom provided _argc/_argv as globals; define them for GCC */
+int _argc = 1;
+static char *_argv_default[] = {"game", NULL};
+char **_argv = _argv_default;
 
 #define MAXPACKETSIZE 2048
 typedef struct
@@ -64,9 +65,10 @@ static gcomtype *gcom;
 
 static union REGS regs;
 
-#pragma aux longcall =\
-	"call eax",\
-	parm [eax]\
+static void longcall(long addr) {
+	/* DOS-era function call by address; no-op on modern systems */
+	(void)addr;
+}\
 
 callcommit()
 {
@@ -376,7 +378,7 @@ short getpacket (short *other, char *bufptr)
 				{
 								 //GOOD! Take second half of double packet
 #if (PRINTERRORS)
-					printf("\n%ld-%ld .û ",gcom->buffer[0],(gcom->buffer[0]+1)&255);
+					printf("\n%ld-%ld .ï¿½ ",gcom->buffer[0],(gcom->buffer[0]+1)&255);
 #endif
 					messleng = ((long)gcom->buffer[3]) + (((long)gcom->buffer[4])<<8);
 					lastpacketleng = gcom->numbytes-7-messleng;
@@ -396,7 +398,7 @@ short getpacket (short *other, char *bufptr)
 	if ((gcom->buffer[1]&128) == 0)           //Single packet
 	{
 #if (PRINTERRORS)
-		printf("\n%ld û  ",gcom->buffer[0]);
+		printf("\n%ld ï¿½  ",gcom->buffer[0]);
 #endif
 
 		messleng = gcom->numbytes-5;
@@ -409,7 +411,7 @@ short getpacket (short *other, char *bufptr)
 
 														 //Double packet
 #if (PRINTERRORS)
-	printf("\n%ld-%ld ûû ",gcom->buffer[0],(gcom->buffer[0]+1)&255);
+	printf("\n%ld-%ld ï¿½ï¿½ ",gcom->buffer[0],(gcom->buffer[0]+1)&255);
 #endif
 
 	messleng = ((long)gcom->buffer[3]) + (((long)gcom->buffer[4])<<8);

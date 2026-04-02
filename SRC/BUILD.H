@@ -2,6 +2,12 @@
 // Ken Silverman's official web site: "http://www.advsys.net/ken"
 // See the included license file "BUILDLIC.TXT" for license info.
 
+#ifndef BUILD_H_
+#define BUILD_H_
+#pragma once
+
+#include <stdint.h>
+
 #define MAXSECTORS 1024
 #define MAXWALLS 8192
 #define MAXSPRITES 4096
@@ -26,7 +32,7 @@
 	#define EXTERN extern
 #endif
 
-#pragma pack(push,1);
+#pragma pack(push,1)
 
 //ceilingstat/floorstat:
 //   bit 0: 1 = parallaxing, 0 = not                                 "P"
@@ -112,7 +118,7 @@ typedef struct
 	short lotag, hitag, extra;
 } spritetype;
 
-#pragma pack(pop);
+#pragma pack(pop)
 
 EXTERN sectortype sector[MAXSECTORS];
 EXTERN walltype wall[MAXWALLS];
@@ -193,13 +199,13 @@ SPRITE VARIABLES:
 	EXTERN short nextspritesect[MAXSPRITES], nextspritestat[MAXSPRITES];
 
 	Example: if the linked lists look like the following:
-		 ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
-		 ³      Sector lists:               Status lists:               ³
-		 ÃÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´
-		 ³  Sector0:  4, 5, 8             Status0:  2, 0, 8             ³
-		 ³  Sector1:  16, 2, 0, 7         Status1:  4, 5, 16, 7, 3, 9   ³
-		 ³  Sector2:  3, 9                                              ³
-		 ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+		 ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä¿
+		 ï¿½      Sector lists:               Status lists:               ï¿½
+		 ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä´
+		 ï¿½  Sector0:  4, 5, 8             Status0:  2, 0, 8             ï¿½
+		 ï¿½  Sector1:  16, 2, 0, 7         Status1:  4, 5, 16, 7, 3, 9   ï¿½
+		 ï¿½  Sector2:  3, 9                                              ï¿½
+		 ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 	Notice that each number listed above is shown exactly once on both the
 		left and right side.  This is because any sprite that exists must
 		be in some sector, and must have some kind of status that you define.
@@ -276,3 +282,97 @@ OTHER VARIABLES:
 		NUMSECTORS - the total number of existing sectors.  Modified every time
 			you call the loadboard function.
 ***************************************************************************/
+
+/* ======================================================================
+ * BUILD Engine API function declarations
+ * These are implemented in ENGINE.C and CACHE1D.C
+ * ====================================================================== */
+#ifndef ENGINE
+
+/* Engine core */
+int initengine(void);
+void uninitengine(void);
+int setgamemode(char vidopt, long daxdim, long daydim);
+void nextpage(void);
+int loadboard(char *filename, long *daposx, long *daposy, long *daposz, short *daang, short *dacursectnum);
+int saveboard(char *filename, long *daposx, long *daposy, long *daposz, short *daang, short *dacursectnum);
+int loadpics(char *filename, long asession);
+void setview(long x1, long y1, long x2, long y2);
+void setbrightness(char brightness, char *dapal);
+
+/* 3D Rendering */
+void drawrooms(long daposx, long daposy, long daposz, short daang, long dahoriz, short dacursectnum);
+void drawmasks(void);
+int setsprite(short spritenum, long newx, long newy, long newz);
+void dorotatesprite(long sx, long sy, long z, short a, short picnum, signed char dashade, char dapalnum, char dastat, long cx1, long cy1, long cx2, long cy2);
+void rotatesprite(long sx, long sy, long z, short a, short picnum, signed char dashade, char dapalnum, char dastat, long cx1, long cy1, long cx2, long cy2);
+void clearview(long dacol);
+void clearallviews(long dacol);
+void drawline256(long x1, long y1, long x2, long y2, char col);
+void printext256(long xpos, long ypos, short col, short backcol, char *name, char fontsize);
+void printext16(long xpos, long ypos, short col, short backcol, char *name, char fontsize);
+
+/* Sprite management */
+short insertsprite(short sectnum, short statnum);
+short deletesprite(short spritenum);
+short changespritesect(short spritenum, short newsectnum);
+short changespritestat(short spritenum, short newstatnum);
+
+/* Map queries */
+void updatesector(long x, long y, short *sectnum);
+void updatesectorz(long x, long y, long z, short *sectnum);
+int cansee(long x1, long y1, long z1, short sect1, long x2, long y2, long z2, short sect2);
+void hitscan(long xs, long ys, long zs, short sectnum, long vx, long vy, long vz, short *hitsect, short *hitwall, short *hitsprite, long *hitx, long *hity, long *hitz, unsigned long cliptype);
+void neartag(long xs, long ys, long zs, short sectnum, short ange, short *neartagsector, short *neartagwall, short *neartagsprite, long *neartaghitdist, long neartagrange, char tagsearch);
+int clipmove(long *x, long *y, long *z, short *sectnum, long xvect, long yvect, long walldist, long ceildist, long flordist, unsigned long cliptype);
+void pushmove(long *x, long *y, long *z, short *sectnum, long walldist, long ceildist, long flordist, unsigned long cliptype);
+void getzrange(long x, long y, long z, short sectnum, long *ceilz, long *ceilhit, long *florz, long *florhit, long walldist, unsigned long cliptype);
+long getangle(long xvect, long yvect);
+long ksqrt(long num);
+void rotatepoint(long xpivot, long ypivot, long x, long y, short daang, long *x2, long *y2);
+long inside(long x, long y, short sectnum);
+long FindDistance2D(long x, long y);
+long FindDistance3D(long x, long y, long z);
+
+/* Cache/file system */
+void initcache(long dacachestart, long dacachesize);
+void allocache(long *newhandle, long newbytes, char *newlockptr);
+int kopen4load(char *filename, char searchfirst);
+long kread(long handle, void *buffer, long leng);
+long klseek(long handle, long offset, long whession);
+long kfilelength(long handle);
+void kclose(long handle);
+void kdfread(void *buf, long size, long count, long fil);
+void kdfwrite(void *buf, long size, long count, long fil);
+
+/* Palette / lookup */
+void makepalookup(long palnum, char *remapbuf, signed char r, signed char g, signed char b, char daession);
+
+/* Mirrors */
+void preparemirror(long dax, long day, long daz, short daang, long dahoriz, short dawall, short dasector, long *tposx, long *tposy, short *tang);
+void completemirror(void);
+
+/* Animation */
+long animateoffs(short tilenum, short fession);
+
+/* Timing */
+void faketimerhandler(void);
+
+/* RNG */
+long krand(void);
+
+/* Misc */
+long getkensmessagecrc(long param);
+void copytilepiece(long a1, long a2, long a3, long a4, long a5, long a6, long a7, long a8);
+void drawoverheadmap(long cposx, long cposy, long czoom, short cang);
+long setviewcnt;
+void setviewtotile(short tilenume, long xsiz, long ysiz);
+void setviewback(void);
+void squarerotatetile(short tilenume);
+void flushperms(void);
+long initgroupfile(char *filename);
+void uninitgroupfile(void);
+
+#endif /* !ENGINE */
+
+#endif /* BUILD_H_ */

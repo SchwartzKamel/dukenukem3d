@@ -291,10 +291,10 @@ static inline void copybufreverse(void *src, void *dst, long n)
 
 static inline void clearbuf(void *dst, long n, long val)
 {
-    long *d = (long *)dst;
+    int32_t *d = (int32_t *)dst;
     long i;
     for (i = 0; i < n; i++)
-        d[i] = val;
+        d[i] = (int32_t)val;
 }
 
 static inline void clearbufbyte(void *dst, long n, long val)
@@ -305,15 +305,16 @@ static inline void clearbufbyte(void *dst, long n, long val)
         memset(dst, (int)(val & 0xFF), (size_t)n);
     } else {
         /* Fill dwords, then remaining bytes */
-        long *d32 = (long *)dst;
+        int32_t *d32 = (int32_t *)dst;
+        int32_t val32 = (int32_t)val;
         long ndwords = n >> 2;
         long rem = n & 3;
         long i;
         for (i = 0; i < ndwords; i++)
-            d32[i] = val;
+            d32[i] = val32;
         if (rem > 0) {
             char *tail = (char *)&d32[ndwords];
-            char *vp = (char *)&val;
+            char *vp = (char *)&val32;
             for (i = 0; i < rem; i++)
                 tail[i] = vp[i];
         }
@@ -383,11 +384,11 @@ static inline void swapchar2(void *a, void *b, long n)
 
 static inline void swapbuf4(void *a, void *b, long n)
 {
-    long *pa = (long *)a;
-    long *pb = (long *)b;
+    int32_t *pa = (int32_t *)a;
+    int32_t *pb = (int32_t *)b;
     long i;
     for (i = 0; i < n; i++) {
-        long t = pa[i];
+        int32_t t = pa[i];
         pa[i] = pb[i];
         pb[i] = t;
     }
@@ -449,14 +450,14 @@ static inline void fillscreen16(long *buf, long val, long n)
     clearbuf(buf, n, val);
 }
 
-static inline void vlin16(int x, int y1, int y2)
+static inline void vlin16(long addr, int cnt)
 {
-    (void)x; (void)y1; (void)y2;
+    (void)addr; (void)cnt;
 }
 
-static inline void vlin16first(int x, int y1, int y2)
+static inline void vlin16first(long addr, int cnt)
 {
-    (void)x; (void)y1; (void)y2;
+    (void)addr; (void)cnt;
 }
 
 /* ======================================================================
@@ -473,7 +474,7 @@ extern long readtimer(void);
  * Mouse functions (will be implemented by SDL input driver)
  * ====================================================================== */
 
-extern void setupmouse(void);
+extern int setupmouse(void);
 extern void readmousexy(short *x, short *y);
 extern void readmousebstatus(short *bstatus);
 
@@ -482,7 +483,9 @@ extern void readmousebstatus(short *bstatus);
  * ====================================================================== */
 
 static inline void chainblit(void) { }
-static inline void redblueblit(void) { }
+static inline void redblueblit(char *src1, char *src2, long cnt) {
+	(void)src1; (void)src2; (void)cnt;
+}
 static inline void int5(void) { }
 
 #endif /* PRAGMAS_GCC_H_ */
