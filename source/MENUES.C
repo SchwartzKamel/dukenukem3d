@@ -350,8 +350,8 @@ loadplayer(signed char spot)
 
          kdfread(&animatecnt,sizeof(animatecnt),1,fil);
          kdfread(&animatesect[0],2,MAXANIMATES,fil);
-         kdfread(&animateptr[0],4,MAXANIMATES,fil);
-     for(i = animatecnt-1;i>=0;i--) animateptr[i] = (long *)((long)animateptr[i]+(long)(&sector[0]));
+         kdfread(&animateptr[0],sizeof(animateptr[0]),MAXANIMATES,fil);
+     for(i = animatecnt-1;i>=0;i--) animateptr[i] = (int32_t *)((intptr_t)animateptr[i]+(intptr_t)(&sector[0]));
          kdfread(&animategoal[0],4,MAXANIMATES,fil);
          kdfread(&animatevel[0],4,MAXANIMATES,fil);
 
@@ -668,9 +668,9 @@ saveplayer(signed char spot)
      dfwrite(&pskyoff[0],sizeof(pskyoff[0]),MAXPSKYTILES,fil);
          dfwrite(&animatecnt,sizeof(animatecnt),1,fil);
          dfwrite(&animatesect[0],2,MAXANIMATES,fil);
-         for(i = animatecnt-1;i>=0;i--) animateptr[i] = (long *)((long)animateptr[i]-(long)(&sector[0]));
-         dfwrite(&animateptr[0],4,MAXANIMATES,fil);
-         for(i = animatecnt-1;i>=0;i--) animateptr[i] = (long *)((long)animateptr[i]+(long)(&sector[0]));
+         for(i = animatecnt-1;i>=0;i--) animateptr[i] = (int32_t *)((intptr_t)animateptr[i]-(intptr_t)(&sector[0]));
+         dfwrite(&animateptr[0],sizeof(animateptr[0]),MAXANIMATES,fil);
+         for(i = animatecnt-1;i>=0;i--) animateptr[i] = (int32_t *)((intptr_t)animateptr[i]+(intptr_t)(&sector[0]));
          dfwrite(&animategoal[0],4,MAXANIMATES,fil);
          dfwrite(&animatevel[0],4,MAXANIMATES,fil);
 

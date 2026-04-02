@@ -335,13 +335,13 @@ void doanimations(void)
 	}
 }
 
-getanimationgoal(long *animptr)
+getanimationgoal(int32_t *animptr)
 {
 	long i, j;
 
 	j = -1;
     for(i=animatecnt-1;i>=0;i--)
-        if (animptr == (long *)animateptr[i])
+        if (animptr == animateptr[i])
 		{
 			j = i;
 			break;
@@ -349,7 +349,7 @@ getanimationgoal(long *animptr)
 	return(j);
 }
 
-setanimation(short animsect,long *animptr, long thegoal, long thevel)
+setanimation(short animsect,int32_t *animptr, int32_t thegoal, int32_t thevel)
 {
 	long i, j;
 

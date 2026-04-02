@@ -437,8 +437,9 @@ extern char display_mirror,loadfromgrouponly,rtsplaying;
 extern long movefifoend[MAXPLAYERS], groupfile;
 extern long ototalclock;
 
-extern long *animateptr[MAXANIMATES], animategoal[MAXANIMATES];
-extern long animatevel[MAXANIMATES];
+extern int32_t *animateptr[MAXANIMATES];
+extern int32_t animategoal[MAXANIMATES];
+extern int32_t animatevel[MAXANIMATES];
 // extern long oanimateval[MAXANIMATES];
 extern short neartagsector, neartagwall, neartagsprite;
 extern long neartaghitdist;
@@ -523,9 +524,9 @@ extern char stereo,eightytwofifty,playerswhenstarted,everyothertime;
 extern long myminlag[MAXPLAYERS], mymaxlag, otherminlag, bufferjitter;
 
 extern long numinterpolations, startofdynamicinterpolations;
-extern long oldipos[MAXINTERPOLATIONS];
-extern long bakipos[MAXINTERPOLATIONS];
-extern long *curipos[MAXINTERPOLATIONS];
+extern int32_t oldipos[MAXINTERPOLATIONS];
+extern int32_t bakipos[MAXINTERPOLATIONS];
+extern int32_t *curipos[MAXINTERPOLATIONS];
 
 extern short numclouds,clouds[128],cloudx[128],cloudy[128];
 extern long cloudtotalclock,totalmemory;

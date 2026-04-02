@@ -39,7 +39,7 @@ void updateinterpolations()  //Stick at beginning of domovethings
 }
 
 
-void setinterpolation(long *posptr)
+void setinterpolation(int32_t *posptr)
 {
 	long i;
 
@@ -51,7 +51,7 @@ void setinterpolation(long *posptr)
 	numinterpolations++;
 }
 
-void stopinterpolation(long *posptr)
+void stopinterpolation(int32_t *posptr)
 {
 	long i;
 
