@@ -1,7 +1,7 @@
 /*
  * compat.h - Master compatibility header for Duke Nukem 3D
  *
- * Replaces all DOS/Watcom-specific includes for GCC/Linux + SDL2 builds.
+ * Replaces all DOS/Watcom-specific includes for GCC/Linux + MinGW/Windows SDL2 builds.
  * Include this instead of dos.h, conio.h, io.h, i86.h, bios.h, etc.
  */
 
@@ -13,22 +13,32 @@
  * Standard headers that replace DOS equivalents
  * ====================================================================== */
 
+/* POSIX feature test macros - must precede all system includes */
+#ifndef _WIN32
 #define _GNU_SOURCE      /* FNM_CASEFOLD, etc. on glibc */
 #define _DEFAULT_SOURCE  /* usleep, etc. on glibc >= 2.19 */
 #define _BSD_SOURCE      /* usleep on older glibc */
+#endif
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
-#include <strings.h>    /* strcasecmp */
-#include <unistd.h>     /* read, write, close, lseek, usleep */
-#include <fcntl.h>      /* open, O_RDONLY, etc. */
-#include <sys/types.h>  /* replaces sys\types.h */
-#include <sys/stat.h>   /* replaces sys\stat.h */
 #include <errno.h>
 #include <ctype.h>
 #include <signal.h>
+#include <fcntl.h>      /* open, O_RDONLY, etc. */
+#include <sys/types.h>  /* replaces sys\types.h */
+#include <sys/stat.h>   /* replaces sys\stat.h */
+
+#ifdef _WIN32
+  #include <windows.h>
+  #include <direct.h>   /* _mkdir, _getcwd */
+  #include <io.h>       /* filelength, tell, _findfirst, etc. */
+#else
+  #include <strings.h>  /* strcasecmp */
+  #include <unistd.h>   /* read, write, close, lseek, usleep */
+#endif
 
 /* ======================================================================
  * Watcom compiler keyword stubs
@@ -78,7 +88,8 @@
  * POSIX file I/O helpers that DOS had but POSIX lacks/names differently
  * ====================================================================== */
 
-/* filelength(fd) - return the size of an open file descriptor */
+/* filelength(fd) and tell(fd) - available natively on Windows via <io.h> */
+#ifndef _WIN32
 static inline long filelength(int fd)
 {
     struct stat st;
@@ -86,11 +97,11 @@ static inline long filelength(int fd)
     return (long)st.st_size;
 }
 
-/* tell(fd) - return current file position */
 static inline long tell(int fd)
 {
     return (long)lseek(fd, 0, SEEK_CUR);
 }
+#endif /* !_WIN32 */
 
 /* Watcom's sopen() - just map to open(), ignoring share flags */
 #define sopen(path, oflag, shflag, ...)  open((path), (oflag), ##__VA_ARGS__)
@@ -99,17 +110,18 @@ static inline long tell(int fd)
  * String function mappings
  * ====================================================================== */
 
-#ifndef stricmp
-#define stricmp  strcasecmp
-#endif
-
-#ifndef strcmpi
-#define strcmpi  strcasecmp
-#endif
-
-#ifndef strnicmp
-#define strnicmp strncasecmp
-#endif
+/* stricmp, strcmpi, strnicmp - native on Windows, map to POSIX on Linux */
+#ifndef _WIN32
+  #ifndef stricmp
+  #define stricmp  strcasecmp
+  #endif
+  #ifndef strcmpi
+  #define strcmpi  strcasecmp
+  #endif
+  #ifndef strnicmp
+  #define strnicmp strncasecmp
+  #endif
+#endif /* !_WIN32 */
 
 #ifndef strlwr
 static inline char *strlwr(char *s)
@@ -317,21 +329,21 @@ static inline unsigned short _bios_keybrd(unsigned cmd)
  * ====================================================================== */
 
 /* delay(ms) - sleep for N milliseconds */
+#ifdef _WIN32
+static inline void delay(unsigned int ms)
+{
+    Sleep(ms);
+}
+#else
 static inline void delay(unsigned int ms)
 {
     usleep((unsigned int)ms * 1000u);
 }
+#endif
 
 /* ======================================================================
  * DOS directory search stubs (find_t, _dos_findfirst, _dos_findnext)
  * ====================================================================== */
-#include <dirent.h>
-#include <fnmatch.h>
-
-/* FNM_CASEFOLD may not be available if _GNU_SOURCE was defined too late */
-#ifndef FNM_CASEFOLD
-#define FNM_CASEFOLD 0
-#endif
 
 /* DOS file attribute bits */
 #ifndef _A_NORMAL
@@ -342,6 +354,57 @@ static inline void delay(unsigned int ms)
 #define _A_VOLID   0x08
 #define _A_SUBDIR  0x10
 #define _A_ARCH    0x20
+#endif
+
+#ifdef _WIN32
+/* Windows: use _findfirst/_findnext from <io.h> */
+
+struct find_t {
+    char           reserved[21];
+    char           attrib;
+    unsigned short wr_time;
+    unsigned short wr_date;
+    unsigned long  size;
+    char           name[256];
+    intptr_t       _handle;
+};
+
+static inline int _dos_findnext(struct find_t *f)
+{
+    struct _finddata_t fd;
+    if (f->_handle == -1) return 1;
+    if (_findnext(f->_handle, &fd) != 0) {
+        _findclose(f->_handle);
+        f->_handle = -1;
+        return 1;
+    }
+    strncpy(f->name, fd.name, sizeof(f->name)-1);
+    f->name[sizeof(f->name)-1] = 0;
+    f->size = fd.size;
+    f->attrib = (fd.attrib & _A_SUBDIR) ? _A_SUBDIR : _A_NORMAL;
+    return 0;
+}
+
+static inline int _dos_findfirst(const char *path, unsigned attr, struct find_t *f)
+{
+    struct _finddata_t fd;
+    (void)attr;
+    f->_handle = _findfirst(path, &fd);
+    if (f->_handle == -1) return 1;
+    strncpy(f->name, fd.name, sizeof(f->name)-1);
+    f->name[sizeof(f->name)-1] = 0;
+    f->size = fd.size;
+    f->attrib = (fd.attrib & _A_SUBDIR) ? _A_SUBDIR : _A_NORMAL;
+    return 0;
+}
+
+#else
+/* POSIX: use dirent + fnmatch */
+#include <dirent.h>
+#include <fnmatch.h>
+
+#ifndef FNM_CASEFOLD
+#define FNM_CASEFOLD 0
 #endif
 
 struct find_t {
@@ -399,6 +462,7 @@ static inline int _dos_findfirst(const char *path, unsigned attr, struct find_t 
     if (!f->_dir) return 1;
     return _dos_findnext(f);
 }
+#endif /* _WIN32 */
 
 /* clock tick / timing */
 #define CLOCKS_PER_SEC_DOS 18.2
@@ -409,12 +473,18 @@ static inline int _dos_findfirst(const char *path, unsigned attr, struct find_t 
  * Path separator handling
  * ====================================================================== */
 
-#ifndef PATH_SEP_CHAR
-#define PATH_SEP_CHAR '/'
-#endif
-
-#ifndef PATH_SEP_STR
-#define PATH_SEP_STR "/"
+#ifdef _WIN32
+  #define PATH_SEP_CHAR '\\'
+  #define PATH_SEP_STR "\\"
+  /* mkdir on Windows: _mkdir takes one argument */
+  #define mkdir(path, mode) _mkdir(path)
+#else
+  #ifndef PATH_SEP_CHAR
+  #define PATH_SEP_CHAR '/'
+  #endif
+  #ifndef PATH_SEP_STR
+  #define PATH_SEP_STR "/"
+  #endif
 #endif
 
 /* ======================================================================
