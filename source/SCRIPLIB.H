@@ -190,7 +190,7 @@ void SCRIPT_GetBoolean
    int32 scripthandle,
    char * sectionname,
    char * entryname,
-   boolean * bool
+   boolean * boolval
    );
 
 /*
@@ -328,7 +328,7 @@ void SCRIPT_PutBoolean
    int32 scripthandle,
    char * sectionname,
    char * entryname,
-   boolean bool
+   boolean boolval
    );
 
 /*

@@ -1,0 +1,12 @@
+
+# Smith workspace (auto-added by smith init)
+.smith/runs/
+.smith/inbox/
+.smith/processed/
+.smith/heartbeat.json
+.smith/config.yaml
+.smith/config.yml
+.env
+
+build/
+duke3d

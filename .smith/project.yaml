@@ -1,0 +1,5 @@
+# Smith project configuration (auto-detected)
+project_type: unknown
+root: /home/lafiamafia/sandbox/dukenukem3d
+check_command: echo 'no check command configured'
+# remote: https://github.com/user/repo.git  # uncomment and set to enable auto-push

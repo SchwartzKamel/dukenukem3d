@@ -8817,255 +8817,23 @@ parascan (long dax1, long dax2, long sectnum, char dastat, long bunch)
 	globalhoriz = globalhorizbak;
 }
 
-interrupt stereohandler1()
+void stereohandler1(void) { }
+void stereohandler2(void) { }
+void stereonextpage(void) { }
+
+
+void setstereo(long dastereomode)
 {
-		//VR flag
-	if (kinp(0x3c2)&128)
-	{
-		laststereoint = 0;
-		koutpw(0x3d4,((long)(overtbits)<<8)+0x11);
-		koutp(0x3d5,overtbits+16);
-	}
-	if (laststereoint == 1)
-	{
-		visualpage ^= 1;
-		setvisualpage(visualpage|0x80000000);  //0x80000000 to ignore qlimitrate
-	}
-	laststereoint++;
-	koutp(0x70,0xc); kinp(0x71);
-	koutp(0xa0,0x20);
-	koutp(0x20,0x20);
+	/* Stereo 3D mode requires DOS VGA hardware - stubbed out */
+	(void)dastereomode;
+	stereomode = 0;
 }
 
-interrupt stereohandler2()
-{
-		//VR flag
-	if (kinp(0x3c2)&128)
-	{
-		laststereoint = 0;
-		koutp(0x378,0xfb+((visualpage&1^1)<<2));
-		koutpw(0x3d4,((long)overtbits<<8)+0x11);
-		koutp(0x3d5,overtbits+16);
-	}
-	if (laststereoint == 1)
-	{
-		visualpage ^= 1;
-		setvisualpage(visualpage|0x80000000);  //0x80000000 to ignore qlimitrate
-	}
-	laststereoint++;
-	koutp(0x70,0xc); kinp(0x71);
-	koutp(0xa0,0x20);
-	koutp(0x20,0x20);
-}
+/* Stereo/DOS handler code removed - not applicable on modern systems */
 
-stereonextpage()
-{
-	koutp(0x70,0xc); kinp(0x71);
-	//koutpw(0x70,0x420b);
-	if ((activepage&1) == 0)
-	{
-		if (stereomode == 1)
-		{
-			clearbuf(ylookup[ydim-1]+frameplace,xdim>>4,whiteband);
-			clearbuf(ylookup[ydim-1]+frameplace+(xdim>>2),(xdim>>2)-(xdim>>4),blackband);
-		}
-		activepage++;
-		setactivepage(activepage);
-		return;
-	}
-	if (stereomode == 1)
-	{
-		clearbuf(ylookup[ydim-1]+frameplace,(xdim>>2)-(xdim>>4),whiteband);
-		clearbuf(ylookup[ydim-1]+frameplace+xdim-(xdim>>2),xdim>>4,blackband);
-	}
-	if (visualpage < (numpages&~1)-2) visualpage += 2; else visualpage &= 1;
-	if (activepage < (numpages&~1)-1) activepage++; else activepage = 0;
-	setactivepage(activepage);
-}
+void *engconvalloc32(unsigned long size) { (void)size; return NULL; }
 
-setstereo(long dastereomode)
-{
-	long i, dist, blackdist, whitedist, t1, t2, numlines;
-	char c1, c2;
-
-	if ((vidoption != 1) || (numpages < 2)) return;
-
-	if (stereomode)  //---------------Uninitialize old stereo mode
-	{
-		if ((xdim == 320) && (ydim == 200))
-		{
-				//back to 70 hz
-			koutp(0x3c2,o3c2);
-		}
-
-			//Uninit VR flag
-		koutpw(0x3d4,(((long)overtbits+32)<<8)+0x11);
-
-			//Uninit RTC
-		_disable();
-		koutp(0xa1,(kinp(0xa1)&~1)|(oa1&1));
-		koutp(0x70,0xa); koutp(0x71,ortca);
-		koutp(0x70,0xb); koutp(0x71,ortcb);
-		uninstallbistereohandlers();
-		_enable();
-
-		stereomode = 0;
-		ostereopixelwidth = -1;
-		setview(windowx1,windowy1,windowx2,windowy2);
-		if (stereomode == 1)
-		{
-			for(i=0;i<numpages;i++)
-			{
-				setactivepage(i);
-				clearbuf(ylookup[ydim-1]+frameplace,xdim>>2,blackband);
-			}
-			setactivepage(activepage);
-		}
-	}
-
-	//------------------------------------- Initialize new stereo mode
-	stereomode = dastereomode; if (!stereomode) return;
-
-	activepage = (visualpage & ~1)+2;
-	if (activepage >= numpages-1) activepage = 0;
-
-	if (stereomode == 1)
-	{
-		blackdist = 0x7fffffff; whitedist = 0x80000000;
-		koutp(0x3c7,0);
-		for(i=0;i<256;i++)
-		{
-			dist = (kinp(0x3c9)&255)+(kinp(0x3c9)&255)+(kinp(0x3c9)&255);
-			if (dist < blackdist) { blackdist = dist; blackband = i; }
-			if (dist > whitedist) { whitedist = dist; whiteband = i; }
-		}
-		blackband += (blackband<<8); blackband += (blackband<<16);
-		whiteband += (whiteband<<8); whiteband += (whiteband<<16);
-	}
-
-	if ((xdim == 320) && (ydim == 200))
-	{
-			//80 hz
-		o3c2 = kinp(0x3cc);
-		koutp(0x3c2,(o3c2&0xf3)+4);
-	}
-
-		//Init RTC
-	_disable();
-	if (stereomode == 1) installbistereohandlers(stereohandler1);
-	if (stereomode == 2) installbistereohandlers(stereohandler2);
-	koutp(0x70,0xa); ortca = kinp(0x71);
-	if (stereomode == 1) koutp(0x71,0x28); //+8 = 256hz
-	if (stereomode == 2) koutp(0x71,0x26); //+6 = 1024hz
-	koutp(0x70,0xb); ortcb = kinp(0x71); koutp(0x71,0x42);
-	koutp(0x70,0xc); kinp(0x71);
-	oa1 = kinp(0xa1); koutp(0xa1,oa1&~1);
-	_enable();
-
-		//Init VR flag
-	koutp(0x3d4,0x11);
-	overtbits = kinp(0x3d5) & ~(16+32);
-	koutp(0x3d5,overtbits);
-	koutp(0x3d5,overtbits+16);
-}
-
-#define RTCBUFSIZ 16
-static unsigned short rtcopmsel, rtcormseg, rtcormoff;
-static unsigned long rtcopmoff;
-//Use bicomc.asm as a template if this asm code needs re-writing
-static char rtcrmbuffer[RTCBUFSIZ] =
-{
-	0x50,          //push ax
-	0xb0,0x0c,     //mov al, 0ch
-	0xe6,0x70,     //out 70h, al
-	0xe4,0x71,     //in al, 71h
-	0xb0,0x20,     //mov al, 20h
-	0xe6,0xa0,     //out 0a0h, al
-	0xe6,0x20,     //out 20h, al
-	0x58,          //pop ax
-	0xcf           //iret
-};
-
-void *engconvalloc32 (unsigned long size)
-{
-	 union REGS r;
-
-	 r.x.eax = 0x0100;           //DPMI allocate DOS memory
-	 r.x.ebx = ((size+15)>>4);   //Number of paragraphs requested
-	 int386(0x31,&r,&r);
-
-	 if (r.x.cflag != 0)         //Failed
-		 return ((unsigned long)0);
-	 return ((void *)((r.x.eax&0xffff)<<4));   //Returns full 32-bit offset
-}
-
-installbistereohandlers(void far *stereohan)
-{
-	char *ptr;
-	union REGS r;
-	struct SREGS sr;
-	void *lowp;
-	int c;
-
-		//Get old protected mode handler
-	r.x.eax = 0x3500+0x70;   /* DOS get vector (INT 0Ch) */
-	sr.ds = sr.es = 0;
-	int386x(0x21,&r,&r,&sr);
-	rtcopmsel = (unsigned short)sr.es;
-	rtcopmoff = r.x.ebx;
-
-		//Get old real mode handler
-	r.x.eax = 0x0200;   /* DPMI get real mode vector */
-	r.h.bl = 0x70;
-	int386(0x31,&r,&r);
-	rtcormseg = (unsigned short)r.x.ecx;
-	rtcormoff = (unsigned short)r.x.edx;
-
-		//Allocate memory in low memory to store real mode handler
-	if ((lowp = engconvalloc32(RTCBUFSIZ)) == 0)
-	{
-		printf("Couldn't allocate conventional memory.\n");
-		exit(1);
-	}
-
-	memcpy(lowp,(void *)rtcrmbuffer,RTCBUFSIZ);
-
-		//Set new protected mode handler
-	r.x.eax = 0x2500+0x70;   /* DOS set vector (INT 0Ch) */
-	r.x.edx = FP_OFF(stereohan);
-	sr.ds = FP_SEG(stereohan);      //DS:EDX == &handler
-	sr.es = 0;
-	int386x(0x21,&r,&r,&sr);
-
-		//Set new real mode handler (must be after setting protected mode)
-	r.x.eax = 0x0201;
-	r.h.bl = 0x70;              //CX:DX == real mode &handler
-	r.x.ecx = ((((long)lowp)>>4)&0xffff);   //D32realseg
-	r.x.edx = (((long)lowp)&0xf);           //D32realoff
-	int386(0x31,&r,&r);
-}
-
-uninstallbistereohandlers()
-{
-	union REGS r;
-	struct SREGS sr;
-
-		//restore old protected mode handler
-	r.x.eax = 0x2500+0x70;   /* DOS set vector (INT 0Ch) */
-	r.x.edx = rtcopmoff;
-	sr.ds = rtcopmsel;    /* DS:EDX == &handler */
-	sr.es = 0;
-	int386x(0x21,&r,&r,&sr);
-
-		//restore old real mode handler
-	r.x.eax = 0x0201;   /* DPMI set real mode vector */
-	r.h.bl = 0x70;
-	r.x.ecx = (unsigned long)rtcormseg;     //CX:DX == real mode &handler
-	r.x.edx = (unsigned long)rtcormoff;
-	int386(0x31,&r,&r);
-}
-
-loopnumofsector(short sectnum, short wallnum)
+long loopnumofsector(short sectnum, short wallnum)
 {
 	long i, numloops, startwall, endwall;
 
@@ -9080,7 +8848,7 @@ loopnumofsector(short sectnum, short wallnum)
 	return(-1);
 }
 
-setfirstwall(short sectnum, short newfirstwall)
+void setfirstwall(short sectnum, short newfirstwall)
 {
 	long i, j, k, numwallsofloop;
 	long startwall, endwall, danumwalls, dagoalloop;

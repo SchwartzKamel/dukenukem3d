@@ -336,21 +336,8 @@ void MUSIC_RerouteMidiChannel(int channel, int (*function)(int, int, int))
 void MUSIC_RegisterTimbreBank(unsigned char *timbres) { (void)timbres; }
 
 /* ═══════════════════════════════════════════════════════════════════
-   USRHOOKS – memory allocation hooks
+   USRHOOKS – provided by SOUNDS.C, not needed here
    ═══════════════════════════════════════════════════════════════════ */
-
-int USRHOOKS_GetMem(void **ptr, unsigned long size)
-{
-    if (!ptr) return USRHOOKS_Error;
-    *ptr = malloc(size);
-    return (*ptr) ? USRHOOKS_Ok : USRHOOKS_Error;
-}
-
-int USRHOOKS_FreeMem(void *ptr)
-{
-    if (ptr) free(ptr);
-    return USRHOOKS_Ok;
-}
 
 /* ═══════════════════════════════════════════════════════════════════
    TS (Task Manager) – working timer using SDL_GetTicks
