@@ -1,0 +1,112 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-release:
+    strategy:
+      matrix:
+        include:
+          - name: linux-x64
+            os: ubuntu-latest
+            target: linux
+          - name: windows-x64
+            os: ubuntu-latest
+            target: windows
+
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc libsdl2-dev gcc-mingw-w64-x86-64 python3 python3-pip
+          pip3 install Pillow requests
+      
+      - name: Install SDL2 MinGW (Windows only)
+        if: matrix.target == 'windows'
+        run: |
+          SDL2_VERSION=2.30.9
+          wget -q https://github.com/libsdl-org/SDL/releases/download/release-${SDL2_VERSION}/SDL2-devel-${SDL2_VERSION}-mingw.tar.gz
+          tar xzf SDL2-devel-${SDL2_VERSION}-mingw.tar.gz
+          echo "SDL2_WIN_CFLAGS=-I$(pwd)/SDL2-${SDL2_VERSION}/x86_64-w64-mingw32/include/SDL2" >> $GITHUB_ENV
+          echo "SDL2_WIN_LIBS=-L$(pwd)/SDL2-${SDL2_VERSION}/x86_64-w64-mingw32/lib -lmingw32 -lSDL2main -lSDL2 -lm -mwindows" >> $GITHUB_ENV
+      
+      - name: Build
+        run: |
+          if [ "${{ matrix.target }}" = "windows" ]; then
+            make windows
+          else
+            make
+          fi
+      
+      - name: Generate assets
+        if: matrix.target == 'linux'
+        run: |
+          python3 tools/generate_assets.py --no-ai
+      
+      - name: Package Linux release
+        if: matrix.target == 'linux'
+        run: |
+          mkdir -p duke3d-${{ github.ref_name }}-linux-x64
+          cp duke3d DUKE3D.GRP README.md duke3d-${{ github.ref_name }}-linux-x64/
+          tar czf duke3d-${{ github.ref_name }}-linux-x64.tar.gz duke3d-${{ github.ref_name }}-linux-x64/
+      
+      - name: Package Windows release
+        if: matrix.target == 'windows'
+        run: |
+          python3 tools/generate_assets.py --no-ai
+          mkdir -p duke3d-${{ github.ref_name }}-windows-x64
+          cp duke3d.exe DUKE3D.GRP README.md duke3d-${{ github.ref_name }}-windows-x64/
+          SDL2_VERSION=2.30.9
+          cp SDL2-${SDL2_VERSION}/x86_64-w64-mingw32/bin/SDL2.dll duke3d-${{ github.ref_name }}-windows-x64/
+          zip -r duke3d-${{ github.ref_name }}-windows-x64.zip duke3d-${{ github.ref_name }}-windows-x64/
+      
+      - name: Upload release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: duke3d-${{ matrix.name }}
+          path: |
+            *.tar.gz
+            *.zip
+          retention-days: 90
+
+  publish-release:
+    needs: build-release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+      
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/**/*.tar.gz
+            artifacts/**/*.zip
+          body: |
+            ## Duke3D: Neon Noir ${{ github.ref_name }}
+            
+            ### Downloads
+            - **Linux x64**: `duke3d-${{ github.ref_name }}-linux-x64.tar.gz`
+            - **Windows x64**: `duke3d-${{ github.ref_name }}-windows-x64.zip`
+            
+            ### Quick Start
+            Extract and run `duke3d` (Linux) or `duke3d.exe` (Windows).
+            DUKE3D.GRP (game assets) is included.
+            
+            ### What's New
+            See commit history for changes since last release.
+          draft: false
+          prerelease: false

@@ -1,0 +1,123 @@
+name: Build & Test
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc libsdl2-dev python3 python3-pip
+          pip3 install Pillow requests
+      
+      - name: Build Linux binary
+        run: make
+      
+      - name: Verify binary exists
+        run: |
+          test -f duke3d
+          file duke3d | grep -q "ELF 64-bit"
+          echo "✅ Linux binary built successfully"
+      
+      - name: Run tests
+        run: python3 -m pytest tests/ -v --tb=short
+      
+      - name: Generate assets
+        run: python3 tools/generate_assets.py --no-ai
+      
+      - name: Verify GRP file
+        run: |
+          test -f DUKE3D.GRP
+          test $(stat -c%s DUKE3D.GRP) -gt 100000
+          echo "✅ DUKE3D.GRP generated ($(stat -c%s DUKE3D.GRP) bytes)"
+      
+      - name: Upload Linux binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: duke3d-linux-x64
+          path: |
+            duke3d
+            DUKE3D.GRP
+          retention-days: 30
+
+  build-windows:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-mingw-w64-x86-64 python3 python3-pip
+          pip3 install Pillow requests
+      
+      - name: Install SDL2 for MinGW
+        run: |
+          # Download SDL2 development libraries for MinGW
+          SDL2_VERSION=2.30.9
+          wget -q https://github.com/libsdl-org/SDL/releases/download/release-${SDL2_VERSION}/SDL2-devel-${SDL2_VERSION}-mingw.tar.gz
+          tar xzf SDL2-devel-${SDL2_VERSION}-mingw.tar.gz
+          echo "SDL2_WIN_CFLAGS=-I$(pwd)/SDL2-${SDL2_VERSION}/x86_64-w64-mingw32/include/SDL2" >> $GITHUB_ENV
+          echo "SDL2_WIN_LIBS=-L$(pwd)/SDL2-${SDL2_VERSION}/x86_64-w64-mingw32/lib -lmingw32 -lSDL2main -lSDL2 -lm -mwindows" >> $GITHUB_ENV
+      
+      - name: Build Windows binary
+        run: make windows
+      
+      - name: Verify Windows binary exists
+        run: |
+          test -f duke3d.exe
+          file duke3d.exe | grep -q "PE32+"
+          echo "✅ Windows binary built successfully"
+      
+      - name: Generate assets
+        run: |
+          sudo apt-get install -y libsdl2-dev
+          python3 tools/generate_assets.py --no-ai
+      
+      - name: Package Windows release
+        run: |
+          mkdir -p release-win64
+          cp duke3d.exe release-win64/
+          cp DUKE3D.GRP release-win64/
+          # Copy SDL2 DLL for Windows
+          SDL2_VERSION=2.30.9
+          cp SDL2-${SDL2_VERSION}/x86_64-w64-mingw32/bin/SDL2.dll release-win64/
+          cp README.md release-win64/
+      
+      - name: Upload Windows package
+        uses: actions/upload-artifact@v4
+        with:
+          name: duke3d-windows-x64
+          path: release-win64/
+          retention-days: 30
+
+  test-assets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Python dependencies
+        run: |
+          pip3 install Pillow requests pytest
+      
+      - name: Run asset pipeline tests
+        run: python3 -m pytest tests/ -v --tb=short -k "asset or palette or art or grp or map or table"
+      
+      - name: Generate assets (procedural)
+        run: python3 tools/generate_assets.py --no-ai
+      
+      - name: Validate generated files
+        run: |
+          echo "Checking generated assets..."
+          for f in TILES000.ART PALETTE.DAT TABLES.DAT E1L1.MAP GAME.CON DEFS.CON USER.CON LOOKUP.DAT; do
+            test -f generated_assets/$f && echo "  ✅ $f ($(stat -c%s generated_assets/$f) bytes)" || echo "  ❌ $f MISSING"
+          done
+          test -f DUKE3D.GRP && echo "  ✅ DUKE3D.GRP ($(stat -c%s DUKE3D.GRP) bytes)"
