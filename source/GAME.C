@@ -7427,13 +7427,19 @@ int main(int argc,char **argv)
             grp_path = find_game_file("DUKE3D.GRP");
         }
         if (grp_path == NULL) {
-            printf("ERROR: DUKE3D.GRP not found!\n");
-            printf("Searched: current directory, executable directory, ./data/, $DUKE3D_DATA\n");
-            printf("Generate assets with: python3 tools/generate_assets.py --no-ai\n");
-            exit(1);
+            error_fatal("Duke Nukem 3D",
+                "DUKE3D.GRP not found!\n\n"
+                "Place DUKE3D.GRP in the same folder as duke3d.exe,\n"
+                "or generate assets with:\n"
+                "  python3 tools/generate_assets.py --no-ai");
         }
         printf("Loading: %s\n", grp_path);
-        initgroupfile((char *)grp_path);
+        if (initgroupfile((char *)grp_path) < 0) {
+            error_fatal("Duke Nukem 3D",
+                "Failed to load DUKE3D.GRP!\n\n"
+                "The file may be corrupted. Regenerate with:\n"
+                "  python3 tools/generate_assets.py --no-ai");
+        }
     }
 
     checkcommandline(argc,argv);

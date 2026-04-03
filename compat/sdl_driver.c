@@ -7,6 +7,7 @@
 
 #include "SDL.h"
 #include "sdl_driver.h"
+#include "compat.h"
 #include <string.h>
 #include <stdio.h>
 
@@ -137,9 +138,14 @@ static int sdl_to_dos_scancode(SDL_Scancode sc)
 
 int sdl_init(int xdim, int ydim)
 {
+    char errbuf[512];
+
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) < 0) {
-        fprintf(stderr, "SDL_Init failed: %s\n", SDL_GetError());
-        return -1;
+        snprintf(errbuf, sizeof(errbuf),
+            "SDL_Init failed: %s\n\n"
+            "Make sure SDL2.dll is in the same folder as duke3d.exe.",
+            SDL_GetError());
+        error_fatal("SDL Error", errbuf);
     }
 
     screen_width  = xdim;
@@ -150,8 +156,9 @@ int sdl_init(int xdim, int ydim)
                               xdim, ydim,
                               SDL_WINDOW_RESIZABLE | SDL_WINDOW_SHOWN);
     if (!window) {
-        fprintf(stderr, "SDL_CreateWindow failed: %s\n", SDL_GetError());
-        return -1;
+        snprintf(errbuf, sizeof(errbuf),
+            "SDL_CreateWindow failed: %s", SDL_GetError());
+        error_fatal("SDL Error", errbuf);
     }
 
     renderer = SDL_CreateRenderer(window, -1,
@@ -161,8 +168,9 @@ int sdl_init(int xdim, int ydim)
         /* Fall back to software renderer */
         renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE);
         if (!renderer) {
-            fprintf(stderr, "SDL_CreateRenderer failed: %s\n", SDL_GetError());
-            return -1;
+            snprintf(errbuf, sizeof(errbuf),
+                "SDL_CreateRenderer failed: %s", SDL_GetError());
+            error_fatal("SDL Error", errbuf);
         }
     }
 
@@ -173,14 +181,16 @@ int sdl_init(int xdim, int ydim)
                                 SDL_TEXTUREACCESS_STREAMING,
                                 xdim, ydim);
     if (!texture) {
-        fprintf(stderr, "SDL_CreateTexture failed: %s\n", SDL_GetError());
-        return -1;
+        snprintf(errbuf, sizeof(errbuf),
+            "SDL_CreateTexture failed: %s", SDL_GetError());
+        error_fatal("SDL Error", errbuf);
     }
 
     screenbuf = (unsigned char *)calloc(1, (size_t)xdim * ydim);
     if (!screenbuf) {
-        fprintf(stderr, "Failed to allocate screen buffer\n");
-        return -1;
+        error_fatal("SDL Error",
+            "Failed to allocate screen buffer.\n\n"
+            "The system may be out of memory.");
     }
     screen_pitch = xdim;
 

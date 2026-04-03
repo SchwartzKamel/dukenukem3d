@@ -630,4 +630,18 @@ static const char *find_game_file(const char *filename)
     return NULL;
 }
 
+/* ======================================================================
+ * Fatal error reporting — shows MessageBox on Windows, stderr on Linux
+ * ====================================================================== */
+
+static inline void error_fatal(const char *title, const char *msg)
+{
+#ifdef _WIN32
+    MessageBoxA(NULL, msg, title, MB_OK | MB_ICONERROR);
+#else
+    fprintf(stderr, "%s: %s\n", title, msg);
+#endif
+    exit(1);
+}
+
 #endif /* COMPAT_H_ */
