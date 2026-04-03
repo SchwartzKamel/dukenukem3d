@@ -18,14 +18,27 @@ CC      = gcc
 CFLAGS  = -std=gnu89 $(OPT_FLAGS) $(WARN_FLAGS) $(LTO_FLAGS) -DSUPERBUILD -DPLATFORM_UNIX
 SDL_CFLAGS = $(shell sdl2-config --cflags 2>/dev/null || echo "-I/home/linuxbrew/.linuxbrew/include/SDL2 -D_REENTRANT")
 SDL_LIBS   = $(shell sdl2-config --libs 2>/dev/null || echo "-L/home/linuxbrew/.linuxbrew/lib -lSDL2")
-LIBS    = $(SDL_LIBS) -lm
+
+# SDL2_mixer auto-detection (optional – provides real audio when available)
+HAVE_SDL2_MIXER := $(shell pkg-config --exists SDL2_mixer 2>/dev/null && echo yes)
+ifeq ($(HAVE_SDL2_MIXER),)
+  ifneq ($(wildcard /home/linuxbrew/.linuxbrew/include/SDL2/SDL_mixer.h),)
+    HAVE_SDL2_MIXER := yes
+  endif
+endif
+ifeq ($(HAVE_SDL2_MIXER),yes)
+  MIXER_CFLAGS = -DHAVE_SDL2_MIXER $(shell pkg-config --cflags SDL2_mixer 2>/dev/null)
+  MIXER_LIBS   = $(shell pkg-config --libs SDL2_mixer 2>/dev/null || echo "-lSDL2_mixer")
+endif
+
+LIBS    = $(SDL_LIBS) $(MIXER_LIBS) -lm
 
 # ===== Windows x64 cross-compilation settings =====
 WIN_CC      = x86_64-w64-mingw32-gcc
 WIN_CFLAGS  = -std=gnu89 $(OPT_FLAGS) $(WARN_FLAGS) $(LTO_FLAGS) -DSUPERBUILD -DPLATFORM_WIN32
 WIN_SDL_CFLAGS = $(if $(SDL2_WIN_CFLAGS),$(SDL2_WIN_CFLAGS),-I/usr/x86_64-w64-mingw32/include/SDL2 -D_REENTRANT)
 WIN_SDL_LIBS   = $(if $(SDL2_WIN_LIBS),$(SDL2_WIN_LIBS),-L/usr/x86_64-w64-mingw32/lib -lmingw32 -lSDL2main -lSDL2)
-WIN_LIBS    = $(WIN_SDL_LIBS) -lm -mwindows
+WIN_LIBS    = $(WIN_SDL_LIBS) -lm -lws2_32 -mwindows
 WIN_TARGET  = duke3d.exe
 WIN_BUILD_DIR = build_win
 
@@ -90,7 +103,7 @@ $(BUILD_DIR)/game_%.o: source/%.C | $(BUILD_DIR)
 
 # Compat objects - compile with C11 (these are modern code)
 $(BUILD_DIR)/compat_%.o: compat/%.c | $(BUILD_DIR)
-	$(CC) -std=gnu11 $(OPT_FLAGS) -Wall $(LTO_FLAGS) $(SDL_CFLAGS) $(INCLUDES) -c $< -o $@
+	$(CC) -std=gnu11 $(OPT_FLAGS) -Wall $(LTO_FLAGS) $(SDL_CFLAGS) $(MIXER_CFLAGS) $(INCLUDES) -c $< -o $@
 
 # ===== Windows x64 cross-compilation targets =====
 

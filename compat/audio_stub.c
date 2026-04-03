@@ -4,7 +4,10 @@
  * Replaces ~40K lines of DOS sound-card drivers and the precompiled MACT
  * control library with minimal stubs that compile on modern systems.
  *
- * FX_* / MUSIC_* functions are silent no-ops returning success.
+ * When HAVE_SDL2_MIXER is defined (auto-detected by the Makefile), FX_*
+ * and MUSIC_* functions play real audio through SDL2_mixer.  Otherwise
+ * the original silent no-op stubs are used.
+ *
  * TS_* (timer) provides a working SDL_GetTicks()-based task scheduler.
  * KB_* provides a keyboard queue wired into the SDL event layer.
  * CONTROL_* provides input mapping with SDL keyboard/mouse integration.
@@ -20,8 +23,14 @@
 
 #include "SDL.h"
 
+#ifdef HAVE_SDL2_MIXER
+#include <SDL_mixer.h>
+#endif
+
 /* ═══════════════════════════════════════════════════════════════════
-   FX (Sound Effects) – silent stubs
+   FX (Sound Effects)
+   When HAVE_SDL2_MIXER is defined, sound effects play through
+   SDL2_mixer.  Otherwise the original silent stubs are used.
    ═══════════════════════════════════════════════════════════════════ */
 
 int FX_ErrorCode = FX_Ok;
@@ -31,6 +40,163 @@ static int  fx_reverb      = 0;
 static int  fx_reverb_delay = 0;
 static int  fx_reverse_stereo = 0;
 static void (*fx_callback)(unsigned long) = NULL;
+
+/* ── SDL2_mixer state and helpers ────────────────────────────────── */
+
+#ifdef HAVE_SDL2_MIXER
+
+#define MIXER_MAX_CHANNELS 32
+
+static int            mixer_initialized = 0;
+static Mix_Chunk     *mixer_channel_chunk[MIXER_MAX_CHANNELS];
+static unsigned long  mixer_channel_cbval[MIXER_MAX_CHANNELS];
+
+/* Called by SDL2_mixer when a channel finishes playback. */
+static void mixer_channel_done(int channel)
+{
+    if (channel < 0 || channel >= MIXER_MAX_CHANNELS) return;
+    if (mixer_channel_chunk[channel]) {
+        Mix_FreeChunk(mixer_channel_chunk[channel]);
+        mixer_channel_chunk[channel] = NULL;
+    }
+    if (fx_callback)
+        fx_callback(mixer_channel_cbval[channel]);
+}
+
+/*
+ * Determine the file size from a VOC or WAV header.  The FX_Play*
+ * API only passes a pointer, not a length, so we have to derive it.
+ */
+#define MAX_SOUND_FILE_SIZE (512 * 1024)
+
+static unsigned long voc_file_size(const unsigned char *p)
+{
+    unsigned short data_off;
+    const unsigned char *cur, *limit;
+
+    if (p[0] != 'C' || p[1] != 'r') return 0;
+    data_off = (unsigned short)(p[20] | ((unsigned)p[21] << 8));
+    if (data_off < 26) data_off = 26;
+    cur   = p + data_off;
+    limit = p + MAX_SOUND_FILE_SIZE;
+    while (cur < limit) {
+        unsigned long blen;
+        if (cur[0] == 0) { cur++; break; }       /* type 0 = terminator */
+        if (cur + 4 > limit) { cur = limit; break; }
+        blen = (unsigned long)cur[1]
+             | ((unsigned long)cur[2] << 8)
+             | ((unsigned long)cur[3] << 16);
+        cur += 4 + blen;
+    }
+    return (unsigned long)(cur - p);
+}
+
+static unsigned long wav_file_size(const unsigned char *p)
+{
+    unsigned long sz;
+    if (p[0] != 'R' || p[1] != 'I') return 0;
+    sz = (unsigned long)p[4] | ((unsigned long)p[5] << 8)
+       | ((unsigned long)p[6] << 16) | ((unsigned long)p[7] << 24);
+    return sz + 8;
+}
+
+static unsigned long sound_file_size(const char *ptr)
+{
+    unsigned long sz;
+    if (!ptr) return 0;
+    sz = voc_file_size((const unsigned char *)ptr);
+    if (sz == 0) sz = wav_file_size((const unsigned char *)ptr);
+    if (sz == 0 || sz > MAX_SOUND_FILE_SIZE) sz = MAX_SOUND_FILE_SIZE;
+    return sz;
+}
+
+/* Play a VOC/WAV from memory.  Returns channel (≥ 0) or -1. */
+static int mixer_play(const char *ptr, int loops, int vol,
+                      int left, int right, unsigned long cbval)
+{
+    unsigned long size;
+    SDL_RWops *rw;
+    Mix_Chunk *chunk;
+    int channel;
+
+    if (!mixer_initialized || !ptr) return -1;
+    size = sound_file_size(ptr);
+    rw   = SDL_RWFromConstMem(ptr, (int)size);
+    if (!rw) return -1;
+
+    chunk = Mix_LoadWAV_RW(rw, 1);
+    if (!chunk) return -1;
+
+    Mix_VolumeChunk(chunk,
+        vol > 255 ? MIX_MAX_VOLUME : (vol * MIX_MAX_VOLUME) / 255);
+
+    channel = Mix_PlayChannel(-1, chunk, loops);
+    if (channel < 0) { Mix_FreeChunk(chunk); return -1; }
+
+    if (channel < MIXER_MAX_CHANNELS) {
+        mixer_channel_chunk[channel] = chunk;
+        mixer_channel_cbval[channel] = cbval;
+    }
+
+    if (left != right) {
+        Uint8 l = (Uint8)(left  > 255 ? 255 : (left  < 0 ? 0 : left));
+        Uint8 r = (Uint8)(right > 255 ? 255 : (right < 0 ? 0 : right));
+        Mix_SetPanning(channel, l, r);
+    }
+    return channel;
+}
+
+/* Play a VOC/WAV with 3-D positional audio.  Returns channel or -1. */
+static int mixer_play_3d(const char *ptr, int angle, int distance,
+                         unsigned long cbval)
+{
+    unsigned long size;
+    SDL_RWops *rw;
+    Mix_Chunk *chunk;
+    int channel;
+    Sint16 sdl_angle;
+    Uint8  sdl_dist;
+
+    if (!mixer_initialized || !ptr) return -1;
+    size = sound_file_size(ptr);
+    rw   = SDL_RWFromConstMem(ptr, (int)size);
+    if (!rw) return -1;
+
+    chunk = Mix_LoadWAV_RW(rw, 1);
+    if (!chunk) return -1;
+
+    channel = Mix_PlayChannel(-1, chunk, 0);
+    if (channel < 0) { Mix_FreeChunk(chunk); return -1; }
+
+    if (channel < MIXER_MAX_CHANNELS) {
+        mixer_channel_chunk[channel] = chunk;
+        mixer_channel_cbval[channel] = cbval;
+    }
+
+    /*
+     * angle arrives as (BUILD_angle >> 6), i.e. 0-31 for a full circle.
+     * SDL_mixer uses 0-360 degrees.
+     */
+    sdl_angle = (Sint16)((angle * 360) / 32);
+    if (sdl_angle < 0) sdl_angle += 360;
+    sdl_angle %= 360;
+
+    /*
+     * distance arrives as (BUILD_dist >> 6).  SDL_mixer distance:
+     * 0 = close, 255 = far.  Scale ×4 for audible attenuation.
+     */
+    {
+        int d = distance * 4;
+        sdl_dist = (Uint8)(d > 255 ? 255 : (d < 0 ? 0 : d));
+    }
+
+    Mix_SetPosition(channel, sdl_angle, sdl_dist);
+    return channel;
+}
+
+#endif /* HAVE_SDL2_MIXER */
+
+/* ── FX function implementations ─────────────────────────────────── */
 
 char *FX_ErrorString(int ErrorNumber)
 {
@@ -78,14 +244,47 @@ int FX_SetupSoundBlaster(fx_blaster_config blaster, int *MaxVoices,
 int FX_Init(int SoundCard, int numvoices, int numchannels,
             int samplebits, unsigned mixrate)
 {
-    (void)SoundCard; (void)numvoices; (void)numchannels;
-    (void)samplebits; (void)mixrate;
+    (void)SoundCard; (void)samplebits;
+#ifdef HAVE_SDL2_MIXER
+    if (SDL_InitSubSystem(SDL_INIT_AUDIO) < 0) {
+        FX_ErrorCode = FX_Error;
+        return FX_Error;
+    }
+    if (Mix_OpenAudio(mixrate ? (int)mixrate : 44100,
+                      MIX_DEFAULT_FORMAT,
+                      numchannels > 1 ? 2 : 1,
+                      2048) < 0) {
+        FX_ErrorCode = FX_Error;
+        return FX_Error;
+    }
+    Mix_AllocateChannels(numvoices > 0 ? numvoices : MIXER_MAX_CHANNELS);
+    Mix_ChannelFinished(mixer_channel_done);
+    memset(mixer_channel_chunk, 0, sizeof(mixer_channel_chunk));
+    mixer_initialized = 1;
+#else
+    (void)numvoices; (void)numchannels; (void)mixrate;
+#endif
     fx_volume = 255;
     return FX_Ok;
 }
 
 int FX_Shutdown(void)
 {
+#ifdef HAVE_SDL2_MIXER
+    if (mixer_initialized) {
+        int i;
+        Mix_ChannelFinished(NULL);
+        Mix_HaltChannel(-1);
+        for (i = 0; i < MIXER_MAX_CHANNELS; i++) {
+            if (mixer_channel_chunk[i]) {
+                Mix_FreeChunk(mixer_channel_chunk[i]);
+                mixer_channel_chunk[i] = NULL;
+            }
+        }
+        Mix_CloseAudio();
+        mixer_initialized = 0;
+    }
+#endif
     fx_callback = NULL;
     return FX_Ok;
 }
@@ -96,7 +295,16 @@ int FX_SetCallBack(void (*function)(unsigned long))
     return FX_Ok;
 }
 
-void FX_SetVolume(int volume)   { fx_volume = volume; }
+void FX_SetVolume(int volume)
+{
+    fx_volume = volume;
+#ifdef HAVE_SDL2_MIXER
+    if (mixer_initialized)
+        Mix_Volume(-1, (volume > 255 ? MIX_MAX_VOLUME
+                                     : (volume * MIX_MAX_VOLUME) / 255));
+#endif
+}
+
 int  FX_GetVolume(void)         { return fx_volume; }
 
 void FX_SetReverseStereo(int setting) { fx_reverse_stereo = setting; }
@@ -110,75 +318,123 @@ void FX_SetReverbDelay(int delay)    { fx_reverb_delay = delay; }
 
 int FX_VoiceAvailable(int priority)  { (void)priority; return 1; }
 
-int FX_EndLooping(int handle)    { (void)handle; return FX_Ok; }
-int FX_SetPan(int handle, int vol, int left, int right)
+int FX_EndLooping(int handle)
 {
-    (void)handle; (void)vol; (void)left; (void)right;
+#ifdef HAVE_SDL2_MIXER
+    /* Not directly supported; halt the channel instead. */
+    if (mixer_initialized && handle >= 0)
+        Mix_HaltChannel(handle);
+#else
+    (void)handle;
+#endif
     return FX_Ok;
 }
+
+int FX_SetPan(int handle, int vol, int left, int right)
+{
+#ifdef HAVE_SDL2_MIXER
+    if (mixer_initialized && handle >= 0) {
+        Uint8 l = (Uint8)(left  > 255 ? 255 : (left  < 0 ? 0 : left));
+        Uint8 r = (Uint8)(right > 255 ? 255 : (right < 0 ? 0 : right));
+        Mix_Volume(handle, (vol > 255 ? MIX_MAX_VOLUME
+                                      : (vol * MIX_MAX_VOLUME) / 255));
+        Mix_SetPanning(handle, l, r);
+    }
+#else
+    (void)handle; (void)vol; (void)left; (void)right;
+#endif
+    return FX_Ok;
+}
+
 int FX_SetPitch(int handle, int pitchoffset)
 {
     (void)handle; (void)pitchoffset;
     return FX_Ok;
 }
+
 int FX_SetFrequency(int handle, int frequency)
 {
     (void)handle; (void)frequency;
     return FX_Ok;
 }
 
-/* All play functions return a dummy handle > FX_Ok so the game sees them
-   as valid voices.  Handle 1 is used universally since we play nothing. */
+/* Stub handle returned when SDL2_mixer is unavailable */
+#ifndef HAVE_SDL2_MIXER
 #define STUB_VOICE_HANDLE 1
+#endif
 
 int FX_PlayVOC(char *ptr, int pitchoffset, int vol, int left, int right,
                int priority, unsigned long callbackval)
 {
-    (void)ptr; (void)pitchoffset; (void)vol; (void)left; (void)right;
-    (void)priority; (void)callbackval;
+    (void)pitchoffset; (void)priority;
+#ifdef HAVE_SDL2_MIXER
+    return mixer_play(ptr, 0, vol, left, right, callbackval);
+#else
+    (void)ptr; (void)vol; (void)left; (void)right; (void)callbackval;
     return STUB_VOICE_HANDLE;
+#endif
 }
 
 int FX_PlayLoopedVOC(char *ptr, long loopstart, long loopend,
                      int pitchoffset, int vol, int left, int right,
                      int priority, unsigned long callbackval)
 {
-    (void)ptr; (void)loopstart; (void)loopend; (void)pitchoffset;
-    (void)vol; (void)left; (void)right; (void)priority; (void)callbackval;
+    (void)loopstart; (void)loopend; (void)pitchoffset; (void)priority;
+#ifdef HAVE_SDL2_MIXER
+    return mixer_play(ptr, -1, vol, left, right, callbackval);
+#else
+    (void)ptr; (void)vol; (void)left; (void)right; (void)callbackval;
     return STUB_VOICE_HANDLE;
+#endif
 }
 
 int FX_PlayWAV(char *ptr, int pitchoffset, int vol, int left, int right,
                int priority, unsigned long callbackval)
 {
-    (void)ptr; (void)pitchoffset; (void)vol; (void)left; (void)right;
-    (void)priority; (void)callbackval;
+    (void)pitchoffset; (void)priority;
+#ifdef HAVE_SDL2_MIXER
+    return mixer_play(ptr, 0, vol, left, right, callbackval);
+#else
+    (void)ptr; (void)vol; (void)left; (void)right; (void)callbackval;
     return STUB_VOICE_HANDLE;
+#endif
 }
 
 int FX_PlayLoopedWAV(char *ptr, long loopstart, long loopend,
                      int pitchoffset, int vol, int left, int right,
                      int priority, unsigned long callbackval)
 {
-    (void)ptr; (void)loopstart; (void)loopend; (void)pitchoffset;
-    (void)vol; (void)left; (void)right; (void)priority; (void)callbackval;
+    (void)loopstart; (void)loopend; (void)pitchoffset; (void)priority;
+#ifdef HAVE_SDL2_MIXER
+    return mixer_play(ptr, -1, vol, left, right, callbackval);
+#else
+    (void)ptr; (void)vol; (void)left; (void)right; (void)callbackval;
     return STUB_VOICE_HANDLE;
+#endif
 }
 
 int FX_PlayVOC3D(char *ptr, int pitchoffset, int angle, int distance,
                  int priority, unsigned long callbackval)
 {
-    (void)ptr; (void)pitchoffset; (void)angle; (void)distance;
-    (void)priority; (void)callbackval;
+    (void)pitchoffset; (void)priority;
+#ifdef HAVE_SDL2_MIXER
+    return mixer_play_3d(ptr, angle, distance, callbackval);
+#else
+    (void)ptr; (void)angle; (void)distance; (void)callbackval;
     return STUB_VOICE_HANDLE;
+#endif
 }
 
 int FX_PlayWAV3D(char *ptr, int pitchoffset, int angle, int distance,
                  int priority, unsigned long callbackval)
 {
-    (void)ptr; (void)pitchoffset; (void)angle; (void)distance;
-    (void)priority; (void)callbackval;
+    (void)pitchoffset; (void)priority;
+#ifdef HAVE_SDL2_MIXER
+    return mixer_play_3d(ptr, angle, distance, callbackval);
+#else
+    (void)ptr; (void)angle; (void)distance; (void)callbackval;
     return STUB_VOICE_HANDLE;
+#endif
 }
 
 int FX_PlayRaw(char *ptr, unsigned long length, unsigned rate,
@@ -187,7 +443,11 @@ int FX_PlayRaw(char *ptr, unsigned long length, unsigned rate,
 {
     (void)ptr; (void)length; (void)rate; (void)pitchoffset;
     (void)vol; (void)left; (void)right; (void)priority; (void)callbackval;
+#ifndef HAVE_SDL2_MIXER
     return STUB_VOICE_HANDLE;
+#else
+    return -1;
+#endif
 }
 
 int FX_PlayLoopedRaw(char *ptr, unsigned long length, char *loopstart,
@@ -198,30 +458,69 @@ int FX_PlayLoopedRaw(char *ptr, unsigned long length, char *loopstart,
     (void)ptr; (void)length; (void)loopstart; (void)loopend; (void)rate;
     (void)pitchoffset; (void)vol; (void)left; (void)right;
     (void)priority; (void)callbackval;
+#ifndef HAVE_SDL2_MIXER
     return STUB_VOICE_HANDLE;
+#else
+    return -1;
+#endif
 }
 
 int FX_Pan3D(int handle, int angle, int distance)
 {
+#ifdef HAVE_SDL2_MIXER
+    if (mixer_initialized && handle >= 0) {
+        Sint16 sdl_angle = (Sint16)((angle * 360) / 32);
+        int d = distance * 4;
+        Uint8 sdl_dist = (Uint8)(d > 255 ? 255 : (d < 0 ? 0 : d));
+        if (sdl_angle < 0) sdl_angle += 360;
+        sdl_angle %= 360;
+        Mix_SetPosition(handle, sdl_angle, sdl_dist);
+    }
+#else
     (void)handle; (void)angle; (void)distance;
+#endif
     return FX_Ok;
 }
 
 int FX_SoundActive(int handle)
 {
+#ifdef HAVE_SDL2_MIXER
+    if (mixer_initialized && handle >= 0)
+        return Mix_Playing(handle);
+#else
     (void)handle;
-    return 0; /* nothing playing */
+#endif
+    return 0;
 }
 
-int FX_SoundsPlaying(void) { return 0; }
+int FX_SoundsPlaying(void)
+{
+#ifdef HAVE_SDL2_MIXER
+    if (mixer_initialized)
+        return Mix_Playing(-1);
+#endif
+    return 0;
+}
 
 int FX_StopSound(int handle)
 {
+#ifdef HAVE_SDL2_MIXER
+    if (mixer_initialized && handle >= 0)
+        Mix_HaltChannel(handle);
+#else
     (void)handle;
+#endif
     return FX_Ok;
 }
 
-int FX_StopAllSounds(void) { return FX_Ok; }
+int FX_StopAllSounds(void)
+{
+#ifdef HAVE_SDL2_MIXER
+    if (mixer_initialized)
+        Mix_HaltChannel(-1);
+#endif
+    return FX_Ok;
+}
 
 int FX_StartDemandFeedPlayback(void (*function)(char **ptr, unsigned long *length),
                                int rate, int pitchoffset, int vol, int left,
@@ -229,7 +528,11 @@ int FX_StartDemandFeedPlayback(void (*function)(char **ptr, unsigned long *lengt
 {
     (void)function; (void)rate; (void)pitchoffset; (void)vol;
     (void)left; (void)right; (void)priority; (void)callbackval;
+#ifndef HAVE_SDL2_MIXER
     return STUB_VOICE_HANDLE;
+#else
+    return -1;
+#endif
 }
 
 int FX_StartRecording(int MixRate, void (*function)(char *ptr, int length))
@@ -241,7 +544,9 @@ int FX_StartRecording(int MixRate, void (*function)(char *ptr, int length))
 void FX_StopRecord(void) { }
 
 /* ═══════════════════════════════════════════════════════════════════
-   MUSIC (MIDI) – silent stubs
+   MUSIC (MIDI)
+   When HAVE_SDL2_MIXER is defined, MIDI playback goes through
+   SDL2_mixer.  Otherwise the original silent stubs are used.
    ═══════════════════════════════════════════════════════════════════ */
 
 int MUSIC_ErrorCode = MUSIC_Ok;
@@ -250,6 +555,50 @@ static int music_volume   = 255;
 static int music_loop     = 0;
 static int music_playing  = 0;
 static int music_context  = 0;
+
+#ifdef HAVE_SDL2_MIXER
+static Mix_Music *current_music    = NULL;
+static SDL_RWops *current_music_rw = NULL;
+
+/*
+ * Determine total MIDI file size by parsing the MThd + MTrk chunks.
+ * Falls back to max_size if the header looks invalid.
+ */
+static unsigned long midi_file_size(const unsigned char *data,
+                                    unsigned long max_size)
+{
+    unsigned long header_len, num_tracks, pos, i;
+
+    if (max_size < 14) return max_size;
+    if (data[0] != 'M' || data[1] != 'T' ||
+        data[2] != 'h' || data[3] != 'd')
+        return max_size;
+
+    header_len = ((unsigned long)data[4]  << 24) |
+                 ((unsigned long)data[5]  << 16) |
+                 ((unsigned long)data[6]  << 8)  | data[7];
+    num_tracks = ((unsigned long)data[10] << 8)  | data[11];
+    pos = 8 + header_len;
+
+    for (i = 0; i < num_tracks && pos + 8 <= max_size; i++) {
+        unsigned long track_len;
+        if (data[pos] != 'M' || data[pos+1] != 'T' ||
+            data[pos+2] != 'r' || data[pos+3] != 'k')
+            break;
+        track_len = ((unsigned long)data[pos+4] << 24) |
+                    ((unsigned long)data[pos+5] << 16) |
+                    ((unsigned long)data[pos+6] << 8)  | data[pos+7];
+        pos += 8 + track_len;
+    }
+    return pos > max_size ? max_size : pos;
+}
+
+static void free_current_music(void)
+{
+    if (current_music) { Mix_FreeMusic(current_music); current_music = NULL; }
+    if (current_music_rw) { SDL_FreeRW(current_music_rw); current_music_rw = NULL; }
+}
+#endif /* HAVE_SDL2_MIXER */
 
 char *MUSIC_ErrorString(int ErrorNumber)
 {
@@ -277,26 +626,86 @@ int  MUSIC_Init(int SoundCard, int Address)
     return MUSIC_Ok;
 }
 
-int  MUSIC_Shutdown(void)       { music_playing = 0; return MUSIC_Ok; }
+int MUSIC_Shutdown(void)
+{
+#ifdef HAVE_SDL2_MIXER
+    if (mixer_initialized)
+        Mix_HaltMusic();
+    free_current_music();
+#endif
+    music_playing = 0;
+    return MUSIC_Ok;
+}
+
 void MUSIC_SetMaxFMMidiChannel(int channel)          { (void)channel; }
-void MUSIC_SetVolume(int volume)                     { music_volume = volume; }
+
+void MUSIC_SetVolume(int volume)
+{
+    music_volume = volume;
+#ifdef HAVE_SDL2_MIXER
+    if (mixer_initialized)
+        Mix_VolumeMusic(volume > 255 ? MIX_MAX_VOLUME
+                                     : (volume * MIX_MAX_VOLUME) / 255);
+#endif
+}
+
 void MUSIC_SetMidiChannelVolume(int channel, int vol) { (void)channel; (void)vol; }
 void MUSIC_ResetMidiChannelVolumes(void)             { }
 int  MUSIC_GetVolume(void)                           { return music_volume; }
 void MUSIC_SetLoopFlag(int loopflag)                 { music_loop = loopflag; }
-int  MUSIC_SongPlaying(void)                         { return music_playing; }
-void MUSIC_Continue(void)                            { }
-void MUSIC_Pause(void)                               { }
+
+int MUSIC_SongPlaying(void)
+{
+#ifdef HAVE_SDL2_MIXER
+    if (mixer_initialized)
+        return Mix_PlayingMusic();
+#endif
+    return music_playing;
+}
+
+void MUSIC_Continue(void)
+{
+#ifdef HAVE_SDL2_MIXER
+    if (mixer_initialized)
+        Mix_ResumeMusic();
+#endif
+}
+
+void MUSIC_Pause(void)
+{
+#ifdef HAVE_SDL2_MIXER
+    if (mixer_initialized)
+        Mix_PauseMusic();
+#endif
+}
 
 int MUSIC_StopSong(void)
 {
+#ifdef HAVE_SDL2_MIXER
+    if (mixer_initialized)
+        Mix_HaltMusic();
+    free_current_music();
+#endif
     music_playing = 0;
     return MUSIC_Ok;
 }
 
 int MUSIC_PlaySong(unsigned char *song, int loopflag)
 {
+#ifdef HAVE_SDL2_MIXER
+    if (mixer_initialized && song) {
+        unsigned long size = midi_file_size(song, 72000);
+        free_current_music();
+        current_music_rw = SDL_RWFromConstMem(song, (int)size);
+        if (current_music_rw) {
+            current_music = Mix_LoadMUS_RW(current_music_rw, 0);
+            if (current_music)
+                Mix_PlayMusic(current_music, loopflag ? -1 : 0);
+        }
+    }
+#else
     (void)song;
+#endif
     music_loop    = loopflag;
     music_playing = 1;
     return MUSIC_Ok;
@@ -318,15 +727,35 @@ void MUSIC_GetSongLength(songposition *pos)
     if (pos) memset(pos, 0, sizeof(*pos));
 }
 
-int  MUSIC_FadeVolume(int tovolume, int milliseconds)
+int MUSIC_FadeVolume(int tovolume, int milliseconds)
 {
+#ifdef HAVE_SDL2_MIXER
+    if (mixer_initialized && tovolume == 0 && milliseconds > 0) {
+        Mix_FadeOutMusic(milliseconds);
+        return MUSIC_Ok;
+    }
+#endif
     (void)milliseconds;
     music_volume = tovolume;
     return MUSIC_Ok;
 }
 
-int  MUSIC_FadeActive(void)     { return 0; }
-void MUSIC_StopFade(void)       { }
+int  MUSIC_FadeActive(void)
+{
+#ifdef HAVE_SDL2_MIXER
+    if (mixer_initialized)
+        return Mix_FadingMusic() == MIX_FADING_OUT;
+#endif
+    return 0;
+}
+
+void MUSIC_StopFade(void)
+{
+#ifdef HAVE_SDL2_MIXER
+    if (mixer_initialized && Mix_FadingMusic() != MIX_NO_FADING)
+        Mix_HaltMusic();
+#endif
+}
 
 void MUSIC_RerouteMidiChannel(int channel, int (*function)(int, int, int))
 {
