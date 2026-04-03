@@ -148,3 +148,61 @@ jobs:
             test -f generated_assets/$f && echo "  ✅ $f ($(stat -c%s generated_assets/$f) bytes)" || echo "  ❌ $f MISSING"
           done
           test -f DUKE3D.GRP && echo "  ✅ DUKE3D.GRP ($(stat -c%s DUKE3D.GRP) bytes)"
+
+  test-windows-native:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install SDL2
+        run: |
+          $SDL2_VERSION = (Select-String -Path build.mk -Pattern '^SDL2_VERSION' | ForEach-Object { $_.Line -replace '.*=\s*', '' })
+          Write-Host "SDL2 version: $SDL2_VERSION"
+          Invoke-WebRequest -Uri "https://github.com/libsdl-org/SDL/releases/download/release-$SDL2_VERSION/SDL2-devel-$SDL2_VERSION-VC.zip" -OutFile SDL2-VC.zip
+          Expand-Archive SDL2-VC.zip -DestinationPath .
+          echo "SDL2_DIR=$PWD\SDL2-$SDL2_VERSION" >> $env:GITHUB_ENV
+        shell: pwsh
+
+      - name: Configure with CMake
+        run: |
+          cmake -B build -DCMAKE_BUILD_TYPE=Release -DSDL2_DIR="$env:SDL2_DIR/cmake" -DCMAKE_PREFIX_PATH="$env:SDL2_DIR"
+        shell: pwsh
+
+      - name: Build with MSVC
+        run: cmake --build build --config Release
+
+      - name: Smoke test
+        run: |
+          $exe = "build\Release\duke3d.exe"
+          if (Test-Path $exe) {
+            Write-Host "Binary exists: $exe"
+            Write-Host "File info:"
+            Get-Item $exe | Format-List Name, Length, LastWriteTime
+            # Copy SDL2.dll next to the exe so it can load
+            $sdlDll = "$env:SDL2_DIR\lib\x64\SDL2.dll"
+            if (Test-Path $sdlDll) {
+              Copy-Item $sdlDll -Destination "build\Release\"
+              Write-Host "Copied SDL2.dll to build\Release\"
+            }
+            # Run with timeout - expect it to exit with error (no GRP file)
+            # but it should NOT crash with missing DLL errors
+            $proc = Start-Process -FilePath $exe -PassThru -NoNewWindow
+            Start-Sleep -Seconds 3
+            if (!$proc.HasExited) {
+              Write-Host "Process still running after 3s - killing (this is OK)"
+              Stop-Process -Id $proc.Id -Force
+              Write-Host "PASS: Binary runs on Windows"
+            } else {
+              $code = $proc.ExitCode
+              Write-Host "Process exited with code: $code"
+              if ($code -eq -1073741515) {
+                Write-Host "FAIL: Missing DLL (STATUS_DLL_NOT_FOUND)"
+                exit 1
+              }
+              Write-Host "PASS: Binary executed (exited with $code, likely missing GRP)"
+            }
+          } else {
+            Write-Host "FAIL: Binary not found"
+            exit 1
+          }
+        shell: pwsh

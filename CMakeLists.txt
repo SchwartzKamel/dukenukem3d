@@ -61,8 +61,12 @@ target_include_directories(duke3d PRIVATE
     ${CMAKE_SOURCE_DIR}/compat
     ${CMAKE_SOURCE_DIR}/SRC
     ${CMAKE_SOURCE_DIR}/source
-    ${SDL2_INCLUDE_DIRS}
 )
+
+# SDL2 includes (only needed when using old-style variables)
+if(NOT TARGET SDL2::SDL2)
+    target_include_directories(duke3d PRIVATE ${SDL2_INCLUDE_DIRS})
+endif()
 
 # Compiler-specific flags
 if(MSVC)
@@ -84,8 +88,15 @@ endif()
 # ENGINE.C needs the ENGINE define
 set_source_files_properties(SRC/ENGINE.C PROPERTIES COMPILE_DEFINITIONS ENGINE)
 
-# Link libraries
-target_link_libraries(duke3d PRIVATE ${SDL2_LIBRARIES})
+# Link libraries — prefer modern imported targets (SDL2 2.24+)
+if(TARGET SDL2::SDL2)
+    target_link_libraries(duke3d PRIVATE SDL2::SDL2)
+    if(TARGET SDL2::SDL2main)
+        target_link_libraries(duke3d PRIVATE SDL2::SDL2main)
+    endif()
+else()
+    target_link_libraries(duke3d PRIVATE ${SDL2_LIBRARIES})
+endif()
 
 if(SDL2_mixer_FOUND)
     target_compile_definitions(duke3d PRIVATE HAVE_SDL2_MIXER)
