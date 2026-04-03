@@ -7374,6 +7374,14 @@ int main(int argc,char **argv)
     long i, j, k, l;
     int32 tempautorun;
 
+    /* Propagate command-line args to MMULTI.C for network init */
+    {
+        extern int _argc;
+        extern char **_argv;
+        _argc = argc;
+        _argv = argv;
+    }
+
     copyprotect();
 
     todd[0] = 'T';

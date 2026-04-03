@@ -1,42 +1,56 @@
-// "Build Engine & Tools" Copyright (c) 1993-1997 Ken Silverman
-// Ken Silverman's official web site: "http://www.advsys.net/ken"
-// See the included license file "BUILDLIC.TXT" for license info.
+/* "Build Engine & Tools" Copyright (c) 1993-1997 Ken Silverman
+   Ken Silverman's official web site: "http://www.advsys.net/ken"
+   See the included license file "BUILDLIC.TXT" for license info.
+
+   TCP/IP multiplayer implementation (Spec 007).
+   Replaces DOS IPX networking with BSD sockets (Linux) / Winsock (Windows).
+   Star topology: host relays packets between clients.
+   Usage: --host <port> [--players <n>]  or  --join <ip:port>
+   No flags = single-player (numplayers=1), fully backward-compatible. */
 
 #include "compat.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
+#include <time.h>
 #include "pragmas_gcc.h"
 
+/* Platform-specific networking */
+#ifdef _WIN32
+#include <winsock2.h>
+#include <ws2tcpip.h>
+typedef int socklen_t;
+#define net_close closesocket
+#define net_sleep(ms) Sleep(ms)
+#else
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <errno.h>
+typedef int SOCKET;
+#define INVALID_SOCKET (-1)
+#define SOCKET_ERROR (-1)
+#define net_close close
+#define net_sleep(ms) usleep((ms) * 1000)
+#endif
+
 #define MAXPLAYERS 16
-#define BAKSIZ 16384
-#define SIMULATEERRORS 0
-#define SHOWSENDPACKETS 0
-#define SHOWGETPACKETS 0
-#define PRINTERRORS 0
+#define MAXPACKETSIZE 2048
+#define NET_HEADER_SIZE 4   /* [1B sender][1B dest][2B payload length] */
+#define RECV_BUF_SIZE 65536
+#define DEFAULT_PORT 23513
+#define CONNECT_TIMEOUT_SEC 60
 
 #define updatecrc16(crc,dat) crc = (((crc<<8)&65535)^crctable[((((unsigned short)crc)>>8)&65535)^dat])
 
-static long incnt[MAXPLAYERS], outcntplc[MAXPLAYERS], outcntend[MAXPLAYERS];
-static char errorgotnum[MAXPLAYERS];
-static char errorfixnum[MAXPLAYERS];
-static char errorresendnum[MAXPLAYERS];
-#if (PRINTERRORS)
-	static char lasterrorgotnum[MAXPLAYERS];
-#endif
-
 long crctable[256];
 
-static char lastpacket[576], inlastpacket = 0;
-static short lastpacketfrom, lastpacketleng;
-
-extern long totalclock;  //MUST EXTERN 1 ANNOYING VARIABLE FROM GAME
+extern long totalclock;
 static long timeoutcount = 60, resendagaincount = 4, lastsendtime[MAXPLAYERS];
-
-static short bakpacketptr[MAXPLAYERS][256], bakpacketlen[MAXPLAYERS][256];
-static char bakpacketbuf[BAKSIZ];
-static long bakpacketplc = 0;
 
 short myconnectindex, numplayers;
 short connecthead, connectpoint2[MAXPLAYERS];
@@ -47,85 +61,152 @@ int _argc = 1;
 static char *_argv_default[] = {"game", NULL};
 char **_argv = _argv_default;
 
-#define MAXPACKETSIZE 2048
-typedef struct
+/* ---- TCP/IP networking state ---- */
+static SOCKET server_socket = INVALID_SOCKET;
+static SOCKET player_sockets[MAXPLAYERS];
+static int is_host = 0;
+static int net_initialized = 0;
+
+/* Per-socket receive buffers for TCP stream reassembly */
+typedef struct {
+	unsigned char buf[RECV_BUF_SIZE];
+	int len;
+} recv_buf_t;
+static recv_buf_t recv_bufs[MAXPLAYERS];
+
+/* Packet queue for getpacket() */
+#define PACKET_QUEUE_SIZE 512
+typedef struct {
+	char data[MAXPACKETSIZE];
+	short length;
+	short from_player;
+} queued_packet_t;
+static queued_packet_t packet_queue[PACKET_QUEUE_SIZE];
+static int pq_head = 0, pq_tail = 0;
+
+/* ---- Internal helpers ---- */
+
+static void net_set_nonblocking(SOCKET sock)
 {
-	short intnum;                //communication between Game and the driver
-	short command;               //1-send, 2-get
-	short other;                 //dest for send, set by get (-1 = no packet)
-	short numbytes;
-	short myconnectindex;
-	short numplayers;
-	short gametype;              //gametype: 1-serial,2-modem,3-net
-	short filler;
-	char buffer[MAXPACKETSIZE];
-	long longcalladdress;
-} gcomtype;
-static gcomtype *gcom;
-
-static union REGS regs;
-
-static void longcall(long addr) {
-	/* DOS-era function call by address; no-op on modern systems */
-	(void)addr;
-}\
-
-callcommit()
-{
-	if (gcom->intnum&0xff00)
-		longcall(gcom->longcalladdress);
-	else
-		int386(gcom->intnum,&regs,&regs);
-}
-
-initmultiplayers(char damultioption, char dacomrateoption, char dapriority)
-{
-	long i;
-	char *parm, delims[4] = {'\\','-','/','\0'};
-
-	initcrc();
-	for(i=0;i<MAXPLAYERS;i++)
-	{
-		incnt[i] = 0L;
-		outcntplc[i] = 0L;
-		outcntend[i] = 0L;
-		bakpacketlen[i][255] = -1;
-	}
-
-	for(i=_argc-1;i>0;i--)
-		if ((parm = strtok(_argv[i],&delims[0])) != NULL)
-			if (!stricmp("net",parm)) break;
-	if (i == 0)
-	{
-		numplayers = 1; myconnectindex = 0;
-		connecthead = 0; connectpoint2[0] = -1;
-		return;
-	}
-	gcom = (gcomtype *)atol(_argv[i+1]);
-
-	numplayers = gcom->numplayers;
-	myconnectindex = gcom->myconnectindex-1;
-#if (SIMULATEERRORS != 0)
-	srand(myconnectindex*24572457+345356);
+#ifdef _WIN32
+	unsigned long mode = 1;
+	ioctlsocket(sock, FIONBIO, &mode);
+#else
+	int flags = fcntl(sock, F_GETFL, 0);
+	fcntl(sock, F_SETFL, flags | O_NONBLOCK);
 #endif
-	connecthead = 0;
-	for(i=0;i<numplayers-1;i++) connectpoint2[i] = i+1;
-	connectpoint2[numplayers-1] = -1;
-
-	for(i=0;i<numplayers;i++) lastsendtime[i] = totalclock;
 }
+
+static void net_send_raw(SOCKET sock, const unsigned char *data, int len)
+{
+	int sent = 0;
+	while (sent < len) {
+		int r = send(sock, (const char *)(data + sent), len - sent, 0);
+		if (r <= 0) break;
+		sent += r;
+	}
+}
+
+/* Blocking receive with timeout (used during handshake only) */
+static int net_recv_all(SOCKET sock, unsigned char *buf, int len)
+{
+	int total = 0;
+	time_t start = time(NULL);
+	while (total < len) {
+		int r = recv(sock, (char *)(buf + total), len - total, 0);
+		if (r > 0) {
+			total += r;
+		} else if (r == 0) {
+			return -1;
+		} else {
+#ifdef _WIN32
+			if (WSAGetLastError() != WSAEWOULDBLOCK) return -1;
+#else
+			if (errno != EAGAIN && errno != EWOULDBLOCK) return -1;
+#endif
+		}
+		if (time(NULL) - start > 10) return -1;
+		if (total < len) net_sleep(10);
+	}
+	return total;
+}
+
+/* Poll all connected sockets, extract framed packets into queue */
+static void net_poll_sockets(void)
+{
+	int i, start, end;
+
+	if (!net_initialized) return;
+
+	start = is_host ? 1 : 0;
+	end   = is_host ? numplayers : 1;
+
+	for (i = start; i < end; i++) {
+		SOCKET sock = player_sockets[i];
+		if (sock == INVALID_SOCKET) continue;
+
+		/* Read available data into receive buffer */
+		while (recv_bufs[i].len < RECV_BUF_SIZE - 4096) {
+			int r = recv(sock, (char *)(recv_bufs[i].buf + recv_bufs[i].len),
+			             RECV_BUF_SIZE - recv_bufs[i].len, 0);
+			if (r <= 0) break;
+			recv_bufs[i].len += r;
+		}
+
+		/* Extract complete packets */
+		while (recv_bufs[i].len >= NET_HEADER_SIZE) {
+			int from_player = recv_bufs[i].buf[0];
+			int dest        = recv_bufs[i].buf[1];
+			int payload_len = recv_bufs[i].buf[2] | (recv_bufs[i].buf[3] << 8);
+			int total_len, pq_next;
+
+			if (payload_len <= 0 || payload_len > MAXPACKETSIZE) {
+				recv_bufs[i].len = 0;
+				break;
+			}
+
+			total_len = NET_HEADER_SIZE + payload_len;
+			if (recv_bufs[i].len < total_len) break;
+
+			/* Host: relay to destination client */
+			if (is_host && dest != 0 && dest > 0 && dest < numplayers) {
+				if (player_sockets[dest] != INVALID_SOCKET)
+					net_send_raw(player_sockets[dest], recv_bufs[i].buf, total_len);
+			}
+
+			/* Queue locally if destined for us */
+			if ((is_host && dest == 0) || (!is_host)) {
+				pq_next = (pq_tail + 1) % PACKET_QUEUE_SIZE;
+				if (pq_next != pq_head) {
+					memcpy(packet_queue[pq_tail].data,
+					       recv_bufs[i].buf + NET_HEADER_SIZE, payload_len);
+					packet_queue[pq_tail].length      = (short)payload_len;
+					packet_queue[pq_tail].from_player  = (short)from_player;
+					pq_tail = pq_next;
+				}
+			}
+
+			/* Remove processed packet from buffer */
+			recv_bufs[i].len -= total_len;
+			if (recv_bufs[i].len > 0)
+				memmove(recv_bufs[i].buf,
+				        recv_bufs[i].buf + total_len, recv_bufs[i].len);
+		}
+	}
+}
+
+/* ---- CRC (kept for compatibility) ---- */
 
 initcrc()
 {
 	long i, j, k, a;
-
-	for(j=0;j<256;j++)      //Calculate CRC table
+	for(j=0;j<256;j++)
 	{
 		k = (j<<8); a = 0;
 		for(i=7;i>=0;i--)
 		{
 			if (((k^a)&0x8000) > 0)
-				a = ((a<<1)&65535) ^ 0x1021;   //0x1021 = genpoly
+				a = ((a<<1)&65535) ^ 0x1021;
 			else
 				a = ((a<<1)&65535);
 			k = ((k<<1)&65535);
@@ -134,26 +215,261 @@ initcrc()
 	}
 }
 
-setpackettimeout(long datimeoutcount, long daresendagaincount)
-{
-	long i;
-
-	timeoutcount = datimeoutcount;
-	resendagaincount = daresendagaincount;
-	for(i=0;i<numplayers;i++) lastsendtime[i] = totalclock;
-}
-
 getcrc(char *buffer, short bufleng)
 {
 	long i, j;
-
 	j = 0;
 	for(i=bufleng-1;i>=0;i--) updatecrc16(j,buffer[i]);
 	return(j&65535);
 }
 
+setpackettimeout(long datimeoutcount, long daresendagaincount)
+{
+	long i;
+	timeoutcount = datimeoutcount;
+	resendagaincount = daresendagaincount;
+	for(i=0;i<numplayers;i++) lastsendtime[i] = totalclock;
+}
+
+/* ---- Public networking API ---- */
+
+initmultiplayers(char damultioption, char dacomrateoption, char dapriority)
+{
+	long i;
+	int host_port = 0;
+	int expected_players = 2;
+	char *join_addr = NULL;
+
+	(void)damultioption;
+	(void)dacomrateoption;
+	(void)dapriority;
+
+	initcrc();
+
+	for (i = 0; i < MAXPLAYERS; i++) {
+		player_sockets[i] = INVALID_SOCKET;
+		recv_bufs[i].len = 0;
+		lastsendtime[i] = 0;
+	}
+	pq_head = pq_tail = 0;
+	is_host = 0;
+	net_initialized = 0;
+
+	/* Parse command line for --host, --join, --players */
+	for (i = 1; i < _argc; i++) {
+		if (strcmp(_argv[i], "--host") == 0 && i + 1 < _argc) {
+			host_port = atoi(_argv[++i]);
+			is_host = 1;
+		} else if (strcmp(_argv[i], "--join") == 0 && i + 1 < _argc) {
+			join_addr = _argv[++i];
+		} else if (strcmp(_argv[i], "--players") == 0 && i + 1 < _argc) {
+			expected_players = atoi(_argv[++i]);
+			if (expected_players < 2) expected_players = 2;
+			if (expected_players > MAXPLAYERS) expected_players = MAXPLAYERS;
+		}
+	}
+
+	if (!host_port && !join_addr) {
+		/* Single-player mode - no networking */
+		numplayers = 1;
+		myconnectindex = 0;
+		connecthead = 0;
+		connectpoint2[0] = -1;
+		return;
+	}
+
+#ifdef _WIN32
+	{
+		WSADATA wsa;
+		if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) {
+			printf("NET: WSAStartup failed\n");
+			goto singleplayer;
+		}
+	}
+#endif
+
+	if (is_host) {
+		struct sockaddr_in addr;
+		int opt = 1;
+		time_t start;
+
+		server_socket = socket(AF_INET, SOCK_STREAM, 0);
+		if (server_socket == INVALID_SOCKET) {
+			printf("NET: Failed to create server socket\n");
+			goto singleplayer;
+		}
+
+		setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR,
+		           (const char *)&opt, sizeof(opt));
+
+		memset(&addr, 0, sizeof(addr));
+		addr.sin_family = AF_INET;
+		addr.sin_addr.s_addr = INADDR_ANY;
+		addr.sin_port = htons((unsigned short)host_port);
+
+		if (bind(server_socket, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
+			printf("NET: Failed to bind port %d\n", host_port);
+			net_close(server_socket);
+			server_socket = INVALID_SOCKET;
+			goto singleplayer;
+		}
+
+		listen(server_socket, MAXPLAYERS - 1);
+		printf("NET: Hosting on port %d, waiting for %d player(s)...\n",
+		       host_port, expected_players);
+
+		net_set_nonblocking(server_socket);
+
+		myconnectindex = 0;
+		numplayers = 1;
+
+		/* Accept connections until expected count or timeout */
+		start = time(NULL);
+		while (numplayers < expected_players) {
+			struct sockaddr_in client_addr;
+			socklen_t client_len = sizeof(client_addr);
+			SOCKET client;
+
+			if (time(NULL) - start > CONNECT_TIMEOUT_SEC) {
+				printf("NET: Timeout waiting for players (%d connected)\n",
+				       numplayers);
+				if (numplayers < 2) {
+					net_close(server_socket);
+					server_socket = INVALID_SOCKET;
+					goto singleplayer;
+				}
+				break;
+			}
+
+			client = accept(server_socket,
+			                (struct sockaddr *)&client_addr, &client_len);
+			if (client != INVALID_SOCKET) {
+				int idx = numplayers;
+				int flag = 1;
+
+				player_sockets[idx] = client;
+				setsockopt(client, IPPROTO_TCP, TCP_NODELAY,
+				           (const char *)&flag, sizeof(flag));
+
+				numplayers++;
+				printf("NET: Player %d connected from %s\n",
+				       idx, inet_ntoa(client_addr.sin_addr));
+			}
+
+			net_sleep(50);
+		}
+
+		printf("NET: Starting game with %d players\n", numplayers);
+
+		/* Send handshake to each client: [player_index, numplayers, 0, 0] */
+		for (i = 1; i < numplayers; i++) {
+			unsigned char msg[4];
+			msg[0] = (unsigned char)i;
+			msg[1] = (unsigned char)numplayers;
+			msg[2] = 0;
+			msg[3] = 0;
+			net_send_raw(player_sockets[i], msg, 4);
+			net_set_nonblocking(player_sockets[i]);
+		}
+
+	} else if (join_addr) {
+		/* Client mode */
+		char ip[64];
+		int port = DEFAULT_PORT;
+		char *colon;
+		SOCKET sock;
+		struct sockaddr_in addr;
+		int flag;
+		unsigned char msg[4];
+
+		strncpy(ip, join_addr, sizeof(ip) - 1);
+		ip[sizeof(ip) - 1] = '\0';
+		colon = strchr(ip, ':');
+		if (colon) {
+			*colon = '\0';
+			port = atoi(colon + 1);
+		}
+
+		sock = socket(AF_INET, SOCK_STREAM, 0);
+		if (sock == INVALID_SOCKET) {
+			printf("NET: Failed to create socket\n");
+			goto singleplayer;
+		}
+
+		memset(&addr, 0, sizeof(addr));
+		addr.sin_family = AF_INET;
+		addr.sin_addr.s_addr = inet_addr(ip);
+		addr.sin_port = htons((unsigned short)port);
+
+		printf("NET: Connecting to %s:%d...\n", ip, port);
+		if (connect(sock, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
+			printf("NET: Connection failed\n");
+			net_close(sock);
+			goto singleplayer;
+		}
+
+		flag = 1;
+		setsockopt(sock, IPPROTO_TCP, TCP_NODELAY,
+		           (const char *)&flag, sizeof(flag));
+
+		/* Receive handshake: [player_index, numplayers, 0, 0] */
+		if (net_recv_all(sock, msg, 4) != 4) {
+			printf("NET: Handshake failed\n");
+			net_close(sock);
+			goto singleplayer;
+		}
+
+		myconnectindex = (short)msg[0];
+		numplayers     = (short)msg[1];
+		player_sockets[0] = sock;
+
+		net_set_nonblocking(sock);
+
+		printf("NET: Connected as player %d of %d\n",
+		       myconnectindex, numplayers);
+	}
+
+	/* Build connected player linked list */
+	connecthead = 0;
+	for (i = 0; i < numplayers - 1; i++)
+		connectpoint2[i] = (short)(i + 1);
+	connectpoint2[numplayers - 1] = -1;
+
+	for (i = 0; i < numplayers; i++)
+		lastsendtime[i] = totalclock;
+
+	net_initialized = 1;
+	return;
+
+singleplayer:
+	numplayers = 1;
+	myconnectindex = 0;
+	connecthead = 0;
+	connectpoint2[0] = -1;
+}
+
 uninitmultiplayers()
 {
+	long i;
+
+	if (!net_initialized) return;
+
+	for (i = 0; i < MAXPLAYERS; i++) {
+		if (player_sockets[i] != INVALID_SOCKET) {
+			net_close(player_sockets[i]);
+			player_sockets[i] = INVALID_SOCKET;
+		}
+	}
+	if (server_socket != INVALID_SOCKET) {
+		net_close(server_socket);
+		server_socket = INVALID_SOCKET;
+	}
+
+#ifdef _WIN32
+	WSACleanup();
+#endif
+
+	net_initialized = 0;
 }
 
 sendlogon()
@@ -165,12 +481,13 @@ sendlogoff()
 	long i;
 	char tempbuf[2];
 
-	tempbuf[0] = 255;
-	tempbuf[1] = myconnectindex;
+	tempbuf[0] = (char)255;
+	tempbuf[1] = (char)myconnectindex;
 	for(i=connecthead;i>=0;i=connectpoint2[i])
 		if (i != myconnectindex)
 			sendpacket(i,tempbuf,2L);
 }
+
 getoutputcirclesize()
 {
 	return(0);
@@ -178,284 +495,73 @@ getoutputcirclesize()
 
 setsocket(short newsocket)
 {
+	(void)newsocket;
 }
 
 sendpacket(long other, char *bufptr, long messleng)
 {
-	long i, j, k, l,cnt;
-	unsigned short dacrc;
+	SOCKET sock;
+	unsigned char header[NET_HEADER_SIZE];
 
-	if (numplayers < 2) return;
+	if (numplayers < 2 || !net_initialized) return;
+	if (other == myconnectindex) return;
+	if (messleng <= 0 || messleng > MAXPACKETSIZE) return;
 
-	i = 0;
-	if (bakpacketlen[other][(outcntend[other]-1)&255] == messleng)
-	{
-		j = bakpacketptr[other][(outcntend[other]-1)&255];
-		for(i=messleng-1;i>=0;i--)
-			if (bakpacketbuf[(i+j)&(BAKSIZ-1)] != bufptr[i]) break;
+	header[0] = (unsigned char)(myconnectindex & 0xFF);
+	header[1] = (unsigned char)(other & 0xFF);
+	header[2] = (unsigned char)(messleng & 0xFF);
+	header[3] = (unsigned char)((messleng >> 8) & 0xFF);
+
+	if (is_host) {
+		sock = player_sockets[other];
+	} else {
+		sock = player_sockets[0]; /* everything routes through host */
 	}
-	bakpacketlen[other][outcntend[other]&255] = messleng;
 
-	if (i < 0)   //Point to last packet to save space on bakpacketbuf
-		bakpacketptr[other][outcntend[other]&255] = j;
-	else
-	{
-		bakpacketptr[other][outcntend[other]&255] = bakpacketplc;
-		for(i=0;i<messleng;i++)
-			bakpacketbuf[(bakpacketplc+i)&(BAKSIZ-1)] = bufptr[i];
-		bakpacketplc = ((bakpacketplc+messleng)&(BAKSIZ-1));
-	}
-	outcntend[other]++;
+	if (sock == INVALID_SOCKET) return;
+
+	net_send_raw(sock, header, NET_HEADER_SIZE);
+	net_send_raw(sock, (const unsigned char *)bufptr, (int)messleng);
 
 	lastsendtime[other] = totalclock;
-	dosendpackets(other);
 }
 
-dosendpackets(long other)
+short getpacket(short *other, char *bufptr)
 {
-	long i, j, k, messleng;
-	unsigned short dacrc;
+	short len;
 
-	if (outcntplc[other] == outcntend[other]) return;
+	if (numplayers < 2 || !net_initialized) return 0;
 
-#if (PRINTERRORS)
-	if (errorgotnum[other] > lasterrorgotnum[other])
-	{
-		lasterrorgotnum[other]++;
-		printf(" MeWant %ld",incnt[other]&255);
-	}
-#endif
+	net_poll_sockets();
 
-	if (outcntplc[other]+1 == outcntend[other])
-	{     //Send 1 sub-packet
-		k = 0;
-		gcom->buffer[k++] = (outcntplc[other]&255);
-		gcom->buffer[k++] = (errorgotnum[other]&7)+((errorresendnum[other]&7)<<3);
-		gcom->buffer[k++] = (incnt[other]&255);
+	if (pq_head == pq_tail) return 0;
 
-		j = bakpacketptr[other][outcntplc[other]&255];
-		messleng = bakpacketlen[other][outcntplc[other]&255];
-		for(i=0;i<messleng;i++)
-			gcom->buffer[k++] = bakpacketbuf[(i+j)&(BAKSIZ-1)];
-		outcntplc[other]++;
-	}
-	else
-	{     //Send 2 sub-packets
-		k = 0;
-		gcom->buffer[k++] = (outcntplc[other]&255);
-		gcom->buffer[k++] = (errorgotnum[other]&7)+((errorresendnum[other]&7)<<3)+128;
-		gcom->buffer[k++] = (incnt[other]&255);
+	*other = packet_queue[pq_head].from_player;
+	len    = packet_queue[pq_head].length;
+	memcpy(bufptr, packet_queue[pq_head].data, len);
+	pq_head = (pq_head + 1) % PACKET_QUEUE_SIZE;
 
-			//First half-packet
-		j = bakpacketptr[other][outcntplc[other]&255];
-		messleng = bakpacketlen[other][outcntplc[other]&255];
-		gcom->buffer[k++] = (char)(messleng&255);
-		gcom->buffer[k++] = (char)(messleng>>8);
-		for(i=0;i<messleng;i++)
-			gcom->buffer[k++] = bakpacketbuf[(i+j)&(BAKSIZ-1)];
-		outcntplc[other]++;
-
-			//Second half-packet
-		j = bakpacketptr[other][outcntplc[other]&255];
-		messleng = bakpacketlen[other][outcntplc[other]&255];
-		for(i=0;i<messleng;i++)
-			gcom->buffer[k++] = bakpacketbuf[(i+j)&(BAKSIZ-1)];
-		outcntplc[other]++;
-
-	}
-
-	dacrc = getcrc(gcom->buffer,k);
-	gcom->buffer[k++] = (dacrc&255);
-	gcom->buffer[k++] = (dacrc>>8);
-
-	gcom->other = other+1;
-	gcom->numbytes = k;
-
-#if (SHOWSENDPACKETS)
-	printf("Send(%ld): ",gcom->other);
-	for(i=0;i<gcom->numbytes;i++) printf("%2x ",gcom->buffer[i]);
-	printf("\n");
-#endif
-
-#if (SIMULATEERRORS != 0)
-	if (!(rand()&SIMULATEERRORS)) gcom->buffer[rand()%gcom->numbytes] = (rand()&255);
-	if (rand()&SIMULATEERRORS)
-#endif
-		{ gcom->command = 1; callcommit(); }
-}
-
-short getpacket (short *other, char *bufptr)
-{
-	long i, j, messleng;
-	unsigned short dacrc;
-
-	if (numplayers < 2) return(0);
-
-	for(i=connecthead;i>=0;i=connectpoint2[i])
-		if (i != myconnectindex)
-		{
-			if (totalclock < lastsendtime[i]) lastsendtime[i] = totalclock;
-			if (totalclock > lastsendtime[i]+timeoutcount)
-			{
-#if (PRINTERRORS)
-					printf(" TimeOut!");
-#endif
-					errorgotnum[i] = errorfixnum[i]+1;
-
-					if ((outcntplc[i] == outcntend[i]) && (outcntplc[i] > 0))
-						{ outcntplc[i]--; lastsendtime[i] = totalclock; }
-					else
-						lastsendtime[i] += resendagaincount;
-					dosendpackets(i);
-				//}
-			}
-		}
-
-	if (inlastpacket != 0)
-	{
-			//2ND half of good double-packet
-		inlastpacket = 0;
-		*other = lastpacketfrom;
-		memcpy(bufptr,lastpacket,lastpacketleng);
-		return(lastpacketleng);
-	}
-
-	gcom->command = 2;
-	callcommit();
-
-#if (SHOWGETPACKETS)
-	if (gcom->other != -1)
-	{
-		printf(" Get(%ld): ",gcom->other);
-		for(i=0;i<gcom->numbytes;i++) printf("%2x ",gcom->buffer[i]);
-		printf("\n");
-	}
-#endif
-
-	if (gcom->other < 0) return(0);
-	*other = gcom->other-1;
-
-	messleng = gcom->numbytes;
-
-	dacrc = ((unsigned short)gcom->buffer[messleng-2]);
-	dacrc += (((unsigned short)gcom->buffer[messleng-1])<<8);
-	if (dacrc != getcrc(gcom->buffer,messleng-2))        //CRC check
-	{
-#if (PRINTERRORS)
-		printf("\n%ld CRC",gcom->buffer[0]);
-#endif
-		errorgotnum[*other] = errorfixnum[*other]+1;
-		return(0);
-	}
-
-	while ((errorfixnum[*other]&7) != ((gcom->buffer[1]>>3)&7))
-		errorfixnum[*other]++;
-
-	if ((gcom->buffer[1]&7) != (errorresendnum[*other]&7))
-	{
-		errorresendnum[*other]++;
-		outcntplc[*other] = (outcntend[*other]&0xffffff00)+gcom->buffer[2];
-		if (outcntplc[*other] > outcntend[*other]) outcntplc[*other] -= 256;
-	}
-
-	if (gcom->buffer[0] != (incnt[*other]&255))   //CNT check
-	{
-		if (((incnt[*other]-gcom->buffer[0])&255) > 32)
-		{
-			errorgotnum[*other] = errorfixnum[*other]+1;
-#if (PRINTERRORS)
-			printf("\n%ld CNT",gcom->buffer[0]);
-#endif
-		}
-#if (PRINTERRORS)
-		else
-		{
-			if (!(gcom->buffer[1]&128))           //single else double packet
-				printf("\n%ld cnt",gcom->buffer[0]);
-			else
-			{
-				if (((gcom->buffer[0]+1)&255) == (incnt[*other]&255))
-				{
-								 //GOOD! Take second half of double packet
-#if (PRINTERRORS)
-					printf("\n%ld-%ld .� ",gcom->buffer[0],(gcom->buffer[0]+1)&255);
-#endif
-					messleng = ((long)gcom->buffer[3]) + (((long)gcom->buffer[4])<<8);
-					lastpacketleng = gcom->numbytes-7-messleng;
-					memcpy(bufptr,&gcom->buffer[messleng+5],lastpacketleng);
-					incnt[*other]++;
-					return(lastpacketleng);
-				}
-				else
-					printf("\n%ld-%ld cnt ",gcom->buffer[0],(gcom->buffer[0]+1)&255);
-			}
-		}
-#endif
-		return(0);
-	}
-
-		//PACKET WAS GOOD!
-	if ((gcom->buffer[1]&128) == 0)           //Single packet
-	{
-#if (PRINTERRORS)
-		printf("\n%ld �  ",gcom->buffer[0]);
-#endif
-
-		messleng = gcom->numbytes-5;
-
-		memcpy(bufptr,&gcom->buffer[3],messleng);
-
-		incnt[*other]++;
-		return(messleng);
-	}
-
-														 //Double packet
-#if (PRINTERRORS)
-	printf("\n%ld-%ld �� ",gcom->buffer[0],(gcom->buffer[0]+1)&255);
-#endif
-
-	messleng = ((long)gcom->buffer[3]) + (((long)gcom->buffer[4])<<8);
-	lastpacketleng = gcom->numbytes-7-messleng;
-	inlastpacket = 1; lastpacketfrom = *other;
-
-	memcpy(bufptr,&gcom->buffer[5],messleng);
-	memcpy(lastpacket,&gcom->buffer[messleng+5],lastpacketleng);
-
-	incnt[*other] += 2;
-	return(messleng);
+	return len;
 }
 
 flushpackets()
 {
-	/*long i;
+	long i;
 
-	if (numplayers < 2) return;
+	if (numplayers < 2 || !net_initialized) return;
 
-	do
-	{
-		gcom->command = 2;
-		callcommit();
-	} while (gcom->other >= 0);
+	/* Drain packet queue */
+	pq_head = pq_tail = 0;
 
-	for(i=connecthead;i>=0;i=connectpoint2[i])
-	{
-		incnt[i] = 0L;
-		outcntplc[i] = 0L;
-		outcntend[i] = 0L;
-		errorgotnum[i] = 0;
-		errorfixnum[i] = 0;
-		errorresendnum[i] = 0;
-		lastsendtime[i] = totalclock;
-	}*/
+	/* Clear receive buffers */
+	for (i = 0; i < MAXPLAYERS; i++)
+		recv_bufs[i].len = 0;
 }
 
 genericmultifunction(long other, char *bufptr, long messleng, long command)
 {
-	if (numplayers < 2) return;
-
-	gcom->command = command;
-	gcom->numbytes = min(messleng,MAXPACKETSIZE);
-	copybuf(bufptr,gcom->buffer,(gcom->numbytes+3)>>2);
-	gcom->other = other+1;
-	callcommit();
+	(void)other;
+	(void)bufptr;
+	(void)messleng;
+	(void)command;
 }
