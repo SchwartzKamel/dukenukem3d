@@ -26,15 +26,13 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y gcc libsdl2-dev gcc-mingw-w64-x86-64 python3 python3-pip
-          pip3 install --break-system-packages Pillow requests
+          pip3 install --break-system-packages -r requirements.txt
       
       - name: Install SDL2 MinGW (Windows only)
         if: matrix.target == 'windows'
         run: |
-          SDL2_VERSION=2.30.9
-          wget -q https://github.com/libsdl-org/SDL/releases/download/release-${SDL2_VERSION}/SDL2-devel-${SDL2_VERSION}-mingw.tar.gz
-          tar xzf SDL2-devel-${SDL2_VERSION}-mingw.tar.gz
-          echo "SDL2_VERSION=${SDL2_VERSION}" >> $GITHUB_ENV
+          bash tools/get_sdl2_mingw.sh
+          SDL2_VERSION=$(grep '^SDL2_VERSION' build.mk | head -1 | sed 's/.*= *//')
           echo "SDL2_WIN_CFLAGS=-I$(pwd)/SDL2-${SDL2_VERSION}/x86_64-w64-mingw32/include/SDL2" >> $GITHUB_ENV
           echo "SDL2_WIN_LIBS=-L$(pwd)/SDL2-${SDL2_VERSION}/x86_64-w64-mingw32/lib -lmingw32 -lSDL2main -lSDL2" >> $GITHUB_ENV
       
@@ -65,14 +63,7 @@ jobs:
           PKGDIR=duke3d-${{ github.ref_name }}-windows-x64
           mkdir -p $PKGDIR
           cp duke3d.exe DUKE3D.GRP README.md $PKGDIR/
-          cp SDL2-${SDL2_VERSION}/x86_64-w64-mingw32/bin/SDL2.dll $PKGDIR/
-          # Bundle MinGW runtime DLLs for self-contained package
-          MINGW_BIN=$(dirname $(which x86_64-w64-mingw32-gcc))
-          for dll in libwinpthread-1.dll libgcc_s_seh-1.dll libstdc++-6.dll; do
-            [ -f "$MINGW_BIN/../x86_64-w64-mingw32/lib/$dll" ] && cp "$MINGW_BIN/../x86_64-w64-mingw32/lib/$dll" $PKGDIR/
-            [ -f "/usr/lib/gcc/x86_64-w64-mingw32/"*"/$dll" ] && cp /usr/lib/gcc/x86_64-w64-mingw32/*/$dll $PKGDIR/ 2>/dev/null || true
-            [ -f "/usr/x86_64-w64-mingw32/lib/$dll" ] && cp "/usr/x86_64-w64-mingw32/lib/$dll" $PKGDIR/ 2>/dev/null || true
-          done
+          bash tools/bundle_windows.sh $PKGDIR
           ls -la $PKGDIR/
           zip -r duke3d-${{ github.ref_name }}-windows-x64.zip $PKGDIR/
       
@@ -98,12 +89,31 @@ jobs:
         with:
           path: artifacts/
       
+      - name: Validate release packages
+        run: |
+          for f in artifacts/**/*.tar.gz; do
+            echo "Validating $f..."
+            tar tzf "$f" | head -5
+            echo "  Files: $(tar tzf "$f" | wc -l)"
+          done
+          for f in artifacts/**/*.zip; do
+            echo "Validating $f..."
+            unzip -l "$f" | tail -5
+          done
+      
+      - name: Generate checksums
+        run: |
+          if [ -f *.tar.gz ]; then sha256sum *.tar.gz > SHA256SUMS.txt; fi
+          if [ -f *.zip ]; then sha256sum *.zip >> SHA256SUMS.txt; fi
+          cat SHA256SUMS.txt
+      
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
             artifacts/**/*.tar.gz
             artifacts/**/*.zip
+            SHA256SUMS.txt
           body: |
             ## Duke3D: Neon Noir ${{ github.ref_name }}
             
