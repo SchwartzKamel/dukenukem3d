@@ -65,8 +65,9 @@ jobs:
           SDL2_VERSION=2.30.9
           wget -q https://github.com/libsdl-org/SDL/releases/download/release-${SDL2_VERSION}/SDL2-devel-${SDL2_VERSION}-mingw.tar.gz
           tar xzf SDL2-devel-${SDL2_VERSION}-mingw.tar.gz
+          echo "SDL2_VERSION=${SDL2_VERSION}" >> $GITHUB_ENV
           echo "SDL2_WIN_CFLAGS=-I$(pwd)/SDL2-${SDL2_VERSION}/x86_64-w64-mingw32/include/SDL2" >> $GITHUB_ENV
-          echo "SDL2_WIN_LIBS=-L$(pwd)/SDL2-${SDL2_VERSION}/x86_64-w64-mingw32/lib -lmingw32 -lSDL2main -lSDL2 -lm -mwindows" >> $GITHUB_ENV
+          echo "SDL2_WIN_LIBS=-L$(pwd)/SDL2-${SDL2_VERSION}/x86_64-w64-mingw32/lib -lmingw32 -lSDL2main -lSDL2" >> $GITHUB_ENV
       
       - name: Build Windows binary
         run: make windows
@@ -78,17 +79,13 @@ jobs:
           echo "✅ Windows binary built successfully"
       
       - name: Generate assets
-        run: |
-          sudo apt-get install -y libsdl2-dev
-          python3 tools/generate_assets.py --no-ai
+        run: python3 tools/generate_assets.py --no-ai
       
       - name: Package Windows release
         run: |
           mkdir -p release-win64
           cp duke3d.exe release-win64/
           cp DUKE3D.GRP release-win64/
-          # Copy SDL2 DLL for Windows
-          SDL2_VERSION=2.30.9
           cp SDL2-${SDL2_VERSION}/x86_64-w64-mingw32/bin/SDL2.dll release-win64/
           cp README.md release-win64/
       

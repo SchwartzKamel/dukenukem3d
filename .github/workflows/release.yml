@@ -34,8 +34,9 @@ jobs:
           SDL2_VERSION=2.30.9
           wget -q https://github.com/libsdl-org/SDL/releases/download/release-${SDL2_VERSION}/SDL2-devel-${SDL2_VERSION}-mingw.tar.gz
           tar xzf SDL2-devel-${SDL2_VERSION}-mingw.tar.gz
+          echo "SDL2_VERSION=${SDL2_VERSION}" >> $GITHUB_ENV
           echo "SDL2_WIN_CFLAGS=-I$(pwd)/SDL2-${SDL2_VERSION}/x86_64-w64-mingw32/include/SDL2" >> $GITHUB_ENV
-          echo "SDL2_WIN_LIBS=-L$(pwd)/SDL2-${SDL2_VERSION}/x86_64-w64-mingw32/lib -lmingw32 -lSDL2main -lSDL2 -lm -mwindows" >> $GITHUB_ENV
+          echo "SDL2_WIN_LIBS=-L$(pwd)/SDL2-${SDL2_VERSION}/x86_64-w64-mingw32/lib -lmingw32 -lSDL2main -lSDL2" >> $GITHUB_ENV
       
       - name: Build
         run: |
@@ -63,7 +64,6 @@ jobs:
           python3 tools/generate_assets.py --no-ai
           mkdir -p duke3d-${{ github.ref_name }}-windows-x64
           cp duke3d.exe DUKE3D.GRP README.md duke3d-${{ github.ref_name }}-windows-x64/
-          SDL2_VERSION=2.30.9
           cp SDL2-${SDL2_VERSION}/x86_64-w64-mingw32/bin/SDL2.dll duke3d-${{ github.ref_name }}-windows-x64/
           zip -r duke3d-${{ github.ref_name }}-windows-x64.zip duke3d-${{ github.ref_name }}-windows-x64/
       
