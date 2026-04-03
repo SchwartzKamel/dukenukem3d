@@ -168,19 +168,19 @@ static inline char *strupr(char *s)
 
 static inline char *itoa(int val, char *buf, int radix)
 {
-    if (radix == 10) { sprintf(buf, "%d", val); return buf; }
-    if (radix == 16) { sprintf(buf, "%x", val); return buf; }
-    if (radix == 8)  { sprintf(buf, "%o", val); return buf; }
-    sprintf(buf, "%d", val);
+    if (radix == 10) { snprintf(buf, 33, "%d", val); return buf; }
+    if (radix == 16) { snprintf(buf, 33, "%x", val); return buf; }
+    if (radix == 8)  { snprintf(buf, 33, "%o", val); return buf; }
+    snprintf(buf, 33, "%d", val);
     return buf;
 }
 
 static inline char *ltoa(long val, char *buf, int radix)
 {
-    if (radix == 10) { sprintf(buf, "%ld", val); return buf; }
-    if (radix == 16) { sprintf(buf, "%lx", val); return buf; }
-    if (radix == 8)  { sprintf(buf, "%lo", val); return buf; }
-    sprintf(buf, "%ld", val);
+    if (radix == 10) { snprintf(buf, 33, "%ld", val); return buf; }
+    if (radix == 16) { snprintf(buf, 33, "%lx", val); return buf; }
+    if (radix == 8)  { snprintf(buf, 33, "%lo", val); return buf; }
+    snprintf(buf, 33, "%ld", val);
     return buf;
 }
 #endif /* !_WIN32 */

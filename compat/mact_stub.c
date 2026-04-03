@@ -133,7 +133,7 @@ void SCRIPT_GetString(int handle, char *section, char *key, char *dest) {
     dest[0] = 0;
     if (!sc) return;
     e = find_entry(sc, section, key);
-    if (e) strcpy(dest, e->value);
+    if (e) { strncpy(dest, e->value, MAX_ENTRY_LEN - 1); dest[MAX_ENTRY_LEN - 1] = '\0'; }
 }
 
 void SCRIPT_GetDoubleString(int handle, char *section, char *key, char *dest1, char *dest2) {
@@ -144,10 +144,10 @@ void SCRIPT_GetDoubleString(int handle, char *section, char *key, char *dest1, c
     space = strchr(buf, ' ');
     if (space) {
         *space = 0;
-        strcpy(dest1, buf);
-        strcpy(dest2, space+1);
+        strncpy(dest1, buf, MAX_ENTRY_LEN - 1); dest1[MAX_ENTRY_LEN - 1] = '\0';
+        strncpy(dest2, space+1, MAX_ENTRY_LEN - 1); dest2[MAX_ENTRY_LEN - 1] = '\0';
     } else {
-        strcpy(dest1, buf);
+        strncpy(dest1, buf, MAX_ENTRY_LEN - 1); dest1[MAX_ENTRY_LEN - 1] = '\0';
     }
 }
 
@@ -171,7 +171,7 @@ void SCRIPT_PutNumber(int handle, char *section, char *key, long value,
         strncpy(e->section, section, 63);
         strncpy(e->key, key, 63);
     }
-    if (e) sprintf(e->value, "%ld", value);
+    if (e) snprintf(e->value, MAX_ENTRY_LEN, "%ld", value);
 }
 
 void SCRIPT_PutString(int handle, char *section, char *key, char *value) {
