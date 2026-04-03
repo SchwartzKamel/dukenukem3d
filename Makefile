@@ -75,7 +75,7 @@ WIN_GAME_OBJS   = $(patsubst source/%.C,$(WIN_BUILD_DIR)/game_%.o,$(GAME_SRCS))
 WIN_COMPAT_OBJS = $(patsubst compat/%.c,$(WIN_BUILD_DIR)/compat_%.o,$(COMPAT_SRCS))
 WIN_ALL_OBJS    = $(WIN_ENGINE_OBJS) $(WIN_GAME_OBJS) $(WIN_COMPAT_OBJS)
 
-.PHONY: all clean windows assets all-platforms debug release
+.PHONY: all clean windows assets audio all-platforms debug release
 
 all: $(TARGET)
 
@@ -134,7 +134,10 @@ $(WIN_BUILD_DIR)/compat_%.o: compat/%.c | $(WIN_BUILD_DIR)
 # ===== Asset generation =====
 
 assets:
-	python3 tools/generate_assets.py
+	python3 tools/generate_assets.py --no-ai
+
+audio:
+	python3 tools/generate_audio.py
 
 # ===== Multi-platform build =====
 

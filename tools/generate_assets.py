@@ -850,6 +850,16 @@ def main():
     grp_contents["E1L1.MAP"] = test_map
     grp_contents.update(data_files)
 
+    # -- Include audio files if they exist
+    sounds_dir = os.path.join(OUTPUT_DIR, "sounds")
+    if os.path.isdir(sounds_dir):
+        for snd_file in sorted(os.listdir(sounds_dir)):
+            if snd_file.upper().endswith(".WAV"):
+                snd_path = os.path.join(sounds_dir, snd_file)
+                with open(snd_path, "rb") as f:
+                    grp_contents[snd_file.upper()] = f.read()
+                print(f"  {snd_file.upper()}: {os.path.getsize(snd_path)} bytes")
+
     grp_data = create_grp(grp_contents)
     print(f"  DUKE3D.GRP: {len(grp_data)} bytes ({len(grp_contents)} files)")
 
