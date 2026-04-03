@@ -22,7 +22,7 @@ This is a **modernized, fully-compilable port** of the original *Duke Nukem 3D* 
 - 🛠️ **Compiles with modern GCC** (11+) — no Watcom compiler required
 - 🐧 **Runs natively on Linux x86-64**, cross-compiles for **Windows x64**
 - 🖥️ **SDL2** replaces DOS VESA/VGA for graphics, input, and timing
-- 🎨 **AI-generated cyberpunk textures** via [FLUX.2-pro](https://azure.microsoft.com/) (Azure AI), with procedural fallback
+- 🎨 **AI-generated cyberpunk textures** via [FLUX.2-pro](https://bfl.ai/models/flux-2-pro) by Black Forest Labs, with procedural fallback
 - 🏗️ **Complete asset pipeline** — generates everything needed to play without any copyrighted content
 
 ### 🌆 The Theme: Neon Noir Cyberpunk
@@ -82,6 +82,14 @@ That's it. Three commands and the King rides again.
 | MinGW-w64 | `sudo apt install gcc-mingw-w64-x86-64` |
 | SDL2 for MinGW | SDL2 development libraries (MinGW variant) |
 
+### Windows (Native Build)
+
+| Requirement | Install |
+|---|---|
+| Visual Studio Build Tools **or** MinGW-w64 | [VS Build Tools](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022) or [MinGW-w64](https://www.mingw-w64.org/) |
+| SDL2 development libraries | [SDL2 releases](https://github.com/libsdl-org/SDL/releases) — get the `-VC.zip` for MSVC or `-mingw.zip` for MinGW |
+| CMake *(optional)* | [cmake.org](https://cmake.org/download/) or via `winget install cmake` |
+
 ---
 
 ## 🔨 Building
@@ -92,13 +100,45 @@ That's it. Three commands and the King rides again.
 make            # builds ./duke3d
 ```
 
-### Windows x64 (cross-compile)
+### Windows x64 (cross-compile from Linux)
 
 ```bash
 make windows    # builds ./duke3d.exe
 ```
 
-### Both platforms
+### Windows Native — Option A: CMake (Recommended)
+
+The cleanest approach for Windows. Works with Visual Studio, MinGW, or any CMake generator.
+
+```cmd
+REM Install SDL2 via vcpkg (one-time setup)
+vcpkg install sdl2:x64-windows
+
+REM Build with CMake
+mkdir build && cd build
+cmake .. -DCMAKE_TOOLCHAIN_FILE=[vcpkg-root]\scripts\buildsystems\vcpkg.cmake
+cmake --build . --config Release
+```
+
+Or open the project directly in **Visual Studio 2019+** (File → Open → CMake) — it will auto-detect `CMakeLists.txt`.
+
+### Windows Native — Option B: Visual Studio Developer Command Prompt
+
+Open a **Developer Command Prompt for VS** (or **x64 Native Tools Command Prompt**), set `SDL2_DIR`, and run:
+
+```cmd
+set SDL2_DIR=C:\SDL2
+build_windows.bat msvc
+```
+
+### Windows Native — Option C: MinGW on Windows
+
+```cmd
+set SDL2_DIR=C:\SDL2
+build_windows.bat mingw
+```
+
+### Both platforms (Linux)
 
 ```bash
 make all-platforms
@@ -128,7 +168,7 @@ Two generation modes are available:
 
 | Mode | Command | Description |
 |---|---|---|
-| **AI + Fallback** | `python3 tools/generate_assets.py` | Uses FLUX.2-pro for textures, falls back to procedural if API is unavailable |
+| **AI + Fallback** | `python3 tools/generate_assets.py` | Uses [FLUX.2-pro](https://bfl.ai/models/flux-2-pro) (Black Forest Labs, hosted on Azure) for textures, falls back to procedural if API is unavailable |
 | **Procedural Only** | `python3 tools/generate_assets.py --no-ai` | Pure algorithmic generation, no API needed |
 | **Procedural Only** | `make assets` | Same as `--no-ai` |
 
@@ -177,7 +217,7 @@ All 20 textures follow the Neon Noir Cyberpunk theme:
 ├── SRC/                  # BUILD engine (ENGINE.C, CACHE1D.C, MMULTI.C, BUILD.H)
 ├── source/               # Duke3D game code (GAME.C, ACTORS.C, PLAYER.C, etc.)
 ├── compat/               # Modern compatibility layer
-│   ├── compat.h          # DOS → POSIX/Win32 shim
+│   ├── compat.h          # DOS → POSIX/Win32/MSVC shim
 │   ├── pragmas_gcc.h     # 174 inline C replacements for Watcom ASM
 │   ├── sdl_driver.c/h    # SDL2 video/input/timer
 │   ├── audio_stub.c/h    # Stub audio/input system
@@ -191,6 +231,8 @@ All 20 textures follow the Neon Noir Cyberpunk theme:
 │   └── tables.py         # Sine/lookup table generator
 ├── testdata/             # Game scripts (GAME.CON, DEFS.CON, etc.)
 ├── audiolib/             # Original DOS audio drivers (not used)
+├── CMakeLists.txt        # Cross-platform CMake build (Windows/Linux/macOS)
+├── build_windows.bat     # Windows native build (MSVC or MinGW)
 ├── Makefile              # Linux + Windows cross-compile
 └── .env                  # FLUX API credentials (gitignored)
 ```
@@ -219,7 +261,7 @@ Porting a 1996 DOS game to modern Linux isn't for the faint of heart. Here's wha
 - **No audio** — sound functions are stubbed (Duke's one-liners live on in our hearts)
 - **No multiplayer** — networking is stubbed for single-player only
 - **Incomplete tile coverage** — game scripts (`GAME.CON`/`DEFS.CON`) reference many tile numbers not yet generated
-- **Windows build** — requires SDL2 MinGW development libraries to be set up separately
+- **Windows build** — requires SDL2 development libraries; see build instructions above
 
 ---
 
@@ -249,6 +291,7 @@ Porting a 1996 DOS game to modern Linux isn't for the faint of heart. Here's wha
 - **[3D Realms](https://3drealms.com/)** — Original Duke Nukem 3D source code (2003 GPL release)
 - **Ken Silverman** — The BUILD engine that started it all
 - **Jim Dose** — Audio library (`audiolib`)
+- **[Black Forest Labs](https://bfl.ai/)** — FLUX.2-pro image generation model (hosted on Azure)
 - **This port** — Modern GCC/SDL2 port with AI-powered asset generation
 
 ---

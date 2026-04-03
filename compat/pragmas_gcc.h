@@ -18,6 +18,11 @@
 #include <string.h>
 #include <stdlib.h>
 
+/* MSVC in C mode: ensure 'inline' is available for older versions */
+#if defined(_MSC_VER) && !defined(__cplusplus) && (_MSC_VER < 1900)
+  #define inline __inline
+#endif
+
 /* ======================================================================
  * Global used by divmod / moddiv
  * ====================================================================== */

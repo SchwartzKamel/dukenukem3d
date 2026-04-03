@@ -10,6 +10,33 @@
 #pragma once
 
 /* ======================================================================
+ * MSVC compatibility
+ *
+ * MSVC lacks some GCC/POSIX features used throughout. Map them here
+ * before any other headers are included.
+ * ====================================================================== */
+
+#ifdef _MSC_VER
+  /* GCC attributes are not supported */
+  #ifndef __attribute__
+  #define __attribute__(x)
+  #endif
+
+  /* MSVC uses __restrict instead of __restrict__ */
+  #define __restrict__ __restrict
+
+  /* POSIX access() → MSVC _access() */
+  #include <io.h>
+  #define access _access
+  #ifndef R_OK
+  #define R_OK 4
+  #endif
+
+  /* Suppress deprecation warnings for POSIX names */
+  #pragma warning(disable: 4996)
+#endif
+
+/* ======================================================================
  * Standard headers that replace DOS equivalents
  * ====================================================================== */
 
@@ -123,26 +150,22 @@ static inline long tell(int fd)
   #endif
 #endif /* !_WIN32 */
 
-#ifndef strlwr
+/* strlwr/strupr/itoa/ltoa — provided by MinGW on Windows, need polyfills on POSIX */
+#ifndef _WIN32
 static inline char *strlwr(char *s)
 {
     char *p = s;
     while (*p) { *p = tolower((unsigned char)*p); p++; }
     return s;
 }
-#endif
 
-#ifndef strupr
 static inline char *strupr(char *s)
 {
     char *p = s;
     while (*p) { *p = toupper((unsigned char)*p); p++; }
     return s;
 }
-#endif
 
-/* itoa / ltoa - non-standard but used in the original code */
-#ifndef itoa
 static inline char *itoa(int val, char *buf, int radix)
 {
     if (radix == 10) { sprintf(buf, "%d", val); return buf; }
@@ -151,9 +174,7 @@ static inline char *itoa(int val, char *buf, int radix)
     sprintf(buf, "%d", val);
     return buf;
 }
-#endif
 
-#ifndef ltoa
 static inline char *ltoa(long val, char *buf, int radix)
 {
     if (radix == 10) { sprintf(buf, "%ld", val); return buf; }
@@ -162,7 +183,7 @@ static inline char *ltoa(long val, char *buf, int radix)
     sprintf(buf, "%ld", val);
     return buf;
 }
-#endif
+#endif /* !_WIN32 */
 
 /* ======================================================================
  * min / max macros (DOS compilers often provided these)
