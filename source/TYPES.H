@@ -26,6 +26,7 @@ Prepared for public release: 03/21/2003 - Charlie Wiederhold, 3D Realms
 
 #ifndef _types_public
 #define _types_public
+#define _TYPES_H  /* signal to audio_stub.h that types.h is providing these */
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -46,18 +47,17 @@ typedef uint16                  word;
 typedef short int               int16;
 
 #include <stdint.h>
-#if __SIZEOF_LONG__ == 8
+/* Always use fixed-width types for portability across 32/64-bit and
+   different compilers (MSVC, GCC, MinGW). This avoids conflicts with
+   compat headers that also typedef these names. */
 typedef uint32_t                uint32;
 typedef int32_t                 int32;
 typedef uint32_t                dword;
-#else
-typedef unsigned long           uint32;
-typedef long                    int32;
-typedef uint32                  dword;
-#endif
 
 typedef int32                   fixed;
+#ifndef _WIN32
 typedef int32                   boolean;
+#endif
 typedef float                   float32;
 typedef double                  float64;
 typedef long double             float128;
