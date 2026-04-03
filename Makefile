@@ -1,6 +1,8 @@
 # Duke Nukem 3D - Modern GCC/SDL2 Makefile
 # Supports Linux (native) and Windows x64 (cross-compilation via MinGW)
 
+include build.mk
+
 # Build type configuration: release (default) or debug
 BUILD_TYPE ?= release
 
@@ -15,14 +17,34 @@ else
 endif
 
 CC      = gcc
-CFLAGS  = -std=gnu89 $(OPT_FLAGS) $(WARN_FLAGS) $(LTO_FLAGS) -DSUPERBUILD -DPLATFORM_UNIX
-SDL_CFLAGS = $(shell sdl2-config --cflags 2>/dev/null || echo "-I/home/linuxbrew/.linuxbrew/include/SDL2 -D_REENTRANT")
-SDL_LIBS   = $(shell sdl2-config --libs 2>/dev/null || echo "-L/home/linuxbrew/.linuxbrew/lib -lSDL2")
+CFLAGS  = $(LEGACY_STD) $(OPT_FLAGS) $(WARN_FLAGS) $(LTO_FLAGS) $(COMMON_DEFINES) -DPLATFORM_UNIX
 
-# SDL2_mixer auto-detection (optional – provides real audio when available)
+# ===== Smart SDL2 Detection =====
+SDL2_CFLAGS := $(shell pkg-config --cflags sdl2 2>/dev/null || sdl2-config --cflags 2>/dev/null)
+SDL2_LIBS := $(shell pkg-config --libs sdl2 2>/dev/null || sdl2-config --libs 2>/dev/null)
+
+# Fallback: check common paths
+ifeq ($(SDL2_CFLAGS),)
+  ifneq ($(wildcard /usr/include/SDL2/SDL.h),)
+    SDL2_CFLAGS := -I/usr/include/SDL2
+    SDL2_LIBS := -lSDL2
+  else ifneq ($(wildcard /home/linuxbrew/.linuxbrew/include/SDL2/SDL.h),)
+    SDL2_CFLAGS := -I/home/linuxbrew/.linuxbrew/include/SDL2
+    SDL2_LIBS := -L/home/linuxbrew/.linuxbrew/lib -lSDL2
+  endif
+endif
+
+# Verify SDL2 was found
+ifeq ($(SDL2_CFLAGS),)
+  $(warning SDL2 not found! Install libsdl2-dev or set SDL2_CFLAGS/SDL2_LIBS manually)
+endif
+
+# ===== Smart SDL2_mixer Detection =====
 HAVE_SDL2_MIXER := $(shell pkg-config --exists SDL2_mixer 2>/dev/null && echo yes)
 ifeq ($(HAVE_SDL2_MIXER),)
-  ifneq ($(wildcard /home/linuxbrew/.linuxbrew/include/SDL2/SDL_mixer.h),)
+  ifneq ($(wildcard /usr/include/SDL2/SDL_mixer.h),)
+    HAVE_SDL2_MIXER := yes
+  else ifneq ($(wildcard /home/linuxbrew/.linuxbrew/include/SDL2/SDL_mixer.h),)
     HAVE_SDL2_MIXER := yes
   endif
 endif
@@ -31,33 +53,30 @@ ifeq ($(HAVE_SDL2_MIXER),yes)
   MIXER_LIBS   = $(shell pkg-config --libs SDL2_mixer 2>/dev/null || echo "-lSDL2_mixer")
 endif
 
-LIBS    = $(SDL_LIBS) $(MIXER_LIBS) -lm
+LIBS    = $(SDL2_LIBS) $(MIXER_LIBS) -lm
 
 # ===== Windows x64 cross-compilation settings =====
-WIN_CC      = x86_64-w64-mingw32-gcc
-WIN_CFLAGS  = -std=gnu89 $(OPT_FLAGS) $(WARN_FLAGS) $(LTO_FLAGS) -DSUPERBUILD -DPLATFORM_WIN32
-WIN_SDL_CFLAGS = $(if $(SDL2_WIN_CFLAGS),$(SDL2_WIN_CFLAGS),-I/usr/x86_64-w64-mingw32/include/SDL2 -D_REENTRANT)
-WIN_SDL_LIBS   = $(if $(SDL2_WIN_LIBS),$(SDL2_WIN_LIBS),-L/usr/x86_64-w64-mingw32/lib -lmingw32 -lSDL2main -lSDL2)
-WIN_LIBS    = $(WIN_SDL_LIBS) -lm -lws2_32 -mwindows -static-libgcc
+# Smart MinGW SDL2 detection
+WIN_CC = x86_64-w64-mingw32-gcc
+WIN_CFLAGS  = $(LEGACY_STD) $(OPT_FLAGS) $(WARN_FLAGS) $(LTO_FLAGS) $(COMMON_DEFINES) -DPLATFORM_WIN32
+WIN_SDL2_CFLAGS = $(if $(SDL2_WIN_CFLAGS),$(SDL2_WIN_CFLAGS),$(shell pkg-config --cflags sdl2 2>/dev/null))
+ifeq ($(WIN_SDL2_CFLAGS),)
+  # Check common MinGW SDL2 paths
+  ifneq ($(wildcard /usr/x86_64-w64-mingw32/include/SDL2/SDL.h),)
+    WIN_SDL2_CFLAGS = -I/usr/x86_64-w64-mingw32/include/SDL2
+    WIN_SDL2_LIBS = -L/usr/x86_64-w64-mingw32/lib -lmingw32 -lSDL2main -lSDL2
+  endif
+endif
+WIN_SDL2_LIBS ?= $(if $(SDL2_WIN_LIBS),$(SDL2_WIN_LIBS),-L/usr/x86_64-w64-mingw32/lib -lmingw32 -lSDL2main -lSDL2)
+WIN_LIBS    = $(WIN_SDL2_LIBS) -lm -lws2_32 -mwindows -static-libgcc
 WIN_TARGET  = duke3d.exe
 WIN_BUILD_DIR = build_win
 
 # Include paths
-INCLUDES = -Icompat -ISRC -Isource
+INCLUDES = $(INCLUDE_DIRS)
 
 # Output
 TARGET = duke3d
-
-# Engine sources (BUILD engine)
-ENGINE_SRCS = SRC/ENGINE.C SRC/CACHE1D.C SRC/MMULTI.C
-
-# Game sources
-GAME_SRCS = source/GAME.C source/ACTORS.C source/GAMEDEF.C source/GLOBAL.C \
-            source/MENUES.C source/PLAYER.C source/PREMAP.C source/SECTOR.C \
-            source/SOUNDS.C source/RTS.C source/CONFIG.C source/ANIMLIB.C
-
-# Compat layer sources (a.c excluded - ENGINE.C has inline C replacements for ASM)
-COMPAT_SRCS = compat/sdl_driver.c compat/audio_stub.c compat/mact_stub.c compat/hud.c
 
 # All sources
 ALL_SRCS = $(ENGINE_SRCS) $(GAME_SRCS) $(COMPAT_SRCS)
@@ -75,7 +94,7 @@ WIN_GAME_OBJS   = $(patsubst source/%.C,$(WIN_BUILD_DIR)/game_%.o,$(GAME_SRCS))
 WIN_COMPAT_OBJS = $(patsubst compat/%.c,$(WIN_BUILD_DIR)/compat_%.o,$(COMPAT_SRCS))
 WIN_ALL_OBJS    = $(WIN_ENGINE_OBJS) $(WIN_GAME_OBJS) $(WIN_COMPAT_OBJS)
 
-.PHONY: all clean windows assets audio all-platforms debug release
+.PHONY: all clean windows assets audio all-platforms debug release info
 
 all: $(TARGET)
 
@@ -89,21 +108,21 @@ $(TARGET): $(BUILD_DIR) $(ALL_OBJS)
 # Engine objects - compile with ENGINE defined, force C mode
 # ENGINE.C uses integer/fixed-point rendering math, safe for -ffast-math
 $(BUILD_DIR)/engine_ENGINE.o: SRC/ENGINE.C | $(BUILD_DIR)
-	$(CC) $(CFLAGS) -ffast-math $(SDL_CFLAGS) $(INCLUDES) -DENGINE -x c -c $< -o $@
+	$(CC) $(CFLAGS) $(ENGINE_EXTRA_FLAGS) $(SDL2_CFLAGS) $(INCLUDES) -x c -c $< -o $@
 
 $(BUILD_DIR)/engine_CACHE1D.o: SRC/CACHE1D.C | $(BUILD_DIR)
-	$(CC) $(CFLAGS) $(SDL_CFLAGS) $(INCLUDES) -x c -c $< -o $@
+	$(CC) $(CFLAGS) $(SDL2_CFLAGS) $(INCLUDES) -x c -c $< -o $@
 
 $(BUILD_DIR)/engine_MMULTI.o: SRC/MMULTI.C | $(BUILD_DIR)
-	$(CC) $(CFLAGS) $(SDL_CFLAGS) $(INCLUDES) -x c -c $< -o $@
+	$(CC) $(CFLAGS) $(SDL2_CFLAGS) $(INCLUDES) -x c -c $< -o $@
 
 # Game objects - force C mode for uppercase .C files
 $(BUILD_DIR)/game_%.o: source/%.C | $(BUILD_DIR)
-	$(CC) $(CFLAGS) $(SDL_CFLAGS) $(INCLUDES) -x c -c $< -o $@
+	$(CC) $(CFLAGS) $(SDL2_CFLAGS) $(INCLUDES) -x c -c $< -o $@
 
 # Compat objects - compile with C11 (these are modern code)
 $(BUILD_DIR)/compat_%.o: compat/%.c | $(BUILD_DIR)
-	$(CC) -std=gnu11 $(OPT_FLAGS) -Wall $(LTO_FLAGS) $(SDL_CFLAGS) $(MIXER_CFLAGS) $(INCLUDES) -c $< -o $@
+	$(CC) $(COMPAT_STD) $(OPT_FLAGS) -Wall $(LTO_FLAGS) $(SDL2_CFLAGS) $(MIXER_CFLAGS) $(INCLUDES) -c $< -o $@
 
 # ===== Windows x64 cross-compilation targets =====
 
@@ -117,19 +136,19 @@ $(WIN_TARGET): $(WIN_BUILD_DIR) $(WIN_ALL_OBJS)
 	@echo "Build complete: $(WIN_TARGET) ($(BUILD_TYPE))"
 
 $(WIN_BUILD_DIR)/engine_ENGINE.o: SRC/ENGINE.C | $(WIN_BUILD_DIR)
-	$(WIN_CC) $(WIN_CFLAGS) -ffast-math $(WIN_SDL_CFLAGS) $(INCLUDES) -DENGINE -x c -c $< -o $@
+	$(WIN_CC) $(WIN_CFLAGS) $(ENGINE_EXTRA_FLAGS) $(WIN_SDL2_CFLAGS) $(INCLUDES) -x c -c $< -o $@
 
 $(WIN_BUILD_DIR)/engine_CACHE1D.o: SRC/CACHE1D.C | $(WIN_BUILD_DIR)
-	$(WIN_CC) $(WIN_CFLAGS) $(WIN_SDL_CFLAGS) $(INCLUDES) -x c -c $< -o $@
+	$(WIN_CC) $(WIN_CFLAGS) $(WIN_SDL2_CFLAGS) $(INCLUDES) -x c -c $< -o $@
 
 $(WIN_BUILD_DIR)/engine_MMULTI.o: SRC/MMULTI.C | $(WIN_BUILD_DIR)
-	$(WIN_CC) $(WIN_CFLAGS) $(WIN_SDL_CFLAGS) $(INCLUDES) -x c -c $< -o $@
+	$(WIN_CC) $(WIN_CFLAGS) $(WIN_SDL2_CFLAGS) $(INCLUDES) -x c -c $< -o $@
 
 $(WIN_BUILD_DIR)/game_%.o: source/%.C | $(WIN_BUILD_DIR)
-	$(WIN_CC) $(WIN_CFLAGS) $(WIN_SDL_CFLAGS) $(INCLUDES) -x c -c $< -o $@
+	$(WIN_CC) $(WIN_CFLAGS) $(WIN_SDL2_CFLAGS) $(INCLUDES) -x c -c $< -o $@
 
 $(WIN_BUILD_DIR)/compat_%.o: compat/%.c | $(WIN_BUILD_DIR)
-	$(WIN_CC) -std=gnu11 $(OPT_FLAGS) -Wall $(LTO_FLAGS) -DSUPERBUILD -DPLATFORM_WIN32 $(WIN_SDL_CFLAGS) $(INCLUDES) -c $< -o $@
+	$(WIN_CC) $(COMPAT_STD) $(OPT_FLAGS) -Wall $(LTO_FLAGS) $(COMMON_DEFINES) -DPLATFORM_WIN32 $(WIN_SDL2_CFLAGS) $(INCLUDES) -c $< -o $@
 
 # ===== Asset generation =====
 
@@ -154,17 +173,34 @@ release:
 clean:
 	rm -rf $(BUILD_DIR) $(WIN_BUILD_DIR) $(TARGET) $(WIN_TARGET)
 
+# ===== Build info =====
+
+.PHONY: info
+info:
+	@echo "=== Duke3D Build Configuration ==="
+	@echo "Platform:      $(shell uname -s -m)"
+	@echo "CC:            $(CC)"
+	@echo "Build type:    $(BUILD_TYPE)"
+	@echo "SDL2 CFLAGS:   $(SDL2_CFLAGS)"
+	@echo "SDL2 LIBS:     $(SDL2_LIBS)"
+	@echo "SDL2_mixer:    $(if $(HAVE_SDL2_MIXER),yes ($(MIXER_LIBS)),no)"
+	@echo "MinGW CC:      $(shell which $(WIN_CC) 2>/dev/null || echo 'not found')"
+	@echo "Engine srcs:   $(words $(ENGINE_SRCS)) files"
+	@echo "Game srcs:     $(words $(GAME_SRCS)) files"
+	@echo "Compat srcs:   $(words $(COMPAT_SRCS)) files"
+	@echo "=================================="
+
 # Quick test: try to compile each file individually
 test-compile: $(BUILD_DIR)
 	@for f in $(ENGINE_SRCS); do \
 		echo "Compiling $$f..."; \
-		$(CC) $(CFLAGS) $(SDL_CFLAGS) $(INCLUDES) -DENGINE -c $$f -o /dev/null 2>&1 | head -5 || true; \
+		$(CC) $(CFLAGS) $(SDL2_CFLAGS) $(INCLUDES) -DENGINE -c $$f -o /dev/null 2>&1 | head -5 || true; \
 	done
 	@for f in $(GAME_SRCS); do \
 		echo "Compiling $$f..."; \
-		$(CC) $(CFLAGS) $(SDL_CFLAGS) $(INCLUDES) -c $$f -o /dev/null 2>&1 | head -5 || true; \
+		$(CC) $(CFLAGS) $(SDL2_CFLAGS) $(INCLUDES) -c $$f -o /dev/null 2>&1 | head -5 || true; \
 	done
 	@for f in $(COMPAT_SRCS); do \
 		echo "Compiling $$f..."; \
-		$(CC) -std=gnu11 -Wall $(SDL_CFLAGS) $(INCLUDES) -c $$f -o /dev/null 2>&1 | head -5 || true; \
+		$(CC) $(COMPAT_STD) -Wall $(SDL2_CFLAGS) $(INCLUDES) -c $$f -o /dev/null 2>&1 | head -5 || true; \
 	done

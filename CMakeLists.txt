@@ -21,7 +21,7 @@ endif()
 
 add_compile_definitions(SUPERBUILD)
 
-# Source files
+# Source files — keep in sync with build.mk
 set(ENGINE_SRCS
     SRC/ENGINE.C
     SRC/CACHE1D.C
@@ -47,6 +47,7 @@ set(COMPAT_SRCS
     compat/sdl_driver.c
     compat/audio_stub.c
     compat/mact_stub.c
+    compat/hud.c
 )
 
 # Force C language for uppercase .C files (GCC treats .C as C++)
