@@ -76,7 +76,9 @@
 #define __interrupt
 #define __far
 #define __pascal
+#ifndef _WIN32
 #define __cdecl
+#endif
 #define __near
 #define __loadds
 #define __saveregs
@@ -222,7 +224,9 @@ static inline int cputs(const char *s) { return fputs(s, stdout); }
 /* cprintf - console printf (just use printf) */
 #define cprintf printf
 
-/* inp / outp - x86 port I/O (no-ops on modern Linux userspace) */
+/* inp / outp - x86 port I/O (no-ops on modern Linux userspace)
+   On Windows, these are declared in intrin.h (via SDL2), so skip them. */
+#ifndef _WIN32
 static inline unsigned char inp(unsigned short port)
 {
     (void)port;
@@ -244,6 +248,7 @@ static inline void outpw(unsigned short port, unsigned short val)
 {
     (void)port; (void)val;
 }
+#endif
 
 /* ======================================================================
  * DOS interrupt stubs (from dos.h / i86.h)
