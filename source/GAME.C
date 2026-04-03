@@ -7376,9 +7376,9 @@ int main(int argc,char **argv)
 
     /* Propagate command-line args to MMULTI.C for network init */
     {
-        extern int _argc;
+        extern int32 _argc;
         extern char **_argv;
-        _argc = argc;
+        _argc = (int32)argc;
         _argv = argv;
     }
 

@@ -25,6 +25,7 @@ extern "C" {
    Portable type aliases (match source/TYPES.H for the game code)
    ═══════════════════════════════════════════════════════════════════ */
 #ifndef _types_public
+#ifndef _TYPES_H  /* avoid conflict with source/types.h */
 typedef unsigned char  uint8;
 typedef uint8          byte;
 typedef signed char    int8;
@@ -35,7 +36,17 @@ typedef unsigned int   uint32;
 typedef int            int32;
 typedef uint32         dword;
 typedef int32          fixed;
+#ifdef _WIN32
+/* windows.h defines boolean as unsigned char — don't redefine */
+#ifndef _WINDEF_
+#ifndef boolean
 typedef int32          boolean;
+#endif
+#endif
+#else
+typedef int32          boolean;
+#endif
+#endif /* _TYPES_H */
 #endif
 
 typedef uint8 kb_scancode;
