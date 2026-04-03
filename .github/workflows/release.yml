@@ -62,10 +62,19 @@ jobs:
         if: matrix.target == 'windows'
         run: |
           python3 tools/generate_assets.py --no-ai
-          mkdir -p duke3d-${{ github.ref_name }}-windows-x64
-          cp duke3d.exe DUKE3D.GRP README.md duke3d-${{ github.ref_name }}-windows-x64/
-          cp SDL2-${SDL2_VERSION}/x86_64-w64-mingw32/bin/SDL2.dll duke3d-${{ github.ref_name }}-windows-x64/
-          zip -r duke3d-${{ github.ref_name }}-windows-x64.zip duke3d-${{ github.ref_name }}-windows-x64/
+          PKGDIR=duke3d-${{ github.ref_name }}-windows-x64
+          mkdir -p $PKGDIR
+          cp duke3d.exe DUKE3D.GRP README.md $PKGDIR/
+          cp SDL2-${SDL2_VERSION}/x86_64-w64-mingw32/bin/SDL2.dll $PKGDIR/
+          # Bundle MinGW runtime DLLs for self-contained package
+          MINGW_BIN=$(dirname $(which x86_64-w64-mingw32-gcc))
+          for dll in libwinpthread-1.dll libgcc_s_seh-1.dll libstdc++-6.dll; do
+            [ -f "$MINGW_BIN/../x86_64-w64-mingw32/lib/$dll" ] && cp "$MINGW_BIN/../x86_64-w64-mingw32/lib/$dll" $PKGDIR/
+            [ -f "/usr/lib/gcc/x86_64-w64-mingw32/"*"/$dll" ] && cp /usr/lib/gcc/x86_64-w64-mingw32/*/$dll $PKGDIR/ 2>/dev/null || true
+            [ -f "/usr/x86_64-w64-mingw32/lib/$dll" ] && cp "/usr/x86_64-w64-mingw32/lib/$dll" $PKGDIR/ 2>/dev/null || true
+          done
+          ls -la $PKGDIR/
+          zip -r duke3d-${{ github.ref_name }}-windows-x64.zip $PKGDIR/
       
       - name: Upload release artifact
         uses: actions/upload-artifact@v4

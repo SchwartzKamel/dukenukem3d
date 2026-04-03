@@ -38,7 +38,7 @@ WIN_CC      = x86_64-w64-mingw32-gcc
 WIN_CFLAGS  = -std=gnu89 $(OPT_FLAGS) $(WARN_FLAGS) $(LTO_FLAGS) -DSUPERBUILD -DPLATFORM_WIN32
 WIN_SDL_CFLAGS = $(if $(SDL2_WIN_CFLAGS),$(SDL2_WIN_CFLAGS),-I/usr/x86_64-w64-mingw32/include/SDL2 -D_REENTRANT)
 WIN_SDL_LIBS   = $(if $(SDL2_WIN_LIBS),$(SDL2_WIN_LIBS),-L/usr/x86_64-w64-mingw32/lib -lmingw32 -lSDL2main -lSDL2)
-WIN_LIBS    = $(WIN_SDL_LIBS) -lm -lws2_32 -mwindows
+WIN_LIBS    = $(WIN_SDL_LIBS) -lm -lws2_32 -mwindows -static-libgcc
 WIN_TARGET  = duke3d.exe
 WIN_BUILD_DIR = build_win
 
