@@ -44,7 +44,7 @@ GAME_SRCS = source/GAME.C source/ACTORS.C source/GAMEDEF.C source/GLOBAL.C \
             source/SOUNDS.C source/RTS.C source/CONFIG.C source/ANIMLIB.C
 
 # Compat layer sources (a.c excluded - ENGINE.C has inline C replacements for ASM)
-COMPAT_SRCS = compat/sdl_driver.c compat/audio_stub.c compat/mact_stub.c
+COMPAT_SRCS = compat/sdl_driver.c compat/audio_stub.c compat/mact_stub.c compat/hud.c
 
 # All sources
 ALL_SRCS = $(ENGINE_SRCS) $(GAME_SRCS) $(COMPAT_SRCS)

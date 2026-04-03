@@ -28,6 +28,7 @@ Prepared for public release: 03/21/2003 - Charlie Wiederhold, 3D Realms
 #include "pragmas_gcc.h"
 #include "audio_stub.h"
 #include "sdl_driver.h"
+#include "hud.h"
 #include "types.h"
 #include "develop.h"
 #include "scriplib.h"
@@ -2367,6 +2368,17 @@ void displayrest(long smoothratio)
                     minitext(1,a+12,level_names[ud.volume_number*11 + ud.level_number],0,2+8+16);
                 }
         }
+    }
+
+    /* Draw the compat-layer HUD (framebuffer-based, no tile dependencies) */
+    {
+        extern long frameplace, bytesperline, xdim, ydim;
+        hud_draw((unsigned char *)(intptr_t)frameplace,
+                 (int)bytesperline, (int)xdim, (int)ydim,
+                 pp->last_extra,                    /* health */
+                 pp->ammo_amount[pp->curr_weapon],  /* ammo for current weapon */
+                 pp->shield_amount,                 /* armor */
+                 pp->curr_weapon);
     }
 
     coolgaugetext(screenpeek);
@@ -7150,6 +7162,7 @@ void Startup(void)
 // initengine(ScreenMode,ScreenWidth,ScreenHeight);
    initengine();
 // CTW END - MODIFICATION
+   hud_init();
    inittimer();
 
    puts("* Hold Esc to Abort. *");
