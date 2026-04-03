@@ -227,6 +227,34 @@ tools/generate_assets.py
 - **GRP packing** bundles all generated files into `DUKE3D.GRP` using
   Ken Silverman's archive format.
 
+### Audio Pipeline
+
+```
+tools/generate_audio.py
+  ├── Load .env (GPT Audio credentials)
+  ├── For each voice line definition:
+  │   ├── Call GPT Audio 1.5 API (text → WAV)
+  │   └── Fallback: generate silence placeholder
+  └── Output WAV files to generated_assets/sounds/
+
+tools/generate_assets.py
+  └── Pack sounds/*.WAV into DUKE3D.GRP (if present)
+```
+
+- **AI generation** uses GPT Audio 1.5 (via Azure OpenAI API) to synthesize
+  voice lines and sound effects from text prompts. Three voices are available:
+  `alloy` (gruff), `echo` (electronic), and `onyx` (deep).
+- **Silence fallback** generates empty WAV files when AI is unavailable
+  (`--no-ai` flag), keeping the pipeline functional without API keys.
+
+### Audio System (Runtime)
+
+- **SDL2_mixer** loads WAV files from GRP at runtime
+- **`FX_PlaySound`** / **`FX_Play3D`** handle playback with positional audio
+- **`MUSIC_PlaySong`** handles MIDI music playback
+- Falls back to silence if SDL2_mixer is not available (current default via
+  `audio_stub.c`)
+
 ---
 
 ## 64-bit Compatibility

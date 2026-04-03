@@ -23,6 +23,7 @@ This is a **modernized, fully-compilable port** of the original *Duke Nukem 3D* 
 - 🐧 **Runs natively on Linux x86-64**, cross-compiles for **Windows x64**
 - 🖥️ **SDL2** replaces DOS VESA/VGA for graphics, input, and timing
 - 🎨 **AI-generated cyberpunk textures** via [FLUX.2-pro](https://bfl.ai/models/flux-2-pro) by Black Forest Labs, with procedural fallback
+- 🔊 **AI-generated voice lines & SFX** via [GPT Audio 1.5](https://platform.openai.com/) on Azure OpenAI
 - 🏗️ **Complete asset pipeline** — generates everything needed to play without any copyrighted content
 
 ### 🌆 The Theme: Neon Noir Cyberpunk
@@ -49,8 +50,12 @@ Every texture, every sprite, every pixel — generated fresh with a unified **Ne
 # Build it
 make
 
-# Generate assets (procedural — no API keys needed)
+# Generate audio (AI voice lines + sound effects)
+python3 tools/generate_audio.py
+
+# Generate visual assets + pack everything into GRP
 make assets
+
 # OR generate with AI textures (requires .env with FLUX credentials)
 python3 tools/generate_assets.py
 
@@ -59,7 +64,7 @@ export LD_LIBRARY_PATH=/home/linuxbrew/.linuxbrew/lib:$LD_LIBRARY_PATH
 ./duke3d
 ```
 
-That's it. Three commands and the King rides again.
+That's it. Build, generate, and the King rides again.
 
 ---
 
@@ -172,6 +177,37 @@ Two generation modes are available:
 | **Procedural Only** | `python3 tools/generate_assets.py --no-ai` | Pure algorithmic generation, no API needed |
 | **Procedural Only** | `make assets` | Same as `--no-ai` |
 
+### Audio Assets
+
+AI-generated using GPT Audio 1.5 on Azure OpenAI. Generates 21 WAV files:
+
+| Category | Files | Description |
+|----------|-------|-------------|
+| Taunts | TAUNT01-05.WAV | Gruff cyberpunk mercenary one-liners |
+| Pain | PAIN01-03.WAV | Combat damage grunts |
+| Death | DEATH01-02.WAV | Death screams and last words |
+| Pickups | PICKUP01-04.WAV | Electronic HUD notifications |
+| Weapons | WEAPON01-03.WAV | Weapon system announcements |
+| Level | LEVEL01-02.WAV | Level start lines |
+| Environment | ALARM01.WAV, COMPUTER01.WAV | Facility announcements |
+
+```bash
+# Generate with AI
+python3 tools/generate_audio.py
+
+# Generate silence placeholders (no API needed)
+python3 tools/generate_audio.py --no-ai
+```
+
+#### Setup for Audio Generation
+
+```bash
+# Add to .env:
+AUDIO_ENDPOINT=<your-azure-openai-endpoint>
+AUDIO_MODEL=gpt-audio-1.5
+AUDIO_API_KEY=<your-api-key>
+```
+
 ### Setup for AI Textures
 
 Create a `.env` file in the project root:
@@ -223,12 +259,15 @@ All 20 textures follow the Neon Noir Cyberpunk theme:
 │   ├── audio_stub.c/h    # Stub audio/input system
 │   └── mact_stub.c       # Config parser, utility stubs
 ├── tools/                # Asset generation pipeline
-│   ├── generate_assets.py # Main orchestrator
+│   ├── generate_assets.py # Main orchestrator (textures + GRP packing)
+│   ├── generate_audio.py # Audio generation (voice lines + SFX)
 │   ├── art_format.py     # BUILD ART file format
 │   ├── grp_format.py     # GRP archive packer
 │   ├── palette.py        # 256-color palette & quantizer
 │   ├── map_format.py     # MAP v7 format generator
 │   └── tables.py         # Sine/lookup table generator
+├── generated_assets/
+│   └── sounds/           # Generated WAV files (TAUNT01.WAV, etc.)
 ├── testdata/             # Game scripts (GAME.CON, DEFS.CON, etc.)
 ├── audiolib/             # Original DOS audio drivers (not used)
 ├── CMakeLists.txt        # Cross-platform CMake build (Windows/Linux/macOS)
@@ -258,7 +297,7 @@ Porting a 1996 DOS game to modern Linux isn't for the faint of heart. Here's wha
 
 ## ⚠️ Known Limitations
 
-- **No audio** — sound functions are stubbed (Duke's one-liners live on in our hearts)
+- **No runtime audio playback** — AI-generated WAV files are produced but sound functions are still stubbed at runtime (Duke's one-liners exist as files now!)
 - **No multiplayer** — networking is stubbed for single-player only
 - **Incomplete tile coverage** — game scripts (`GAME.CON`/`DEFS.CON`) reference many tile numbers not yet generated
 - **Windows build** — requires SDL2 development libraries; see build instructions above
@@ -267,7 +306,8 @@ Porting a 1996 DOS game to modern Linux isn't for the faint of heart. Here's wha
 
 ## 🗺️ Roadmap
 
-- [ ] 🔊 Audio via SDL2_mixer
+- [x] 🔊 AI-generated audio assets via GPT Audio 1.5 (voice lines + SFX)
+- [ ] 🔊 Runtime audio playback via SDL2_mixer
 - [ ] 🗺️ More map levels
 - [ ] 🎨 Full tile set covering all `DEFS.CON` references
 - [ ] 🌐 Multiplayer over TCP/IP
@@ -292,6 +332,7 @@ Porting a 1996 DOS game to modern Linux isn't for the faint of heart. Here's wha
 - **Ken Silverman** — The BUILD engine that started it all
 - **Jim Dose** — Audio library (`audiolib`)
 - **[Black Forest Labs](https://bfl.ai/)** — FLUX.2-pro image generation model (hosted on Azure)
+- **[OpenAI](https://platform.openai.com/)** — GPT Audio 1.5 voice and sound effect generation (hosted on Azure)
 - **This port** — Modern GCC/SDL2 port with AI-powered asset generation
 
 ---

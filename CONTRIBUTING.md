@@ -102,6 +102,28 @@ fix the bug — don't rewrite the surrounding function.
 
 3. Test by running the asset pipeline and loading the map in-game.
 
+## How to Add New Audio
+
+1. **Add an entry to `VOICE_LINES`** in `tools/generate_audio.py` with the
+   filename, text prompt, and voice selection.
+
+2. **Choose a voice** for the line:
+   - `"alloy"` — gruff, raspy (best for mercenary taunts and combat lines)
+   - `"echo"` — electronic, synthetic (best for HUD notifications and pickups)
+   - `"onyx"` — deep, authoritative (best for level announcements and alarms)
+
+3. **Run the audio generator:**
+   ```bash
+   python3 tools/generate_audio.py
+   ```
+
+4. **Re-pack the GRP** so the new audio is included in the game archive:
+   ```bash
+   python3 tools/generate_assets.py --no-ai
+   ```
+
+5. Verify the new WAV file appears in `generated_assets/sounds/`.
+
 ## Pull Request Process
 
 1. **Fork** the repository and create a feature branch:
@@ -133,7 +155,7 @@ to help you get it merged.
 
 If you're looking for something to work on, these are high-impact areas:
 
-- **Audio implementation** — integrate SDL2_mixer for sound effects and music
+- **Runtime audio playback** — integrate SDL2_mixer to play the generated WAV files in-game
 - **More maps and levels** — expand beyond the test level
 - **Full tile coverage for DEFS.CON** — many tile slots are still empty
 - **Multiplayer networking** — the net code is currently stubbed out
