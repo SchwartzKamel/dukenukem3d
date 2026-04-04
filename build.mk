@@ -11,7 +11,7 @@ GAME_SRCS = source/GAME.C source/ACTORS.C source/GAMEDEF.C source/GLOBAL.C \
             source/SOUNDS.C source/RTS.C source/CONFIG.C source/ANIMLIB.C
 
 # Compatibility layer (modern platform support)
-COMPAT_SRCS = compat/sdl_driver.c compat/audio_stub.c compat/mact_stub.c compat/hud.c compat/a.c
+COMPAT_SRCS = compat/sdl_driver.c compat/audio_stub.c compat/mact_stub.c compat/hud.c
 
 # ===== Common Defines =====
 COMMON_DEFINES = -DSUPERBUILD

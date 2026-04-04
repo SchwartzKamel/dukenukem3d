@@ -89,7 +89,7 @@ for %%f in (GAME ACTORS GAMEDEF GLOBAL MENUES PLAYER PREMAP SECTOR SOUNDS RTS CO
 )
 
 REM Compat objects
-for %%f in (sdl_driver audio_stub mact_stub hud a) do (
+for %%f in (sdl_driver audio_stub mact_stub hud) do (
     echo Compiling %%f.c...
     %CC% /nologo /O2 /W3 /D_CRT_SECURE_NO_WARNINGS %SDL_INC% %INCLUDES% /c compat\%%f.c /Fo:build_win\compat_%%f.obj
     if errorlevel 1 goto :fail
@@ -133,7 +133,7 @@ for %%f in (GAME ACTORS GAMEDEF GLOBAL MENUES PLAYER PREMAP SECTOR SOUNDS RTS CO
 )
 
 REM Compat
-for %%f in (sdl_driver audio_stub mact_stub hud a) do (
+for %%f in (sdl_driver audio_stub mact_stub hud) do (
     echo Compiling %%f.c...
     %CC% -std=gnu11 -O2 -Wall -DPLATFORM_WIN32 %SDL_INC% %INCLUDES% -c compat\%%f.c -o build_win\compat_%%f.o
     if errorlevel 1 goto :fail
