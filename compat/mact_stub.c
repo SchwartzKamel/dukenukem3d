@@ -10,7 +10,9 @@
 #include <stdarg.h>
 #include <ctype.h>
 #include <fcntl.h>
+#ifndef _MSC_VER
 #include <unistd.h>
+#endif
 #include <sys/stat.h>
 #include "compat.h"
 #include "sdl_driver.h"

@@ -103,8 +103,11 @@ jobs:
       
       - name: Generate checksums
         run: |
-          if [ -f *.tar.gz ]; then sha256sum *.tar.gz > SHA256SUMS.txt; fi
-          if [ -f *.zip ]; then sha256sum *.zip >> SHA256SUMS.txt; fi
+          cd artifacts
+          find . -name '*.tar.gz' -o -name '*.zip' | sort | while read f; do
+            sha256sum "$f" >> ../SHA256SUMS.txt
+          done
+          cd ..
           cat SHA256SUMS.txt
       
       - name: Create GitHub Release

@@ -62,6 +62,9 @@
   #include <windows.h>
   #include <direct.h>   /* _mkdir, _getcwd */
   #include <io.h>       /* filelength, tell, _findfirst, etc. */
+  #ifdef _MSC_VER
+  #include "msvc_unistd.h"
+  #endif
 #else
   #include <strings.h>  /* strcasecmp */
   #include <unistd.h>   /* read, write, close, lseek, usleep */
