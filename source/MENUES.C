@@ -122,7 +122,11 @@ void savetemp(char *fn,long daptr,long dasiz)
 {
     int fp;
 
+#ifdef _MSC_VER
+    fp = open(fn,O_WRONLY|O_CREAT|O_TRUNC|O_BINARY,_S_IREAD|_S_IWRITE);
+#else
     fp = open(fn,O_WRONLY|O_CREAT|O_TRUNC|O_BINARY,S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP);
+#endif
 
     write(fp,(char *)daptr,dasiz);
 

@@ -131,9 +131,16 @@ typedef struct
 } spritetype;
 #pragma pack(pop)
 
+/* Verify packed struct sizes match the BUILD engine binary format */
+#if defined(__GNUC__) || defined(__clang__)
 _Static_assert(sizeof(sectortype) == 40, "sectortype must be 40 bytes");
 _Static_assert(sizeof(walltype) == 32, "walltype must be 32 bytes");
 _Static_assert(sizeof(spritetype) == 44, "spritetype must be 44 bytes");
+#elif defined(_MSC_VER)
+static_assert(sizeof(sectortype) == 40, "sectortype must be 40 bytes");
+static_assert(sizeof(walltype) == 32, "walltype must be 32 bytes");
+static_assert(sizeof(spritetype) == 44, "spritetype must be 44 bytes");
+#endif
 
 EXTERN sectortype sector[MAXSECTORS];
 EXTERN walltype wall[MAXWALLS];
@@ -210,13 +217,13 @@ SPRITE VARIABLES:
 	EXTERN short nextspritesect[MAXSPRITES], nextspritestat[MAXSPRITES];
 
 	Example: if the linked lists look like the following:
-		 ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
-		 ³      Sector lists:               Status lists:               ³
-		 ÃÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´
-		 ³  Sector0:  4, 5, 8             Status0:  2, 0, 8             ³
-		 ³  Sector1:  16, 2, 0, 7         Status1:  4, 5, 16, 7, 3, 9   ³
-		 ³  Sector2:  3, 9                                              ³
-		 ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+		 ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä¿
+		 ï¿½      Sector lists:               Status lists:               ï¿½
+		 ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä´
+		 ï¿½  Sector0:  4, 5, 8             Status0:  2, 0, 8             ï¿½
+		 ï¿½  Sector1:  16, 2, 0, 7         Status1:  4, 5, 16, 7, 3, 9   ï¿½
+		 ï¿½  Sector2:  3, 9                                              ï¿½
+		 ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 	Notice that each number listed above is shown exactly once on both the
 		left and right side.  This is because any sprite that exists must
 		be in some sector, and must have some kind of status that you define.
