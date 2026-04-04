@@ -121,9 +121,15 @@ typedef struct
 #pragma pack(pop)
 
 /* Verify packed struct sizes match the BUILD engine binary format */
+#if defined(__GNUC__) || defined(__clang__)
 _Static_assert(sizeof(sectortype) == 40, "sectortype must be 40 bytes");
 _Static_assert(sizeof(walltype) == 32, "walltype must be 32 bytes");
 _Static_assert(sizeof(spritetype) == 44, "spritetype must be 44 bytes");
+#elif defined(_MSC_VER)
+static_assert(sizeof(sectortype) == 40, "sectortype must be 40 bytes");
+static_assert(sizeof(walltype) == 32, "walltype must be 32 bytes");
+static_assert(sizeof(spritetype) == 44, "spritetype must be 44 bytes");
+#endif
 
 EXTERN sectortype sector[MAXSECTORS];
 EXTERN walltype wall[MAXWALLS];

@@ -22,6 +22,10 @@ long stereowidth = 23040, stereopixelwidth = 28, ostereopixelwidth = -1;
 volatile long stereomode = 0, visualpage, activepage, whiteband, blackband;
 volatile char oa1, o3c2, ortca, ortcb, overtbits, laststereoint;
 
+/* Forward declarations for functions defined at end of file */
+void stereonextpage(void);
+void setstereo(long dastereomode);
+
 #include "sdl_driver.h"
 
 /* ============================================================
