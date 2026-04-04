@@ -22,12 +22,22 @@
   #define __attribute__(x)
   #endif
 
+  /* GCC built-in branch prediction hint — no-op on MSVC */
+  #ifndef __builtin_expect
+  #define __builtin_expect(expr, val) (expr)
+  #endif
+
   /* MSVC uses __restrict instead of __restrict__ */
   #define __restrict__ __restrict
 
-  /* POSIX access() → MSVC _access() */
+  /* POSIX → MSVC name mappings */
   #include <io.h>
+  #include <malloc.h>  /* _alloca */
   #define access _access
+  #define alloca _alloca
+  #define strcasecmp _stricmp
+  #define strncasecmp _strnicmp
+
   #ifndef R_OK
   #define R_OK 4
   #endif
