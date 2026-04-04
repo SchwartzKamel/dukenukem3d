@@ -63,6 +63,11 @@
 #include <sys/stat.h>   /* replaces sys\stat.h */
 
 #ifdef _WIN32
+  /* WIN32_LEAN_AND_MEAN prevents windows.h from including winsock.h,
+     which conflicts with winsock2.h used in MMULTI.C networking code */
+  #ifndef WIN32_LEAN_AND_MEAN
+  #define WIN32_LEAN_AND_MEAN
+  #endif
   #include <windows.h>
   #include <direct.h>   /* _mkdir, _getcwd */
   #include <io.h>       /* filelength, tell, _findfirst, etc. */
