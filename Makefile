@@ -108,6 +108,7 @@ $(BUILD_DIR):
 
 $(TARGET): $(BUILD_DIR) $(ALL_OBJS)
 	$(CC) $(LTO_FLAGS) $(ALL_OBJS) -o $@ $(LIBS)
+	@chmod +x $@
 	@echo "Build complete: $(TARGET) ($(BUILD_TYPE))"
 
 # Engine objects - compile with ENGINE defined, force C mode
