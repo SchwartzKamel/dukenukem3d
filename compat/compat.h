@@ -64,11 +64,18 @@
 
 #ifdef _WIN32
   /* WIN32_LEAN_AND_MEAN prevents windows.h from including winsock.h,
-     which conflicts with winsock2.h used in MMULTI.C networking code */
+     which conflicts with winsock2.h used in MMULTI.C networking code.
+     It also excludes rpcndr.h which defines boolean as unsigned char. */
   #ifndef WIN32_LEAN_AND_MEAN
   #define WIN32_LEAN_AND_MEAN
   #endif
   #include <windows.h>
+  /* With WIN32_LEAN_AND_MEAN, rpcndr.h is excluded so boolean is not
+     defined. Define it here as int32_t to match the game convention. */
+  #ifndef _BOOLEAN_DEFINED
+  #define _BOOLEAN_DEFINED
+  typedef int32_t boolean;
+  #endif
   #include <direct.h>   /* _mkdir, _getcwd */
   #include <io.h>       /* filelength, tell, _findfirst, etc. */
   #ifdef _MSC_VER

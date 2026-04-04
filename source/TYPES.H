@@ -55,7 +55,8 @@ typedef int32_t                 int32;
 typedef uint32_t                dword;
 
 typedef int32                   fixed;
-#ifndef _WIN32
+#ifndef _BOOLEAN_DEFINED
+#define _BOOLEAN_DEFINED
 typedef int32                   boolean;
 #endif
 typedef float                   float32;

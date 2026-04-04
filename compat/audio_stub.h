@@ -37,14 +37,17 @@ typedef int            int32;
 typedef uint32         dword;
 typedef int32          fixed;
 #ifdef _WIN32
-/* windows.h defines boolean as unsigned char — don't redefine */
-#ifndef _WINDEF_
-#ifndef boolean
+/* compat.h defines boolean via _BOOLEAN_DEFINED after windows.h
+   with WIN32_LEAN_AND_MEAN (which excludes rpcndr.h). */
+#ifndef _BOOLEAN_DEFINED
+#define _BOOLEAN_DEFINED
 typedef int32          boolean;
-#endif
 #endif
 #else
+#ifndef _BOOLEAN_DEFINED
+#define _BOOLEAN_DEFINED
 typedef int32          boolean;
+#endif
 #endif
 #endif /* _TYPES_H */
 #endif
