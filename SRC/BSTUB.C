@@ -6,9 +6,9 @@
 #include <io.h>
 #include <sys\types.h>
 #include <sys\stat.h>
-#include "build.h"
-#include "pragmas.h"
-#include "names.h"
+#include "BUILD.H"
+#include "PRAGMAS.H"
+#include "NAMES.H"
 #include <dos.h>
 
 extern char keystatus[256];

@@ -32,7 +32,7 @@ Prepared for public release: 03/21/2003 - Charlie Wiederhold, 3D Realms
 #include "audio_stub.h"
 #else
 
-#include "sndcards.h"
+#include "SNDCARDS.H"
 
 extern int MUSIC_ErrorCode;
 

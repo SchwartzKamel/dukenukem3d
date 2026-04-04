@@ -10,9 +10,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <dos.h>
-#include "build.h"
-#include "names.h"
-#include "pragmas.h"
+#include "BUILD.H"
+#include "NAMES.H"
+#include "PRAGMAS.H"
 
 #define TIMERINTSPERSECOND 280
 #define MOVESPERSECOND 40

@@ -31,13 +31,13 @@ Prepared for public release: 03/21/2003 - Charlie Wiederhold, 3D Realms
 #include <stdlib.h>
 #include <ctype.h>
 #include <time.h>
-#include "duke3d.h"
-#include "scriplib.h"
+#include "DUKE3D.H"
+#include "SCRIPLIB.H"
 
 // we load this in to get default button and key assignments
 // as well as setting up function mappings
 
-#include "_functio.h"
+#include "_FUNCTIO.H"
 
 //
 // Sound variables

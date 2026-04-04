@@ -28,9 +28,9 @@ Prepared for public release: 03/21/2003 - Charlie Wiederhold, 3D Realms
 #include "audio_stub.h"
 #include <stdio.h>
 #include <string.h>
-#include "types.h"
-#include "util_lib.h"
-#include "duke3d.h"
+#include "TYPES.H"
+#include "UTIL_LIB.H"
+#include "DUKE3D.H"
 
 
 #define LOUDESTVOLUME 150

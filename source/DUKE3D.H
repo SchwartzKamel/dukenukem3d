@@ -25,9 +25,9 @@ Prepared for public release: 03/21/2003 - Charlie Wiederhold, 3D Realms
 //-------------------------------------------------------------------------
 
 #include "compat.h"
-#include "pragmas.h"
-#include "function.h"
-#include "build.h"
+#include "PRAGMAS.H"
+#include "FUNCTION.H"
+#include "BUILD.H"
 
 #define VOLUMEALL
 #define PLUTOPAK
@@ -56,27 +56,27 @@ Prepared for public release: 03/21/2003 - Charlie Wiederhold, 3D Realms
 
 #define FOURSLEIGHT (1<<8)
 
-#include "types.h"
-#include "file_lib.h"
-#include "develop.h"
-#include "gamedefs.h"
-#include "keyboard.h"
-#include "util_lib.h"
-#include "function.h"
-#include "fx_man.h"
-#include "config.h"
-#include "sounds.h"
-#include "control.h"
-#include "_rts.h"
-#include "rts.h"
-#include "soundefs.h"
+#include "TYPES.H"
+#include "FILE_LIB.H"
+#include "DEVELOP.H"
+#include "GAMEDEFS.H"
+#include "KEYBOARD.H"
+#include "UTIL_LIB.H"
+#include "FUNCTION.H"
+#include "FX_MAN.H"
+#include "CONFIG.H"
+#include "SOUNDS.H"
+#include "CONTROL.H"
+#include "_RTS.H"
+#include "RTS.H"
+#include "SOUNDEFS.H"
 
 
-#include "task_man.h"
-#include "music.h"
-#include "sndcards.h"
+#include "TASK_MAN.H"
+#include "MUSIC.H"
+#include "SNDCARDS.H"
 
-#include "names.h"
+#include "NAMES.H"
 /* funct.h moved after struct definitions - see bottom of this file */
 
 
@@ -458,7 +458,7 @@ extern void TestCallBack(unsigned long);
 extern long frameplace, chainplace, chainnumpages;
 extern volatile long checksume;
 
-#include "funct.h"
+#include "FUNCT.H"
 
 extern char screencapt;
 extern short soundps[NUM_SOUNDS],soundpe[NUM_SOUNDS],soundvo[NUM_SOUNDS];

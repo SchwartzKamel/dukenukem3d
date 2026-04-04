@@ -29,16 +29,16 @@ Prepared for public release: 03/21/2003 - Charlie Wiederhold, 3D Realms
 #include "audio_stub.h"
 #include "sdl_driver.h"
 #include "hud.h"
-#include "types.h"
-#include "develop.h"
-#include "scriplib.h"
-#include "file_lib.h"
-#include "gamedefs.h"
-#include "util_lib.h"
-#include "function.h"
-#include "config.h"
+#include "TYPES.H"
+#include "DEVELOP.H"
+#include "SCRIPLIB.H"
+#include "FILE_LIB.H"
+#include "GAMEDEFS.H"
+#include "UTIL_LIB.H"
+#include "FUNCTION.H"
+#include "CONFIG.H"
 
-#include "duke3d.h"
+#include "DUKE3D.H"
 
 
 #ifdef VOLUMEONE

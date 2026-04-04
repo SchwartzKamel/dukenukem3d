@@ -9,8 +9,8 @@
 #include <io.h>
 #include <sys\types.h>
 #include <sys\stat.h>
-#include "build.h"
-#include "pragmas.h"
+#include "BUILD.H"
+#include "PRAGMAS.H"
 
 #pragma intrinsic(min);
 #pragma intrinsic(max);

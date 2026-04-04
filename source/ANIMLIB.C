@@ -30,11 +30,11 @@ Prepared for public release: 03/21/2003 - Charlie Wiederhold, 3D Realms
 #include <string.h>
 #include <fcntl.h>
 
-#include "types.h"
-#include "develop.h"
-#include "util_lib.h"
-#include "_animlib.h"
-#include "animlib.h"
+#include "TYPES.H"
+#include "DEVELOP.H"
+#include "UTIL_LIB.H"
+#include "_ANIMLIB.H"
+#include "ANIMLIB.H"
 
 //****************************************************************************
 //

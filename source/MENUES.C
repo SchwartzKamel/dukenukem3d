@@ -27,9 +27,9 @@ Prepared for public release: 03/21/2003 - Charlie Wiederhold, 3D Realms
 #include "compat.h"
 #include "pragmas_gcc.h"
 #include "audio_stub.h"
-#include "duke3d.h"
-#include "mouse.h"
-#include "animlib.h"
+#include "DUKE3D.H"
+#include "MOUSE.H"
+#include "ANIMLIB.H"
 
 extern char inputloc;
 extern int recfilep;
