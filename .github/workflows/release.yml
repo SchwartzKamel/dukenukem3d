@@ -46,9 +46,29 @@ jobs:
       
       - name: Generate assets
         if: matrix.target == 'linux'
+        env:
+          FLUX_ENDPOINT: ${{ secrets.FLUX_ENDPOINT }}
+          FLUX_API_KEY: ${{ secrets.FLUX_API_KEY }}
+          FLUX_MODEL: ${{ secrets.FLUX_MODEL }}
+          AUDIO_ENDPOINT: ${{ secrets.AUDIO_ENDPOINT }}
+          AUDIO_API_KEY: ${{ secrets.AUDIO_API_KEY }}
+          AUDIO_MODEL: ${{ secrets.AUDIO_MODEL }}
         run: |
-          python3 tools/generate_audio.py --no-ai
-          python3 tools/generate_assets.py --no-ai
+          if [ -n "$AUDIO_ENDPOINT" ] && [ -n "$AUDIO_API_KEY" ]; then
+            echo "🔊 Generating AI audio (GPT Audio 1.5)..."
+            python3 tools/generate_audio.py
+          else
+            echo "🔇 No audio API keys — generating silence stubs"
+            python3 tools/generate_audio.py --no-ai
+          fi
+          if [ -n "$FLUX_ENDPOINT" ] && [ -n "$FLUX_API_KEY" ]; then
+            echo "🎨 Generating AI textures (FLUX.2-pro)..."
+            python3 tools/generate_assets.py
+          else
+            echo "🖌️ No FLUX API keys — generating procedural assets"
+            python3 tools/generate_assets.py --no-ai
+          fi
+          echo "📦 GRP size: $(stat -c%s DUKE3D.GRP) bytes"
       
       - name: Package Linux release
         if: matrix.target == 'linux'
@@ -59,9 +79,24 @@ jobs:
       
       - name: Package Windows release
         if: matrix.target == 'windows'
+        env:
+          FLUX_ENDPOINT: ${{ secrets.FLUX_ENDPOINT }}
+          FLUX_API_KEY: ${{ secrets.FLUX_API_KEY }}
+          FLUX_MODEL: ${{ secrets.FLUX_MODEL }}
+          AUDIO_ENDPOINT: ${{ secrets.AUDIO_ENDPOINT }}
+          AUDIO_API_KEY: ${{ secrets.AUDIO_API_KEY }}
+          AUDIO_MODEL: ${{ secrets.AUDIO_MODEL }}
         run: |
-          python3 tools/generate_audio.py --no-ai
-          python3 tools/generate_assets.py --no-ai
+          if [ -n "$AUDIO_ENDPOINT" ] && [ -n "$AUDIO_API_KEY" ]; then
+            python3 tools/generate_audio.py
+          else
+            python3 tools/generate_audio.py --no-ai
+          fi
+          if [ -n "$FLUX_ENDPOINT" ] && [ -n "$FLUX_API_KEY" ]; then
+            python3 tools/generate_assets.py
+          else
+            python3 tools/generate_assets.py --no-ai
+          fi
           PKGDIR=duke3d-${{ github.ref_name }}-windows-x64
           mkdir -p $PKGDIR
           cp duke3d.exe DUKE3D.GRP README.md $PKGDIR/
