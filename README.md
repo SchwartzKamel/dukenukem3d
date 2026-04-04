@@ -22,7 +22,7 @@ This is a **modernized, fully-compilable port** of the original *Duke Nukem 3D* 
 - 🛠️ **Compiles with modern GCC** (11+) — no Watcom compiler required
 - 🐧 **Runs natively on Linux x86-64**, cross-compiles for **Windows x64**
 - 🖥️ **SDL2** replaces DOS VESA/VGA for graphics, input, and timing
-- 🎨 **AI-generated cyberpunk textures** via [FLUX.2-pro](https://bfl.ai/models/flux-2-pro) by Black Forest Labs, with procedural fallback
+- 🎨 **AI-generated cyberpunk textures** via [FLUX.2-pro](https://blackforestlabs.ai/) by Black Forest Labs, with procedural fallback
 - 🔊 **AI-generated voice lines & SFX** via [GPT Audio 1.5](https://platform.openai.com/) on Azure OpenAI
 - 🏗️ **Complete asset pipeline** — generates everything needed to play without any copyrighted content
 
@@ -60,7 +60,8 @@ make assets
 python3 tools/generate_assets.py
 
 # Run it
-export LD_LIBRARY_PATH=/home/linuxbrew/.linuxbrew/lib:$LD_LIBRARY_PATH
+# Only needed if SDL2 is installed via Homebrew on Linux:
+# export LD_LIBRARY_PATH=$(brew --prefix)/lib:$LD_LIBRARY_PATH
 ./duke3d
 ```
 
@@ -173,7 +174,7 @@ Two generation modes are available:
 
 | Mode | Command | Description |
 |---|---|---|
-| **AI + Fallback** | `python3 tools/generate_assets.py` | Uses [FLUX.2-pro](https://bfl.ai/models/flux-2-pro) (Black Forest Labs, hosted on Azure) for textures, falls back to procedural if API is unavailable |
+| **AI + Fallback** | `python3 tools/generate_assets.py` | Uses [FLUX.2-pro](https://blackforestlabs.ai/) by Black Forest Labs (hosted on Azure) for textures, falls back to procedural if API is unavailable |
 | **Procedural Only** | `python3 tools/generate_assets.py --no-ai` | Pure algorithmic generation, no API needed |
 | **Procedural Only** | `make assets` | Same as `--no-ai` |
 
@@ -189,7 +190,7 @@ AI-generated using GPT Audio 1.5 on Azure OpenAI. Generates 21 WAV files:
 | Pickups | PICKUP01-04.WAV | Electronic HUD notifications |
 | Weapons | WEAPON01-03.WAV | Weapon system announcements |
 | Level | LEVEL01-02.WAV | Level start lines |
-| Environment | ALARM01.WAV, COMPUTER01.WAV | Facility announcements |
+| Environment | ALARM01.WAV, COMP01.WAV | Facility announcements |
 
 ```bash
 # Generate with AI
@@ -331,7 +332,7 @@ Porting a 1996 DOS game to modern Linux isn't for the faint of heart. Here's wha
 - **[3D Realms](https://3drealms.com/)** — Original Duke Nukem 3D source code (2003 GPL release)
 - **Ken Silverman** — The BUILD engine that started it all
 - **Jim Dose** — Audio library (`audiolib`)
-- **[Black Forest Labs](https://bfl.ai/)** — FLUX.2-pro image generation model (hosted on Azure)
+- **[Black Forest Labs](https://blackforestlabs.ai/)** — FLUX.2-pro image generation model (hosted on Azure)
 - **[OpenAI](https://platform.openai.com/)** — GPT Audio 1.5 voice and sound effect generation (hosted on Azure)
 - **This port** — Modern GCC/SDL2 port with AI-powered asset generation
 
