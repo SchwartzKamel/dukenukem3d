@@ -47,6 +47,7 @@ jobs:
       - name: Generate assets
         if: matrix.target == 'linux'
         run: |
+          python3 tools/generate_audio.py --no-ai
           python3 tools/generate_assets.py --no-ai
       
       - name: Package Linux release
@@ -59,6 +60,7 @@ jobs:
       - name: Package Windows release
         if: matrix.target == 'windows'
         run: |
+          python3 tools/generate_audio.py --no-ai
           python3 tools/generate_assets.py --no-ai
           PKGDIR=duke3d-${{ github.ref_name }}-windows-x64
           mkdir -p $PKGDIR
