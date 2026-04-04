@@ -23,14 +23,18 @@ CFLAGS  = $(LEGACY_STD) $(OPT_FLAGS) $(WARN_FLAGS) $(LTO_FLAGS) $(COMMON_DEFINES
 SDL2_CFLAGS := $(shell pkg-config --cflags sdl2 2>/dev/null || sdl2-config --cflags 2>/dev/null)
 SDL2_LIBS := $(shell pkg-config --libs sdl2 2>/dev/null || sdl2-config --libs 2>/dev/null)
 
-# Fallback: check common paths
+# Fallback: check common system paths
 ifeq ($(SDL2_CFLAGS),)
   ifneq ($(wildcard /usr/include/SDL2/SDL.h),)
     SDL2_CFLAGS := -I/usr/include/SDL2
     SDL2_LIBS := -lSDL2
-  else ifneq ($(wildcard /home/linuxbrew/.linuxbrew/include/SDL2/SDL.h),)
-    SDL2_CFLAGS := -I/home/linuxbrew/.linuxbrew/include/SDL2
-    SDL2_LIBS := -L/home/linuxbrew/.linuxbrew/lib -lSDL2
+  else
+    # Try Homebrew (Linux or macOS)
+    SDL2_BREW := $(shell brew --prefix sdl2 2>/dev/null)
+    ifneq ($(SDL2_BREW),)
+      SDL2_CFLAGS := -I$(SDL2_BREW)/include/SDL2
+      SDL2_LIBS := -L$(SDL2_BREW)/lib -lSDL2
+    endif
   endif
 endif
 
@@ -41,16 +45,17 @@ endif
 
 # ===== Smart SDL2_mixer Detection =====
 HAVE_SDL2_MIXER := $(shell pkg-config --exists SDL2_mixer 2>/dev/null && echo yes)
-ifeq ($(HAVE_SDL2_MIXER),)
-  ifneq ($(wildcard /usr/include/SDL2/SDL_mixer.h),)
+ifeq ($(HAVE_SDL2_MIXER),yes)
+  MIXER_LIBS := $(shell pkg-config --libs SDL2_mixer 2>/dev/null)
+else
+  MIXER_BREW := $(shell brew --prefix sdl2_mixer 2>/dev/null)
+  ifneq ($(MIXER_BREW),)
     HAVE_SDL2_MIXER := yes
-  else ifneq ($(wildcard /home/linuxbrew/.linuxbrew/include/SDL2/SDL_mixer.h),)
-    HAVE_SDL2_MIXER := yes
+    MIXER_LIBS := -L$(MIXER_BREW)/lib -lSDL2_mixer
   endif
 endif
 ifeq ($(HAVE_SDL2_MIXER),yes)
   MIXER_CFLAGS = -DHAVE_SDL2_MIXER $(shell pkg-config --cflags SDL2_mixer 2>/dev/null)
-  MIXER_LIBS   = $(shell pkg-config --libs SDL2_mixer 2>/dev/null || echo "-lSDL2_mixer")
 endif
 
 LIBS    = $(SDL2_LIBS) $(MIXER_LIBS) -lm

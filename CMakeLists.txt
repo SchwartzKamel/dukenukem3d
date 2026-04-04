@@ -48,6 +48,7 @@ set(COMPAT_SRCS
     compat/audio_stub.c
     compat/mact_stub.c
     compat/hud.c
+    compat/a.c
 )
 
 # Force C language for uppercase .C files (GCC treats .C as C++)

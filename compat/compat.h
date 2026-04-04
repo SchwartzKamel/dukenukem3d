@@ -42,8 +42,12 @@
 
 /* POSIX feature test macros - must precede all system includes */
 #ifndef _WIN32
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE      /* FNM_CASEFOLD, etc. on glibc */
+#endif
+#ifndef _DEFAULT_SOURCE
 #define _DEFAULT_SOURCE  /* usleep, etc. on glibc >= 2.19 */
+#endif
 #define _BSD_SOURCE      /* usleep on older glibc */
 #endif
 
@@ -578,6 +582,9 @@ extern unsigned long sdl_timer_getticks(void);
  * Returns pointer to found path (static buffer), or NULL.
  * ====================================================================== */
 
+#ifdef __GNUC__
+__attribute__((unused))
+#endif
 static const char *find_game_file(const char *filename)
 {
     static char pathbuf[1024];
