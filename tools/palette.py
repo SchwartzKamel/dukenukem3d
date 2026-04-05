@@ -31,9 +31,9 @@ def build_palette():
     # 0: black / transparent
     pal[0] = (0, 0, 0)
 
-    # 1-31: grayscale ramp
+    # 1-31: grayscale ramp (start above zero so index 1 isn't black)
     for i in range(31):
-        v = int((i / 30) * 255)
+        v = int(((i + 1) / 32) * 255)
         pal[1 + i] = (v, v, v)
 
     # 32-47: red ramp
