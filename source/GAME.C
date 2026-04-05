@@ -2858,7 +2858,7 @@ void displayrooms(short snum,long smoothratio)
         {
             walock[MAXTILES-1] = 254;
             if (waloff[MAXTILES-1] == 0)
-                allocache((long *)&waloff[MAXTILES-1],100*160,&walock[MAXTILES-1]);
+                allocache(&waloff[MAXTILES-1],100*160,&walock[MAXTILES-1]);
             setviewtotile(MAXTILES-1,100L,160L);
         }
         else if( ( ud.screen_tilting && p->rotscrnang ) || ud.detail==0 )
@@ -5450,7 +5450,7 @@ void animatesprites(long x,long y,short a,long smoothratio)
         {
             if(t4)
             {
-                l = *(long *)(t4+8);
+                l = ((long *)t4)[2];
 
                 switch( l )
                 {
@@ -5498,7 +5498,7 @@ void animatesprites(long x,long y,short a,long smoothratio)
                         break;
                 }
 
-                t->picnum += k + ( *(long *)t4 ) + l * t3;
+                t->picnum += k + ((long *)t4)[0] + l * t3;
 
                 if(l > 0) while(tilesizx[t->picnum] == 0 && t->picnum > 0 )
                     t->picnum -= l;       //Hack, for actors
@@ -7826,7 +7826,7 @@ char opendemoread(char which_demo) // 0 = mine
      else
        if ((recfilep = kopen4load(d,loadfromgrouponly)) == -1) return(0);
 
-     kread(recfilep,&ud.reccnt,sizeof(long));
+     { int32_t tmp32; kread(recfilep,&tmp32,4); ud.reccnt = tmp32; }
      kread(recfilep,&ver,sizeof(char));
      if( (ver != BYTEVERSION) ) // || (ud.reccnt < 512) )
      {
@@ -7929,7 +7929,7 @@ void closedemowrite(void)
             dfwrite(recsync,sizeof(input)*ud.multimode,ud.reccnt/ud.multimode,frecfilep);
 
             fseek(frecfilep,SEEK_SET,0L);
-            fwrite(&totalreccnt,sizeof(long),1,frecfilep);
+            { int32_t tmp32 = (int32_t)totalreccnt; fwrite(&tmp32,4,1,frecfilep); }
             ud.recstat = ud.m_recstat = 0;
         }
         fclose(frecfilep);

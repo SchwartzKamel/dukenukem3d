@@ -2101,9 +2101,9 @@ char parse(void)
         case 24:
             insptr++;
             g_t[5] = *insptr;
-            g_t[4] = *(long *)(g_t[5]);       // Action
-            g_t[1] = *(long *)(g_t[5]+4);       // move
-            g_sp->hitag = *(long *)(g_t[5]+8);    // Ai
+            g_t[4] = ((long *)g_t[5])[0];       // Action
+            g_t[1] = ((long *)g_t[5])[1];       // move
+            g_sp->hitag = ((long *)g_t[5])[2];    // Ai
             g_t[0] = g_t[2] = g_t[3] = 0;
             if(g_sp->hitag&random_angle)
                 g_sp->ang = TRAND&2047;
@@ -3056,13 +3056,13 @@ void execute(short i,short p,long x)
     if(g_t[4])
     {
         g_sp->lotag += TICSPERFRAME;
-        if(g_sp->lotag > *(long *)(g_t[4]+16) )
+        if(g_sp->lotag > ((long *)g_t[4])[4] )
         {
             g_t[2]++;
             g_sp->lotag = 0;
-            g_t[3] +=  *(long *)( g_t[4]+12 );
+            g_t[3] +=  ((long *)g_t[4])[3];
         }
-        if( klabs(g_t[3]) >= klabs( *(long *)(g_t[4]+4) * *(long *)(g_t[4]+12) ) )
+        if( klabs(g_t[3]) >= klabs( ((long *)g_t[4])[1] * ((long *)g_t[4])[3] ) )
             g_t[3] = 0;
     }
 
