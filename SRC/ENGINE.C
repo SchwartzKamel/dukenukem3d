@@ -7028,6 +7028,7 @@ dorotatesprite (long sx, long sy, long z, short a, short picnum, signed char das
 	}
 
 	if (waloff[picnum] == 0) loadtile(picnum);
+	if (waloff[picnum] == 0) return;
 	setgotpic(picnum);
 	bufplc = waloff[picnum];
 

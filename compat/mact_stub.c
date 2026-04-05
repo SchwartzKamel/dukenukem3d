@@ -263,9 +263,9 @@ void Error(char *fmt, ...) {
 }
 
 int CheckParm(char *check) {
-    /* Check command line parameters - stub returns -1 (not found) */
+    /* Check command line parameters - stub returns 0 (not found) */
     (void)check;
-    return -1;
+    return 0;
 }
 
 long Z_AvailHeap(void) {
