@@ -2,7 +2,7 @@
 
 ART format (version 1):
   - uint32: artversion = 1
-  - uint32: numtiles (legacy, ignored by engine; we write 0)
+  - uint32: numtiles (highest tile index with nonzero size + 1)
   - uint32: localtilestart
   - uint32: localtileend
   - int16[N]: tilesizx   (width of each tile)
@@ -31,7 +31,15 @@ def create_art_file(tiles, localtilestart=0):
     num_tiles = len(tiles)
     localtileend = localtilestart + num_tiles - 1
 
-    header = struct.pack("<IIII", 1, 0, localtilestart, localtileend)
+    # numtiles = highest tile index with nonzero size + 1 (per EDITART.C)
+    numtiles_val = 0
+    for i in range(num_tiles - 1, -1, -1):
+        w, h = tiles[i][0], tiles[i][1]
+        if w >= 2 or h >= 2:
+            numtiles_val = localtilestart + i + 1
+            break
+
+    header = struct.pack("<IIII", 1, numtiles_val, localtilestart, localtileend)
 
     sizex_data = b""
     sizey_data = b""

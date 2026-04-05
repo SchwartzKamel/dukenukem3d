@@ -9,7 +9,7 @@ def test_art_file_header():
     data = create_art_file(tiles, localtilestart=0)
     version, numtiles_legacy, start, end = struct.unpack_from("<iiii", data, 0)
     assert version == 1
-    assert numtiles_legacy == 0  # legacy field, always 0
+    assert numtiles_legacy == 1  # highest tile index with size >= 2 + 1
     assert start == 0
     assert end == 0  # localtilestart + len(tiles) - 1
     assert end - start + 1 == 1  # actual tile count

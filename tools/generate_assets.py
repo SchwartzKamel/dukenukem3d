@@ -1348,20 +1348,21 @@ def parse_music_filenames(user_con_path):
     return midi_files
 
 
-def parse_voc_filenames(user_con_path):
-    """Parse definesound entries from USER.CON and return unique VOC filenames."""
+def parse_voc_filenames(*con_paths):
+    """Parse definesound entries from CON files and return unique VOC filenames."""
     voc_files = set()
-    if not os.path.exists(user_con_path):
-        return voc_files
-    with open(user_con_path, "r", errors="replace") as f:
-        for line in f:
-            line = line.strip()
-            if line.startswith("definesound "):
-                tokens = line.split()
-                if len(tokens) >= 3:
-                    fname = tokens[2].strip()
-                    if fname.lower().endswith(".voc"):
-                        voc_files.add(fname)
+    for con_path in con_paths:
+        if not os.path.exists(con_path):
+            continue
+        with open(con_path, "r", errors="replace") as f:
+            for line in f:
+                line = line.strip()
+                if line.startswith("definesound "):
+                    tokens = line.split()
+                    if len(tokens) >= 3:
+                        fname = tokens[2].strip()
+                        if fname.lower().endswith(".voc"):
+                            voc_files.add(fname)
     return voc_files
 
 
@@ -1373,12 +1374,16 @@ def generate_audio_assets(user_con_path):
     """
     audio = {}
 
-    # Parse filenames from USER.CON
-    midi_names = parse_music_filenames(user_con_path)
-    voc_names = parse_voc_filenames(user_con_path)
+    # Discover all CON files for definesound parsing
+    con_dir = os.path.dirname(user_con_path)
+    game_con_path = os.path.join(con_dir, "GAME.CON")
 
-    print(f"  Found {len(midi_names)} unique MIDI files in USER.CON")
-    print(f"  Found {len(voc_names)} unique VOC files in USER.CON")
+    # Parse filenames from all CON files
+    midi_names = parse_music_filenames(user_con_path)
+    voc_names = parse_voc_filenames(user_con_path, game_con_path)
+
+    print(f"  Found {len(midi_names)} unique MIDI files in CON scripts")
+    print(f"  Found {len(voc_names)} unique VOC files in CON scripts")
 
     # Generate MIDI files
     for name in sorted(midi_names):

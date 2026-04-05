@@ -55,7 +55,7 @@ def test_generated_art_is_valid():
 
     version, numtiles_legacy, start, end = struct.unpack("<iiii", data)
     assert version == 1
-    assert numtiles_legacy == 0  # legacy field
+    assert numtiles_legacy > 0  # highest tile with nonzero size + 1
     assert start == 0
     tile_count = end - start + 1
     assert tile_count > 0
