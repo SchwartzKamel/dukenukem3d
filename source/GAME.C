@@ -634,6 +634,14 @@ void faketimerhandler()
 //    short who;
     input *osyn, *nsyn;
 
+    timer_update();
+    sdl_pollevents();
+
+    if(sdl_checkquit())
+    {
+        gameexit(" ");
+    }
+
     if(qe == 0 && KB_KeyPressed(sc_LeftControl) && KB_KeyPressed(sc_LeftAlt) && KB_KeyPressed(sc_Delete))
     {
         qe = 1;
@@ -2017,6 +2025,8 @@ void gameexit(char *t)
     uninitgroupfile();
 
     unlink("duke3d.tmp");
+
+    sdl_shutdown();
 
 #ifdef _WIN32
     /* With -mwindows, printf output is invisible. Show error in a dialog. */

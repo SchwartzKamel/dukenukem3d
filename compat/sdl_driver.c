@@ -9,6 +9,7 @@
 #include "SDL.h"
 #include "sdl_driver.h"
 #include "compat.h"
+#include "audio_stub.h"
 #include <string.h>
 #include <stdio.h>
 
@@ -236,6 +237,8 @@ void sdl_nextpage(void)
     void   *pixels;
     int     pitch;
 
+    sdl_pollevents();
+
     if (!renderer || !texture || !screenbuf) return;
 
     if (SDL_LockTexture(texture, NULL, &pixels, &pitch) < 0) return;
@@ -301,8 +304,13 @@ void sdl_pollevents(void)
         case SDL_KEYDOWN:
         case SDL_KEYUP: {
             int dos_sc = sdl_to_dos_scancode(ev.key.keysym.scancode);
-            if (dos_sc >= 0 && dos_sc < 256)
-                keystatus_array[dos_sc] = (ev.type == SDL_KEYDOWN) ? 1 : 0;
+            if (dos_sc >= 0 && dos_sc < 256) {
+                int pressed = (ev.type == SDL_KEYDOWN) ? 1 : 0;
+                keystatus_array[dos_sc] = (unsigned char)pressed;
+                KB_KeyEvent(dos_sc, pressed);
+                if (pressed)
+                    KB_Addch((char)dos_sc);
+            }
             break;
         }
 
