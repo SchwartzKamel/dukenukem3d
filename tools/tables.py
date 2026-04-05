@@ -78,10 +78,16 @@ def _generate_small_font():
 
 
 def _generate_britable():
-    """Generate brightness table (1024 bytes = 16 * 64)."""
+    """Generate brightness table (1024 bytes = 16 * 64).
+
+    Maps 6-bit VGA palette values (0-63) to 8-bit output (0-255).
+    Row 0 = normal brightness (linear 6-bit→8-bit = multiply by 4).
+    Rows 1-15 = progressively brighter via gamma boost.
+    """
     data = bytearray()
     for row in range(16):
+        gamma = 1.0 + row * 0.06
         for col in range(64):
-            val = min(63, int(col * (row + 1) / 16.0))
-            data.append(val)
+            val = int(pow(col / 63.0, 1.0 / gamma) * 255.0) if col > 0 else 0
+            data.append(min(255, max(0, val)))
     return bytes(data)

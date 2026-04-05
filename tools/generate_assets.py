@@ -26,10 +26,13 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from anm_format import create_placeholder_anm
 from art_format import create_art_file, rgb_to_column_major
+from demo_format import create_demo_stub, create_timbre_stub
 from grp_format import create_grp
-from map_format import create_test_map
+from map_format import create_level_map, create_test_map
+from midi_format import create_simple_midi
 from palette import build_palette, create_palette_dat, quantize_image
 from tables import create_tables_dat
+from voc_format import create_voc_stub
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -1324,6 +1327,73 @@ def _render_font_tile(char_code, tile_w=8, tile_h=8):
 
 
 # ---------------------------------------------------------------------------
+# Audio asset helpers
+# ---------------------------------------------------------------------------
+
+def parse_music_filenames(user_con_path):
+    """Parse music directives from USER.CON and return unique MIDI filenames."""
+    midi_files = set()
+    if not os.path.exists(user_con_path):
+        return midi_files
+    with open(user_con_path, "r", errors="replace") as f:
+        for line in f:
+            line = line.strip()
+            if line.startswith("music "):
+                tokens = line.split()
+                # tokens[0] = "music", tokens[1] = episode, rest = filenames
+                for tok in tokens[2:]:
+                    tok = tok.strip()
+                    if tok.lower().endswith(".mid"):
+                        midi_files.add(tok)
+    return midi_files
+
+
+def parse_voc_filenames(user_con_path):
+    """Parse definesound entries from USER.CON and return unique VOC filenames."""
+    voc_files = set()
+    if not os.path.exists(user_con_path):
+        return voc_files
+    with open(user_con_path, "r", errors="replace") as f:
+        for line in f:
+            line = line.strip()
+            if line.startswith("definesound "):
+                tokens = line.split()
+                if len(tokens) >= 3:
+                    fname = tokens[2].strip()
+                    if fname.lower().endswith(".voc"):
+                        voc_files.add(fname)
+    return voc_files
+
+
+def generate_audio_assets(user_con_path):
+    """Generate all MIDI music and VOC sound effect files.
+
+    Returns:
+        dict: filename (UPPERCASE) -> bytes data
+    """
+    audio = {}
+
+    # Parse filenames from USER.CON
+    midi_names = parse_music_filenames(user_con_path)
+    voc_names = parse_voc_filenames(user_con_path)
+
+    print(f"  Found {len(midi_names)} unique MIDI files in USER.CON")
+    print(f"  Found {len(voc_names)} unique VOC files in USER.CON")
+
+    # Generate MIDI files
+    for name in sorted(midi_names):
+        data = create_simple_midi(name, duration_seconds=5)
+        audio[name.upper()] = data
+
+    # Generate VOC stubs
+    for name in sorted(voc_names):
+        data = create_voc_stub(name, duration_ms=100)
+        audio[name.upper()] = data
+
+    return audio
+
+
+# ---------------------------------------------------------------------------
 # Main pipeline
 # ---------------------------------------------------------------------------
 
@@ -1425,10 +1495,16 @@ def main():
     tables_dat = create_tables_dat()
     print(f"  TABLES.DAT: {len(tables_dat)} bytes")
 
-    # -- 5. Test MAP ----------------------------------------------------------
-    print("\n=== Creating test MAP ===")
-    test_map = create_test_map()
-    print(f"  E1L1.MAP: {len(test_map)} bytes")
+    # -- 5. Level MAPs --------------------------------------------------------
+    print("\n=== Creating level MAPs (4 episodes × 11 levels) ===")
+    map_data = {}
+    for ep in range(1, 5):
+        for lv in range(1, 12):
+            name = f"E{ep}L{lv}.MAP"
+            map_bytes = create_level_map(ep, lv)
+            map_data[name] = map_bytes
+            print(f"  {name}: {len(map_bytes)} bytes")
+    print(f"  Total: {len(map_data)} maps generated")
 
     # -- 6. Copy data files from testdata/ ------------------------------------
     print("\n=== Copying data files from testdata/ ===")
@@ -1463,17 +1539,38 @@ def main():
         anm_data[fname] = data
         print(f"  {fname}: {len(data)} bytes")
 
-    # -- 8. Pack GRP ----------------------------------------------------------
+    # -- 8. Generate MIDI music and VOC sound effects --------------------------
+    print("\n=== Generating audio assets (MIDI + VOC) ===")
+    user_con_path = os.path.join(TESTDATA_DIR, "USER.CON")
+    audio_assets = generate_audio_assets(user_con_path)
+    midi_count = sum(1 for k in audio_assets if k.endswith(".MID"))
+    voc_count = sum(1 for k in audio_assets if k.endswith(".VOC"))
+    print(f"  Generated {midi_count} MIDI files, {voc_count} VOC files")
+
+    # -- 9. Generate demo stubs and timbre file --------------------------------
+    print("\n=== Generating demo stubs and timbre file ===")
+    demo0 = create_demo_stub(volume=0, level=0, skill=2)
+    demo1 = create_demo_stub(volume=0, level=1, skill=2)
+    timbre = create_timbre_stub()
+    print(f"  DEMO0.DMO: {len(demo0)} bytes (0-frame stub, E1L1)")
+    print(f"  DEMO1.DMO: {len(demo1)} bytes (0-frame stub, E1L2)")
+    print(f"  D3DTIMBR.TMB: {len(timbre)} bytes")
+
+    # -- 10. Pack GRP ---------------------------------------------------------
     print("\n=== Packing DUKE3D.GRP ===")
     grp_contents = {}
     grp_contents["TILES000.ART"] = tiles000
     grp_contents["PALETTE.DAT"] = palette_dat
     grp_contents["TABLES.DAT"] = tables_dat
-    grp_contents["E1L1.MAP"] = test_map
+    grp_contents.update(map_data)
     grp_contents.update(data_files)
     grp_contents.update(anm_data)
+    grp_contents.update(audio_assets)
+    grp_contents["DEMO0.DMO"] = demo0
+    grp_contents["DEMO1.DMO"] = demo1
+    grp_contents["D3DTIMBR.TMB"] = timbre
 
-    # -- Include audio files if they exist
+    # -- Include pre-generated audio files if they exist
     sounds_dir = os.path.join(OUTPUT_DIR, "sounds")
     if os.path.isdir(sounds_dir):
         for snd_file in sorted(os.listdir(sounds_dir)):
@@ -1486,7 +1583,7 @@ def main():
     grp_data = create_grp(grp_contents)
     print(f"  DUKE3D.GRP: {len(grp_data)} bytes ({len(grp_contents)} files)")
 
-    # -- 9. Write output files ------------------------------------------------
+    # -- 11. Write output files -----------------------------------------------
     print("\n=== Writing output ===")
 
     # Write individual files to generated_assets/
