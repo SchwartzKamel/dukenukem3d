@@ -1354,6 +1354,8 @@ void enterlevel(char g)
     long l;
     char levname[256];
 
+    startup_log("  enterlevel: mode=%d", (int)g);
+
     if( (g&MODE_DEMO) != MODE_DEMO ) ud.recstat = ud.m_recstat;
     ud.respawn_monsters = ud.m_respawn_monsters;
     ud.respawn_items    = ud.m_respawn_items;
@@ -1370,6 +1372,7 @@ void enterlevel(char g)
     clearsoundlocks();
     FX_SetReverb(0);
 
+    startup_log("  enterlevel: dofrontscreens + vscrn");
     i = ud.screen_size;
     ud.screen_size = 0;
     dofrontscreens();
@@ -1394,6 +1397,8 @@ void enterlevel(char g)
 
 #else
 
+    startup_log("  enterlevel: loading map vol=%d lev=%d", ud.volume_number, ud.level_number);
+    startup_log("  enterlevel: map='%s'", level_file_names[(ud.volume_number*11)+ud.level_number]);
     l = strlen(level_file_names[ (ud.volume_number*11)+ud.level_number]);
     copybufbyte( level_file_names[ (ud.volume_number*11)+ud.level_number],&levname[0],l);
     levname[l] = 255;
@@ -1404,12 +1409,15 @@ void enterlevel(char g)
         sprintf(tempbuf,"Map %s not found!",level_file_names[(ud.volume_number*11)+ud.level_number]);
         gameexit(tempbuf);
     }
+    startup_log("  enterlevel: loadboard OK, numsectors=%d numwalls=%d", numsectors, numwalls);
 #endif
 
     clearbufbyte(gotpic,sizeof(gotpic),0L);
 
+    startup_log("  enterlevel: prelevel");
     prelevel(g);
 
+    startup_log("  enterlevel: allignwarpelevators + resetpspritevars");
     allignwarpelevators();
     resetpspritevars(g);
 
@@ -1418,6 +1426,7 @@ void enterlevel(char g)
 
     if(ud.recstat != 2) MUSIC_StopSong();
 
+    startup_log("  enterlevel: cacheit + docacheit");
     cacheit();
     docacheit();
 
@@ -1482,6 +1491,7 @@ void enterlevel(char g)
      flushpackets();
      waitforeverybody();
 
+     startup_log("  enterlevel: final render setup (vscrn/clearview/drawbackground)");
      palto(0,0,0,0);
      vscrn();
      clearview(0L);
@@ -1492,7 +1502,9 @@ void enterlevel(char g)
 
      clearfrags();
 
+     startup_log("  enterlevel: resettimevars - level ready");
      resettimevars();  // Here we go
+     startup_log("  enterlevel: complete");
 
 
 }

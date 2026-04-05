@@ -762,6 +762,17 @@ void CONFIG_ReadSetup( void )
          break;
 
       }
+
+   /* Validate screen settings — old config files may have 0s */
+   if(ScreenWidth <= 0 || ScreenHeight <= 0)
+   {
+      ScreenMode = 2;
+      ScreenWidth = 640;
+      ScreenHeight = 480;
+   }
+   if(FXDevice < 0 || FXDevice > 13) FXDevice = 13;
+   if(MusicDevice < 0 || MusicDevice > 13) MusicDevice = 13;
+
    setupread = 1;
    }
 

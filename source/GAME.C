@@ -7582,23 +7582,29 @@ int main(int argc,char **argv)
         puts("Loading palette/lookups.");
 
 // CTW - MODIFICATION
-/*  if( setgamemode(ScreenMode,ScreenWidth,ScreenHeight) < 0 )
+    if(ScreenWidth <= 0 || ScreenHeight <= 0)
     {
-        printf("\nVESA driver for ( %i * %i ) not found/supported!\n",xdim,ydim);
-        vidoption = 2;
-        setgamemode(vidoption,320,200);
-    }*/
+        startup_log("Screen config invalid (%d x %d), using 640x480", ScreenWidth, ScreenHeight);
+        ScreenMode = 2;
+        ScreenWidth = 640;
+        ScreenHeight = 480;
+    }
     startup_log("Calling setgamemode(%d, %d, %d)", ScreenMode, ScreenWidth, ScreenHeight);
     if( setgamemode(ScreenMode,ScreenWidth,ScreenHeight) < 0 )
     {
-        startup_log("setgamemode failed, falling back to 320x200");
-        printf("\nVESA driver for ( %i * %i ) not found/supported!\n",xdim,ydim);
+        startup_log("setgamemode failed, trying 640x480");
         ScreenMode = 2;
-        ScreenWidth = 320;
-        ScreenHeight = 200;
-        setgamemode(ScreenMode,ScreenWidth,ScreenHeight);
+        ScreenWidth = 640;
+        ScreenHeight = 480;
+        if( setgamemode(ScreenMode,ScreenWidth,ScreenHeight) < 0 )
+        {
+            startup_log("640x480 failed too, trying 320x200");
+            ScreenWidth = 320;
+            ScreenHeight = 200;
+            setgamemode(ScreenMode,ScreenWidth,ScreenHeight);
+        }
     }
-    startup_log("setgamemode OK - game window should be visible");
+    startup_log("setgamemode OK - xdim=%ld, ydim=%ld", xdim, ydim);
 // CTW END - MODIFICATION
 
     startup_log("genspriteremaps()");
@@ -7620,7 +7626,6 @@ int main(int argc,char **argv)
     clearsoundlocks();
 
     startup_log("Entering game loop setup (warp_on=%d)", ud.warp_on);
-    startup_log_close();
 
     ESCESCAPE;
 
@@ -7629,6 +7634,7 @@ int main(int argc,char **argv)
 
     if(ud.warp_on > 1 && ud.multimode < 2)
     {
+        startup_log("Loading saved game (warp_on=%d)", ud.warp_on);
         clearview(0L);
         ps[myconnectindex].palette = palette;
         palto(0,0,0,0);
@@ -7646,11 +7652,17 @@ int main(int argc,char **argv)
     MAIN_LOOP_RESTART:
 
     if(ud.warp_on == 0)
+    {
+        startup_log("Calling Logo()");
         Logo();
+    }
     else if(ud.warp_on == 1)
     {
+        startup_log("newgame(vol=%d, lev=%d, skill=%d)", ud.m_volume_number, ud.m_level_number, ud.m_player_skill);
         newgame(ud.m_volume_number,ud.m_level_number,ud.m_player_skill);
+        startup_log("newgame done, calling enterlevel(MODE_GAME)");
         enterlevel(MODE_GAME);
+        startup_log("enterlevel done, entering main loop");
     }
     else vscrn();
 
@@ -7667,6 +7679,9 @@ int main(int argc,char **argv)
     ud.auto_run = tempautorun;
 
     ud.warp_on = 0;
+
+    startup_log("=== ENTERING MAIN GAME LOOP ===");
+    startup_log_close();
 
     while ( !(ps[myconnectindex].gm&MODE_END) ) //The whole loop!!!!!!!!!!!!!!!!!!
     {
