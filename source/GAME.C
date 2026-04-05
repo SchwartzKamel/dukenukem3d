@@ -1954,6 +1954,8 @@ void gameexit(char *t)
 {
     short i;
 
+    startup_log("gameexit called: '%s'", t && *t ? t : "(empty)");
+
     if(*t != 0) ps[myconnectindex].palette = (char *) &palette[0];
 
     if(numplayers > 1)
@@ -2015,6 +2017,13 @@ void gameexit(char *t)
     uninitgroupfile();
 
     unlink("duke3d.tmp");
+
+#ifdef _WIN32
+    /* With -mwindows, printf output is invisible. Show error in a dialog. */
+    if (t && *t != 0) {
+        MessageBoxA(NULL, t, "Duke Nukem 3D", MB_OK | MB_ICONERROR);
+    }
+#endif
 
     exit(0);
 }
@@ -7135,11 +7144,15 @@ void Startup(void)
 {
    int i;
 
+   startup_log("  KB_Startup()");
    KB_Startup();
 
+   startup_log("  compilecons()");
    compilecons();
 
+   startup_log("  CONFIG_GetSetupFilename()");
    CONFIG_GetSetupFilename();
+   startup_log("  CONFIG_ReadSetup()");
    CONFIG_ReadSetup();
 
 #ifdef AUSTRALIA
@@ -7156,19 +7169,25 @@ void Startup(void)
 
 #endif
 
+   startup_log("  CONTROL_Startup()");
    CONTROL_Startup( ControllerType, &GetTime, TICRATE );
 
 // CTW - MODIFICATION
 // initengine(ScreenMode,ScreenWidth,ScreenHeight);
+   startup_log("  initengine()");
    initengine();
 // CTW END - MODIFICATION
+   startup_log("  hud_init()");
    hud_init();
+   startup_log("  inittimer()");
    inittimer();
 
    puts("* Hold Esc to Abort. *");
    puts("Loading art header.");
+   startup_log("  loadpics(tiles000.art)");
    loadpics("tiles000.art");
 
+   startup_log("  readsavenames()");
    readsavenames();
 
    tilesizx[MIRROR] = tilesizy[MIRROR] = 0;
@@ -7185,8 +7204,10 @@ void Startup(void)
    if(networkmode == 255)
        networkmode = 1;
 
+   startup_log("  MusicStartup()");
    puts("Checking music inits.");
    MusicStartup();
+   startup_log("  SoundStartup()");
    puts("Checking sound inits.");
    SoundStartup();
    loadtmb();
@@ -7374,6 +7395,15 @@ int main(int argc,char **argv)
     long i, j, k, l;
     int32 tempautorun;
 
+    /* Initialize startup logging and crash handler */
+    startup_log_open();
+    startup_log("main() entered, argc=%d", argc);
+#ifdef _WIN32
+    SetUnhandledExceptionFilter(crash_handler);
+    startup_log("Windows crash handler installed");
+#endif
+
+    startup_log("Propagating args to MMULTI");
     /* Propagate command-line args to MMULTI.C for network init */
     {
         extern int32 _argc;
@@ -7382,12 +7412,14 @@ int main(int argc,char **argv)
         _argv = argv;
     }
 
+    startup_log("Calling copyprotect()");
     copyprotect();
 
     todd[0] = 'T';
     sixteen[0] = 'D';
     trees[0] = 'I';
 
+    startup_log("Calling setvmode(0x03)");
     setvmode(0x03);
 
     printstr(0,0,"                                                                                ",79);
@@ -7422,34 +7454,44 @@ int main(int argc,char **argv)
     printf("\n\n");
 
     {
-        const char *grp_path = find_game_file("duke3d.grp");
+        const char *grp_path;
+        startup_log("Searching for duke3d.grp...");
+        grp_path = find_game_file("duke3d.grp");
         if (grp_path == NULL) {
+            startup_log("duke3d.grp not found, trying DUKE3D.GRP...");
             grp_path = find_game_file("DUKE3D.GRP");
         }
         if (grp_path == NULL) {
+            startup_log("FATAL: DUKE3D.GRP not found anywhere!");
             error_fatal("Duke Nukem 3D",
                 "DUKE3D.GRP not found!\n\n"
                 "Place DUKE3D.GRP in the same folder as duke3d.exe,\n"
                 "or generate assets with:\n"
                 "  python3 tools/generate_assets.py --no-ai");
         }
+        startup_log("Found GRP: %s", grp_path);
         printf("Loading: %s\n", grp_path);
         if (initgroupfile((char *)grp_path) < 0) {
+            startup_log("FATAL: initgroupfile() failed!");
             error_fatal("Duke Nukem 3D",
                 "Failed to load DUKE3D.GRP!\n\n"
                 "The file may be corrupted. Regenerate with:\n"
                 "  python3 tools/generate_assets.py --no-ai");
         }
+        startup_log("GRP loaded successfully");
     }
 
+    startup_log("Calling checkcommandline()");
     checkcommandline(argc,argv);
 
     totalmemory = Z_AvailHeap();
+    startup_log("Z_AvailHeap() = %ld", totalmemory);
 
     if(memorycheckoveride == 0)
     {
         if(totalmemory < (3162000-350000))
         {
+            startup_log("FATAL: Not enough memory (%ld < %d)", totalmemory, 3162000-350000);
             puts("You don't have enough free memory to run Duke Nukem 3D.");
             puts("The DOS \"mem\" command should report 6,800K (or 6.8 megs)");
             puts("of \"total memory free\".\n");
@@ -7487,7 +7529,9 @@ int main(int argc,char **argv)
     getch();
 #endif
 
+    startup_log("Calling Startup()");
     Startup();
+    startup_log("Startup() complete");
 
     if( eightytwofifty && numplayers > 1 && (MusicDevice != NumSoundCards) )
     {
@@ -7551,14 +7595,18 @@ int main(int argc,char **argv)
         vidoption = 2;
         setgamemode(vidoption,320,200);
     }*/
+    startup_log("Calling setgamemode(%d, %d, %d)", ScreenMode, ScreenWidth, ScreenHeight);
     if( setgamemode(ScreenMode,ScreenWidth,ScreenHeight) < 0 )
     {
+        startup_log("setgamemode failed, falling back to 320x200");
         printf("\nVESA driver for ( %i * %i ) not found/supported!\n",xdim,ydim);
         ScreenMode = 2;
         ScreenWidth = 320;
         ScreenHeight = 200;
         setgamemode(ScreenMode,ScreenWidth,ScreenHeight);
     }
+    startup_log("setgamemode OK - game window should be visible");
+    startup_log_close();
 // CTW END - MODIFICATION
 
     genspriteremaps();

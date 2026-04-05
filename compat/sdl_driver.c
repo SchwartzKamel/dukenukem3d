@@ -140,26 +140,34 @@ int sdl_init(int xdim, int ydim)
 {
     char errbuf[512];
 
+    startup_log("  sdl_init(%d, %d) called", xdim, ydim);
+
+    startup_log("  SDL_Init(VIDEO|TIMER)...");
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) < 0) {
+        startup_log("  FATAL: SDL_Init failed: %s", SDL_GetError());
         snprintf(errbuf, sizeof(errbuf),
             "SDL_Init failed: %s\n\n"
             "Make sure SDL2.dll is in the same folder as duke3d.exe.",
             SDL_GetError());
         error_fatal("SDL Error", errbuf);
     }
+    startup_log("  SDL_Init OK");
 
     screen_width  = xdim;
     screen_height = ydim;
 
+    startup_log("  SDL_CreateWindow(%d x %d)...", xdim, ydim);
     window = SDL_CreateWindow("Duke Nukem 3D",
                               SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
                               xdim, ydim,
                               SDL_WINDOW_RESIZABLE | SDL_WINDOW_SHOWN);
     if (!window) {
+        startup_log("  FATAL: SDL_CreateWindow failed: %s", SDL_GetError());
         snprintf(errbuf, sizeof(errbuf),
             "SDL_CreateWindow failed: %s", SDL_GetError());
         error_fatal("SDL Error", errbuf);
     }
+    startup_log("  Window created OK");
 
     renderer = SDL_CreateRenderer(window, -1,
                                   SDL_RENDERER_ACCELERATED |

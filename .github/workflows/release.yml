@@ -99,7 +99,7 @@ jobs:
           fi
           PKGDIR=duke3d-${{ github.ref_name }}-windows-x64
           mkdir -p $PKGDIR
-          cp duke3d.exe DUKE3D.GRP README.md $PKGDIR/
+          cp duke3d.exe DUKE3D.GRP README.md duke3d_launcher.bat $PKGDIR/
           bash tools/bundle_windows.sh $PKGDIR
           ls -la $PKGDIR/
           zip -r duke3d-${{ github.ref_name }}-windows-x64.zip $PKGDIR/

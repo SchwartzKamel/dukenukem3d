@@ -82,7 +82,7 @@ jobs:
         run: |
           python3 tools/generate_assets.py --no-ai
           mkdir -p release-win64
-          cp duke3d.exe DUKE3D.GRP README.md release-win64/
+          cp duke3d.exe DUKE3D.GRP README.md duke3d_launcher.bat release-win64/
           bash tools/bundle_windows.sh release-win64
       
       - name: Audit DLL dependencies

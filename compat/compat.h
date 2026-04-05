@@ -70,6 +70,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <stdarg.h>
 #include <string.h>
 #include <errno.h>
 #include <ctype.h>
@@ -674,11 +675,50 @@ static const char *find_game_file(const char *filename)
 }
 
 /* ======================================================================
+ * Startup logging — writes to duke3d_startup.log for debugging silent
+ * crashes on Windows where -mwindows suppresses console output.
+ * ====================================================================== */
+
+static FILE *_startup_log = NULL;
+
+static inline void startup_log_open(void)
+{
+    _startup_log = fopen("duke3d_startup.log", "w");
+    if (_startup_log) {
+        fprintf(_startup_log, "Duke Nukem 3D startup log\n");
+        fprintf(_startup_log, "========================\n");
+        fflush(_startup_log);
+    }
+}
+
+static inline void startup_log(const char *fmt, ...)
+{
+    if (_startup_log) {
+        va_list ap;
+        va_start(ap, fmt);
+        vfprintf(_startup_log, fmt, ap);
+        va_end(ap);
+        fprintf(_startup_log, "\n");
+        fflush(_startup_log);
+    }
+}
+
+static inline void startup_log_close(void)
+{
+    if (_startup_log) {
+        fprintf(_startup_log, "Startup log closed (game running normally)\n");
+        fclose(_startup_log);
+        _startup_log = NULL;
+    }
+}
+
+/* ======================================================================
  * Fatal error reporting — shows MessageBox on Windows, stderr on Linux
  * ====================================================================== */
 
 static inline void error_fatal(const char *title, const char *msg)
 {
+    startup_log("error_fatal: %s: %s", title, msg);
 #ifdef _WIN32
     MessageBoxA(NULL, msg, title, MB_OK | MB_ICONERROR);
 #else
@@ -686,5 +726,28 @@ static inline void error_fatal(const char *title, const char *msg)
 #endif
     exit(1);
 }
+
+#ifdef _WIN32
+static LONG WINAPI crash_handler(EXCEPTION_POINTERS *ep)
+{
+    char buf[512];
+    snprintf(buf, sizeof(buf),
+        "Duke Nukem 3D crashed!\n\n"
+        "Exception code: 0x%08lX\n"
+        "Address: 0x%p\n\n"
+        "Check duke3d_startup.log for details.",
+        ep->ExceptionRecord->ExceptionCode,
+        ep->ExceptionRecord->ExceptionAddress);
+    if (_startup_log) {
+        fprintf(_startup_log, "CRASH: Exception 0x%08lX at %p\n",
+            ep->ExceptionRecord->ExceptionCode,
+            ep->ExceptionRecord->ExceptionAddress);
+        fflush(_startup_log);
+        fclose(_startup_log);
+    }
+    MessageBoxA(NULL, buf, "Duke Nukem 3D - Crash", MB_OK | MB_ICONERROR);
+    return EXCEPTION_EXECUTE_HANDLER;
+}
+#endif
 
 #endif /* COMPAT_H_ */
