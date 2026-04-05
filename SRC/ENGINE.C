@@ -2810,6 +2810,7 @@ loadpics(char *filename)
 	long offscount, siz, localtilestart, localtileend, dasiz;
 	short fil, i, j, k;
 
+	startup_log("  loadpics: filename='%s'", filename);
 	strcpy(artfilename,filename);
 
 	for(i=0;i<MAXTILES;i++)
@@ -2829,13 +2830,17 @@ loadpics(char *filename)
 		artfilename[7] = (k%10)+48;
 		artfilename[6] = ((k/10)%10)+48;
 		artfilename[5] = ((k/100)%10)+48;
+		startup_log("  loadpics: trying '%s' (k=%d)", artfilename, k);
 		if ((fil = kopen4load(artfilename,0)) != -1)
 		{
+			startup_log("  loadpics: opened '%s' as handle %d", artfilename, fil);
 			kread(fil,&artversion,4);
+			startup_log("  loadpics: artversion=%ld", artversion);
 			if (artversion != 1) return(-1);
 			kread(fil,&numtiles,4);
 			kread(fil,&localtilestart,4);
 			kread(fil,&localtileend,4);
+			startup_log("  loadpics: numtiles=%ld, start=%ld, end=%ld", numtiles, localtilestart, localtileend);
 			kread(fil,&tilesizx[localtilestart],(localtileend-localtilestart+1)<<1);
 			kread(fil,&tilesizy[localtilestart],(localtileend-localtilestart+1)<<1);
 			kread(fil,&picanm[localtilestart],(localtileend-localtilestart+1)<<2);

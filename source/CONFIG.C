@@ -286,6 +286,12 @@ void CONFIG_SetDefaults( void )
    ud.crosshair = 0;
    ud.m_marker = 1;
    ud.m_ffire = 1;
+   ScreenMode = 2;
+   ScreenWidth = 640;
+   ScreenHeight = 480;
+   ControllerType = 1;
+   FXDevice = 13;
+   MusicDevice = 13;
 }
 /*
 ===================

@@ -7599,9 +7599,9 @@ int main(int argc,char **argv)
         setgamemode(ScreenMode,ScreenWidth,ScreenHeight);
     }
     startup_log("setgamemode OK - game window should be visible");
-    startup_log_close();
 // CTW END - MODIFICATION
 
+    startup_log("genspriteremaps()");
     genspriteremaps();
 
 #ifdef VOLUMEONE
@@ -7609,7 +7609,18 @@ int main(int argc,char **argv)
             gameexit(" The full version of Duke Nukem 3D supports 5 or more players.");
 #endif
 
+    startup_log("setbrightness(%d)", ud.brightness>>2);
     setbrightness(ud.brightness>>2,&ps[myconnectindex].palette[0]);
+
+    startup_log("ESCESCAPE check");
+    ESCESCAPE;
+
+    startup_log("FX_StopAllSounds + clearsoundlocks");
+    FX_StopAllSounds();
+    clearsoundlocks();
+
+    startup_log("Entering game loop setup (warp_on=%d)", ud.warp_on);
+    startup_log_close();
 
     ESCESCAPE;
 

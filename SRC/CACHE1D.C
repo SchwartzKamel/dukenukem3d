@@ -253,7 +253,14 @@ initgroupfile(char *filename)
 
 	if (numgroupfiles >= MAXGROUPFILES) return(-1);
 
+	startup_log("  initgroupfile: opening '%s' (slot %ld)", filename, numgroupfiles);
 	groupfil[numgroupfiles] = open(filename,O_BINARY|O_RDWR,S_IREAD);
+	if (groupfil[numgroupfiles] == -1)
+	{
+		/* Try read-only if read-write fails */
+		groupfil[numgroupfiles] = open(filename,O_BINARY|O_RDONLY);
+	}
+	startup_log("  initgroupfile: open() returned fd=%ld", groupfil[numgroupfiles]);
 	if (groupfil[numgroupfiles] != -1)
 	{
 		groupfilpos[numgroupfiles] = 0;
@@ -285,6 +292,10 @@ initgroupfile(char *filename)
 			j += k;
 		}
 		gfileoffs[numgroupfiles][gnumfiles[numgroupfiles]] = j;
+		startup_log("  initgroupfile: loaded %ld files, total data %ld bytes", gnumfiles[numgroupfiles], j);
+		/* Log first few filenames */
+		for(i=0;i<gnumfiles[numgroupfiles] && i<5;i++)
+			startup_log("  initgroupfile:   [%ld] '%s' (offset %ld)", i, &gfilelist[numgroupfiles][i<<4], gfileoffs[numgroupfiles][i]);
 	}
 	numgroupfiles++;
 	return(groupfil[numgroupfiles-1]);
@@ -323,16 +334,19 @@ kopen4load(char *filename, char searchfirst)
 	if (searchfirst == 0)
 		if ((fil = open(filename,O_BINARY|O_RDONLY)) != -1)
 		{
+			startup_log("  kopen4load: '%s' found on disk (fd=%ld)", filename, fil);
 			filegrp[newhandle] = 255;
 			filehan[newhandle] = fil;
 			filepos[newhandle] = 0;
 			return(newhandle);
 		}
+	startup_log("  kopen4load: '%s' not on disk, searching %ld GRP(s)", filename, numgroupfiles);
 	for(k=numgroupfiles-1;k>=0;k--)
 	{
 		if (searchfirst != 0) k = 0;
 		if (groupfil[k] != -1)
 		{
+			startup_log("  kopen4load: GRP[%ld] has %ld files", k, gnumfiles[k]);
 			for(i=gnumfiles[k]-1;i>=0;i--)
 			{
 				gfileptr = (char *)&gfilelist[k][i<<4];
@@ -346,13 +360,19 @@ kopen4load(char *filename, char searchfirst)
 				}
 				if (bad) continue;
 
+				startup_log("  kopen4load: found '%s' in GRP[%ld] entry %ld", filename, k, i);
 				filegrp[newhandle] = k;
 				filehan[newhandle] = i;
 				filepos[newhandle] = 0;
 				return(newhandle);
 			}
 		}
+		else
+		{
+			startup_log("  kopen4load: GRP[%ld] handle is -1 (not loaded)", k);
+		}
 	}
+	startup_log("  kopen4load: '%s' NOT FOUND anywhere", filename);
 	return(-1);
 }
 

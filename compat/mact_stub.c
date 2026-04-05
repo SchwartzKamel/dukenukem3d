@@ -153,10 +153,10 @@ void SCRIPT_GetDoubleString(int handle, char *section, char *key, char *dest1, c
     }
 }
 
-int SCRIPT_GetNumber(int handle, char *section, char *key, long *dest) {
+int SCRIPT_GetNumber(int handle, char *section, char *key, int32_t *dest) {
     char buf[256];
     SCRIPT_GetString(handle, section, key, buf);
-    if (buf[0]) { *dest = atol(buf); return 1; }
+    if (buf[0]) { *dest = (int32_t)atol(buf); return 1; }
     *dest = 0;
     return 0;
 }
