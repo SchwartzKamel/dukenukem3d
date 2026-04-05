@@ -649,7 +649,561 @@ PROCEDURAL_MAP = {
 GENERIC_COLORS = {}
 
 # ---------------------------------------------------------------------------
-# Font tile generation (tiles 2048-2079, 8x8 each)
+# NAMES.H parser and game-critical tile generation
+# ---------------------------------------------------------------------------
+
+def parse_names_h():
+    """Parse source/NAMES.H to extract all #define NAME NUMBER entries."""
+    names_h = os.path.join(PROJECT_ROOT, "source", "NAMES.H")
+    result = {}
+    with open(names_h) as f:
+        for line in f:
+            stripped = line.strip()
+            if stripped.startswith("//") or stripped.startswith("/*"):
+                continue
+            if stripped.startswith("#define "):
+                parts = stripped.split()
+                if len(parts) >= 3:
+                    name = parts[1]
+                    try:
+                        num = int(parts[2])
+                        result[name] = num
+                    except ValueError:
+                        continue
+    return result
+
+
+def _classify_tile(name, tile_num):
+    """Return (width, height, category) for a game tile."""
+    # Full-screen tiles
+    if name in ('MENUSCREEN', 'BETASCREEN', 'LOADSCREEN', 'BONUSSCREEN',
+                'VICTORY1', 'ORDERING', 'TEXTSTORY', 'BORNTOBEWILDSCREEN',
+                'F1HELP', 'TENSCREEN', 'BETAVERSION', 'DUKECAR', 'DREALMS',
+                'VIEWBORDER'):
+        return (320, 200, 'fullscreen')
+    # HUD / status bars
+    if name in ('BOTTOMSTATUSBAR', 'FRAGBAR', 'MENUBAR', 'HEADERBAR'):
+        return (320, 16, 'hud_bar')
+    # Logo text
+    if name in ('DUKENUKEM', 'THREEDEE', 'INGAMEDUKETHREEDEE', 'PLUTOPAKSPRITE'):
+        return (160, 40, 'logo')
+    if name in ('LOGO', 'TITLE'):
+        return (64, 32, 'logo')
+    # Digital numbers (2472-2481)
+    if 2472 <= tile_num <= 2481:
+        return (10, 16, 'digit')
+    # Slider / UI
+    if name == 'SLIDEBAR':
+        return (64, 8, 'hud_bar')
+    if name in ('WINDOWBORDER1', 'WINDOWBORDER2', 'TEXTBOX'):
+        return (128, 32, 'hud_bar')
+    # Cursors & small UI
+    if name in ('MOUSECURSOR', 'BIGFNTCURSOR', 'SMALLFNTCURSOR',
+                'CAMCORNER', 'CAMLIGHT'):
+        return (16, 16, 'icon')
+    if name == 'CROSSHAIR':
+        return (16, 16, 'weapon')
+    # Font / alpha ranges
+    if 2822 <= tile_num <= 2915:
+        return (8, 8, 'font')
+    if 2940 <= tile_num <= 3009:
+        return (16, 16, 'font')
+    if 3010 <= tile_num <= 3025:
+        return (4, 5, 'font')
+    if 3072 <= tile_num <= 3163:
+        return (4, 5, 'font')
+    if name in ('BIGPERIOD', 'BIGCOMMA', 'BIGX', 'BIGQ',
+                'BIGSEMI', 'BIGCOLIN', 'BIGAPPOS'):
+        return (16, 16, 'font')
+    if name == 'BLANK':
+        return (8, 8, 'font')
+    # Weapon view sprites
+    if name in ('DEVISTATOR', 'KNEE', 'FIRSTGUN', 'FIRSTGUNRELOAD', 'CHAINGUN',
+                'RPGGUN', 'RPGMUZZLEFLASH', 'FREEZE', 'SHRINKER', 'TRIPBOMB',
+                'RPG', 'SHOTGUN', 'HANDHOLDINGLASER', 'HANDHOLDINGACCESS',
+                'HANDREMOTE', 'HANDTHROW', 'HAND', 'TIP', 'FALLINGCLIP',
+                'CLIPINHAND', 'ROTATEGUN', 'GLAIR', 'CRACKKNUCKLES',
+                'SCUBAMASK', 'SPACEMASK'):
+        return (64, 64, 'weapon')
+    # Boss sprites
+    if name.startswith('BOSS') and 'SCREEN' not in name:
+        return (80, 80, 'boss')
+    # Enemy sprites
+    if name in ('LIZTROOP', 'LIZTROOPRUNNING', 'LIZTROOPSTAYPUT', 'LIZTOP',
+                'LIZTROOPSHOOT', 'LIZTROOPJETPACK', 'LIZTROOPDSPRITE',
+                'LIZTROOPONTOILET', 'LIZTROOPJUSTSIT', 'LIZTROOPDUCKING',
+                'OCTABRAIN', 'OCTABRAINSTAYPUT', 'OCTATOP', 'OCTADEADSPRITE',
+                'INNERJAW', 'DRONE', 'COMMANDER', 'COMMANDERSTAYPUT',
+                'RECON', 'TANK', 'PIGCOP', 'PIGCOPSTAYPUT', 'PIGCOPDIVE',
+                'PIGCOPDEADSPRITE', 'PIGTOP', 'LIZMAN', 'LIZMANSTAYPUT',
+                'LIZMANSPITTING', 'LIZMANFEEDING', 'LIZMANJUMP',
+                'LIZMANDEADSPRITE', 'SHARK', 'NEWBEAST', 'NEWBEASTSTAYPUT',
+                'NEWBEASTJUMP', 'NEWBEASTHANG', 'NEWBEASTHANGDEAD',
+                'GREENSLIME', 'EGG'):
+        return (64, 64, 'enemy')
+    # Player / NPC sprites
+    if name in ('APLAYER', 'APLAYERTOP', 'PLAYERONWATER', 'DUKELYINGDEAD',
+                'DUKETORSO', 'DUKEGUN', 'DUKELEG', 'SPACEMARINE', 'HOLODUKE',
+                'INDY', 'MONK', 'LUKE'):
+        return (48, 48, 'character')
+    if name.startswith('FEM') or name in ('NAKED1', 'TOUGHGAL', 'MAN', 'MAN2',
+                                          'WOMAN', 'PODFEM1'):
+        return (48, 48, 'character')
+    # Icons
+    if 'ICON' in name:
+        return (24, 24, 'icon')
+    # Medium effects
+    if name in ('EXPLOSION2', 'EXPLOSION2BOT', 'COOLEXPLOSION1',
+                'TRANSPORTERSTAR', 'TRANSPORTERBEAM', 'WATERSPLASH2',
+                'RADIUSEXPLOSION', 'FORCERIPPLE', 'SHRINKEREXPLOSION',
+                'MORTER', 'SHOTSPARK1', 'FORCESPHERE'):
+        return (32, 32, 'effect')
+    # Small particles / effects
+    if name in ('SMALLSMOKE', 'FLOORFLAME', 'BURNING', 'FIRE', 'BURNING2',
+                'FIRE2', 'SPIT', 'LOOGIE', 'TONGUE', 'FREEZEBLAST',
+                'DEVISTATORBLAST', 'SHRINKSPARK', 'GROWSPARK', 'FIST',
+                'SHELL', 'SHOTGUNSHELL', 'LASERLINE', 'LASERSITE',
+                'BULLETHOLE', 'WATERDRIP', 'WATERBUBBLE', 'FOOTPRINTS',
+                'FOOTPRINTS2', 'FOOTPRINTS3', 'FOOTPRINTS4', 'FOOTPRINT',
+                'BLOOD', 'FIRELASER', 'CANNONBALL', 'SMALLSMOKEMAKER',
+                'WATERBUBBLEMAKER', 'STEAM', 'CEILINGSTEAM'):
+        return (16, 16, 'effect')
+    if name.startswith('BLOODSPLAT') or name.startswith('WALLBLOOD'):
+        return (16, 16, 'effect')
+    if 'JIB' in name or name.startswith('SCRAP'):
+        return (16, 16, 'effect')
+    # Wall / floor textures
+    if name in ('BIGFORCE', 'FLOORSLIME', 'WATERTILE', 'WATERTILE2',
+                'PURPLELAVA', 'CLOUDYOCEAN', 'CLOUDYSKIES',
+                'REFLECTWATERTILE', 'FLOORPLASMA', 'LAVABUBBLE'):
+        return (64, 64, 'wall')
+    if 'SKY' in name or 'ORBIT' in name:
+        return (128, 128, 'wall')
+    if name.startswith('SCREENBREAK'):
+        return (16, 16, 'effect')
+    if name.startswith('W_'):
+        return (64, 64, 'wall')
+    if name.startswith('DOORTILE'):
+        return (64, 64, 'wall')
+    if name.startswith('MASKWALL'):
+        return (64, 64, 'wall')
+    if 'SWITCH' in name or name == 'BUTTON1':
+        return (16, 16, 'switch')
+    if name.startswith('RESPAWNMARKER'):
+        return (24, 24, 'icon')
+    # Medium props
+    if name in ('CRANE', 'BLIMP', 'HELECOPT', 'STATUE', 'STATUEFLASH',
+                'REACTOR', 'REACTORSPARK', 'REACTORBURNT',
+                'REACTOR2', 'REACTOR2BURNT', 'REACTOR2SPARK',
+                'NUKEBARREL', 'NUKEBARRELDENTED', 'NUKEBARRELLEAKED',
+                'EXPLODINGBARREL', 'EXPLODINGBARREL2', 'FIREBARREL',
+                'VENDMACHINE', 'VENDMACHINEBROKE', 'COLAMACHINE',
+                'COLAMACHINEBROKE', 'OOZFILTER', 'SEENINE', 'SEENINEDEAD',
+                'SHOPPINGCART', 'DUKECUTOUT', 'DUKEBURGER'):
+        return (48, 48, 'prop')
+    # Default
+    return (32, 32, 'prop')
+
+
+# -- Category-specific tile generators ------------------------------------
+
+def _draw_text_on_image(draw, cx, cy, text, color):
+    """Draw text centered at (cx, cy) using built-in font glyphs."""
+    _init_font()
+    text = text.upper()
+    char_w = 6
+    total_w = len(text) * char_w
+    sx = cx - total_w // 2
+    sy = cy - 3
+    for i, ch in enumerate(text):
+        glyph = _FONT_GLYPHS.get(ord(ch))
+        if glyph is None:
+            continue
+        bx = sx + i * char_w
+        for row_idx, bits in enumerate(glyph):
+            for col in range(5):
+                if bits & (1 << (4 - col)):
+                    px_x, px_y = bx + col, sy + row_idx
+                    if px_x >= 0 and px_y >= 0:
+                        try:
+                            draw.point((px_x, px_y), fill=color)
+                        except Exception:
+                            pass
+
+
+def _gen_fullscreen(w, h, name, seed):
+    """Full-screen placeholder with scanlines and centered label."""
+    img = Image.new("RGB", (w, h), (5, 5, 10))
+    draw = ImageDraw.Draw(img)
+    for y in range(0, h, 2):
+        draw.line([(0, y), (w - 1, y)], fill=(8, 8, 15))
+    draw.rectangle([2, 2, w - 3, h - 3], outline=(0, 80, 120))
+    draw.rectangle([4, 4, w - 5, h - 5], outline=(0, 40, 60))
+    _draw_text_on_image(draw, w // 2, h // 2 - 10, name[:20], (0, 200, 255))
+    _draw_text_on_image(draw, w // 2, h // 2 + 10, "PLACEHOLDER", (0, 120, 160))
+    for cx, cy in [(8, 8), (w - 12, 8), (8, h - 12), (w - 12, h - 12)]:
+        draw.rectangle([cx, cy, cx + 4, cy + 4], fill=(0, 200, 255))
+    return img
+
+
+def _gen_hud_bar(w, h, name, seed):
+    """HUD / status bar with metallic gradient and neon edges."""
+    img = Image.new("RGB", (w, h), (20, 22, 30))
+    draw = ImageDraw.Draw(img)
+    px = img.load()
+    draw.line([(0, 0), (w - 1, 0)], fill=(0, 200, 255))
+    draw.line([(0, h - 1), (w - 1, h - 1)], fill=(0, 200, 255))
+    for y in range(1, h - 1):
+        v = int(25 + 10 * math.sin(y / max(h - 1, 1) * math.pi))
+        for x in range(w):
+            px[x, y] = (v, v + 2, v + 5)
+    for x in range(10, w - 10, 40):
+        draw.line([(x, 2), (x + 15, 2)], fill=(0, 180, 220))
+    for dx in (w // 4, w // 2, 3 * w // 4):
+        draw.line([(dx, 2), (dx, h - 3)], fill=(0, 100, 140))
+    return img
+
+
+def _gen_logo_text(w, h, name, seed):
+    """Logo / title text with neon glow."""
+    img = Image.new("RGB", (w, h), (2, 2, 8))
+    draw = ImageDraw.Draw(img)
+    cx, cy = w // 2, h // 2
+    for r in range(min(w, h) // 2, 0, -1):
+        intensity = int(30 * (r / (min(w, h) // 2)))
+        draw.ellipse([cx - r, cy - r, cx + r, cy + r],
+                     outline=(0, intensity // 2, intensity))
+    _draw_text_on_image(draw, cx, cy, name[:16], (255, 0, 180))
+    return img
+
+
+def _gen_digit_tile(w, h, digit, seed):
+    """Render a single HUD digit (0-9) with neon cyan."""
+    img = Image.new("RGB", (w, h), (0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    _init_font()
+    glyph = _FONT_GLYPHS.get(ord('0') + digit)
+    if glyph:
+        sx = max(1, w // 6)
+        sy = max(1, h // 8)
+        ox = (w - 5 * sx) // 2
+        oy = (h - 7 * sy) // 2
+        for row_idx, bits in enumerate(glyph):
+            for col in range(5):
+                if bits & (1 << (4 - col)):
+                    x0 = ox + col * sx
+                    y0 = oy + row_idx * sy
+                    x1 = min(w - 1, x0 + sx - 1)
+                    y1 = min(h - 1, y0 + sy - 1)
+                    draw.rectangle([x0, y0, x1, y1], fill=(0, 255, 220))
+    return img
+
+
+def _gen_weapon(w, h, name, seed):
+    """Weapon view sprite with gun silhouette and neon highlight."""
+    img = Image.new("RGB", (w, h), (0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    cx, cy = w // 2, h // 2
+    draw.rectangle([cx - w // 4, cy - 2, cx + w // 4, cy + 2],
+                   fill=(60, 65, 70))
+    draw.rectangle([cx - w // 6, cy, cx - w // 6 + 6, cy + h // 3],
+                   fill=(50, 55, 60))
+    draw.rectangle([cx - w // 4 - 2, cy - 3, cx - w // 4 + 2, cy + 3],
+                   fill=(40, 45, 50))
+    draw.line([(cx - w // 4, cy - 2), (cx + w // 4, cy - 2)],
+             fill=(0, 200, 255))
+    draw.point((cx + w // 4, cy), fill=(255, 200, 50))
+    draw.point((cx + w // 4 + 1, cy), fill=(255, 150, 0))
+    return img
+
+
+def _gen_boss(w, h, name, seed):
+    """Boss sprite with menacing silhouette and red accents."""
+    img = Image.new("RGB", (w, h), (0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    cx, cy = w // 2, h // 2
+    bw, bh = w // 3, h // 2
+    draw.rectangle([cx - bw // 2, cy - bh // 4, cx + bw // 2, cy + bh // 2],
+                   fill=(60, 10, 10))
+    hr = w // 6
+    draw.ellipse([cx - hr, cy - bh // 4 - hr * 2, cx + hr, cy - bh // 4],
+                 fill=(80, 15, 15))
+    ey = cy - bh // 4 - hr
+    draw.point((cx - 3, ey), fill=(255, 0, 0))
+    draw.point((cx + 3, ey), fill=(255, 0, 0))
+    draw.rectangle([cx - bw // 2 - 1, cy - bh // 4 - hr * 2 - 1,
+                    cx + bw // 2 + 1, cy + bh // 2 + 1],
+                   outline=(255, 0, 80))
+    return img
+
+
+def _gen_enemy(w, h, name, seed):
+    """Enemy sprite with color-coded humanoid silhouette."""
+    img = Image.new("RGB", (w, h), (0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    cx, cy = w // 2, h // 2
+    if 'LIZ' in name:
+        body_col, accent = (20, 80, 20), (0, 255, 100)
+    elif 'OCTA' in name:
+        body_col, accent = (40, 20, 60), (180, 0, 255)
+    elif 'PIG' in name:
+        body_col, accent = (60, 30, 30), (255, 100, 100)
+    elif 'SHARK' in name:
+        body_col, accent = (30, 40, 60), (0, 150, 255)
+    elif 'DRONE' in name:
+        body_col, accent = (40, 40, 50), (255, 200, 0)
+    elif 'NEWBEAST' in name:
+        body_col, accent = (50, 20, 10), (255, 80, 0)
+    else:
+        body_col, accent = (40, 40, 40), (0, 200, 200)
+    draw.ellipse([cx - 5, cy - h // 3, cx + 5, cy - h // 3 + 10],
+                 fill=body_col)
+    draw.rectangle([cx - 8, cy - h // 3 + 10, cx + 8, cy + h // 6],
+                   fill=body_col)
+    draw.rectangle([cx - 12, cy - h // 3 + 12, cx - 8, cy + h // 6 - 2],
+                   fill=body_col)
+    draw.rectangle([cx + 8, cy - h // 3 + 12, cx + 12, cy + h // 6 - 2],
+                   fill=body_col)
+    draw.rectangle([cx - 6, cy + h // 6, cx - 2, cy + h // 3],
+                   fill=body_col)
+    draw.rectangle([cx + 2, cy + h // 6, cx + 6, cy + h // 3],
+                   fill=body_col)
+    draw.rectangle([cx - 13, cy - h // 3 - 1, cx + 13, cy + h // 3 + 1],
+                   outline=accent)
+    return img
+
+
+def _gen_character(w, h, name, seed):
+    """Character / NPC sprite placeholder."""
+    img = Image.new("RGB", (w, h), (0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    cx, cy = w // 2, h // 2
+    draw.ellipse([cx - 4, cy - h // 4, cx + 4, cy - h // 4 + 8],
+                 fill=(30, 40, 60))
+    draw.rectangle([cx - 6, cy - h // 4 + 8, cx + 6, cy + h // 6],
+                   fill=(25, 35, 55))
+    draw.rectangle([cx - 4, cy + h // 6, cx - 1, cy + h // 4],
+                   fill=(25, 35, 55))
+    draw.rectangle([cx + 1, cy + h // 6, cx + 4, cy + h // 4],
+                   fill=(25, 35, 55))
+    draw.rectangle([cx - 7, cy - h // 4 - 1, cx + 7, cy + h // 4 + 1],
+                   outline=(0, 150, 200))
+    return img
+
+
+def _gen_icon(w, h, name, seed):
+    """Small icon tile with color-coded diamond shape."""
+    img = Image.new("RGB", (w, h), (0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    if 'HEALTH' in name or 'FIRSTAID' in name:
+        col = (255, 50, 50)
+    elif 'AMMO' in name or 'KILL' in name:
+        col = (255, 200, 0)
+    elif 'BOOT' in name or 'JET' in name:
+        col = (0, 200, 255)
+    elif 'HEAT' in name or 'NUKE' in name:
+        col = (255, 100, 0)
+    elif 'STEROIDS' in name:
+        col = (100, 255, 100)
+    elif 'ACCESS' in name:
+        col = (255, 255, 0)
+    elif 'DUKE' in name or 'BADGUY' in name:
+        col = (255, 0, 180)
+    else:
+        col = (0, 200, 200)
+    cx, cy = w // 2, h // 2
+    r = min(w, h) // 3
+    draw.polygon([(cx, cy - r), (cx + r, cy), (cx, cy + r), (cx - r, cy)],
+                 fill=col)
+    inner = (min(255, col[0] + 60), min(255, col[1] + 60), min(255, col[2] + 60))
+    r2 = r // 2
+    draw.polygon([(cx, cy - r2), (cx + r2, cy), (cx, cy + r2), (cx - r2, cy)],
+                 fill=inner)
+    return img
+
+
+def _gen_effect(w, h, name, seed):
+    """Effect / particle placeholder with radial gradient."""
+    img = Image.new("RGB", (w, h), (0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    cx, cy = w // 2, h // 2
+    if 'EXPLO' in name or 'BLAST' in name or 'SPARK' in name:
+        col = (255, 200, 50)
+    elif 'BLOOD' in name:
+        col = (180, 0, 0)
+    elif 'WATER' in name or 'SPLASH' in name:
+        col = (0, 100, 200)
+    elif 'FIRE' in name or 'BURN' in name or 'FLAME' in name:
+        col = (255, 100, 0)
+    elif 'FREEZE' in name:
+        col = (100, 200, 255)
+    elif 'SMOKE' in name or 'STEAM' in name:
+        col = (80, 80, 80)
+    elif 'FOOT' in name:
+        col = (60, 50, 40)
+    else:
+        col = (200, 200, 200)
+    r = min(w, h) // 3
+    for i in range(r, 0, -1):
+        t = i / max(r, 1)
+        c = (int(col[0] * t), int(col[1] * t), int(col[2] * t))
+        draw.ellipse([cx - i, cy - i, cx + i, cy + i], fill=c)
+    return img
+
+
+def _gen_wall_texture(w, h, name, seed):
+    """Wall / floor texture placeholder with subtle grid."""
+    img = Image.new("RGB", (w, h))
+    px = img.load()
+    rng = random.Random(seed)
+    for y in range(h):
+        for x in range(w):
+            v = rng.randint(-6, 6)
+            px[x, y] = (max(0, 35 + v), max(0, 38 + v), max(0, 45 + v))
+    draw = ImageDraw.Draw(img)
+    step_x = max(w // 4, 1)
+    step_y = max(h // 4, 1)
+    for gx in range(0, w, step_x):
+        draw.line([(gx, 0), (gx, h - 1)], fill=(28, 30, 36))
+    for gy in range(0, h, step_y):
+        draw.line([(0, gy), (w - 1, gy)], fill=(28, 30, 36))
+    return img
+
+
+def _gen_switch(w, h, name, seed):
+    """Switch / button tile."""
+    img = Image.new("RGB", (w, h), (25, 28, 35))
+    draw = ImageDraw.Draw(img)
+    draw.rectangle([2, 2, w - 3, h - 3], outline=(50, 55, 65))
+    cx, cy = w // 2, h // 2
+    draw.rectangle([cx - 2, cy - 2, cx + 2, cy + 2], fill=(0, 200, 100))
+    return img
+
+
+def _gen_font_char(w, h, tile_num, seed):
+    """Font character tile for STARTALPHANUM / BIGALPHANUM / MINIFONT ranges."""
+    img = Image.new("RGB", (w, h), (0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    _init_font()
+    if 2822 <= tile_num <= 2915:
+        char_code = 33 + (tile_num - 2822)
+    elif 2940 <= tile_num <= 3009:
+        char_code = 33 + (tile_num - 2940)
+    elif 3072 <= tile_num <= 3163:
+        char_code = 33 + (tile_num - 3072)
+    elif 3010 <= tile_num <= 3025:
+        char_code = 48 + (tile_num - 3010)
+    else:
+        char_code = 32
+    glyph = _FONT_GLYPHS.get(char_code)
+    if glyph:
+        sx = max(1, w // 6)
+        sy = max(1, h // 8)
+        ox = max(0, (w - 5 * sx) // 2)
+        oy = max(0, (h - 7 * sy) // 2)
+        for row_idx, bits in enumerate(glyph):
+            for col in range(5):
+                if bits & (1 << (4 - col)):
+                    x0 = ox + col * sx
+                    y0 = oy + row_idx * sy
+                    x1 = min(w - 1, x0 + sx - 1)
+                    y1 = min(h - 1, y0 + sy - 1)
+                    if x0 < w and y0 < h:
+                        draw.rectangle([x0, y0, x1, y1], fill=(255, 255, 255))
+    return img
+
+
+def _gen_default_prop(w, h, name, seed):
+    """Default prop / item placeholder."""
+    img = Image.new("RGB", (w, h), (0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    hue = sum(ord(c) for c in name) % 6
+    colors = [
+        (0, 200, 200), (200, 0, 200), (0, 200, 100),
+        (200, 200, 0), (100, 100, 255), (255, 100, 50),
+    ]
+    col = colors[hue]
+    cx, cy = w // 2, h // 2
+    r = min(w, h) // 3
+    outer = (min(255, col[0] + 50), min(255, col[1] + 50), min(255, col[2] + 50))
+    draw.ellipse([cx - r, cy - r, cx + r, cy + r], fill=col, outline=outer)
+    return img
+
+
+_CATEGORY_GENERATORS = {
+    'fullscreen': lambda w, h, name, tn, seed: _gen_fullscreen(w, h, name, seed),
+    'hud_bar':    lambda w, h, name, tn, seed: _gen_hud_bar(w, h, name, seed),
+    'logo':       lambda w, h, name, tn, seed: _gen_logo_text(w, h, name, seed),
+    'digit':      lambda w, h, name, tn, seed: _gen_digit_tile(w, h, tn - 2472, seed),
+    'font':       lambda w, h, name, tn, seed: _gen_font_char(w, h, tn, seed),
+    'weapon':     lambda w, h, name, tn, seed: _gen_weapon(w, h, name, seed),
+    'boss':       lambda w, h, name, tn, seed: _gen_boss(w, h, name, seed),
+    'enemy':      lambda w, h, name, tn, seed: _gen_enemy(w, h, name, seed),
+    'character':  lambda w, h, name, tn, seed: _gen_character(w, h, name, seed),
+    'icon':       lambda w, h, name, tn, seed: _gen_icon(w, h, name, seed),
+    'effect':     lambda w, h, name, tn, seed: _gen_effect(w, h, name, seed),
+    'wall':       lambda w, h, name, tn, seed: _gen_wall_texture(w, h, name, seed),
+    'switch':     lambda w, h, name, tn, seed: _gen_switch(w, h, name, seed),
+    'prop':       lambda w, h, name, tn, seed: _gen_default_prop(w, h, name, seed),
+}
+
+
+def generate_game_tiles(palette):
+    """Generate procedural tiles for every tile number defined in NAMES.H.
+
+    Returns dict of tile_num -> (width, height, picanm, column_major_pixels).
+    """
+    names = parse_names_h()
+    tiles = {}
+
+    # Build number -> canonical name mapping
+    num_to_name = {}
+    for name, num in names.items():
+        if num not in num_to_name:
+            num_to_name[num] = name
+
+    # Fill implicit ranges: DIGITALNUM+0..+9, font ranges
+    dn_base = names.get('DIGITALNUM', 2472)
+    for d in range(10):
+        t = dn_base + d
+        if t not in num_to_name:
+            num_to_name[t] = f'DIGITALNUM_{d}'
+
+    sa = names.get('STARTALPHANUM', 2822)
+    ea = names.get('ENDALPHANUM', 2915)
+    for t in range(sa, ea + 1):
+        if t not in num_to_name:
+            num_to_name[t] = f'ALPHANUM_{t - sa}'
+
+    ba = names.get('BIGALPHANUM', 2940)
+    for t in range(ba, ba + 70):
+        if t not in num_to_name:
+            num_to_name[t] = f'BIGALPHA_{t - ba}'
+
+    tbf = names.get('THREEBYFIVE', 3010)
+    for t in range(tbf, tbf + 16):
+        if t not in num_to_name:
+            num_to_name[t] = f'THREEBYFIVE_{t - tbf}'
+
+    mf = names.get('MINIFONT', 3072)
+    for t in range(mf, mf + 92):
+        if t not in num_to_name:
+            num_to_name[t] = f'MINIFONT_{t - mf}'
+
+    for tile_num, name in sorted(num_to_name.items()):
+        w, h, category = _classify_tile(name, tile_num)
+        seed = tile_num * 7 + 31337
+        gen = _CATEGORY_GENERATORS.get(category, _CATEGORY_GENERATORS['prop'])
+        img = gen(w, h, name, tile_num, seed)
+        indexed = quantize_image(img, palette)
+        col_major = rgb_to_column_major(indexed, w, h)
+        tiles[tile_num] = (w, h, 0, col_major)
+
+    return tiles
+
+
+# ---------------------------------------------------------------------------
+# Font tile generation (tiles 2048-2175, 8x8 each)
 # ---------------------------------------------------------------------------
 
 # Minimal 5x7 bitmap font for printable ASCII 32-127.
@@ -712,6 +1266,42 @@ def _init_font():
     ]
     for i in range(10):
         _FONT_GLYPHS[ord("0") + i] = digits[i]
+
+    # Additional punctuation
+    _FONT_GLYPHS[34]  = [0b01010, 0b01010, 0, 0, 0, 0, 0]                # "
+    _FONT_GLYPHS[35]  = [0b01010, 0b11111, 0b01010, 0b11111, 0b01010, 0, 0]  # #
+    _FONT_GLYPHS[36]  = [0b00100, 0b01111, 0b10100, 0b01110, 0b00101, 0b11110, 0b00100]  # $
+    _FONT_GLYPHS[37]  = [0b11001, 0b11010, 0b00100, 0b01000, 0b01011, 0b10011, 0]  # %
+    _FONT_GLYPHS[38]  = [0b01100, 0b10010, 0b01100, 0b10101, 0b10010, 0b01101, 0]  # &
+    _FONT_GLYPHS[39]  = [0b00100, 0b00100, 0, 0, 0, 0, 0]                # '
+    _FONT_GLYPHS[40]  = [0b00010, 0b00100, 0b01000, 0b01000, 0b00100, 0b00010, 0]  # (
+    _FONT_GLYPHS[41]  = [0b01000, 0b00100, 0b00010, 0b00010, 0b00100, 0b01000, 0]  # )
+    _FONT_GLYPHS[42]  = [0, 0b00100, 0b10101, 0b01110, 0b10101, 0b00100, 0]  # *
+    _FONT_GLYPHS[43]  = [0, 0b00100, 0b00100, 0b11111, 0b00100, 0b00100, 0]  # +
+    _FONT_GLYPHS[44]  = [0, 0, 0, 0, 0b00100, 0b00100, 0b01000]          # ,
+    _FONT_GLYPHS[45]  = [0, 0, 0, 0b11111, 0, 0, 0]                      # -
+    _FONT_GLYPHS[46]  = [0, 0, 0, 0, 0, 0b00100, 0]                      # .
+    _FONT_GLYPHS[47]  = [0b00001, 0b00010, 0b00100, 0b01000, 0b10000, 0, 0]  # /
+    _FONT_GLYPHS[58]  = [0, 0b00100, 0, 0, 0b00100, 0, 0]                # :
+    _FONT_GLYPHS[59]  = [0, 0b00100, 0, 0, 0b00100, 0b00100, 0b01000]    # ;
+    _FONT_GLYPHS[60]  = [0b00010, 0b00100, 0b01000, 0b00100, 0b00010, 0, 0]  # <
+    _FONT_GLYPHS[61]  = [0, 0, 0b11111, 0, 0b11111, 0, 0]                # =
+    _FONT_GLYPHS[62]  = [0b01000, 0b00100, 0b00010, 0b00100, 0b01000, 0, 0]  # >
+    _FONT_GLYPHS[63]  = [0b01110, 0b10001, 0b00010, 0b00100, 0, 0b00100, 0]  # ?
+    _FONT_GLYPHS[64]  = [0b01110, 0b10001, 0b10111, 0b10101, 0b10110, 0b10000, 0b01110]  # @
+    _FONT_GLYPHS[91]  = [0b01110, 0b01000, 0b01000, 0b01000, 0b01000, 0b01110, 0]  # [
+    _FONT_GLYPHS[92]  = [0b10000, 0b01000, 0b00100, 0b00010, 0b00001, 0, 0]  # backslash
+    _FONT_GLYPHS[93]  = [0b01110, 0b00010, 0b00010, 0b00010, 0b00010, 0b01110, 0]  # ]
+    _FONT_GLYPHS[94]  = [0b00100, 0b01010, 0b10001, 0, 0, 0, 0]          # ^
+    _FONT_GLYPHS[95]  = [0, 0, 0, 0, 0, 0b11111, 0]                      # _
+    _FONT_GLYPHS[96]  = [0b01000, 0b00100, 0, 0, 0, 0, 0]                # `
+    # Lowercase a-z reuse uppercase bitmaps (classic retro style)
+    for i in range(26):
+        _FONT_GLYPHS[97 + i] = _FONT_GLYPHS[65 + i]
+    _FONT_GLYPHS[123] = [0b00010, 0b00100, 0b01100, 0b00100, 0b00100, 0b00010, 0]  # {
+    _FONT_GLYPHS[124] = [0b00100, 0b00100, 0b00100, 0b00100, 0b00100, 0b00100, 0]  # |
+    _FONT_GLYPHS[125] = [0b01000, 0b00100, 0b00110, 0b00100, 0b00100, 0b01000, 0]  # }
+    _FONT_GLYPHS[126] = [0, 0, 0b01101, 0b10010, 0, 0, 0]                # ~
 
 
 def _render_font_tile(char_code, tile_w=8, tile_h=8):
@@ -787,14 +1377,24 @@ def main():
         col_major = rgb_to_column_major(indexed, tw, th)
         tiles[tile_num] = (tw, th, 0, col_major)
 
-    # Font characters (tiles 2048-2079 → 32 tiles covering space..?)
-    print("  Generating font tiles 2048-2079")
-    for i in range(32):
-        char_code = 32 + i  # space=32 .. '?'=63
+    # Font characters (tiles 2048-2175 → 128 tiles covering ASCII 0-127)
+    print("  Generating font tiles 2048-2175")
+    for i in range(128):
+        char_code = i  # ASCII 0-127
         img = _render_font_tile(char_code, 8, 8)
         indexed = quantize_image(img, palette)
         col_major = rgb_to_column_major(indexed, 8, 8)
         tiles[2048 + i] = (8, 8, 0, col_major)
+
+    # -- Game-critical tiles from NAMES.H ------------------------------------
+    print("\n=== Generating game-critical tiles from NAMES.H ===")
+    game_tiles = generate_game_tiles(palette)
+    new_count = 0
+    for tile_num, tile_data in game_tiles.items():
+        if tile_num not in tiles:
+            tiles[tile_num] = tile_data
+            new_count += 1
+    print(f"  Parsed {len(game_tiles)} tile definitions, added {new_count} new tiles")
 
     # -- 2. Build ART file(s) ------------------------------------------------
     print("\n=== Building ART files ===")
