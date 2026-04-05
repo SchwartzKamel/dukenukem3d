@@ -6971,6 +6971,10 @@ void Logo(void)
 {
     short i,j,soundanm;
 
+    /* Skip all intro animations for automated playtesting */
+    if (getenv("DUKE3D_SKIP_LOGO"))
+        return;
+
     soundanm = 0;
 
     ready2send = 0;
@@ -7009,6 +7013,7 @@ void Logo(void)
     totalclock = 0;
     while( totalclock < (120*7) && !KB_KeyWaiting() )
     {
+        if (sdl_checkquit()) break;
         getpackets();
         sdl_delay(1);
     }
@@ -7027,6 +7032,8 @@ void Logo(void)
 
     while(totalclock < (860+120) && !KB_KeyWaiting())
     {
+        if (sdl_checkquit()) break;
+
         rotatesprite(0,0,65536L,0,BETASCREEN,0,0,2+8+16+64,0,0,xdim-1,ydim-1);
 
         if( totalclock > 120 && totalclock < (120+60) )
@@ -7631,6 +7638,9 @@ int main(int argc,char **argv)
     startup_log("setgamemode OK - xdim=%ld, ydim=%ld", xdim, ydim);
 // CTW END - MODIFICATION
 
+    if (sdl_checkquit())
+        gameexit(" ");
+
     startup_log("genspriteremaps()");
     genspriteremaps();
 
@@ -7709,6 +7719,11 @@ int main(int argc,char **argv)
 
     while ( !(ps[myconnectindex].gm&MODE_END) ) //The whole loop!!!!!!!!!!!!!!!!!!
     {
+        if (sdl_checkquit()) {
+            ps[myconnectindex].gm = MODE_END;
+            break;
+        }
+
         if( ud.recstat == 2 || ud.multimode > 1 || ( ud.show_help == 0 && (ps[myconnectindex].gm&MODE_MENU) != MODE_MENU ) )
             if( ps[myconnectindex].gm&MODE_GAME )
                 if( moveloop() ) continue;

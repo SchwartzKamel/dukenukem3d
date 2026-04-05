@@ -3507,6 +3507,8 @@ void playanm(char *fn,char t)
        {
           if( KB_KeyWaiting() )
               goto ENDOFANIMLOOP;
+          { extern int sdl_checkquit(void);
+            if (sdl_checkquit()) goto ENDOFANIMLOOP; }
           getpackets();
           { extern void sdl_delay(int); sdl_delay(1); }
        }
