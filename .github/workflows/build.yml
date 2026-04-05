@@ -56,15 +56,15 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc-mingw-w64-x86-64 python3 python3-pip
+          sudo apt-get install -y gcc-mingw-w64-i686 python3 python3-pip
           pip3 install --break-system-packages -r requirements.txt
       
       - name: Install SDL2 for MinGW
         run: |
           bash tools/get_sdl2_mingw.sh
           SDL2_VERSION=$(grep '^SDL2_VERSION' build.mk | head -1 | sed 's/.*= *//')
-          echo "SDL2_WIN_CFLAGS=-I$(pwd)/SDL2-${SDL2_VERSION}/x86_64-w64-mingw32/include/SDL2" >> $GITHUB_ENV
-          echo "SDL2_WIN_LIBS=-L$(pwd)/SDL2-${SDL2_VERSION}/x86_64-w64-mingw32/lib -lmingw32 -lSDL2main -lSDL2" >> $GITHUB_ENV
+          echo "SDL2_WIN_CFLAGS=-I$(pwd)/SDL2-${SDL2_VERSION}/i686-w64-mingw32/include/SDL2" >> $GITHUB_ENV
+          echo "SDL2_WIN_LIBS=-L$(pwd)/SDL2-${SDL2_VERSION}/i686-w64-mingw32/lib -lmingw32 -lSDL2main -lSDL2" >> $GITHUB_ENV
       
       - name: Build Windows binary
         run: make windows
@@ -72,7 +72,7 @@ jobs:
       - name: Verify Windows binary exists
         run: |
           test -f duke3d.exe
-          file duke3d.exe | grep -q "PE32+"
+          file duke3d.exe | grep -q "PE32"
           echo "✅ Windows binary built successfully"
       
       - name: Generate assets
@@ -81,20 +81,20 @@ jobs:
       - name: Package Windows release
         run: |
           python3 tools/generate_assets.py --no-ai
-          mkdir -p release-win64
-          cp duke3d.exe DUKE3D.GRP README.md duke3d_launcher.bat release-win64/
-          bash tools/bundle_windows.sh release-win64
+          mkdir -p release-win
+          cp duke3d.exe DUKE3D.GRP README.md duke3d_launcher.bat release-win/
+          bash tools/bundle_windows.sh release-win
       
       - name: Audit DLL dependencies
         run: |
           echo "=== Required DLLs ==="
-          x86_64-w64-mingw32-objdump -p duke3d.exe | grep "DLL Name" | sort
+          i686-w64-mingw32-objdump -p duke3d.exe | grep "DLL Name" | sort
           echo "=== Bundled DLLs ==="
-          ls release-win64/*.dll
+          ls release-win/*.dll
           echo "=== Checking all required DLLs are bundled ==="
           SYSTEM_DLLS="KERNEL32.dll USER32.dll GDI32.dll SHELL32.dll WS2_32.dll ADVAPI32.dll msvcrt.dll IMM32.dll ole32.dll OLEAUT32.dll VERSION.dll SETUPAPI.dll WINMM.dll"
           MISSING=0
-          for dll in $(x86_64-w64-mingw32-objdump -p duke3d.exe | grep "DLL Name" | awk '{print $3}'); do
+          for dll in $(i686-w64-mingw32-objdump -p duke3d.exe | grep "DLL Name" | awk '{print $3}'); do
             is_system=0
             for sys in $SYSTEM_DLLS; do
               if [ "$(echo $dll | tr A-Z a-z)" = "$(echo $sys | tr A-Z a-z)" ]; then
@@ -103,7 +103,7 @@ jobs:
               fi
             done
             if [ $is_system -eq 0 ]; then
-              if ls release-win64/$(echo $dll | tr A-Z a-z) release-win64/$dll 2>/dev/null | head -1 > /dev/null 2>&1; then
+              if ls release-win/$(echo $dll | tr A-Z a-z) release-win/$dll 2>/dev/null | head -1 > /dev/null 2>&1; then
                 echo "  OK: $dll (bundled)"
               else
                 echo "  MISSING: $dll"
@@ -122,8 +122,8 @@ jobs:
       - name: Upload Windows package
         uses: actions/upload-artifact@v4
         with:
-          name: duke3d-windows-x64
-          path: release-win64/
+          name: duke3d-windows-x86
+          path: release-win/
           retention-days: 30
 
   test-assets:
@@ -163,9 +163,9 @@ jobs:
           echo "SDL2_DIR=$PWD\SDL2-$SDL2_VERSION" >> $env:GITHUB_ENV
         shell: pwsh
 
-      - name: Configure with CMake
+      - name: Configure with CMake (32-bit)
         run: |
-          cmake -B build -DCMAKE_BUILD_TYPE=Release -DSDL2_DIR="$env:SDL2_DIR/cmake" -DCMAKE_PREFIX_PATH="$env:SDL2_DIR"
+          cmake -B build -A Win32 -DCMAKE_BUILD_TYPE=Release -DSDL2_DIR="$env:SDL2_DIR/cmake" -DCMAKE_PREFIX_PATH="$env:SDL2_DIR"
         shell: pwsh
 
       - name: Build with MSVC
@@ -178,8 +178,8 @@ jobs:
             Write-Host "Binary exists: $exe"
             Write-Host "File info:"
             Get-Item $exe | Format-List Name, Length, LastWriteTime
-            # Copy SDL2.dll next to the exe so it can load
-            $sdlDll = "$env:SDL2_DIR\lib\x64\SDL2.dll"
+            # Copy SDL2.dll next to the exe so it can load (32-bit)
+            $sdlDll = "$env:SDL2_DIR\lib\x86\SDL2.dll"
             if (Test-Path $sdlDll) {
               Copy-Item $sdlDll -Destination "build\Release\"
               Write-Host "Copied SDL2.dll to build\Release\"

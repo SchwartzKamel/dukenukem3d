@@ -1,5 +1,5 @@
 #!/bin/bash
-# tools/get_sdl2_mingw.sh — Download SDL2 MinGW dev libraries
+# tools/get_sdl2_mingw.sh — Download SDL2 MinGW dev libraries (32-bit)
 set -euo pipefail
 
 # Read version from build.mk (single source of truth)
@@ -16,7 +16,7 @@ TARBALL="SDL2-devel-${SDL2_VERSION}-mingw.tar.gz"
 URL="https://github.com/libsdl-org/SDL/releases/download/release-${SDL2_VERSION}/${TARBALL}"
 EXTRACT_DIR="${ROOT_DIR}/SDL2-${SDL2_VERSION}"
 
-if [ -d "$EXTRACT_DIR/x86_64-w64-mingw32" ]; then
+if [ -d "$EXTRACT_DIR/i686-w64-mingw32" ]; then
     echo "SDL2 ${SDL2_VERSION} already downloaded"
 else
     echo "Downloading SDL2 ${SDL2_VERSION} for MinGW..."
@@ -26,7 +26,7 @@ else
     echo "SDL2 ${SDL2_VERSION} extracted to ${EXTRACT_DIR}"
 fi
 
-# Output paths for CI
+# Output paths for CI (32-bit)
 echo "SDL2_DIR=${EXTRACT_DIR}"
-echo "SDL2_WIN_CFLAGS=-I${EXTRACT_DIR}/x86_64-w64-mingw32/include/SDL2"
-echo "SDL2_WIN_LIBS=-L${EXTRACT_DIR}/x86_64-w64-mingw32/lib -lmingw32 -lSDL2main -lSDL2"
+echo "SDL2_WIN_CFLAGS=-I${EXTRACT_DIR}/i686-w64-mingw32/include/SDL2"
+echo "SDL2_WIN_LIBS=-L${EXTRACT_DIR}/i686-w64-mingw32/lib -lmingw32 -lSDL2main -lSDL2"

@@ -1,5 +1,5 @@
 # Duke Nukem 3D - Modern GCC/SDL2 Makefile
-# Supports Linux (native) and Windows x64 (cross-compilation via MinGW)
+# Supports Linux (native) and Windows x86 (cross-compilation via MinGW)
 
 include build.mk
 
@@ -60,19 +60,19 @@ endif
 
 LIBS    = $(SDL2_LIBS) $(MIXER_LIBS) -lm
 
-# ===== Windows x64 cross-compilation settings =====
-# Smart MinGW SDL2 detection
-WIN_CC = x86_64-w64-mingw32-gcc
+# ===== Windows x86 cross-compilation settings =====
+# 32-bit build: BUILD engine uses long for pointer storage, long==4==sizeof(void*) on ILP32
+WIN_CC = i686-w64-mingw32-gcc
 WIN_CFLAGS  = $(LEGACY_STD) $(OPT_FLAGS) $(WARN_FLAGS) $(LTO_FLAGS) $(COMMON_DEFINES) -DPLATFORM_WIN32
 WIN_SDL2_CFLAGS = $(if $(SDL2_WIN_CFLAGS),$(SDL2_WIN_CFLAGS),$(shell pkg-config --cflags sdl2 2>/dev/null))
 ifeq ($(WIN_SDL2_CFLAGS),)
   # Check common MinGW SDL2 paths
-  ifneq ($(wildcard /usr/x86_64-w64-mingw32/include/SDL2/SDL.h),)
-    WIN_SDL2_CFLAGS = -I/usr/x86_64-w64-mingw32/include/SDL2
-    WIN_SDL2_LIBS = -L/usr/x86_64-w64-mingw32/lib -lmingw32 -lSDL2main -lSDL2
+  ifneq ($(wildcard /usr/i686-w64-mingw32/include/SDL2/SDL.h),)
+    WIN_SDL2_CFLAGS = -I/usr/i686-w64-mingw32/include/SDL2
+    WIN_SDL2_LIBS = -L/usr/i686-w64-mingw32/lib -lmingw32 -lSDL2main -lSDL2
   endif
 endif
-WIN_SDL2_LIBS ?= $(if $(SDL2_WIN_LIBS),$(SDL2_WIN_LIBS),-L/usr/x86_64-w64-mingw32/lib -lmingw32 -lSDL2main -lSDL2)
+WIN_SDL2_LIBS ?= $(if $(SDL2_WIN_LIBS),$(SDL2_WIN_LIBS),-L/usr/i686-w64-mingw32/lib -lmingw32 -lSDL2main -lSDL2)
 WIN_LIBS    = $(WIN_SDL2_LIBS) -lm -lws2_32 -mwindows -static-libgcc
 WIN_TARGET  = duke3d.exe
 WIN_BUILD_DIR = build_win
@@ -130,7 +130,7 @@ $(BUILD_DIR)/game_%.o: source/%.C | $(BUILD_DIR)
 $(BUILD_DIR)/compat_%.o: compat/%.c | $(BUILD_DIR)
 	$(CC) $(COMPAT_STD) $(OPT_FLAGS) -Wall $(LTO_FLAGS) $(SDL2_CFLAGS) $(MIXER_CFLAGS) $(INCLUDES) -c $< -o $@
 
-# ===== Windows x64 cross-compilation targets =====
+# ===== Windows x86 cross-compilation targets =====
 
 windows: $(WIN_TARGET)
 

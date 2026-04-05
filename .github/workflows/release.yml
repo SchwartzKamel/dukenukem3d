@@ -13,7 +13,7 @@ jobs:
           - name: linux-x64
             os: ubuntu-latest
             target: linux
-          - name: windows-x64
+          - name: windows-x86
             os: ubuntu-latest
             target: windows
 
@@ -25,7 +25,7 @@ jobs:
       - name: Install Linux dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc libsdl2-dev gcc-mingw-w64-x86-64 python3 python3-pip
+          sudo apt-get install -y gcc libsdl2-dev gcc-mingw-w64-i686 python3 python3-pip
           pip3 install --break-system-packages -r requirements.txt
       
       - name: Install SDL2 MinGW (Windows only)
@@ -33,8 +33,8 @@ jobs:
         run: |
           bash tools/get_sdl2_mingw.sh
           SDL2_VERSION=$(grep '^SDL2_VERSION' build.mk | head -1 | sed 's/.*= *//')
-          echo "SDL2_WIN_CFLAGS=-I$(pwd)/SDL2-${SDL2_VERSION}/x86_64-w64-mingw32/include/SDL2" >> $GITHUB_ENV
-          echo "SDL2_WIN_LIBS=-L$(pwd)/SDL2-${SDL2_VERSION}/x86_64-w64-mingw32/lib -lmingw32 -lSDL2main -lSDL2" >> $GITHUB_ENV
+          echo "SDL2_WIN_CFLAGS=-I$(pwd)/SDL2-${SDL2_VERSION}/i686-w64-mingw32/include/SDL2" >> $GITHUB_ENV
+          echo "SDL2_WIN_LIBS=-L$(pwd)/SDL2-${SDL2_VERSION}/i686-w64-mingw32/lib -lmingw32 -lSDL2main -lSDL2" >> $GITHUB_ENV
       
       - name: Build
         run: |
@@ -97,12 +97,12 @@ jobs:
           else
             python3 tools/generate_assets.py --no-ai
           fi
-          PKGDIR=duke3d-${{ github.ref_name }}-windows-x64
+          PKGDIR=duke3d-${{ github.ref_name }}-windows-x86
           mkdir -p $PKGDIR
           cp duke3d.exe DUKE3D.GRP README.md duke3d_launcher.bat $PKGDIR/
           bash tools/bundle_windows.sh $PKGDIR
           ls -la $PKGDIR/
-          zip -r duke3d-${{ github.ref_name }}-windows-x64.zip $PKGDIR/
+          zip -r duke3d-${{ github.ref_name }}-windows-x86.zip $PKGDIR/
       
       - name: Upload release artifact
         uses: actions/upload-artifact@v4
@@ -159,7 +159,7 @@ jobs:
             
             ### Downloads
             - **Linux x64**: `duke3d-${{ github.ref_name }}-linux-x64.tar.gz`
-            - **Windows x64**: `duke3d-${{ github.ref_name }}-windows-x64.zip`
+            - **Windows x86**: `duke3d-${{ github.ref_name }}-windows-x86.zip`
             
             ### Quick Start
             Extract and run `duke3d` (Linux) or `duke3d.exe` (Windows).

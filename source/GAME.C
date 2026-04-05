@@ -2381,7 +2381,8 @@ void displayrest(long smoothratio)
 
     /* Draw the compat-layer HUD (framebuffer-based, no tile dependencies) */
     {
-        extern long frameplace, bytesperline, xdim, ydim;
+        extern intptr_t frameplace;
+        extern long bytesperline, xdim, ydim;
         hud_draw((unsigned char *)(intptr_t)frameplace,
                  (int)bytesperline, (int)xdim, (int)ydim,
                  pp->last_extra,                    /* health */

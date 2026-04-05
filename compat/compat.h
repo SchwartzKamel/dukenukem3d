@@ -342,7 +342,7 @@ static inline void segread(struct SREGS *seg)
 }
 
 /* DOS far pointer macros (meaningless in flat-memory model) */
-#define FP_OFF(p)   ((unsigned)(uintptr_t)(p))
+#define FP_OFF(p)   ((intptr_t)(p))
 #define FP_SEG(p)   (0)
 #define MK_FP(s, o) ((void *)(uintptr_t)(o))
 

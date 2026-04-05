@@ -220,7 +220,8 @@ static short screenpeek = 0, oldmousebstatus = 0, brightness = 0;
 static short screensize, screensizeflag = 0;
 static short neartagsector, neartagwall, neartagsprite;
 static long lockclock, neartagdist, neartaghitdist;
-extern long frameplace, pageoffset, ydim16;
+extern intptr_t frameplace;
+extern long pageoffset, ydim16;
 static long globhiz, globloz, globhihit, globlohit;
 static long stereomode = 0;
 extern long stereowidth, stereopixelwidth, activepage;
@@ -3497,13 +3498,13 @@ drawscreen(short snum, long dasmoothratio)
 				y2 = y1 + scale(screensize,ydim-32,xdim)-1;
 				setview(x1,y1,x2,y2);
 
-				// (ox1,oy1)ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
-				//          ³  (x1,y1)        ³
-				//          ³     ÚÄÄÄÄÄ¿     ³
-				//          ³     ³     ³     ³
-				//          ³     ÀÄÄÄÄÄÙ     ³
-				//          ³        (x2,y2)  ³
-				//          ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ(ox2,oy2)
+				// (ox1,oy1)ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä¿
+				//          ï¿½  (x1,y1)        ï¿½
+				//          ï¿½     ï¿½ï¿½ï¿½ï¿½ï¿½Ä¿     ï¿½
+				//          ï¿½     ï¿½     ï¿½     ï¿½
+				//          ï¿½     ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½     ï¿½
+				//          ï¿½        (x2,y2)  ï¿½
+				//          ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½(ox2,oy2)
 
 				drawtilebackground(0L,0L,BACKGROUND,8,ox1,oy1,x1-1,oy2,0);
 				drawtilebackground(0L,0L,BACKGROUND,8,x2+1,oy1,ox2,oy2,0);
@@ -3665,7 +3666,7 @@ drawscreen(short snum, long dasmoothratio)
 				else
 					setviewtotile(MAXTILES-2,320L>>detailmode,320L>>detailmode);
 				if ((tiltlock&1023) == 512)
-				{     //Block off unscreen section of 90ø tilted screen
+				{     //Block off unscreen section of 90ï¿½ tilted screen
 					j = ((320-60)>>detailmode);
 					for(i=(60>>detailmode)-1;i>=0;i--)
 					{

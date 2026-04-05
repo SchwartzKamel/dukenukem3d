@@ -63,7 +63,8 @@ extern char vgacompatible;
 extern char picsiz[MAXTILES];
 extern long startposx, startposy, startposz;
 extern short startang, startsectnum;
-extern long frameplace, pageoffset, ydim16;
+extern intptr_t frameplace;
+extern long pageoffset, ydim16;
 
 extern long cachesize, artsize;
 

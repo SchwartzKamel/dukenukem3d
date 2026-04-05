@@ -434,7 +434,8 @@ extern short screenpeek;
 
 extern int current_menu;
 extern long tempwallptr,animatecnt;
-extern long lockclock,frameplace;
+extern long lockclock;
+extern intptr_t frameplace;
 extern char display_mirror,loadfromgrouponly,rtsplaying;
 
 extern long movefifoend[MAXPLAYERS], groupfile;
@@ -455,7 +456,8 @@ extern void TestCallBack(unsigned long);
 
 #define NUMKEYS 19
 
-extern long frameplace, chainplace, chainnumpages;
+extern intptr_t frameplace;
+extern long chainplace, chainnumpages;
 extern volatile long checksume;
 
 #include "FUNCT.H"

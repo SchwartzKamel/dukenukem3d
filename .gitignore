@@ -20,3 +20,4 @@ duke3d.exe
 generated_assets/
 __pycache__/
 DUKE3D.GRP
+SDL2-*

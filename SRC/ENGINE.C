@@ -34,7 +34,7 @@ void setstereo(long dastereomode);
  * ============================================================ */
 char *screen = NULL;
 long bytesperline;
-long frameplace;
+intptr_t frameplace;
 static long maxpages = 1;
 static long linearmode = 1;
 static long buffermode = 1;
@@ -44,7 +44,7 @@ static int setvesa(long x, long y) {
 	if (sdl_init((int)x, (int)y) < 0) return -1;
 	bytesperline = x;
 	screen = sdl_getscreen();
-	frameplace = (long)(intptr_t)screen;
+	frameplace = (intptr_t)screen;
 	maxpages = 1;
 	linearmode = 1;
 	buffermode = 1;
@@ -853,7 +853,7 @@ drawrooms(long daposx, long daposy, long daposz,
 
 	frameoffset = frameplace+viewoffset;
 
-	clearbufbyte((long)(&gotsector[0]),(long)((numsectors+7)>>3),0L);
+	clearbufbyte(&gotsector[0],(long)((numsectors+7)>>3),0L);
 
 	shortptr1 = (short *)&startumost[windowx1];
 	shortptr2 = (short *)&startdmost[windowx1];
@@ -926,7 +926,7 @@ drawrooms(long daposx, long daposy, long daposz,
 
 	while ((numbunches > 0) && (numhits > 0))
 	{
-		clearbuf((long)(&tempbuf[0]),(long)((numbunches+3)>>2),0L);
+		clearbuf(&tempbuf[0],(long)((numbunches+3)>>2),0L);
 		tempbuf[0] = 1;
 
 		closest = 0;              //Almost works, but not quite :(
@@ -2296,9 +2296,9 @@ loadboard(char *filename, int32_t *daposx, int32_t *daposy, int32_t *daposz,
 
 	initspritelists();
 
-	clearbuf((long)(&show2dsector[0]),(long)((MAXSECTORS+3)>>5),0L);
-	clearbuf((long)(&show2dsprite[0]),(long)((MAXSPRITES+3)>>5),0L);
-	clearbuf((long)(&show2dwall[0]),(long)((MAXWALLS+3)>>5),0L);
+	clearbuf(&show2dsector[0],(long)((MAXSECTORS+3)>>5),0L);
+	clearbuf(&show2dsprite[0],(long)((MAXSPRITES+3)>>5),0L);
+	clearbuf(&show2dwall[0],(long)((MAXWALLS+3)>>5),0L);
 
 	kread(fil,daposx,4);
 	kread(fil,daposy,4);
@@ -2567,8 +2567,10 @@ initengine()
 {
 	long i, j;
 
+	startup_log("  initengine: mmxoverlay");
 	if (dommxoverlay) mmxoverlay();
 
+	startup_log("  initengine: loadtables");
 	loadtables();
 
 	xyaspect = -1;
@@ -2579,6 +2581,7 @@ initengine()
 	showinvisibility = 0;
 
 #ifdef SUPERBUILD
+	startup_log("  initengine: lowrecip/voxoff init");
 	for(i=1;i<1024;i++) lowrecip[i] = ((1<<24)-1)/i;
 	for(i=0;i<MAXVOXELS;i++)
 		for(j=0;j<MAXVOXMIPS;j++)
@@ -2594,11 +2597,13 @@ initengine()
 
 	for(i=0;i<MAXPALOOKUPS;i++) palookup[i] = NULL;
 
-	clearbuf((long)(&waloff[0]),(long)MAXTILES,0L);
+	startup_log("  initengine: clearbuf waloff");
+	clearbuf(&waloff[0],(long)MAXTILES,0L);
 
-	clearbuf((long)(&show2dsector[0]),(long)((MAXSECTORS+3)>>5),0L);
-	clearbuf((long)(&show2dsprite[0]),(long)((MAXSPRITES+3)>>5),0L);
-	clearbuf((long)(&show2dwall[0]),(long)((MAXWALLS+3)>>5),0L);
+	startup_log("  initengine: clearbuf show2d");
+	clearbuf(&show2dsector[0],(long)((MAXSECTORS+3)>>5),0L);
+	clearbuf(&show2dsprite[0],(long)((MAXSPRITES+3)>>5),0L);
+	clearbuf(&show2dwall[0],(long)((MAXWALLS+3)>>5),0L);
 	automapping = 0;
 
 	validmodecnt = 0;
@@ -2611,7 +2616,9 @@ initengine()
 	visibility = 512;
 	parallaxvisibility = 512;
 
+	startup_log("  initengine: loadpalette");
 	loadpalette();
+	startup_log("  initengine: done");
 }
 
 uninitengine()
@@ -2849,7 +2856,7 @@ loadpics(char *filename)
 	}
 	while (k != numtilefiles);
 
-	clearbuf((long)(&gotpic[0]),(long)((MAXTILES+31)>>5),0L);
+	clearbuf(&gotpic[0],(long)((MAXTILES+31)>>5),0L);
 
 	//try dpmi_DETERMINEMAXREALALLOC!
 
@@ -3399,7 +3406,7 @@ drawmaskwall(short damaskwallcnt)
 				if (lx <= rx)
 				{
 					if ((lx == xb1[z]) && (rx == xb2[z])) return;
-					clearbufbyte((long)&dwall[lx],(rx-lx+1)*sizeof(dwall[0]),0L);
+					clearbufbyte(&dwall[lx],(rx-lx+1)*sizeof(dwall[0]),0L);
 				}
 				break;
 			case 1:
@@ -3570,7 +3577,7 @@ drawsprite (long snum)
 					if (dalx2 <= darx2)
 					{
 						if ((dalx2 == lx) && (darx2 == rx)) return;
-						clearbufbyte((long)&dwall[dalx2],(darx2-dalx2+1)*sizeof(dwall[0]),0L);
+						clearbufbyte(&dwall[dalx2],(darx2-dalx2+1)*sizeof(dwall[0]),0L);
 					}
 					break;
 				case 1:
@@ -3630,7 +3637,7 @@ drawsprite (long snum)
 		}
 
 		qinterpolatedown16((long)&lwall[lx],rx-lx+1,linum,linuminc);
-		clearbuf((long)&swall[lx],rx-lx+1,mulscale19(yp,xdimscale));
+		clearbuf(&swall[lx],rx-lx+1,mulscale19(yp,xdimscale));
 
 		if ((cstat&2) == 0)
 			maskwallscan(lx,rx,uwall,dwall,swall,lwall);
@@ -3855,7 +3862,7 @@ drawsprite (long snum)
 							if (dalx2 <= darx2)
 							{
 								if ((dalx2 == xb1[MAXWALLSB-1]) && (darx2 == xb2[MAXWALLSB-1])) return;
-								clearbufbyte((long)&dwall[dalx2],(darx2-dalx2+1)*sizeof(dwall[0]),0L);
+								clearbufbyte(&dwall[dalx2],(darx2-dalx2+1)*sizeof(dwall[0]),0L);
 							}
 							break;
 						case 1:
@@ -4135,7 +4142,7 @@ drawsprite (long snum)
 					if (dalx2 <= darx2)
 					{
 						if ((dalx2 == lx) && (darx2 == rx)) return;
-						clearbufbyte((long)&dwall[dalx2],(darx2-dalx2+1)*sizeof(dwall[0]),0L);
+						clearbufbyte(&dwall[dalx2],(darx2-dalx2+1)*sizeof(dwall[0]),0L);
 					}
 					break;
 				case 1:
@@ -4222,7 +4229,7 @@ drawsprite (long snum)
 					if (dalx2 <= darx2)
 					{
 						if ((dalx2 == lx) && (darx2 == rx)) return;
-							clearbufbyte((long)&swall[dalx2],(darx2-dalx2+1)*sizeof(swall[0]),0L);
+							clearbufbyte(&swall[dalx2],(darx2-dalx2+1)*sizeof(swall[0]),0L);
 					}
 					break;
 				case 1:
@@ -7544,7 +7551,7 @@ drawmapview (long dax, long day, long zoome, short ang)
 	beforedrawrooms = 0;
 	totalarea += (windowx2+1-windowx1)*(windowy2+1-windowy1);
 
-	clearbuf((long)(&gotsector[0]),(long)((numsectors+31)>>5),0L);
+	clearbuf(&gotsector[0],(long)((numsectors+31)>>5),0L);
 
 	cx1 = (windowx1<<12); cy1 = (windowy1<<12);
 	cx2 = ((windowx2+1)<<12)-1; cy2 = ((windowy2+1)<<12)-1;
@@ -8156,7 +8163,8 @@ char getpixel(long x, long y)
 	//MUST USE RESTOREFORDRAWROOMS AFTER DRAWING
 static long setviewcnt = 0;
 static long bakvidoption[4];
-static long bakframeplace[4], bakxsiz[4], bakysiz[4];
+static intptr_t bakframeplace[4];
+static long bakxsiz[4], bakysiz[4];
 static long bakwindowx1[4], bakwindowy1[4];
 static long bakwindowx2[4], bakwindowy2[4];
 
@@ -8820,7 +8828,7 @@ parascan (long dax1, long dax2, long sectnum, char dastat, long bunch)
 					swplc[j] = mulscale14(sintable[((long)radarang2[j]+512)&2047],n);
 			}
 			else
-				clearbuf((long)(&swplc[xb1[z]]),xb2[z]-xb1[z]+1,mulscale16(xdimscale,viewingrange));
+				clearbuf(&swplc[xb1[z]],xb2[z]-xb1[z]+1,mulscale16(xdimscale,viewingrange));
 		}
 		else if (x >= 0)
 		{

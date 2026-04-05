@@ -38,7 +38,8 @@ static char keys[NUMKEYS] =
 
 extern char buildkeys[NUMKEYS];
 
-extern long frameplace, xdimenscale, ydimen;
+extern intptr_t frameplace;
+extern long xdimenscale, ydimen;
 extern long posx, posy, posz, horiz;
 extern short ang, cursectnum;
 
