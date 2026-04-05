@@ -2517,6 +2517,13 @@ setgamemode(char davidoption, long daxdim, long daydim)
 			break;
 		case 2:
 			horizycent = ((ydim*4)>>1);  //HACK for switching to this mode
+			/* Mode 13h used VGA framebuffer at 0xA0000 on DOS.
+			   On modern systems we must init SDL and redirect the
+			   engine's frameplace to the SDL pixel buffer. */
+			if (sdl_init(xdim, ydim) < 0) return(-1);
+			frameplace = (intptr_t)sdl_getscreen();
+			bytesperline = xdim;
+			break;
 		case 6:
 			bytesperline = xdim;
 			setvmode(0x13);
