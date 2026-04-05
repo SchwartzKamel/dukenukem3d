@@ -12,6 +12,7 @@
 #include "audio_stub.h"
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 /* ── Video state ────────────────────────────────────────────────── */
 static SDL_Window   *window   = NULL;
@@ -299,6 +300,10 @@ void sdl_pollevents(void)
         switch (ev.type) {
         case SDL_QUIT:
             sdl_quit_requested = 1;
+            /* Terminate immediately — many game loops never check the flag,
+               so the process would hang as a zombie.  atexit handlers
+               (including ShutDown) still run via exit(). */
+            exit(0);
             break;
 
         case SDL_KEYDOWN:

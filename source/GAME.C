@@ -374,8 +374,12 @@ void getpackets(void)
        and rely on totalclock advancing + keyboard input registering. */
     extern void timer_update(void);
     extern void sdl_pollevents(void);
+    extern int  sdl_checkquit(void);
     timer_update();
     sdl_pollevents();
+
+    if (sdl_checkquit())
+        gameexit(" ");
 
     if(qe == 0 && KB_KeyPressed(sc_LeftControl) && KB_KeyPressed(sc_LeftAlt) && KB_KeyPressed(sc_Delete))
     {
