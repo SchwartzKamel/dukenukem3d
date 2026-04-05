@@ -274,11 +274,12 @@ initgroupfile(char *filename)
 			groupfil[numgroupfiles] = -1;
 			return(-1);
 		}
-		gnumfiles[numgroupfiles] = *((long *)&buf[12]);
+		/* Read 4-byte LE integer (not long* which is 8 bytes on LP64) */
+		gnumfiles[numgroupfiles] = (long)(*(int32_t *)&buf[12]);
 
 		if ((gfilelist[numgroupfiles] = (char *)kmalloc(gnumfiles[numgroupfiles]<<4)) == 0)
 			{ printf("Not enough memory for file grouping system\n"); exit(0); }
-		if ((gfileoffs[numgroupfiles] = (long *)kmalloc((gnumfiles[numgroupfiles]+1)<<2)) == 0)
+		if ((gfileoffs[numgroupfiles] = (long *)kmalloc((gnumfiles[numgroupfiles]+1)*sizeof(long))) == 0)
 			{ printf("Not enough memory for file grouping system\n"); exit(0); }
 
 		read(groupfil[numgroupfiles],gfilelist[numgroupfiles],gnumfiles[numgroupfiles]<<4);
@@ -286,7 +287,7 @@ initgroupfile(char *filename)
 		j = 0;
 		for(i=0;i<gnumfiles[numgroupfiles];i++)
 		{
-			k = *((long *)&gfilelist[numgroupfiles][(i<<4)+12]);
+			k = (long)(*(int32_t *)&gfilelist[numgroupfiles][(i<<4)+12]);
 			gfilelist[numgroupfiles][(i<<4)+12] = 0;
 			gfileoffs[numgroupfiles][i] = j;
 			j += k;
@@ -567,8 +568,9 @@ dfwrite(void *buffer, size_t dasizeof, size_t count, FILE *fil)
 
 compress(char *lzwinbuf, long uncompleng, char *lzwoutbuf)
 {
-	long i, addr, newaddr, addrcnt, zx, *longptr;
+	long i, addr, newaddr, addrcnt, zx;
 	long bytecnt1, bitcnt, numbits, oneupnumbits;
+	int32_t *longptr;
 	short *shortptr;
 
 	for(i=255;i>=0;i--) { lzwbuf1[i] = i; lzwbuf3[i] = (i+1)&255; }
@@ -599,8 +601,8 @@ compress(char *lzwinbuf, long uncompleng, char *lzwoutbuf)
 		lzwbuf2[addrcnt] = -1;
 		lzwbuf3[addrcnt] = -1;
 
-		longptr = (long *)&lzwoutbuf[bitcnt>>3];
-		longptr[0] |= (addr<<(bitcnt&7));
+		longptr = (int32_t *)&lzwoutbuf[bitcnt>>3];
+		longptr[0] |= (int32_t)(addr<<(bitcnt&7));
 		bitcnt += numbits;
 		if ((addr&((oneupnumbits>>1)-1)) > ((addrcnt-1)&((oneupnumbits>>1)-1)))
 			bitcnt--;
@@ -609,8 +611,8 @@ compress(char *lzwinbuf, long uncompleng, char *lzwoutbuf)
 		if (addrcnt > oneupnumbits) { numbits++; oneupnumbits <<= 1; }
 	} while ((bytecnt1 < uncompleng) && (bitcnt < (uncompleng<<3)));
 
-	longptr = (long *)&lzwoutbuf[bitcnt>>3];
-	longptr[0] |= (addr<<(bitcnt&7));
+	longptr = (int32_t *)&lzwoutbuf[bitcnt>>3];
+	longptr[0] |= (int32_t)(addr<<(bitcnt&7));
 	bitcnt += numbits;
 	if ((addr&((oneupnumbits>>1)-1)) > ((addrcnt-1)&((oneupnumbits>>1)-1)))
 		bitcnt--;
@@ -630,7 +632,8 @@ compress(char *lzwinbuf, long uncompleng, char *lzwoutbuf)
 uncompress(char *lzwinbuf, long compleng, char *lzwoutbuf)
 {
 	long strtot, currstr, numbits, oneupnumbits;
-	long i, dat, leng, bitcnt, outbytecnt, *longptr;
+	long i, dat, leng, bitcnt, outbytecnt;
+	int32_t *longptr;
 	short *shortptr;
 
 	shortptr = (short *)lzwinbuf;
@@ -645,8 +648,8 @@ uncompress(char *lzwinbuf, long compleng, char *lzwoutbuf)
 	numbits = 8; oneupnumbits = (1<<8);
 	do
 	{
-		longptr = (long *)&lzwinbuf[bitcnt>>3];
-		dat = ((longptr[0]>>(bitcnt&7)) & (oneupnumbits-1));
+		longptr = (int32_t *)&lzwinbuf[bitcnt>>3];
+		dat = (((long)longptr[0]>>(bitcnt&7)) & (oneupnumbits-1));
 		bitcnt += numbits;
 		if ((dat&((oneupnumbits>>1)-1)) > ((currstr-1)&((oneupnumbits>>1)-1)))
 			{ dat &= ((oneupnumbits>>1)-1); bitcnt--; }
