@@ -24,6 +24,7 @@ from PIL import Image, ImageDraw
 # Ensure the tools package is importable
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+from anm_format import create_placeholder_anm
 from art_format import create_art_file, rgb_to_column_major
 from grp_format import create_grp
 from map_format import create_test_map
@@ -1441,7 +1442,28 @@ def main():
         else:
             print(f"  [!] {fname} not found in testdata/")
 
-    # -- 7. Pack GRP ----------------------------------------------------------
+    # -- 7. Generate ANM animation files --------------------------------------
+    print("\n=== Generating ANM animations ===")
+    anm_files = {
+        "LOGO.ANM": ("DUKE NUKEM 3D", 10),
+        "CINEOV2.ANM": ("EPISODE 2 END", 10),
+        "CINEOV3.ANM": ("EPISODE 3 END", 10),
+        "DUKETEAM.ANM": ("DUKE NUKEM TEAM", 10),
+        "RADLOGO.ANM": ("3D REALMS", 10),
+        "VOL41A.ANM": ("EPISODE 4", 10),
+        "VOL42A.ANM": ("EPISODE 4-2", 10),
+        "VOL43A.ANM": ("EPISODE 4-3", 10),
+        "VOL4E1.ANM": ("EPISODE 4 END", 10),
+        "VOL4E2.ANM": ("EPISODE 4 END 2", 10),
+        "VOL4E3.ANM": ("EPISODE 4 END 3", 10),
+    }
+    anm_data = {}
+    for fname, (text, fps) in anm_files.items():
+        data = create_placeholder_anm(text=text, fps=fps)
+        anm_data[fname] = data
+        print(f"  {fname}: {len(data)} bytes")
+
+    # -- 8. Pack GRP ----------------------------------------------------------
     print("\n=== Packing DUKE3D.GRP ===")
     grp_contents = {}
     grp_contents["TILES000.ART"] = tiles000
@@ -1449,6 +1471,7 @@ def main():
     grp_contents["TABLES.DAT"] = tables_dat
     grp_contents["E1L1.MAP"] = test_map
     grp_contents.update(data_files)
+    grp_contents.update(anm_data)
 
     # -- Include audio files if they exist
     sounds_dir = os.path.join(OUTPUT_DIR, "sounds")
@@ -1463,7 +1486,7 @@ def main():
     grp_data = create_grp(grp_contents)
     print(f"  DUKE3D.GRP: {len(grp_data)} bytes ({len(grp_contents)} files)")
 
-    # -- 8. Write output files ------------------------------------------------
+    # -- 9. Write output files ------------------------------------------------
     print("\n=== Writing output ===")
 
     # Write individual files to generated_assets/
