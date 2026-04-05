@@ -7008,7 +7008,10 @@ void Logo(void)
     nextpage(); for(i=63;i>0;i-=7) palto(0,0,0,i);
     totalclock = 0;
     while( totalclock < (120*7) && !KB_KeyWaiting() )
+    {
         getpackets();
+        sdl_delay(1);
+    }
 
     for(i=0;i<64;i+=7) palto(0,0,0,i);
     clearview(0L);

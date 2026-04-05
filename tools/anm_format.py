@@ -130,10 +130,45 @@ def create_anm(
     noop_frame = b"\x00\x00\x00\x00" + b"\x80\x00\x00"  # sub-header + STOP
     compressed_frames.append(noop_frame)
 
-    # Record size table (uint16 per record)
-    record_sizes = [len(cf) for cf in compressed_frames]
-    all_frame_data = b"".join(compressed_frames)
-    n_bytes = len(all_frame_data)  # Total compressed data (excl. size table)
+    # Split records across large pages.  Each page's nBytes (total compressed
+    # data) must fit in a uint16 (≤65535) and nRecords per page ≤256.
+    # loadpage() also copies nBytes + nRecords*2 into thepage[0x8000] (64 KB),
+    # so we cap nBytes at 65024 (65536 − 256*2) to leave room for the size
+    # table even at maximum records per page.
+    _MAX_PAGE_BYTES = 65024
+    _MAX_PAGE_RECORDS = 256
+
+    pages: list = []  # list of (base_record, [compressed_frame, ...])
+    cur_records: list = []
+    cur_bytes = 0
+    base = 0
+
+    for cf in compressed_frames:
+        sz = len(cf)
+        if sz > 65535:
+            raise ValueError(
+                f"Single record ({sz} bytes) exceeds uint16 limit "
+                f"(65535).  Frame data is too complex."
+            )
+        if cur_records and (
+            cur_bytes + sz > _MAX_PAGE_BYTES
+            or len(cur_records) >= _MAX_PAGE_RECORDS
+        ):
+            pages.append((base, list(cur_records)))
+            base += len(cur_records)
+            cur_records = []
+            cur_bytes = 0
+        cur_records.append(cf)
+        cur_bytes += sz
+
+    if cur_records:
+        pages.append((base, list(cur_records)))
+
+    n_lps = len(pages)
+    if n_lps > 256:
+        raise ValueError(
+            f"Animation requires {n_lps} large pages (max 256)"
+        )
 
     # --- Build the file ---
 
@@ -141,7 +176,7 @@ def create_anm(
     header = bytearray(128)
     struct.pack_into("<I", header, 0, 0x2046504C)  # "LPF "
     struct.pack_into("<H", header, 4, 256)  # maxLps
-    struct.pack_into("<H", header, 6, 1)  # nLps
+    struct.pack_into("<H", header, 6, n_lps)  # nLps
     struct.pack_into("<I", header, 8, n_records)  # nRecords
     struct.pack_into("<H", header, 12, 256)  # maxRecsPerLp
     struct.pack_into("<H", header, 14, 0x0500)  # lpfTableOffset
@@ -174,33 +209,46 @@ def create_anm(
 
     # 4. LP descriptor array (256 entries x 6 bytes = 1536 bytes)
     lp_array = bytearray(256 * 6)
-    # Entry 0: our single large page
-    struct.pack_into("<H", lp_array, 0, 0)  # baseRecord
-    struct.pack_into("<H", lp_array, 2, n_records)  # nRecords
-    struct.pack_into("<H", lp_array, 4, n_bytes)  # nBytes
+    for pi, (page_base, page_records) in enumerate(pages):
+        page_n_bytes = sum(len(r) for r in page_records)
+        off = pi * 6
+        struct.pack_into("<H", lp_array, off + 0, page_base)
+        struct.pack_into("<H", lp_array, off + 2, len(page_records))
+        struct.pack_into("<H", lp_array, off + 4, page_n_bytes)
 
-    # 5. Large page 0 data at offset 0x0B00
-    # Starts with a copy of the lp_descriptor + uint16 padding
-    lp_header = bytearray(8)
-    struct.pack_into("<H", lp_header, 0, 0)  # baseRecord
-    struct.pack_into("<H", lp_header, 2, n_records)  # nRecords
-    struct.pack_into("<H", lp_header, 4, n_bytes)  # nBytes
-    struct.pack_into("<H", lp_header, 6, 0)  # padding
-
-    # Record size table
-    size_table = bytearray(n_records * 2)
-    for i, sz in enumerate(record_sizes):
-        struct.pack_into("<H", size_table, i * 2, sz)
-
-    # Assemble
+    # 5. Large page data – page N starts at file offset 0x0B00 + N*0x10000
+    #    Each page: lp_descriptor(6) + uint16 padding(2) + size_table + data
+    #    loadpage() reads from 0xB00 + page*0x10000.
     file_data = bytearray()
-    file_data.extend(header)  # 0x0000
-    file_data.extend(padding)  # 0x0080
-    file_data.extend(palette_data)  # 0x0100
-    file_data.extend(lp_array)  # 0x0500
-    file_data.extend(lp_header)  # 0x0B00
-    file_data.extend(size_table)
-    file_data.extend(all_frame_data)
+    file_data.extend(header)       # 0x0000
+    file_data.extend(padding)      # 0x0080
+    file_data.extend(palette_data) # 0x0100
+    file_data.extend(lp_array)     # 0x0500  (ends at 0x0AFF)
+
+    for pi, (page_base, page_records) in enumerate(pages):
+        page_offset = 0x0B00 + pi * 0x10000
+        # Pad file_data up to this page's start offset
+        if len(file_data) < page_offset:
+            file_data.extend(bytes(page_offset - len(file_data)))
+
+        page_n_recs = len(page_records)
+        page_n_bytes = sum(len(r) for r in page_records)
+
+        # LP header (8 bytes)
+        lp_hdr = bytearray(8)
+        struct.pack_into("<H", lp_hdr, 0, page_base)
+        struct.pack_into("<H", lp_hdr, 2, page_n_recs)
+        struct.pack_into("<H", lp_hdr, 4, page_n_bytes)
+        struct.pack_into("<H", lp_hdr, 6, 0)  # padding
+        file_data.extend(lp_hdr)
+
+        # Record size table
+        for r in page_records:
+            file_data.extend(struct.pack("<H", len(r)))
+
+        # Compressed frame data
+        for r in page_records:
+            file_data.extend(r)
 
     return bytes(file_data)
 

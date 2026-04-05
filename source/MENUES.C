@@ -3508,6 +3508,7 @@ void playanm(char *fn,char t)
           if( KB_KeyWaiting() )
               goto ENDOFANIMLOOP;
           getpackets();
+          { extern void sdl_delay(int); sdl_delay(1); }
        }
 
        if(t == 10) ototalclock += 14;

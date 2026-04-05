@@ -779,6 +779,7 @@ volatile int TS_InInterrupt = 0;
 static task  task_pool[MAX_TASKS];
 static int   task_pool_used[MAX_TASKS];
 static unsigned long timer_last_tick = 0;
+static int           timer_initialized = 0;
 
 void TS_Shutdown(void)
 {
@@ -828,8 +829,10 @@ int TS_Terminate(task *ptr)
 
 void TS_Dispatch(void)
 {
-    if (!timer_last_tick)
+    if (!timer_initialized) {
         timer_last_tick = SDL_GetTicks();
+        timer_initialized = 1;
+    }
     timer_update();
 }
 
@@ -854,8 +857,9 @@ void timer_update(void)
     int i;
 
     now = SDL_GetTicks();
-    if (!timer_last_tick) {
+    if (!timer_initialized) {
         timer_last_tick = now;
+        timer_initialized = 1;
         return;
     }
     elapsed = now - timer_last_tick;
