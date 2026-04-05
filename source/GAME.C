@@ -368,6 +368,15 @@ void getpackets(void)
     short other, packbufleng;
     input *osyn, *nsyn;
 
+    /* Always pump SDL events and advance the game timer, even in
+       single-player.  Dozens of wait-loops do
+           while (condition) getpackets();
+       and rely on totalclock advancing + keyboard input registering. */
+    extern void timer_update(void);
+    extern void sdl_pollevents(void);
+    timer_update();
+    sdl_pollevents();
+
     if(qe == 0 && KB_KeyPressed(sc_LeftControl) && KB_KeyPressed(sc_LeftAlt) && KB_KeyPressed(sc_Delete))
     {
         qe = 1;
