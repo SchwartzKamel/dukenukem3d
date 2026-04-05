@@ -7191,14 +7191,17 @@ void Startup(void)
    startup_log("  readsavenames()");
    readsavenames();
 
+   startup_log("  setting MIRROR tile size");
    tilesizx[MIRROR] = tilesizy[MIRROR] = 0;
 
+   startup_log("  initmultiplayers()");
    for(i=0;i<MAXPLAYERS;i++) playerreadyflag[i] = 0;
    initmultiplayers(0,0,0);
 
    if(numplayers > 1)
     puts("Multiplayer initialized.");
 
+   startup_log("  SetupGameButtons()");
    ps[myconnectindex].palette = (char *) &palette[0];
    SetupGameButtons();
 
@@ -7534,19 +7537,7 @@ int main(int argc,char **argv)
     Startup();
     startup_log("Startup() complete");
 
-    if( eightytwofifty && numplayers > 1 && (MusicDevice != NumSoundCards) )
-    {
-        puts("\n=========================================================================");
-        puts("WARNING: 8250 UART detected.");
-        puts("Music is being disabled and lower quality sound is being set.  We apologize");
-        puts("for this, but it is necessary to maintain high frame rates while trying to");
-        puts("play the game on an 8250.  We suggest upgrading to a 16550 or better UART");
-        puts("for maximum performance.  Press any key to continue.");
-        puts("=========================================================================\n");
-
-        while( !KB_KeyWaiting() ) getpackets();
-    }
-
+    startup_log("Post-Startup: getnames()");
     if(numplayers > 1)
     {
         ud.multimode = numplayers;
@@ -7574,19 +7565,11 @@ int main(int argc,char **argv)
 
     ud.last_level = -1;
 
+   startup_log("Post-Startup: RTS_Init");
    RTS_Init(ud.rtsname);
    if(numlumps) printf("Using .RTS file:%s\n",ud.rtsname);
 
-   if (CONTROL_JoystickEnabled)
-       CONTROL_CenterJoystick
-          (
-          CenterCenter,
-          UpperLeft,
-          LowerRight,
-          CenterThrottle,
-          CenterRudder
-          );
-
+   startup_log("Post-Startup: pre-setgamemode");
         puts("Loading palette/lookups.");
 
 // CTW - MODIFICATION
