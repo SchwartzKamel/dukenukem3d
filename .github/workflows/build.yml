@@ -206,3 +206,69 @@ jobs:
             exit 1
           }
         shell: pwsh
+
+  playtest:
+    runs-on: ubuntu-latest
+    needs: [build-linux]
+    continue-on-error: true  # Experimental - don't block PRs
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc libsdl2-dev python3 python3-pip xvfb
+          pip3 install --break-system-packages -r requirements.txt
+      
+      - name: Build game
+        run: make
+      
+      - name: Generate assets
+        run: python3 tools/generate_assets.py --no-ai
+      
+      - name: Run visual playtests
+        run: |
+          export SDL_VIDEODRIVER=dummy
+          export DUKE3D_HEADLESS=1
+          export DUKE3D_SKIP_LOGO=1
+          export DUKE3D_FRAME_LIMIT=30
+          export DUKE3D_CAPTURE_INTERVAL=5
+          # Run headless game directly first as a smoke test
+          timeout 15 ./duke3d || true
+          # Run the pytest playtest suite
+          python3 -m pytest tests/test_visual_playtest.py -v -m playtest --tb=short || true
+      
+      - name: Upload captured frames
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playtest-frames
+          path: captures/
+          if-no-files-found: warn
+          retention-days: 7
+      
+      - name: Playtest summary
+        if: always()
+        run: |
+          echo "## Playtest Results" >> $GITHUB_STEP_SUMMARY
+          if [ -d captures ]; then
+            FRAME_COUNT=$(ls captures/*.bmp 2>/dev/null | wc -l)
+            echo "- Captured **${FRAME_COUNT}** frames" >> $GITHUB_STEP_SUMMARY
+            if [ "$FRAME_COUNT" -gt 0 ]; then
+              python3 -c "
+          import sys
+          sys.path.insert(0, '.')
+          from tools.frame_analyzer import analyze_frame_sequence
+          import glob
+          frames = sorted(glob.glob('captures/*.bmp'))
+          if frames:
+              result = analyze_frame_sequence(frames)
+              print(f'- All black: **{result[\"all_black\"]}**')
+              print(f'- Any content: **{result[\"any_content\"]}**')
+              print(f'- Frames with content: **{result[\"frames_with_content\"]}**/{result[\"frame_count\"]}')
+              print(f'- Has progression: **{result[\"has_progression\"]}**')
+          " >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "- No frames captured (game may not have started)" >> $GITHUB_STEP_SUMMARY
+          fi
