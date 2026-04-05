@@ -340,8 +340,8 @@ long hlineasm4(long cnt, long p2, long shade, long xv, long yv, long dest) {
 	(void)p2;
 	if (!src || !d) return 0;
 	for (i = cnt; i >= 0; i--) {
-		long idx = ((((unsigned long)yv) >> (32 - llogx)) << llogy) +
-		           (((unsigned long)xv) >> (32 - llogy));
+		long idx = (((uint32_t)yv >> (32 - llogx)) << llogy) +
+		           ((uint32_t)xv >> (32 - llogy));
 		*d = pal ? pal[src[idx]] : src[idx];
 		d--;
 		xv -= xinc;
@@ -385,7 +385,7 @@ long prevlineasm1(long vinc, long paloffs, long cnt, long vplc, long bufplc, lon
 	const long lshift = rasm_shift;
 	long i;
 	for (i = cnt; i >= 0; i--) {
-		*d = pal[buf[(unsigned long)vplc >> lshift]];
+		*d = pal[buf[(uint32_t)vplc >> lshift]];
 		d += lbpl;
 		vplc -= vinc;
 	}
@@ -401,7 +401,7 @@ long vlineasm1(long vinc, long paloffs, long cnt, long vplc, long bufplc, long d
 	const long lshift = rasm_shift;
 	long i;
 	for (i = cnt; i >= 0; i--) {
-		*d = pal[buf[(unsigned long)vplc >> lshift]];
+		*d = pal[buf[(uint32_t)vplc >> lshift]];
 		d += lbpl;
 		vplc += vinc;
 	}
@@ -421,7 +421,7 @@ long tvlineasm1(long vinc, long paloffs, long cnt, long vplc, long bufplc, long 
 	long i;
 	if (!ltrans) return vlineasm1(vinc,paloffs,cnt,vplc,bufplc,dest);
 	for (i = cnt; i >= 0; i--) {
-		unsigned char ch = buf[(unsigned long)vplc >> lshift];
+		unsigned char ch = buf[(uint32_t)vplc >> lshift];
 		if (__builtin_expect(ch != 255, 1))
 			*d = ltrans[(*d) + (pal[ch] << 8)];
 		d += lbpl;
@@ -445,7 +445,7 @@ long mvlineasm1(long vinc, long paloffs, long cnt, long vplc, long bufplc, long 
 	const long lshift = rasm_shift;
 	long i;
 	for (i = cnt; i >= 0; i--) {
-		unsigned char ch = buf[(unsigned long)vplc >> lshift];
+		unsigned char ch = buf[(uint32_t)vplc >> lshift];
 		if (__builtin_expect(ch != 255, 1))
 			*d = pal[ch];
 		d += lbpl;
@@ -472,11 +472,14 @@ long vlineasm4(long cnt, long dest) {
 	long v0 = vplce[0], v1 = vplce[1], v2 = vplce[2], v3 = vplce[3];
 	const long vi0 = vince[0], vi1 = vince[1], vi2 = vince[2], vi3 = vince[3];
 	long i;
+	if (!d) return 0;
 	for (i = cnt - 1; i >= 0; i--) {
-		if (pal3 && buf3) d[3] = pal3[buf3[(unsigned long)v3 >> lshift]];
-		if (pal2 && buf2) d[2] = pal2[buf2[(unsigned long)v2 >> lshift]];
-		if (pal1 && buf1) d[1] = pal1[buf1[(unsigned long)v1 >> lshift]];
-		if (pal0 && buf0) d[0] = pal0[buf0[(unsigned long)v0 >> lshift]];
+		unsigned int idx;
+		unsigned char pixel;
+		if (pal3 && buf3) { idx = (uint32_t)v3 >> lshift; pixel = buf3[idx]; d[3] = pal3[pixel]; }
+		if (pal2 && buf2) { idx = (uint32_t)v2 >> lshift; pixel = buf2[idx]; d[2] = pal2[pixel]; }
+		if (pal1 && buf1) { idx = (uint32_t)v1 >> lshift; pixel = buf1[idx]; d[1] = pal1[pixel]; }
+		if (pal0 && buf0) { idx = (uint32_t)v0 >> lshift; pixel = buf0[idx]; d[0] = pal0[pixel]; }
 		v0 += vi0; v1 += vi1; v2 += vi2; v3 += vi3;
 		d += lbpl;
 	}
@@ -504,10 +507,10 @@ long mvlineasm4(long cnt, long dest) {
 	long i;
 	unsigned char ch;
 	for (i = cnt - 1; i >= 0; i--) {
-		if (pal3 && buf3) { ch = buf3[(unsigned long)v3 >> lshift]; if (__builtin_expect(ch != 255, 1)) d[3] = pal3[ch]; }
-		if (pal2 && buf2) { ch = buf2[(unsigned long)v2 >> lshift]; if (__builtin_expect(ch != 255, 1)) d[2] = pal2[ch]; }
-		if (pal1 && buf1) { ch = buf1[(unsigned long)v1 >> lshift]; if (__builtin_expect(ch != 255, 1)) d[1] = pal1[ch]; }
-		if (pal0 && buf0) { ch = buf0[(unsigned long)v0 >> lshift]; if (__builtin_expect(ch != 255, 1)) d[0] = pal0[ch]; }
+		if (pal3 && buf3) { ch = buf3[(uint32_t)v3 >> lshift]; if (__builtin_expect(ch != 255, 1)) d[3] = pal3[ch]; }
+		if (pal2 && buf2) { ch = buf2[(uint32_t)v2 >> lshift]; if (__builtin_expect(ch != 255, 1)) d[2] = pal2[ch]; }
+		if (pal1 && buf1) { ch = buf1[(uint32_t)v1 >> lshift]; if (__builtin_expect(ch != 255, 1)) d[1] = pal1[ch]; }
+		if (pal0 && buf0) { ch = buf0[(uint32_t)v0 >> lshift]; if (__builtin_expect(ch != 255, 1)) d[0] = pal0[ch]; }
 		v0 += vi0; v1 += vi1; v2 += vi2; v3 += vi3;
 		d += lbpl;
 	}
@@ -531,7 +534,7 @@ void spritevline(long a, long b, long cnt, long d, long bufplc, long dest) {
 	long i;
 	(void)a; (void)b;
 	for (i = cnt; i > 0; i--) {
-		if (pal && buf) *dd = pal[buf[(unsigned long)vplc >> lshift]];
+		if (pal && buf) *dd = pal[buf[(uint32_t)vplc >> lshift]];
 		dd += lbpl;
 		vplc += lvinc;
 	}
@@ -552,7 +555,7 @@ void mspritevline(long a, long b, long cnt, long d, long bufplc, long dest) {
 	(void)a; (void)b;
 	for (i = cnt; i > 0; i--) {
 		if (buf) {
-			unsigned char ch = buf[(unsigned long)vplc >> lshift];
+			unsigned char ch = buf[(uint32_t)vplc >> lshift];
 			if (__builtin_expect(ch != 255, 1) && pal) *dd = pal[ch];
 		}
 		dd += lbpl;
@@ -576,7 +579,7 @@ void tspritevline(long a, long b, long cnt, long d, long bufplc, long dest) {
 	(void)a; (void)b;
 	for (i = cnt; i > 0; i--) {
 		if (buf && ltrans) {
-			unsigned char ch = buf[(unsigned long)vplc >> lshift];
+			unsigned char ch = buf[(uint32_t)vplc >> lshift];
 			if (__builtin_expect(ch != 255, 1) && pal)
 				*dd = ltrans[(*dd) + (pal[ch] << 8)];
 		}
@@ -596,8 +599,8 @@ long mhline(long bufplc, long bx, long cntup, long junk, long by, long dest) {
 	long i;
 	(void)junk;
 	for (i = cnt; i >= 0; i--) {
-		long idx = (((unsigned long)bx >> (32 - lhs1)) << lhs2) +
-		           ((unsigned long)by >> (32 - lhs2));
+		long idx = (((uint32_t)bx >> (32 - lhs1)) << lhs2) +
+		           ((uint32_t)by >> (32 - lhs2));
 		unsigned char ch = buf[idx];
 		if (__builtin_expect(ch != 255, 1)) {
 			if (pal) *d = pal[ch];
@@ -630,8 +633,8 @@ long thline(long bufplc, long bx, long cntup, long junk, long by, long dest) {
 	(void)junk;
 	if (!ltrans) return mhline(bufplc,bx,cntup,junk,by,dest);
 	for (i = cnt; i >= 0; i--) {
-		long idx = (((unsigned long)bx >> (32 - lhs1)) << lhs2) +
-		           ((unsigned long)by >> (32 - lhs2));
+		long idx = (((uint32_t)bx >> (32 - lhs1)) << lhs2) +
+		           ((uint32_t)by >> (32 - lhs2));
 		unsigned char ch = buf[idx];
 		if (__builtin_expect(ch != 255, 1)) {
 			if (pal)
@@ -2916,7 +2919,7 @@ loadpics(char *filename)
 		cachesize -= 65536L;
 		if (cachesize < 65536) return(-1);
 	}
-	initcache((FP_OFF(pic)+15)&0xfffffff0,(cachesize-((-FP_OFF(pic))&15))&0xfffffff0);
+	initcache((FP_OFF(pic)+15)&~(intptr_t)15,(cachesize-((-FP_OFF(pic))&15))&~(long)15);
 
 	for(i=0;i<MAXTILES;i++)
 	{
@@ -7090,6 +7093,7 @@ dorotatesprite (long sx, long sy, long z, short a, short picnum, signed char das
 	setgotpic(picnum);
 	bufplc = waloff[picnum];
 
+	if (palookup[dapalnum] == NULL) return;
 	palookupoffs = FP_OFF(palookup[dapalnum]) + (getpalookup(0L,(long)dashade)<<8);
 
 	i = divscale32(1L,z);

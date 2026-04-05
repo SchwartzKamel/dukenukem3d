@@ -52,76 +52,76 @@ static inline long mulscale(long a, long b, long c)
  * Each: mulscaleN(a, b) = (long)(((int64_t)a * b) >> N)
  * ====================================================================== */
 
-static inline long mulscale1(long a, long b) { return (long)(((int64_t)a * b) >> 1); }
-static inline long mulscale2(long a, long b) { return (long)(((int64_t)a * b) >> 2); }
-static inline long mulscale3(long a, long b) { return (long)(((int64_t)a * b) >> 3); }
-static inline long mulscale4(long a, long b) { return (long)(((int64_t)a * b) >> 4); }
-static inline long mulscale5(long a, long b) { return (long)(((int64_t)a * b) >> 5); }
-static inline long mulscale6(long a, long b) { return (long)(((int64_t)a * b) >> 6); }
-static inline long mulscale7(long a, long b) { return (long)(((int64_t)a * b) >> 7); }
-static inline long mulscale8(long a, long b) { return (long)(((int64_t)a * b) >> 8); }
-static inline long mulscale9(long a, long b) { return (long)(((int64_t)a * b) >> 9); }
-static inline long mulscale10(long a, long b) { return (long)(((int64_t)a * b) >> 10); }
-static inline long mulscale11(long a, long b) { return (long)(((int64_t)a * b) >> 11); }
-static inline long mulscale12(long a, long b) { return (long)(((int64_t)a * b) >> 12); }
-static inline long mulscale13(long a, long b) { return (long)(((int64_t)a * b) >> 13); }
-static inline long mulscale14(long a, long b) { return (long)(((int64_t)a * b) >> 14); }
-static inline long mulscale15(long a, long b) { return (long)(((int64_t)a * b) >> 15); }
-static inline long mulscale16(long a, long b) { return (long)(((int64_t)a * b) >> 16); }
-static inline long mulscale17(long a, long b) { return (long)(((int64_t)a * b) >> 17); }
-static inline long mulscale18(long a, long b) { return (long)(((int64_t)a * b) >> 18); }
-static inline long mulscale19(long a, long b) { return (long)(((int64_t)a * b) >> 19); }
-static inline long mulscale20(long a, long b) { return (long)(((int64_t)a * b) >> 20); }
-static inline long mulscale21(long a, long b) { return (long)(((int64_t)a * b) >> 21); }
-static inline long mulscale22(long a, long b) { return (long)(((int64_t)a * b) >> 22); }
-static inline long mulscale23(long a, long b) { return (long)(((int64_t)a * b) >> 23); }
-static inline long mulscale24(long a, long b) { return (long)(((int64_t)a * b) >> 24); }
-static inline long mulscale25(long a, long b) { return (long)(((int64_t)a * b) >> 25); }
-static inline long mulscale26(long a, long b) { return (long)(((int64_t)a * b) >> 26); }
-static inline long mulscale27(long a, long b) { return (long)(((int64_t)a * b) >> 27); }
-static inline long mulscale28(long a, long b) { return (long)(((int64_t)a * b) >> 28); }
-static inline long mulscale29(long a, long b) { return (long)(((int64_t)a * b) >> 29); }
-static inline long mulscale30(long a, long b) { return (long)(((int64_t)a * b) >> 30); }
-static inline long mulscale31(long a, long b) { return (long)(((int64_t)a * b) >> 31); }
-static inline long mulscale32(long a, long b) { return (long)(((int64_t)a * b) >> 32); }
+static inline long mulscale1(long a, long b) { return (long)(((int64_t)(int32_t)a * (int32_t)b) >> 1); }
+static inline long mulscale2(long a, long b) { return (long)(((int64_t)(int32_t)a * (int32_t)b) >> 2); }
+static inline long mulscale3(long a, long b) { return (long)(((int64_t)(int32_t)a * (int32_t)b) >> 3); }
+static inline long mulscale4(long a, long b) { return (long)(((int64_t)(int32_t)a * (int32_t)b) >> 4); }
+static inline long mulscale5(long a, long b) { return (long)(((int64_t)(int32_t)a * (int32_t)b) >> 5); }
+static inline long mulscale6(long a, long b) { return (long)(((int64_t)(int32_t)a * (int32_t)b) >> 6); }
+static inline long mulscale7(long a, long b) { return (long)(((int64_t)(int32_t)a * (int32_t)b) >> 7); }
+static inline long mulscale8(long a, long b) { return (long)(((int64_t)(int32_t)a * (int32_t)b) >> 8); }
+static inline long mulscale9(long a, long b) { return (long)(((int64_t)(int32_t)a * (int32_t)b) >> 9); }
+static inline long mulscale10(long a, long b) { return (long)(((int64_t)(int32_t)a * (int32_t)b) >> 10); }
+static inline long mulscale11(long a, long b) { return (long)(((int64_t)(int32_t)a * (int32_t)b) >> 11); }
+static inline long mulscale12(long a, long b) { return (long)(((int64_t)(int32_t)a * (int32_t)b) >> 12); }
+static inline long mulscale13(long a, long b) { return (long)(((int64_t)(int32_t)a * (int32_t)b) >> 13); }
+static inline long mulscale14(long a, long b) { return (long)(((int64_t)(int32_t)a * (int32_t)b) >> 14); }
+static inline long mulscale15(long a, long b) { return (long)(((int64_t)(int32_t)a * (int32_t)b) >> 15); }
+static inline long mulscale16(long a, long b) { return (long)(((int64_t)(int32_t)a * (int32_t)b) >> 16); }
+static inline long mulscale17(long a, long b) { return (long)(((int64_t)(int32_t)a * (int32_t)b) >> 17); }
+static inline long mulscale18(long a, long b) { return (long)(((int64_t)(int32_t)a * (int32_t)b) >> 18); }
+static inline long mulscale19(long a, long b) { return (long)(((int64_t)(int32_t)a * (int32_t)b) >> 19); }
+static inline long mulscale20(long a, long b) { return (long)(((int64_t)(int32_t)a * (int32_t)b) >> 20); }
+static inline long mulscale21(long a, long b) { return (long)(((int64_t)(int32_t)a * (int32_t)b) >> 21); }
+static inline long mulscale22(long a, long b) { return (long)(((int64_t)(int32_t)a * (int32_t)b) >> 22); }
+static inline long mulscale23(long a, long b) { return (long)(((int64_t)(int32_t)a * (int32_t)b) >> 23); }
+static inline long mulscale24(long a, long b) { return (long)(((int64_t)(int32_t)a * (int32_t)b) >> 24); }
+static inline long mulscale25(long a, long b) { return (long)(((int64_t)(int32_t)a * (int32_t)b) >> 25); }
+static inline long mulscale26(long a, long b) { return (long)(((int64_t)(int32_t)a * (int32_t)b) >> 26); }
+static inline long mulscale27(long a, long b) { return (long)(((int64_t)(int32_t)a * (int32_t)b) >> 27); }
+static inline long mulscale28(long a, long b) { return (long)(((int64_t)(int32_t)a * (int32_t)b) >> 28); }
+static inline long mulscale29(long a, long b) { return (long)(((int64_t)(int32_t)a * (int32_t)b) >> 29); }
+static inline long mulscale30(long a, long b) { return (long)(((int64_t)(int32_t)a * (int32_t)b) >> 30); }
+static inline long mulscale31(long a, long b) { return (long)(((int64_t)(int32_t)a * (int32_t)b) >> 31); }
+static inline long mulscale32(long a, long b) { return (long)(((int64_t)(int32_t)a * (int32_t)b) >> 32); }
 
 /* ======================================================================
  * dmulscale1 .. dmulscale32
  * Each: dmulscaleN(a, b, c, d) = (long)((((int64_t)a*b) + ((int64_t)c*d)) >> N)
  * ====================================================================== */
 
-static inline long dmulscale1(long a, long b, long c, long d)  { return (long)((((int64_t)a * b) + ((int64_t)c * d)) >> 1); }
-static inline long dmulscale2(long a, long b, long c, long d)  { return (long)((((int64_t)a * b) + ((int64_t)c * d)) >> 2); }
-static inline long dmulscale3(long a, long b, long c, long d)  { return (long)((((int64_t)a * b) + ((int64_t)c * d)) >> 3); }
-static inline long dmulscale4(long a, long b, long c, long d)  { return (long)((((int64_t)a * b) + ((int64_t)c * d)) >> 4); }
-static inline long dmulscale5(long a, long b, long c, long d)  { return (long)((((int64_t)a * b) + ((int64_t)c * d)) >> 5); }
-static inline long dmulscale6(long a, long b, long c, long d)  { return (long)((((int64_t)a * b) + ((int64_t)c * d)) >> 6); }
-static inline long dmulscale7(long a, long b, long c, long d)  { return (long)((((int64_t)a * b) + ((int64_t)c * d)) >> 7); }
-static inline long dmulscale8(long a, long b, long c, long d)  { return (long)((((int64_t)a * b) + ((int64_t)c * d)) >> 8); }
-static inline long dmulscale9(long a, long b, long c, long d)  { return (long)((((int64_t)a * b) + ((int64_t)c * d)) >> 9); }
-static inline long dmulscale10(long a, long b, long c, long d) { return (long)((((int64_t)a * b) + ((int64_t)c * d)) >> 10); }
-static inline long dmulscale11(long a, long b, long c, long d) { return (long)((((int64_t)a * b) + ((int64_t)c * d)) >> 11); }
-static inline long dmulscale12(long a, long b, long c, long d) { return (long)((((int64_t)a * b) + ((int64_t)c * d)) >> 12); }
-static inline long dmulscale13(long a, long b, long c, long d) { return (long)((((int64_t)a * b) + ((int64_t)c * d)) >> 13); }
-static inline long dmulscale14(long a, long b, long c, long d) { return (long)((((int64_t)a * b) + ((int64_t)c * d)) >> 14); }
-static inline long dmulscale15(long a, long b, long c, long d) { return (long)((((int64_t)a * b) + ((int64_t)c * d)) >> 15); }
-static inline long dmulscale16(long a, long b, long c, long d) { return (long)((((int64_t)a * b) + ((int64_t)c * d)) >> 16); }
-static inline long dmulscale17(long a, long b, long c, long d) { return (long)((((int64_t)a * b) + ((int64_t)c * d)) >> 17); }
-static inline long dmulscale18(long a, long b, long c, long d) { return (long)((((int64_t)a * b) + ((int64_t)c * d)) >> 18); }
-static inline long dmulscale19(long a, long b, long c, long d) { return (long)((((int64_t)a * b) + ((int64_t)c * d)) >> 19); }
-static inline long dmulscale20(long a, long b, long c, long d) { return (long)((((int64_t)a * b) + ((int64_t)c * d)) >> 20); }
-static inline long dmulscale21(long a, long b, long c, long d) { return (long)((((int64_t)a * b) + ((int64_t)c * d)) >> 21); }
-static inline long dmulscale22(long a, long b, long c, long d) { return (long)((((int64_t)a * b) + ((int64_t)c * d)) >> 22); }
-static inline long dmulscale23(long a, long b, long c, long d) { return (long)((((int64_t)a * b) + ((int64_t)c * d)) >> 23); }
-static inline long dmulscale24(long a, long b, long c, long d) { return (long)((((int64_t)a * b) + ((int64_t)c * d)) >> 24); }
-static inline long dmulscale25(long a, long b, long c, long d) { return (long)((((int64_t)a * b) + ((int64_t)c * d)) >> 25); }
-static inline long dmulscale26(long a, long b, long c, long d) { return (long)((((int64_t)a * b) + ((int64_t)c * d)) >> 26); }
-static inline long dmulscale27(long a, long b, long c, long d) { return (long)((((int64_t)a * b) + ((int64_t)c * d)) >> 27); }
-static inline long dmulscale28(long a, long b, long c, long d) { return (long)((((int64_t)a * b) + ((int64_t)c * d)) >> 28); }
-static inline long dmulscale29(long a, long b, long c, long d) { return (long)((((int64_t)a * b) + ((int64_t)c * d)) >> 29); }
-static inline long dmulscale30(long a, long b, long c, long d) { return (long)((((int64_t)a * b) + ((int64_t)c * d)) >> 30); }
-static inline long dmulscale31(long a, long b, long c, long d) { return (long)((((int64_t)a * b) + ((int64_t)c * d)) >> 31); }
-static inline long dmulscale32(long a, long b, long c, long d) { return (long)((((int64_t)a * b) + ((int64_t)c * d)) >> 32); }
+static inline long dmulscale1(long a, long b, long c, long d) { return (long)((((int64_t)(int32_t)a * (int32_t)b) + ((int64_t)(int32_t)c * (int32_t)d)) >> 1); }
+static inline long dmulscale2(long a, long b, long c, long d) { return (long)((((int64_t)(int32_t)a * (int32_t)b) + ((int64_t)(int32_t)c * (int32_t)d)) >> 2); }
+static inline long dmulscale3(long a, long b, long c, long d) { return (long)((((int64_t)(int32_t)a * (int32_t)b) + ((int64_t)(int32_t)c * (int32_t)d)) >> 3); }
+static inline long dmulscale4(long a, long b, long c, long d) { return (long)((((int64_t)(int32_t)a * (int32_t)b) + ((int64_t)(int32_t)c * (int32_t)d)) >> 4); }
+static inline long dmulscale5(long a, long b, long c, long d) { return (long)((((int64_t)(int32_t)a * (int32_t)b) + ((int64_t)(int32_t)c * (int32_t)d)) >> 5); }
+static inline long dmulscale6(long a, long b, long c, long d) { return (long)((((int64_t)(int32_t)a * (int32_t)b) + ((int64_t)(int32_t)c * (int32_t)d)) >> 6); }
+static inline long dmulscale7(long a, long b, long c, long d) { return (long)((((int64_t)(int32_t)a * (int32_t)b) + ((int64_t)(int32_t)c * (int32_t)d)) >> 7); }
+static inline long dmulscale8(long a, long b, long c, long d) { return (long)((((int64_t)(int32_t)a * (int32_t)b) + ((int64_t)(int32_t)c * (int32_t)d)) >> 8); }
+static inline long dmulscale9(long a, long b, long c, long d) { return (long)((((int64_t)(int32_t)a * (int32_t)b) + ((int64_t)(int32_t)c * (int32_t)d)) >> 9); }
+static inline long dmulscale10(long a, long b, long c, long d) { return (long)((((int64_t)(int32_t)a * (int32_t)b) + ((int64_t)(int32_t)c * (int32_t)d)) >> 10); }
+static inline long dmulscale11(long a, long b, long c, long d) { return (long)((((int64_t)(int32_t)a * (int32_t)b) + ((int64_t)(int32_t)c * (int32_t)d)) >> 11); }
+static inline long dmulscale12(long a, long b, long c, long d) { return (long)((((int64_t)(int32_t)a * (int32_t)b) + ((int64_t)(int32_t)c * (int32_t)d)) >> 12); }
+static inline long dmulscale13(long a, long b, long c, long d) { return (long)((((int64_t)(int32_t)a * (int32_t)b) + ((int64_t)(int32_t)c * (int32_t)d)) >> 13); }
+static inline long dmulscale14(long a, long b, long c, long d) { return (long)((((int64_t)(int32_t)a * (int32_t)b) + ((int64_t)(int32_t)c * (int32_t)d)) >> 14); }
+static inline long dmulscale15(long a, long b, long c, long d) { return (long)((((int64_t)(int32_t)a * (int32_t)b) + ((int64_t)(int32_t)c * (int32_t)d)) >> 15); }
+static inline long dmulscale16(long a, long b, long c, long d) { return (long)((((int64_t)(int32_t)a * (int32_t)b) + ((int64_t)(int32_t)c * (int32_t)d)) >> 16); }
+static inline long dmulscale17(long a, long b, long c, long d) { return (long)((((int64_t)(int32_t)a * (int32_t)b) + ((int64_t)(int32_t)c * (int32_t)d)) >> 17); }
+static inline long dmulscale18(long a, long b, long c, long d) { return (long)((((int64_t)(int32_t)a * (int32_t)b) + ((int64_t)(int32_t)c * (int32_t)d)) >> 18); }
+static inline long dmulscale19(long a, long b, long c, long d) { return (long)((((int64_t)(int32_t)a * (int32_t)b) + ((int64_t)(int32_t)c * (int32_t)d)) >> 19); }
+static inline long dmulscale20(long a, long b, long c, long d) { return (long)((((int64_t)(int32_t)a * (int32_t)b) + ((int64_t)(int32_t)c * (int32_t)d)) >> 20); }
+static inline long dmulscale21(long a, long b, long c, long d) { return (long)((((int64_t)(int32_t)a * (int32_t)b) + ((int64_t)(int32_t)c * (int32_t)d)) >> 21); }
+static inline long dmulscale22(long a, long b, long c, long d) { return (long)((((int64_t)(int32_t)a * (int32_t)b) + ((int64_t)(int32_t)c * (int32_t)d)) >> 22); }
+static inline long dmulscale23(long a, long b, long c, long d) { return (long)((((int64_t)(int32_t)a * (int32_t)b) + ((int64_t)(int32_t)c * (int32_t)d)) >> 23); }
+static inline long dmulscale24(long a, long b, long c, long d) { return (long)((((int64_t)(int32_t)a * (int32_t)b) + ((int64_t)(int32_t)c * (int32_t)d)) >> 24); }
+static inline long dmulscale25(long a, long b, long c, long d) { return (long)((((int64_t)(int32_t)a * (int32_t)b) + ((int64_t)(int32_t)c * (int32_t)d)) >> 25); }
+static inline long dmulscale26(long a, long b, long c, long d) { return (long)((((int64_t)(int32_t)a * (int32_t)b) + ((int64_t)(int32_t)c * (int32_t)d)) >> 26); }
+static inline long dmulscale27(long a, long b, long c, long d) { return (long)((((int64_t)(int32_t)a * (int32_t)b) + ((int64_t)(int32_t)c * (int32_t)d)) >> 27); }
+static inline long dmulscale28(long a, long b, long c, long d) { return (long)((((int64_t)(int32_t)a * (int32_t)b) + ((int64_t)(int32_t)c * (int32_t)d)) >> 28); }
+static inline long dmulscale29(long a, long b, long c, long d) { return (long)((((int64_t)(int32_t)a * (int32_t)b) + ((int64_t)(int32_t)c * (int32_t)d)) >> 29); }
+static inline long dmulscale30(long a, long b, long c, long d) { return (long)((((int64_t)(int32_t)a * (int32_t)b) + ((int64_t)(int32_t)c * (int32_t)d)) >> 30); }
+static inline long dmulscale31(long a, long b, long c, long d) { return (long)((((int64_t)(int32_t)a * (int32_t)b) + ((int64_t)(int32_t)c * (int32_t)d)) >> 31); }
+static inline long dmulscale32(long a, long b, long c, long d) { return (long)((((int64_t)(int32_t)a * (int32_t)b) + ((int64_t)(int32_t)c * (int32_t)d)) >> 32); }
 
 /* ======================================================================
  * tmulscale1 .. tmulscale32
@@ -138,29 +138,29 @@ static inline long tmulscale6(long a, long b, long c, long d, long e, long f)  {
 static inline long tmulscale7(long a, long b, long c, long d, long e, long f)  { return (long)((((int64_t)a*b) + ((int64_t)c*d) + ((int64_t)e*f)) >> 7); }
 static inline long tmulscale8(long a, long b, long c, long d, long e, long f)  { return (long)((((int64_t)a*b) + ((int64_t)c*d) + ((int64_t)e*f)) >> 8); }
 static inline long tmulscale9(long a, long b, long c, long d, long e, long f)  { return (long)((((int64_t)a*b) + ((int64_t)c*d) + ((int64_t)e*f)) >> 9); }
-static inline long tmulscale10(long a, long b, long c, long d, long e, long f) { return (long)((((int64_t)a*b) + ((int64_t)c*d) + ((int64_t)e*f)) >> 10); }
-static inline long tmulscale11(long a, long b, long c, long d, long e, long f) { return (long)((((int64_t)a*b) + ((int64_t)c*d) + ((int64_t)e*f)) >> 11); }
-static inline long tmulscale12(long a, long b, long c, long d, long e, long f) { return (long)((((int64_t)a*b) + ((int64_t)c*d) + ((int64_t)e*f)) >> 12); }
-static inline long tmulscale13(long a, long b, long c, long d, long e, long f) { return (long)((((int64_t)a*b) + ((int64_t)c*d) + ((int64_t)e*f)) >> 13); }
-static inline long tmulscale14(long a, long b, long c, long d, long e, long f) { return (long)((((int64_t)a*b) + ((int64_t)c*d) + ((int64_t)e*f)) >> 14); }
-static inline long tmulscale15(long a, long b, long c, long d, long e, long f) { return (long)((((int64_t)a*b) + ((int64_t)c*d) + ((int64_t)e*f)) >> 15); }
-static inline long tmulscale16(long a, long b, long c, long d, long e, long f) { return (long)((((int64_t)a*b) + ((int64_t)c*d) + ((int64_t)e*f)) >> 16); }
-static inline long tmulscale17(long a, long b, long c, long d, long e, long f) { return (long)((((int64_t)a*b) + ((int64_t)c*d) + ((int64_t)e*f)) >> 17); }
-static inline long tmulscale18(long a, long b, long c, long d, long e, long f) { return (long)((((int64_t)a*b) + ((int64_t)c*d) + ((int64_t)e*f)) >> 18); }
-static inline long tmulscale19(long a, long b, long c, long d, long e, long f) { return (long)((((int64_t)a*b) + ((int64_t)c*d) + ((int64_t)e*f)) >> 19); }
-static inline long tmulscale20(long a, long b, long c, long d, long e, long f) { return (long)((((int64_t)a*b) + ((int64_t)c*d) + ((int64_t)e*f)) >> 20); }
-static inline long tmulscale21(long a, long b, long c, long d, long e, long f) { return (long)((((int64_t)a*b) + ((int64_t)c*d) + ((int64_t)e*f)) >> 21); }
-static inline long tmulscale22(long a, long b, long c, long d, long e, long f) { return (long)((((int64_t)a*b) + ((int64_t)c*d) + ((int64_t)e*f)) >> 22); }
-static inline long tmulscale23(long a, long b, long c, long d, long e, long f) { return (long)((((int64_t)a*b) + ((int64_t)c*d) + ((int64_t)e*f)) >> 23); }
-static inline long tmulscale24(long a, long b, long c, long d, long e, long f) { return (long)((((int64_t)a*b) + ((int64_t)c*d) + ((int64_t)e*f)) >> 24); }
-static inline long tmulscale25(long a, long b, long c, long d, long e, long f) { return (long)((((int64_t)a*b) + ((int64_t)c*d) + ((int64_t)e*f)) >> 25); }
-static inline long tmulscale26(long a, long b, long c, long d, long e, long f) { return (long)((((int64_t)a*b) + ((int64_t)c*d) + ((int64_t)e*f)) >> 26); }
-static inline long tmulscale27(long a, long b, long c, long d, long e, long f) { return (long)((((int64_t)a*b) + ((int64_t)c*d) + ((int64_t)e*f)) >> 27); }
-static inline long tmulscale28(long a, long b, long c, long d, long e, long f) { return (long)((((int64_t)a*b) + ((int64_t)c*d) + ((int64_t)e*f)) >> 28); }
-static inline long tmulscale29(long a, long b, long c, long d, long e, long f) { return (long)((((int64_t)a*b) + ((int64_t)c*d) + ((int64_t)e*f)) >> 29); }
-static inline long tmulscale30(long a, long b, long c, long d, long e, long f) { return (long)((((int64_t)a*b) + ((int64_t)c*d) + ((int64_t)e*f)) >> 30); }
-static inline long tmulscale31(long a, long b, long c, long d, long e, long f) { return (long)((((int64_t)a*b) + ((int64_t)c*d) + ((int64_t)e*f)) >> 31); }
-static inline long tmulscale32(long a, long b, long c, long d, long e, long f) { return (long)((((int64_t)a*b) + ((int64_t)c*d) + ((int64_t)e*f)) >> 32); }
+static inline long tmulscale10(long a, long b, long c, long d, long e, long f) { return (long)((((int64_t)(int32_t)a*(int32_t)b) + ((int64_t)(int32_t)c*(int32_t)d) + ((int64_t)(int32_t)e*(int32_t)f)) >> 10); }
+static inline long tmulscale11(long a, long b, long c, long d, long e, long f) { return (long)((((int64_t)(int32_t)a*(int32_t)b) + ((int64_t)(int32_t)c*(int32_t)d) + ((int64_t)(int32_t)e*(int32_t)f)) >> 11); }
+static inline long tmulscale12(long a, long b, long c, long d, long e, long f) { return (long)((((int64_t)(int32_t)a*(int32_t)b) + ((int64_t)(int32_t)c*(int32_t)d) + ((int64_t)(int32_t)e*(int32_t)f)) >> 12); }
+static inline long tmulscale13(long a, long b, long c, long d, long e, long f) { return (long)((((int64_t)(int32_t)a*(int32_t)b) + ((int64_t)(int32_t)c*(int32_t)d) + ((int64_t)(int32_t)e*(int32_t)f)) >> 13); }
+static inline long tmulscale14(long a, long b, long c, long d, long e, long f) { return (long)((((int64_t)(int32_t)a*(int32_t)b) + ((int64_t)(int32_t)c*(int32_t)d) + ((int64_t)(int32_t)e*(int32_t)f)) >> 14); }
+static inline long tmulscale15(long a, long b, long c, long d, long e, long f) { return (long)((((int64_t)(int32_t)a*(int32_t)b) + ((int64_t)(int32_t)c*(int32_t)d) + ((int64_t)(int32_t)e*(int32_t)f)) >> 15); }
+static inline long tmulscale16(long a, long b, long c, long d, long e, long f) { return (long)((((int64_t)(int32_t)a*(int32_t)b) + ((int64_t)(int32_t)c*(int32_t)d) + ((int64_t)(int32_t)e*(int32_t)f)) >> 16); }
+static inline long tmulscale17(long a, long b, long c, long d, long e, long f) { return (long)((((int64_t)(int32_t)a*(int32_t)b) + ((int64_t)(int32_t)c*(int32_t)d) + ((int64_t)(int32_t)e*(int32_t)f)) >> 17); }
+static inline long tmulscale18(long a, long b, long c, long d, long e, long f) { return (long)((((int64_t)(int32_t)a*(int32_t)b) + ((int64_t)(int32_t)c*(int32_t)d) + ((int64_t)(int32_t)e*(int32_t)f)) >> 18); }
+static inline long tmulscale19(long a, long b, long c, long d, long e, long f) { return (long)((((int64_t)(int32_t)a*(int32_t)b) + ((int64_t)(int32_t)c*(int32_t)d) + ((int64_t)(int32_t)e*(int32_t)f)) >> 19); }
+static inline long tmulscale20(long a, long b, long c, long d, long e, long f) { return (long)((((int64_t)(int32_t)a*(int32_t)b) + ((int64_t)(int32_t)c*(int32_t)d) + ((int64_t)(int32_t)e*(int32_t)f)) >> 20); }
+static inline long tmulscale21(long a, long b, long c, long d, long e, long f) { return (long)((((int64_t)(int32_t)a*(int32_t)b) + ((int64_t)(int32_t)c*(int32_t)d) + ((int64_t)(int32_t)e*(int32_t)f)) >> 21); }
+static inline long tmulscale22(long a, long b, long c, long d, long e, long f) { return (long)((((int64_t)(int32_t)a*(int32_t)b) + ((int64_t)(int32_t)c*(int32_t)d) + ((int64_t)(int32_t)e*(int32_t)f)) >> 22); }
+static inline long tmulscale23(long a, long b, long c, long d, long e, long f) { return (long)((((int64_t)(int32_t)a*(int32_t)b) + ((int64_t)(int32_t)c*(int32_t)d) + ((int64_t)(int32_t)e*(int32_t)f)) >> 23); }
+static inline long tmulscale24(long a, long b, long c, long d, long e, long f) { return (long)((((int64_t)(int32_t)a*(int32_t)b) + ((int64_t)(int32_t)c*(int32_t)d) + ((int64_t)(int32_t)e*(int32_t)f)) >> 24); }
+static inline long tmulscale25(long a, long b, long c, long d, long e, long f) { return (long)((((int64_t)(int32_t)a*(int32_t)b) + ((int64_t)(int32_t)c*(int32_t)d) + ((int64_t)(int32_t)e*(int32_t)f)) >> 25); }
+static inline long tmulscale26(long a, long b, long c, long d, long e, long f) { return (long)((((int64_t)(int32_t)a*(int32_t)b) + ((int64_t)(int32_t)c*(int32_t)d) + ((int64_t)(int32_t)e*(int32_t)f)) >> 26); }
+static inline long tmulscale27(long a, long b, long c, long d, long e, long f) { return (long)((((int64_t)(int32_t)a*(int32_t)b) + ((int64_t)(int32_t)c*(int32_t)d) + ((int64_t)(int32_t)e*(int32_t)f)) >> 27); }
+static inline long tmulscale28(long a, long b, long c, long d, long e, long f) { return (long)((((int64_t)(int32_t)a*(int32_t)b) + ((int64_t)(int32_t)c*(int32_t)d) + ((int64_t)(int32_t)e*(int32_t)f)) >> 28); }
+static inline long tmulscale29(long a, long b, long c, long d, long e, long f) { return (long)((((int64_t)(int32_t)a*(int32_t)b) + ((int64_t)(int32_t)c*(int32_t)d) + ((int64_t)(int32_t)e*(int32_t)f)) >> 29); }
+static inline long tmulscale30(long a, long b, long c, long d, long e, long f) { return (long)((((int64_t)(int32_t)a*(int32_t)b) + ((int64_t)(int32_t)c*(int32_t)d) + ((int64_t)(int32_t)e*(int32_t)f)) >> 30); }
+static inline long tmulscale31(long a, long b, long c, long d, long e, long f) { return (long)((((int64_t)(int32_t)a*(int32_t)b) + ((int64_t)(int32_t)c*(int32_t)d) + ((int64_t)(int32_t)e*(int32_t)f)) >> 31); }
+static inline long tmulscale32(long a, long b, long c, long d, long e, long f) { return (long)((((int64_t)(int32_t)a*(int32_t)b) + ((int64_t)(int32_t)c*(int32_t)d) + ((int64_t)(int32_t)e*(int32_t)f)) >> 32); }
 
 /* ======================================================================
  * divscale1 .. divscale32
@@ -176,29 +176,29 @@ static inline long divscale6(long a, long b)  { return (long)(((int64_t)a << 6) 
 static inline long divscale7(long a, long b)  { return (long)(((int64_t)a << 7) / b); }
 static inline long divscale8(long a, long b)  { return (long)(((int64_t)a << 8) / b); }
 static inline long divscale9(long a, long b)  { return (long)(((int64_t)a << 9) / b); }
-static inline long divscale10(long a, long b) { return (long)(((int64_t)a << 10) / b); }
-static inline long divscale11(long a, long b) { return (long)(((int64_t)a << 11) / b); }
-static inline long divscale12(long a, long b) { return (long)(((int64_t)a << 12) / b); }
-static inline long divscale13(long a, long b) { return (long)(((int64_t)a << 13) / b); }
-static inline long divscale14(long a, long b) { return (long)(((int64_t)a << 14) / b); }
-static inline long divscale15(long a, long b) { return (long)(((int64_t)a << 15) / b); }
-static inline long divscale16(long a, long b) { return (long)(((int64_t)a << 16) / b); }
-static inline long divscale17(long a, long b) { return (long)(((int64_t)a << 17) / b); }
-static inline long divscale18(long a, long b) { return (long)(((int64_t)a << 18) / b); }
-static inline long divscale19(long a, long b) { return (long)(((int64_t)a << 19) / b); }
-static inline long divscale20(long a, long b) { return (long)(((int64_t)a << 20) / b); }
-static inline long divscale21(long a, long b) { return (long)(((int64_t)a << 21) / b); }
-static inline long divscale22(long a, long b) { return (long)(((int64_t)a << 22) / b); }
-static inline long divscale23(long a, long b) { return (long)(((int64_t)a << 23) / b); }
-static inline long divscale24(long a, long b) { return (long)(((int64_t)a << 24) / b); }
-static inline long divscale25(long a, long b) { return (long)(((int64_t)a << 25) / b); }
-static inline long divscale26(long a, long b) { return (long)(((int64_t)a << 26) / b); }
-static inline long divscale27(long a, long b) { return (long)(((int64_t)a << 27) / b); }
-static inline long divscale28(long a, long b) { return (long)(((int64_t)a << 28) / b); }
-static inline long divscale29(long a, long b) { return (long)(((int64_t)a << 29) / b); }
-static inline long divscale30(long a, long b) { return (long)(((int64_t)a << 30) / b); }
-static inline long divscale31(long a, long b) { return (long)(((int64_t)a << 31) / b); }
-static inline long divscale32(long a, long b) { return (long)(((int64_t)a << 32) / b); }
+static inline long divscale10(long a, long b) { return (long)(((int64_t)(int32_t)a << 10) / (int32_t)b); }
+static inline long divscale11(long a, long b) { return (long)(((int64_t)(int32_t)a << 11) / (int32_t)b); }
+static inline long divscale12(long a, long b) { return (long)(((int64_t)(int32_t)a << 12) / (int32_t)b); }
+static inline long divscale13(long a, long b) { return (long)(((int64_t)(int32_t)a << 13) / (int32_t)b); }
+static inline long divscale14(long a, long b) { return (long)(((int64_t)(int32_t)a << 14) / (int32_t)b); }
+static inline long divscale15(long a, long b) { return (long)(((int64_t)(int32_t)a << 15) / (int32_t)b); }
+static inline long divscale16(long a, long b) { return (long)(((int64_t)(int32_t)a << 16) / (int32_t)b); }
+static inline long divscale17(long a, long b) { return (long)(((int64_t)(int32_t)a << 17) / (int32_t)b); }
+static inline long divscale18(long a, long b) { return (long)(((int64_t)(int32_t)a << 18) / (int32_t)b); }
+static inline long divscale19(long a, long b) { return (long)(((int64_t)(int32_t)a << 19) / (int32_t)b); }
+static inline long divscale20(long a, long b) { return (long)(((int64_t)(int32_t)a << 20) / (int32_t)b); }
+static inline long divscale21(long a, long b) { return (long)(((int64_t)(int32_t)a << 21) / (int32_t)b); }
+static inline long divscale22(long a, long b) { return (long)(((int64_t)(int32_t)a << 22) / (int32_t)b); }
+static inline long divscale23(long a, long b) { return (long)(((int64_t)(int32_t)a << 23) / (int32_t)b); }
+static inline long divscale24(long a, long b) { return (long)(((int64_t)(int32_t)a << 24) / (int32_t)b); }
+static inline long divscale25(long a, long b) { return (long)(((int64_t)(int32_t)a << 25) / (int32_t)b); }
+static inline long divscale26(long a, long b) { return (long)(((int64_t)(int32_t)a << 26) / (int32_t)b); }
+static inline long divscale27(long a, long b) { return (long)(((int64_t)(int32_t)a << 27) / (int32_t)b); }
+static inline long divscale28(long a, long b) { return (long)(((int64_t)(int32_t)a << 28) / (int32_t)b); }
+static inline long divscale29(long a, long b) { return (long)(((int64_t)(int32_t)a << 29) / (int32_t)b); }
+static inline long divscale30(long a, long b) { return (long)(((int64_t)(int32_t)a << 30) / (int32_t)b); }
+static inline long divscale31(long a, long b) { return (long)(((int64_t)(int32_t)a << 31) / (int32_t)b); }
+static inline long divscale32(long a, long b) { return (long)(((int64_t)(int32_t)a << 32) / (int32_t)b); }
 
 /* ======================================================================
  * boundmulscale - clamped mulscale

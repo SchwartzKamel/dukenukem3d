@@ -1926,6 +1926,8 @@ void showtwoscreens(void)
 {
     short i;
 
+    if(sdl_checkquit()) return;
+
 #ifndef VOLUMEALL
     setview(0,0,xdim-1,ydim-1);
     flushperms();
@@ -1934,13 +1936,14 @@ void showtwoscreens(void)
     KB_FlushKeyboardQueue();
     rotatesprite(0,0,65536L,0,3291,0,0,2+8+16+64, 0,0,xdim-1,ydim-1);
     nextpage(); for(i=63;i>0;i-=7) palto(0,0,0,i);
-    while( !KB_KeyWaiting() ) getpackets();
+    while( !KB_KeyWaiting() && !sdl_checkquit() ) getpackets();
 
+    if(sdl_checkquit()) return;
     for(i=0;i<64;i+=7) palto(0,0,0,i);
     KB_FlushKeyboardQueue();
     rotatesprite(0,0,65536L,0,3290,0,0,2+8+16+64, 0,0,xdim-1,ydim-1);
     nextpage(); for(i=63;i>0;i-=7) palto(0,0,0,i);
-    while( !KB_KeyWaiting() ) getpackets();
+    while( !KB_KeyWaiting() && !sdl_checkquit() ) getpackets();
 #else
 // CTW - REMOVED
 /*  setview(0,0,xdim-1,ydim-1);
@@ -1960,13 +1963,15 @@ void showtwoscreens(void)
 void binscreen(void)
 {
     long fil;
+    /* VGA text-mode buffer at 0xB8000 is unmapped on modern OSes */
+    static char textbuf[4000];
 #ifdef VOLUMEONE
     fil = kopen4load("dukesw.bin",1);
 #else
     fil = kopen4load("duke3d.bin",1);
 #endif
     if(fil == -1) return;
-    kread(fil,(char *)0xb8000,4000);
+    kread(fil,textbuf,4000);
     kclose(fil);
 }
 
@@ -1974,6 +1979,14 @@ void binscreen(void)
 void gameexit(char *t)
 {
     short i;
+    static int exiting = 0;
+
+    if (exiting) {
+        Shutdown();
+        sdl_shutdown();
+        exit(0);
+    }
+    exiting = 1;
 
     startup_log("gameexit called: '%s'", t && *t ? t : "(empty)");
 
@@ -2028,9 +2041,11 @@ void gameexit(char *t)
         }*/
         if(true)
         {
-            if(*t == ' ' && *(t+1) == 0) *t = 0;
-            printf("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
-            printf("%s%s","\n",t);
+            if(!(*t == ' ' && *(t+1) == 0))
+            {
+                printf("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
+                printf("%s%s","\n",t);
+            }
         }
 // CTW END - MODIFICATION        
     }
