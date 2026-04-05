@@ -2864,16 +2864,31 @@ loadpics(char *filename)
 		if ((fil = kopen4load(artfilename,0)) != -1)
 		{
 			startup_log("  loadpics: opened '%s' as handle %d", artfilename, fil);
-			kread(fil,&artversion,4);
+			{
+				int32_t tmp;
+				kread(fil,&tmp,4); artversion = tmp;
+			}
 			startup_log("  loadpics: artversion=%ld", artversion);
 			if (artversion != 1) return(-1);
-			kread(fil,&numtiles,4);
-			kread(fil,&localtilestart,4);
-			kread(fil,&localtileend,4);
+			{
+				int32_t tmp;
+				kread(fil,&tmp,4); numtiles = tmp;
+				kread(fil,&tmp,4); localtilestart = tmp;
+				kread(fil,&tmp,4); localtileend = tmp;
+			}
 			startup_log("  loadpics: numtiles=%ld, start=%ld, end=%ld", numtiles, localtilestart, localtileend);
 			kread(fil,&tilesizx[localtilestart],(localtileend-localtilestart+1)<<1);
 			kread(fil,&tilesizy[localtilestart],(localtileend-localtilestart+1)<<1);
-			kread(fil,&picanm[localtilestart],(localtileend-localtilestart+1)<<2);
+			{
+				long count = localtileend - localtilestart + 1;
+				int32_t *tmpbuf = (int32_t *)kmalloc(count * sizeof(int32_t));
+				if (tmpbuf) {
+					kread(fil, tmpbuf, count * sizeof(int32_t));
+					for(i=0;i<count;i++)
+						picanm[localtilestart+i] = tmpbuf[i];
+					kfree(tmpbuf);
+				}
+			}
 
 			offscount = 4+4+4+4+((localtileend-localtilestart+1)<<3);
 			for(i=localtilestart;i<=localtileend;i++)
@@ -3490,7 +3505,8 @@ drawsprite (long snum)
 	long yplc, yinc, z, z1, z2, xp1, yp1, xp2, yp2;
 	long xs, ys, xpos, ypos, xv, yv, top, topinc, bot, botinc, hplc, hinc;
 	long cosang, sinang, dax, day, lpoint, lmax, rpoint, rmax, dax1, dax2, y;
-	long npoints, npoints2, zz, t, zsgn, zzsgn, *longptr;
+	long npoints, npoints2, zz, t, zsgn, zzsgn;
+	int32_t *longptr;
 	signed short shade;
 	short tilenum, spritenum;
 	char swapped, daclip;
@@ -4300,7 +4316,7 @@ drawsprite (long snum)
 				break;
 			}
 
-		longptr = (long *)voxoff[tilenum][0];
+		longptr = (int32_t *)voxoff[tilenum][0];
 		if (!(cstat&128)) tspr->z -= mulscale6(longptr[5],(long)tspr->yrepeat);
 		yoff = (long)((signed char)((picanm[sprite[tspr->owner].picnum]>>16)&255))+((long)tspr->yoffset);
 		tspr->z -= ((yoff*tspr->yrepeat)<<2);
@@ -4371,7 +4387,8 @@ drawvox(long dasprx, long daspry, long dasprz, long dasprang,
 	long cosang, sinang, sprcosang, sprsinang, backx, backy, gxinc, gyinc;
 	long daxsiz, daysiz, dazsiz, daxpivot, daypivot, dazpivot;
 	long daxscalerecip, dayscalerecip, cnt, gxstart, gystart, odayscale;
-	long l1, l2, p, pend, slabxoffs, xyvoxoffs, *longptr;
+	long l1, l2, p, pend, slabxoffs, xyvoxoffs;
+	int32_t *longptr;
 	long lx, rx, nx, ny, zx, zy, x1, y1, z1, x2, y2, z2, yplc, yinc, bufplc;
 	long yoff, xs, ys, xe, ye, xi, yi, cbackx, cbacky, dagxinc, dagyinc;
 	short *shortptr;
@@ -4405,7 +4422,7 @@ drawvox(long dasprx, long daspry, long dasprz, long dasprang,
 	daxscalerecip = (1<<30)/daxscale;
 	dayscalerecip = (1<<30)/dayscale;
 
-	longptr = (long *)davoxptr;
+	longptr = (int32_t *)davoxptr;
 	daxsiz = longptr[0]; daysiz = longptr[1]; dazsiz = longptr[2];
 	daxpivot = longptr[3]; daypivot = longptr[4]; dazpivot = longptr[5];
 	davoxptr += (6<<2);
@@ -4441,7 +4458,7 @@ drawvox(long dasprx, long daspry, long dasprz, long dasprang,
 	if ((klabs(globalposz-dasprz)>>10) >= klabs(odayscale)) return;
 	syoff = divscale21(globalposz-dasprz,odayscale) + (dazpivot<<7);
 	yoff = ((klabs(gxinc)+klabs(gyinc))>>1);
-	longptr = (long *)davoxptr;
+	longptr = (int32_t *)davoxptr;
 	xyvoxoffs = ((daxsiz+1)<<2);
 
 	for(cnt=0;cnt<8;cnt++)
