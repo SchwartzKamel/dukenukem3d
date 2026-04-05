@@ -453,6 +453,7 @@ void sound(short num)
     int voice;
     long start;
 
+    if(num < 0 || num >= NUM_SOUNDS) return;
     if (FXDevice == NumSoundCards) return;
     if(SoundToggle==0) return;
     if(VoiceToggle==0 && (soundm[num]&4) ) return;
@@ -514,6 +515,7 @@ int spritesound(unsigned short num, short i)
 
 void stopsound(short num)
 {
+    if(num < 0 || num >= NUM_SOUNDS) return;
     if(Sound[num].num > 0)
     {
         FX_StopSound(SoundOwner[num][Sound[num].num-1].voice);
@@ -525,6 +527,7 @@ void stopenvsound(short num,short i)
 {
     short j, k;
 
+    if(num < 0 || num >= NUM_SOUNDS) return;
     if(Sound[num].num > 0)
     {
         k = Sound[num].num;

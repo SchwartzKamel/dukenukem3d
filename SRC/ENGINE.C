@@ -1277,6 +1277,7 @@ drawalls (long bunch)
 					if (pow2long[globalshiftval] != tilesizy[globalpicnum]) globalshiftval++;
 					globalshiftval = 32-globalshiftval;
 					if (picanm[globalpicnum]&192) globalpicnum += animateoffs(globalpicnum,(short)wallnum+16384);
+					if ((unsigned)globalpicnum >= (unsigned)MAXTILES) globalpicnum = 0;
 					globalshade = (long)wal->shade;
 					globvis = globalvisibility;
 					if (sec->visibility != 0) globvis = mulscale4(globvis,(long)((unsigned char)(sec->visibility+16)));
@@ -1366,6 +1367,7 @@ drawalls (long bunch)
 						globalxpanning = (long)wal->xpanning;
 						globalypanning = (long)wal->ypanning;
 						if (picanm[globalpicnum]&192) globalpicnum += animateoffs(globalpicnum,(short)wallnum+16384);
+						if ((unsigned)globalpicnum >= (unsigned)MAXTILES) globalpicnum = 0;
 						globalshade = (long)wal->shade;
 						globalpal = (long)wal->pal;
 						wallnum = thewall[z]; wal = &wall[wallnum];
@@ -1378,6 +1380,7 @@ drawalls (long bunch)
 						globalxpanning = (long)wal->xpanning;
 						globalypanning = (long)wal->ypanning;
 						if (picanm[globalpicnum]&192) globalpicnum += animateoffs(globalpicnum,(short)wallnum+16384);
+						if ((unsigned)globalpicnum >= (unsigned)MAXTILES) globalpicnum = 0;
 						globalshade = (long)wal->shade;
 						globalpal = (long)wal->pal;
 					}
@@ -1468,6 +1471,7 @@ drawalls (long bunch)
 			globalxpanning = (long)wal->xpanning;
 			globalypanning = (long)wal->ypanning;
 			if (picanm[globalpicnum]&192) globalpicnum += animateoffs(globalpicnum,(short)wallnum+16384);
+			if ((unsigned)globalpicnum >= (unsigned)MAXTILES) globalpicnum = 0;
 			globalshade = (long)wal->shade;
 			globvis = globalvisibility;
 			if (sec->visibility != 0) globvis = mulscale4(globvis,(long)((unsigned char)(sec->visibility+16)));
@@ -1604,8 +1608,10 @@ ceilscan (long x1, long x2, long sectnum)
 	setgotpic(globalpicnum);
 	if ((tilesizx[globalpicnum] <= 0) || (tilesizy[globalpicnum] <= 0)) return;
 	if (picanm[globalpicnum]&192) globalpicnum += animateoffs((short)globalpicnum,(short)sectnum);
+	if ((unsigned)globalpicnum >= (unsigned)MAXTILES) globalpicnum = 0;
 
 	if (waloff[globalpicnum] == 0) loadtile(globalpicnum);
+	if (waloff[globalpicnum] == 0) return;
 	globalbufplc = waloff[globalpicnum];
 
 	globalshade = (long)sec->ceilingshade;
@@ -2292,7 +2298,7 @@ loadboard(char *filename, int32_t *daposx, int32_t *daposy, int32_t *daposz,
 		{ mapversion = 7L; return(-1); }
 
 	kread(fil,&mapversion,4);
-	if (mapversion != 7L) return(-1);
+	if (mapversion != 7L) { kclose(fil); return(-1); }
 
 	initspritelists();
 
@@ -2307,16 +2313,25 @@ loadboard(char *filename, int32_t *daposx, int32_t *daposy, int32_t *daposz,
 	kread(fil,dacursectnum,2);
 
 	kread(fil,&numsectors,2);
+	if (numsectors < 0 || numsectors > MAXSECTORS) { kclose(fil); return(-1); }
 	kread(fil,&sector[0],sizeof(sectortype)*numsectors);
 
 	kread(fil,&numwalls,2);
+	if (numwalls < 0 || numwalls > MAXWALLS) { kclose(fil); return(-1); }
 	kread(fil,&wall[0],sizeof(walltype)*numwalls);
 
 	kread(fil,&numsprites,2);
+	if (numsprites < 0 || numsprites > MAXSPRITES) { kclose(fil); return(-1); }
 	kread(fil,&sprite[0],sizeof(spritetype)*numsprites);
 
 	for(i=0;i<numsprites;i++)
+	{
+		if (sprite[i].sectnum < 0 || sprite[i].sectnum >= MAXSECTORS)
+			sprite[i].sectnum = 0;
+		if (sprite[i].statnum < 0 || sprite[i].statnum >= MAXSTATUS)
+			sprite[i].statnum = 0;
 		insertsprite(sprite[i].sectnum,sprite[i].statnum);
+	}
 
 		//Must be after loading sectors, etc!
 	updatesector(*daposx,*daposy,dacursectnum);
@@ -2760,7 +2775,10 @@ loadtile (short tilenume)
 		artfilename[5] = ((i/100)%10)+48;
 		artfil = kopen4load(artfilename,0);
 		faketimerhandler();
+		if (artfil == -1) return;
 	}
+
+	if (artfil == -1) return;
 
 	if (cachedebug) printf("Tile:%ld\n",tilenume);
 
