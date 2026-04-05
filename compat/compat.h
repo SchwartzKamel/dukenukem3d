@@ -797,7 +797,10 @@ static LONG WINAPI crash_handler(EXCEPTION_POINTERS *ep)
         fclose(_startup_log);
     }
     MessageBoxA(NULL, buf, "Duke Nukem 3D - Crash", MB_OK | MB_ICONERROR);
-    return EXCEPTION_EXECUTE_HANDLER;
+    /* Forcibly terminate — returning EXCEPTION_EXECUTE_HANDLER alone can
+       leave the process alive if the CRT or another thread interferes. */
+    ExitProcess(1);
+    return EXCEPTION_EXECUTE_HANDLER; /* unreachable, satisfies compiler */
 }
 #endif
 
