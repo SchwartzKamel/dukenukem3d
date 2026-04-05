@@ -5,9 +5,10 @@ from tables import create_tables_dat
 
 
 def test_tables_dat_size():
-    """TABLES.DAT should be exactly 9728 bytes."""
+    """TABLES.DAT should be exactly 8448 bytes (engine reads sequentially)."""
     data = create_tables_dat()
-    assert len(data) == 9728
+    # 4096 (sintable) + 1280 (radarang) + 1024 (textfont) + 1024 (smalltextfont) + 1024 (britable)
+    assert len(data) == 8448
 
 
 def test_sine_table_at_zero():

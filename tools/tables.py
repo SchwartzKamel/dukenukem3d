@@ -13,8 +13,8 @@ def create_tables_dat():
 
     Layout:
         - 4096 bytes : sintable   (2048 signed int16)
-        - 2560 bytes : radarang   (1280 signed int16  = 640 + 640 mirrored)
-        - 1024 bytes : font table 1 (widths for 256 chars * 2 short each = 1024)
+        - 1280 bytes : radarang   (640 signed int16; engine mirrors internally)
+        - 1024 bytes : font table 1 (256 chars * 4 bytes)
         - 1024 bytes : font table 2
         - 1024 bytes : britable   (16 rows * 64 entries)
 
@@ -29,7 +29,7 @@ def create_tables_dat():
         sintable.append(val)
     data = struct.pack("<" + "h" * 2048, *sintable)
 
-    # --- Radar angle table (640 entries + 640 mirrored) ---
+    # --- Radar angle table (640 entries only; engine mirrors internally) ---
     radarang = []
     for i in range(640):
         if i == 0:
@@ -37,9 +37,6 @@ def create_tables_dat():
         else:
             radarang.append(int(math.atan(float(i) / 160.0) * (512.0 / math.pi)))
     data += struct.pack("<" + "h" * 640, *radarang)
-
-    mirror = [-radarang[639 - i] for i in range(640)]
-    data += struct.pack("<" + "h" * 640, *mirror)
 
     # --- Font tables ---
     data += _generate_basic_font()
