@@ -104,14 +104,16 @@ int SCRIPT_Load(char *filename) {
     return (int)(sc - scripts);
 }
 
-void SCRIPT_Save(int handle) {
+void SCRIPT_Save(int handle, char *filename) {
     script_t *sc = get_script(handle);
     FILE *f;
     int i;
     char lastsection[64] = "";
+    const char *savename;
 
     if (!sc) return;
-    f = fopen(sc->filename, "w");
+    savename = (filename && filename[0]) ? filename : sc->filename;
+    f = fopen(savename, "w");
     if (!f) return;
 
     for (i = 0; i < sc->num_entries; i++) {
@@ -129,19 +131,23 @@ void SCRIPT_Free(int handle) {
     if (handle >= 0 && handle < MAX_SCRIPTS) scripts[handle].active = 0;
 }
 
-void SCRIPT_GetString(int handle, char *section, char *key, char *dest) {
+void SCRIPT_GetString(int handle, char *section, char *key, char *dest, int dest_size) {
     script_t *sc = get_script(handle);
     script_entry_t *e;
     dest[0] = 0;
-    if (!sc) return;
+    if (!sc || dest_size <= 0) return;
     e = find_entry(sc, section, key);
-    if (e) { strncpy(dest, e->value, 127); dest[127] = '\0'; }
+    if (e) {
+        int maxcopy = dest_size - 1;
+        strncpy(dest, e->value, maxcopy);
+        dest[maxcopy] = '\0';
+    }
 }
 
 void SCRIPT_GetDoubleString(int handle, char *section, char *key, char *dest1, int dest1_size, char *dest2, int dest2_size) {
     char buf[512];
     char *space;
-    SCRIPT_GetString(handle, section, key, buf);
+    SCRIPT_GetString(handle, section, key, buf, sizeof(buf));
     dest1[0] = dest2[0] = 0;
     space = strchr(buf, ' ');
     if (space) {
@@ -155,8 +161,8 @@ void SCRIPT_GetDoubleString(int handle, char *section, char *key, char *dest1, i
 
 int SCRIPT_GetNumber(int handle, char *section, char *key, int32_t *dest) {
     char buf[256];
-    SCRIPT_GetString(handle, section, key, buf);
-    if (buf[0]) { *dest = (int32_t)atol(buf); return 1; }
+    SCRIPT_GetString(handle, section, key, buf, sizeof(buf));
+    if (buf[0]) { *dest = (int32_t)strtol(buf, NULL, 0); return 1; }
     *dest = 0;
     return 0;
 }

@@ -2499,12 +2499,12 @@ void processinput(short snum)
                     {
                         if(snum == screenpeek)
                         {
-                            sprintf(&fta_quotes[115][0],"KILLED BY %s",&ud.user_name[p->frag_ps][0]);
+                            snprintf(&fta_quotes[115][0],64,"KILLED BY %s",&ud.user_name[p->frag_ps][0]);
                             FTA(115,p);
                         }
                         else
                         {
-                            sprintf(&fta_quotes[116][0],"KILLED %s",&ud.user_name[snum][0]);
+                            snprintf(&fta_quotes[116][0],64,"KILLED %s",&ud.user_name[snum][0]);
                             FTA(116,&ps[p->frag_ps]);
                         }
                     }
@@ -2512,12 +2512,12 @@ void processinput(short snum)
                     {
                         if(snum == screenpeek)
                         {
-                            sprintf(&fta_quotes[115][0],"KILLED BY PLAYER %ld",1+p->frag_ps);
+                            snprintf(&fta_quotes[115][0],64,"KILLED BY PLAYER %ld",1+p->frag_ps);
                             FTA(115,p);
                         }
                         else
                         {
-                            sprintf(&fta_quotes[116][0],"KILLED PLAYER %ld",1+snum);
+                            snprintf(&fta_quotes[116][0],64,"KILLED PLAYER %ld",1+snum);
                             FTA(116,&ps[p->frag_ps]);
                         }
                     }

@@ -2114,9 +2114,7 @@ void typemode(void)
                 if(ud.multimode < 3)
                      sendmessagecommand = 2;
 
-                strcat(recbuf,ud.user_name[myconnectindex]);
-                strcat(recbuf,": ");
-                strcat(recbuf,typebuf);
+                snprintf(recbuf,sizeof(recbuf),"%s: %s",ud.user_name[myconnectindex],typebuf);
                 j = strlen(recbuf);
                 recbuf[j] = 0;
                 strcat(tempbuf+1,recbuf);
@@ -8577,8 +8575,7 @@ char domovethings(void)
 
             if(multiwho != myconnectindex)
             {
-                strcpy(&fta_quotes[122],&ud.user_name[multiwho][0]);
-                strcat(&fta_quotes[122]," SAVED A MULTIPLAYER GAME");
+                snprintf(&fta_quotes[122][0],64,"%s SAVED A MULTIPLAYER GAME",&ud.user_name[multiwho][0]);
                 FTA(122,&ps[myconnectindex]);
             }
             else
@@ -8600,8 +8597,7 @@ char domovethings(void)
             {
                 if(multiwho != myconnectindex)
                 {
-                    strcpy(&fta_quotes[122],&ud.user_name[multiwho][0]);
-                    strcat(&fta_quotes[122]," LOADED A MULTIPLAYER GAME");
+                    snprintf(&fta_quotes[122][0],64,"%s LOADED A MULTIPLAYER GAME",&ud.user_name[multiwho][0]);
                     FTA(122,&ps[myconnectindex]);
                 }
                 else

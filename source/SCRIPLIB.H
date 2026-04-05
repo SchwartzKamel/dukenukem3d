@@ -144,7 +144,8 @@ void SCRIPT_GetString
    int32 scripthandle,
    char * sectionname,
    char * entryname,
-   char * dest
+   char * dest,
+   int dest_size
    );
 
 /*
@@ -160,7 +161,9 @@ void SCRIPT_GetDoubleString
    char * sectionname,
    char * entryname,
    char * dest1,
-   char * dest2
+   int dest1_size,
+   char * dest2,
+   int dest2_size
    );
 
 /*

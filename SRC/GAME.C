@@ -3912,7 +3912,8 @@ drawscreen(short snum, long dasmoothratio)
 	if (keystatus[0x58])   //F12
 	{
 		keystatus[0x58] = 0;
-		screencapture("captxxxx.pcx",keystatus[0x2a]|keystatus[0x36]);
+		{ char capfn[] = "captxxxx.pcx";
+		screencapture(capfn,keystatus[0x2a]|keystatus[0x36]); }
 	}
 	if (keystatus[0x3c])  //F2 (toggle stereo mode)
 	{

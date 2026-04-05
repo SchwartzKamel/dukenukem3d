@@ -288,7 +288,7 @@ char loadsound(unsigned short num)
     fp = kopen4load(sounds[num],loadfromgrouponly);
     if(fp == -1)
     {
-        sprintf(&fta_quotes[113][0],"Sound %s(#%ld) not found.",sounds[num],num);
+        snprintf(&fta_quotes[113][0],64,"Sound %s(#%ld) not found.",sounds[num],num);
         FTA(113,&ps[myconnectindex]);
         return 0;
     }

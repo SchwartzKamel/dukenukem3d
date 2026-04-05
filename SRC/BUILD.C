@@ -308,7 +308,8 @@ editinput()
 	}
 	if (keystatus[88] > 0)   //F12
 	{
-		screencapture("captxxxx.pcx",keystatus[0x2a]|keystatus[0x36]);
+		{ char capfn[] = "captxxxx.pcx";
+		screencapture(capfn,keystatus[0x2a]|keystatus[0x36]); }
 		keystatus[88] = 0;
 	}
 
@@ -2704,7 +2705,8 @@ overheadeditor()
 			draw2dgrid(posx,posy,ang,zoom,grid);
 			draw2dscreen(posx,posy,ang,zoom,grid);
 
-			screencapture("captxxxx.pcx",keystatus[0x2a]|keystatus[0x36]);
+			{ char capfn[] = "captxxxx.pcx";
+			screencapture(capfn,keystatus[0x2a]|keystatus[0x36]); }
 
 			pageoffset = i;
 			ydim16 = j;

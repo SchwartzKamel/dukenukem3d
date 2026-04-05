@@ -325,7 +325,9 @@ void CONFIG_ReadKeys( void )
             "KeyDefinitions",
             SCRIPT_Entry( scripthandle,"KeyDefinitions", i ),
             keyname1,
-            keyname2
+            sizeof(keyname1),
+            keyname2,
+            sizeof(keyname2)
             );
          key1 = 0;
          key2 = 0;
@@ -362,13 +364,13 @@ void CONFIG_SetupMouse( int32 scripthandle )
       {
       sprintf(str,"MouseButton%ld",i);
       memset(temp,0,sizeof(temp));
-      SCRIPT_GetString( scripthandle,"Controls", str,temp);
+      SCRIPT_GetString( scripthandle,"Controls", str,temp,sizeof(temp));
       function = CONFIG_FunctionNameToNum(temp);
       if (function != -1)
          CONTROL_MapButton( function, i, false );
       sprintf(str,"MouseButtonClicked%ld",i);
       memset(temp,0,sizeof(temp));
-      SCRIPT_GetString( scripthandle,"Controls", str,temp);
+      SCRIPT_GetString( scripthandle,"Controls", str,temp,sizeof(temp));
       function = CONFIG_FunctionNameToNum(temp);
       if (function != -1)
          CONTROL_MapButton( function, i, true );
@@ -378,7 +380,7 @@ void CONFIG_SetupMouse( int32 scripthandle )
       {
       sprintf(str,"MouseAnalogAxes%ld",i);
       memset(temp,0,sizeof(temp));
-      SCRIPT_GetString(scripthandle, "Controls", str,temp);
+      SCRIPT_GetString(scripthandle, "Controls", str,temp,sizeof(temp));
       function = CONFIG_AnalogNameToNum(temp);
       if (function != -1)
          {
@@ -386,13 +388,13 @@ void CONFIG_SetupMouse( int32 scripthandle )
          }
       sprintf(str,"MouseDigitalAxes%ld_0",i);
       memset(temp,0,sizeof(temp));
-      SCRIPT_GetString(scripthandle, "Controls", str,temp);
+      SCRIPT_GetString(scripthandle, "Controls", str,temp,sizeof(temp));
       function = CONFIG_FunctionNameToNum(temp);
       if (function != -1)
          CONTROL_MapDigitalAxis( i, function, 0 );
       sprintf(str,"MouseDigitalAxes%ld_1",i);
       memset(temp,0,sizeof(temp));
-      SCRIPT_GetString(scripthandle, "Controls", str,temp);
+      SCRIPT_GetString(scripthandle, "Controls", str,temp,sizeof(temp));
       function = CONFIG_FunctionNameToNum(temp);
       if (function != -1)
          CONTROL_MapDigitalAxis( i, function, 1 );
@@ -425,13 +427,13 @@ void CONFIG_SetupGamePad( int32 scripthandle )
       {
       sprintf(str,"JoystickButton%ld",i);
       memset(temp,0,sizeof(temp));
-      SCRIPT_GetString( scripthandle,"Controls", str,temp);
+      SCRIPT_GetString( scripthandle,"Controls", str,temp,sizeof(temp));
       function = CONFIG_FunctionNameToNum(temp);
       if (function != -1)
          CONTROL_MapButton( function, i, false );
       sprintf(str,"JoystickButtonClicked%ld",i);
       memset(temp,0,sizeof(temp));
-      SCRIPT_GetString( scripthandle,"Controls", str,temp);
+      SCRIPT_GetString( scripthandle,"Controls", str,temp,sizeof(temp));
       function = CONFIG_FunctionNameToNum(temp);
       if (function != -1)
          CONTROL_MapButton( function, i, true );
@@ -441,13 +443,13 @@ void CONFIG_SetupGamePad( int32 scripthandle )
       {
       sprintf(str,"GamePadDigitalAxes%ld_0",i);
       memset(temp,0,sizeof(temp));
-      SCRIPT_GetString(scripthandle, "Controls", str,temp);
+      SCRIPT_GetString(scripthandle, "Controls", str,temp,sizeof(temp));
       function = CONFIG_FunctionNameToNum(temp);
       if (function != -1)
          CONTROL_MapDigitalAxis( i, function, 0 );
       sprintf(str,"GamePadDigitalAxes%ld_1",i);
       memset(temp,0,sizeof(temp));
-      SCRIPT_GetString(scripthandle, "Controls", str,temp);
+      SCRIPT_GetString(scripthandle, "Controls", str,temp,sizeof(temp));
       function = CONFIG_FunctionNameToNum(temp);
       if (function != -1)
          CONTROL_MapDigitalAxis( i, function, 1 );
@@ -475,13 +477,13 @@ void CONFIG_SetupJoystick( int32 scripthandle )
       {
       sprintf(str,"JoystickButton%ld",i);
       memset(temp,0,sizeof(temp));
-      SCRIPT_GetString( scripthandle,"Controls", str,temp);
+      SCRIPT_GetString( scripthandle,"Controls", str,temp,sizeof(temp));
       function = CONFIG_FunctionNameToNum(temp);
       if (function != -1)
          CONTROL_MapButton( function, i, false );
       sprintf(str,"JoystickButtonClicked%ld",i);
       memset(temp,0,sizeof(temp));
-      SCRIPT_GetString( scripthandle,"Controls", str,temp);
+      SCRIPT_GetString( scripthandle,"Controls", str,temp,sizeof(temp));
       function = CONFIG_FunctionNameToNum(temp);
       if (function != -1)
          CONTROL_MapButton( function, i, true );
@@ -491,7 +493,7 @@ void CONFIG_SetupJoystick( int32 scripthandle )
       {
       sprintf(str,"JoystickAnalogAxes%ld",i);
       memset(temp,0,sizeof(temp));
-      SCRIPT_GetString(scripthandle, "Controls", str,temp);
+      SCRIPT_GetString(scripthandle, "Controls", str,temp,sizeof(temp));
       function = CONFIG_AnalogNameToNum(temp);
       if (function != -1)
          {
@@ -499,13 +501,13 @@ void CONFIG_SetupJoystick( int32 scripthandle )
          }
       sprintf(str,"JoystickDigitalAxes%ld_0",i);
       memset(temp,0,sizeof(temp));
-      SCRIPT_GetString(scripthandle, "Controls", str,temp);
+      SCRIPT_GetString(scripthandle, "Controls", str,temp,sizeof(temp));
       function = CONFIG_FunctionNameToNum(temp);
       if (function != -1)
          CONTROL_MapDigitalAxis( i, function, 0 );
       sprintf(str,"JoystickDigitalAxes%ld_1",i);
       memset(temp,0,sizeof(temp));
-      SCRIPT_GetString(scripthandle, "Controls", str,temp);
+      SCRIPT_GetString(scripthandle, "Controls", str,temp,sizeof(temp));
       function = CONFIG_FunctionNameToNum(temp);
       if (function != -1)
          CONTROL_MapDigitalAxis( i, function, 1 );
@@ -646,10 +648,10 @@ void CONFIG_ReadSetup( void )
    for(dummy = 0;dummy < 10;dummy++)
    {
        commmacro[13] = dummy+'0';
-       SCRIPT_GetString( scripthandle, "Comm Setup",commmacro,&ud.ridecule[dummy][0]);
+       SCRIPT_GetString( scripthandle, "Comm Setup",commmacro,&ud.ridecule[dummy][0],sizeof(ud.ridecule[dummy]));
    }
 
-   SCRIPT_GetString( scripthandle, "Comm Setup","PlayerName",&myname[0]);
+   SCRIPT_GetString( scripthandle, "Comm Setup","PlayerName",&myname[0],sizeof(myname));
 
    dummy = CheckParm("NAME");
    if( dummy ) strcpy(myname,_argv[dummy+1]);
@@ -669,10 +671,10 @@ void CONFIG_ReadSetup( void )
 #endif
        boardfilename[0] = 0;
 
-   SCRIPT_GetString( scripthandle, "Comm Setup","RTSName",&ud.rtsname[0]);
+   SCRIPT_GetString( scripthandle, "Comm Setup","RTSName",&ud.rtsname[0],sizeof(ud.rtsname));
 
    SCRIPT_GetNumber( scripthandle, "Screen Setup", "Shadows",&ud.shadows);
-   SCRIPT_GetString( scripthandle, "Screen Setup","Password",&ud.pwlockout[0]);
+   SCRIPT_GetString( scripthandle, "Screen Setup","Password",&ud.pwlockout[0],sizeof(ud.pwlockout));
    SCRIPT_GetNumber( scripthandle, "Screen Setup", "Detail",&ud.detail);
    SCRIPT_GetNumber( scripthandle, "Screen Setup", "Tilt",&ud.screen_tilting);
    SCRIPT_GetNumber( scripthandle, "Screen Setup", "Messages",&ud.fta_on);
