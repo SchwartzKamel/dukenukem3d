@@ -43,8 +43,9 @@ static long origbuffermode = 1;
 static int setvesa(long x, long y) {
 	if (sdl_init((int)x, (int)y) < 0) return -1;
 	bytesperline = x;
-	screen = sdl_getscreen();
-	frameplace = (intptr_t)screen;
+	/* Don't overwrite 'screen' — it holds horizlookup/horizlookup2.
+	   Only update frameplace to point at the SDL pixel buffer. */
+	frameplace = (intptr_t)sdl_getscreen();
 	maxpages = 1;
 	linearmode = 1;
 	buffermode = 1;
@@ -3206,6 +3207,7 @@ copytilepiece(long tilenume1, long sx1, long sy1, long xsiz, long ysiz,
 	{
 		if (waloff[tilenume1] == 0) loadtile(tilenume1);
 		if (waloff[tilenume2] == 0) loadtile(tilenume2);
+		if (waloff[tilenume1] == 0 || waloff[tilenume2] == 0) return;
 
 		x1 = sx1;
 		for(i=0;i<xsiz;i++)
@@ -3285,6 +3287,7 @@ drawmasks()
 				spritesz[k] = tspriteptr[k]->z;
 				if ((tspriteptr[k]->cstat&48) != 32)
 				{
+					if ((unsigned)tspriteptr[k]->picnum >= (unsigned)MAXTILES) continue;
 					yoff = (long)((signed char)((picanm[tspriteptr[k]->picnum]>>16)&255))+((long)tspriteptr[k]->yoffset);
 					spritesz[k] -= ((yoff*tspriteptr[k]->yrepeat)<<2);
 					yspan = (tilesizy[tspriteptr[k]->picnum]*tspriteptr[k]->yrepeat<<2);
@@ -3400,6 +3403,7 @@ drawmaskwall(short damaskwallcnt)
 	globalxpanning = (long)wal->xpanning;
 	globalypanning = (long)wal->ypanning;
 	if (picanm[globalpicnum]&192) globalpicnum += animateoffs(globalpicnum,(short)thewall[z]+16384);
+	if ((unsigned)globalpicnum >= (unsigned)MAXTILES) globalpicnum = 0;
 	globalshade = (long)wal->shade;
 	globvis = globalvisibility;
 	if (sec->visibility != 0) globvis = mulscale4(globvis,(long)((unsigned char)(sec->visibility+16)));
@@ -4195,6 +4199,7 @@ drawsprite (long snum)
 		//if (picanm[globalpicnum]&192) globalpicnum += animateoffs((short)globalpicnum,spritenum+32768);
 
 		if (waloff[globalpicnum] == 0) loadtile(globalpicnum);
+		if (waloff[globalpicnum] == 0) return;
 		setgotpic(globalpicnum);
 		globalbufplc = waloff[globalpicnum];
 
@@ -5067,6 +5072,7 @@ hitscan(long xs, long ys, long zs, short sectnum, long vx, long vy, long vz,
 			if ((cstat&dasprclipmask) == 0) continue;
 
 			x1 = spr->x; y1 = spr->y; z1 = spr->z;
+			if ((unsigned)spr->picnum >= (unsigned)MAXTILES) continue;
 			switch(cstat&48)
 			{
 				case 0:
@@ -5544,6 +5550,7 @@ clipmove (int32_t *x, int32_t *y, int32_t *z, short *sectnum,
 			cstat = spr->cstat;
 			if ((cstat&dasprclipmask) == 0) continue;
 			x1 = spr->x; y1 = spr->y;
+			if ((unsigned)spr->picnum >= (unsigned)MAXTILES) continue;
 			switch(cstat&48)
 			{
 				case 0:
@@ -6696,6 +6703,7 @@ getzrange(long x, long y, long z, short sectnum,
 			if (cstat&dasprclipmask)
 			{
 				x1 = spr->x; y1 = spr->y;
+				if ((unsigned)spr->picnum >= (unsigned)MAXTILES) continue;
 
 				clipyou = 0;
 				switch(cstat&48)
@@ -7635,7 +7643,9 @@ drawmapview (long dax, long day, long zoome, short ang)
 			setgotpic(globalpicnum);
 			if ((tilesizx[globalpicnum] <= 0) || (tilesizy[globalpicnum] <= 0)) continue;
 			if ((picanm[globalpicnum]&192) != 0) globalpicnum += animateoffs((short)globalpicnum,s);
+			if ((unsigned)globalpicnum >= (unsigned)MAXTILES) globalpicnum = 0;
 			if (waloff[globalpicnum] == 0) loadtile(globalpicnum);
+			if (waloff[globalpicnum] == 0) continue;
 			globalbufplc = waloff[globalpicnum];
 			globalshade = max(min(sec->floorshade,numpalookups-1),0);
 			globvis = globalhisibility;
@@ -7708,6 +7718,7 @@ drawmapview (long dax, long day, long zoome, short ang)
 			npoints = 0;
 
 			tilenum = spr->picnum;
+			if ((unsigned)tilenum >= (unsigned)MAXTILES) continue;
 			xoff = (long)((signed char)((picanm[tilenum]>>8)&255))+((long)spr->xoffset);
 			yoff = (long)((signed char)((picanm[tilenum]>>16)&255))+((long)spr->yoffset);
 			if ((spr->cstat&4) > 0) xoff = -xoff;
@@ -7769,7 +7780,9 @@ drawmapview (long dax, long day, long zoome, short ang)
 			setgotpic(globalpicnum);
 			if ((tilesizx[globalpicnum] <= 0) || (tilesizy[globalpicnum] <= 0)) continue;
 			if ((picanm[globalpicnum]&192) != 0) globalpicnum += animateoffs((short)globalpicnum,s);
+			if ((unsigned)globalpicnum >= (unsigned)MAXTILES) globalpicnum = 0;
 			if (waloff[globalpicnum] == 0) loadtile(globalpicnum);
+			if (waloff[globalpicnum] == 0) continue;
 			globalbufplc = waloff[globalpicnum];
 			if ((sector[spr->sectnum].ceilingstat&1) > 0)
 				globalshade = ((long)sector[spr->sectnum].ceilingshade);
@@ -8196,6 +8209,10 @@ setviewtotile(short tilenume, long xsiz, long ysiz)
 {
 	long i, j;
 
+
+	if ((unsigned)tilenume >= (unsigned)MAXTILES) return;
+	if (waloff[tilenume] == 0) loadtile(tilenume);
+	if (waloff[tilenume] == 0) return;
 		//DRAWROOMS TO TILE BACKUP&SET CODE
 	tilesizx[tilenume] = xsiz; tilesizy[tilenume] = ysiz;
 	bakxsiz[setviewcnt] = xsiz; bakysiz[setviewcnt] = ysiz;
@@ -8238,6 +8255,9 @@ squarerotatetile(short tilenume)
 	long i, j, k, xsiz, ysiz;
 	char *ptr1, *ptr2;
 
+
+	if ((unsigned)tilenume >= (unsigned)MAXTILES) return;
+	if (waloff[tilenume] == 0) return;
 	xsiz = tilesizx[tilenume]; ysiz = tilesizy[tilenume];
 
 		//supports square tiles only for rotation part
@@ -8649,6 +8669,7 @@ grouscan (long dax1, long dax2, long sectnum, char dastat)
 	setgotpic(globalpicnum);
 	if ((tilesizx[globalpicnum] <= 0) || (tilesizy[globalpicnum] <= 0)) return;
 	if (waloff[globalpicnum] == 0) loadtile(globalpicnum);
+	if (waloff[globalpicnum] == 0) return;
 
 	wal = &wall[sec->wallptr];
 	wx = wall[wal->point2].x - wal->x;

@@ -143,6 +143,12 @@ int sdl_init(int xdim, int ydim)
 
     startup_log("  sdl_init(%d, %d) called", xdim, ydim);
 
+    /* Clean up previous resources if re-initializing (e.g. video mode change) */
+    if (texture)  { SDL_DestroyTexture(texture);   texture  = NULL; }
+    if (renderer) { SDL_DestroyRenderer(renderer);  renderer = NULL; }
+    if (window)   { SDL_DestroyWindow(window);      window   = NULL; }
+    free(screenbuf); screenbuf = NULL;
+
     startup_log("  SDL_Init(VIDEO|TIMER)...");
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) < 0) {
         startup_log("  FATAL: SDL_Init failed: %s", SDL_GetError());
@@ -230,7 +236,7 @@ void sdl_nextpage(void)
     void   *pixels;
     int     pitch;
 
-    if (!texture || !screenbuf) return;
+    if (!renderer || !texture || !screenbuf) return;
 
     if (SDL_LockTexture(texture, NULL, &pixels, &pitch) < 0) return;
 
@@ -253,14 +259,20 @@ void sdl_nextpage(void)
 void sdl_setpalette(unsigned char *pal, int start, int num)
 {
     /*
-     * BUILD engine VGA palette: each entry is 3 bytes [R, G, B],
-     * each component in the range 0-63 (VGA 6-bit).  Scale to 8-bit.
+     * BUILD engine VBE palette: setbrightness() writes 4 bytes per entry
+     * in [B, G, R, 0] order (VBE DAC format).  Components are already
+     * scaled to 8-bit by the brightness table (britable[]).
      */
+    if (start < 0) start = 0;
+    if (start + num > 256) num = 256 - start;
+    if (num <= 0) return;
+
     for (int i = 0; i < num; i++) {
         int idx = start + i;
-        unsigned int r = (unsigned int)pal[i * 3 + 0] << 2;
-        unsigned int g = (unsigned int)pal[i * 3 + 1] << 2;
-        unsigned int b = (unsigned int)pal[i * 3 + 2] << 2;
+        unsigned int b = (unsigned int)pal[i * 4 + 0];
+        unsigned int g = (unsigned int)pal[i * 4 + 1];
+        unsigned int r = (unsigned int)pal[i * 4 + 2];
+        /* pal[i * 4 + 3] is padding (always 0) */
         palette32[idx] = 0xFF000000u | (r << 16) | (g << 8) | b;
     }
 }

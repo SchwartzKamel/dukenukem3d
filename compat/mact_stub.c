@@ -79,23 +79,23 @@ int SCRIPT_Load(char *filename) {
         while (*p && isspace((unsigned char)*p)) p++;
         if (*p == '[') {
             char *end = strchr(p, ']');
-            if (end) { *end = 0; strncpy(cursection, p+1, 63); }
+            if (end) { *end = 0; strncpy(cursection, p+1, 63); cursection[63] = '\0'; }
         } else if (*p && *p != ';' && *p != '#') {
             char *eq = strchr(p, '=');
             if (eq && sc->num_entries < MAX_ENTRIES) {
                 script_entry_t *e = &sc->entries[sc->num_entries];
                 *eq = 0;
-                strncpy(e->section, cursection, 63);
+                strncpy(e->section, cursection, 63); e->section[63] = '\0';
                 /* trim key */
                 { char *k = p; while (*k && isspace((unsigned char)*k)) k++;
                   char *ke = eq-1; while (ke > k && isspace((unsigned char)*ke)) *ke-- = 0;
-                  strncpy(e->key, k, 63); }
+                  strncpy(e->key, k, 63); e->key[63] = '\0'; }
                 /* trim value */
                 { char *v = eq+1; while (*v && isspace((unsigned char)*v)) v++;
                   char *ve = v + strlen(v) - 1; while (ve > v && isspace((unsigned char)*ve)) *ve-- = 0;
                   /* strip quotes */
                   if (*v == '"') { v++; char *q = strchr(v, '"'); if (q) *q = 0; }
-                  strncpy(e->value, v, MAX_ENTRY_LEN-1); }
+                  strncpy(e->value, v, MAX_ENTRY_LEN-1); e->value[MAX_ENTRY_LEN-1] = '\0'; }
                 sc->num_entries++;
             }
         }
@@ -118,7 +118,7 @@ void SCRIPT_Save(int handle) {
         if (strcasecmp(sc->entries[i].section, lastsection) != 0) {
             if (i > 0) fprintf(f, "\n");
             fprintf(f, "[%s]\n", sc->entries[i].section);
-            strncpy(lastsection, sc->entries[i].section, 63);
+            strncpy(lastsection, sc->entries[i].section, 63); lastsection[63] = '\0';
         }
         fprintf(f, "%s = \"%s\"\n", sc->entries[i].key, sc->entries[i].value);
     }
@@ -138,7 +138,7 @@ void SCRIPT_GetString(int handle, char *section, char *key, char *dest) {
     if (e) { strncpy(dest, e->value, 127); dest[127] = '\0'; }
 }
 
-void SCRIPT_GetDoubleString(int handle, char *section, char *key, char *dest1, char *dest2) {
+void SCRIPT_GetDoubleString(int handle, char *section, char *key, char *dest1, int dest1_size, char *dest2, int dest2_size) {
     char buf[512];
     char *space;
     SCRIPT_GetString(handle, section, key, buf);
@@ -146,10 +146,10 @@ void SCRIPT_GetDoubleString(int handle, char *section, char *key, char *dest1, c
     space = strchr(buf, ' ');
     if (space) {
         *space = 0;
-        strncpy(dest1, buf, 79); dest1[79] = '\0';
-        strncpy(dest2, space+1, 79); dest2[79] = '\0';
+        if (dest1_size > 1) { strncpy(dest1, buf, dest1_size - 1); dest1[dest1_size - 1] = '\0'; }
+        if (dest2_size > 1) { strncpy(dest2, space+1, dest2_size - 1); dest2[dest2_size - 1] = '\0'; }
     } else {
-        strncpy(dest1, buf, 79); dest1[79] = '\0';
+        if (dest1_size > 1) { strncpy(dest1, buf, dest1_size - 1); dest1[dest1_size - 1] = '\0'; }
     }
 }
 
@@ -170,8 +170,8 @@ void SCRIPT_PutNumber(int handle, char *section, char *key, long value,
     e = find_entry(sc, section, key);
     if (!e && sc->num_entries < MAX_ENTRIES) {
         e = &sc->entries[sc->num_entries++];
-        strncpy(e->section, section, 63);
-        strncpy(e->key, key, 63);
+        strncpy(e->section, section, 63); e->section[63] = '\0';
+        strncpy(e->key, key, 63); e->key[63] = '\0';
     }
     if (e) snprintf(e->value, MAX_ENTRY_LEN, "%ld", value);
 }
@@ -183,10 +183,10 @@ void SCRIPT_PutString(int handle, char *section, char *key, char *value) {
     e = find_entry(sc, section, key);
     if (!e && sc->num_entries < MAX_ENTRIES) {
         e = &sc->entries[sc->num_entries++];
-        strncpy(e->section, section, 63);
-        strncpy(e->key, key, 63);
+        strncpy(e->section, section, 63); e->section[63] = '\0';
+        strncpy(e->key, key, 63); e->key[63] = '\0';
     }
-    if (e) strncpy(e->value, value, MAX_ENTRY_LEN-1);
+    if (e) { strncpy(e->value, value, MAX_ENTRY_LEN-1); e->value[MAX_ENTRY_LEN-1] = '\0'; }
 }
 
 int SCRIPT_NumberEntries(int handle, char *section) {

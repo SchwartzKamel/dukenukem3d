@@ -491,6 +491,7 @@ static inline int _dos_findnext(struct find_t *f)
     while ((de = readdir(f->_dir)) != NULL) {
         if (fnmatch(f->_pattern, de->d_name, FNM_CASEFOLD) == 0) {
             strncpy(f->name, de->d_name, sizeof(f->name)-1);
+            f->name[sizeof(f->name)-1] = 0;
             snprintf(fullpath, sizeof(fullpath), "%s/%s", f->_path, de->d_name);
             if (stat(fullpath, &st) == 0) {
                 f->size = st.st_size;
@@ -514,10 +515,13 @@ static inline int _dos_findfirst(const char *path, unsigned attr, struct find_t 
     if (!slash) slash = strrchr(dirpart, '\\');
     if (slash) {
         strncpy(f->_pattern, slash+1, sizeof(f->_pattern)-1);
+        f->_pattern[sizeof(f->_pattern)-1] = 0;
         *slash = 0;
         strncpy(f->_path, dirpart, sizeof(f->_path)-1);
+        f->_path[sizeof(f->_path)-1] = 0;
     } else {
         strncpy(f->_pattern, path, sizeof(f->_pattern)-1);
+        f->_pattern[sizeof(f->_pattern)-1] = 0;
         strcpy(f->_path, ".");
     }
     f->_dir = opendir(f->_path);
@@ -734,11 +738,20 @@ static inline void error_fatal(const char *title, const char *msg)
 #ifdef _WIN32
 static LONG WINAPI crash_handler(EXCEPTION_POINTERS *ep)
 {
+    static volatile int in_crash_handler = 0;
     char buf[1024];
-    DWORD code = ep->ExceptionRecord->ExceptionCode;
-    void *addr = ep->ExceptionRecord->ExceptionAddress;
+    DWORD code;
+    void *addr;
     const char *access_type = "";
     char access_info[128] = "";
+
+    /* Prevent re-entrant crashes from looping */
+    if (in_crash_handler)
+        return EXCEPTION_EXECUTE_HANDLER;
+    in_crash_handler = 1;
+
+    code = ep->ExceptionRecord->ExceptionCode;
+    addr = ep->ExceptionRecord->ExceptionAddress;
 
     if (code == 0xC0000005 && ep->ExceptionRecord->NumberParameters >= 2) {
         ULONG_PTR rw = ep->ExceptionRecord->ExceptionInformation[0];
