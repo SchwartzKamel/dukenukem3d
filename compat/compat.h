@@ -679,7 +679,11 @@ static const char *find_game_file(const char *filename)
  * crashes on Windows where -mwindows suppresses console output.
  * ====================================================================== */
 
-static FILE *_startup_log = NULL;
+extern FILE *_startup_log;
+
+#ifdef COMPAT_STARTUP_LOG_OWNER
+FILE *_startup_log = NULL;
+#endif
 
 static inline void startup_log_open(void)
 {
@@ -730,18 +734,52 @@ static inline void error_fatal(const char *title, const char *msg)
 #ifdef _WIN32
 static LONG WINAPI crash_handler(EXCEPTION_POINTERS *ep)
 {
-    char buf[512];
+    char buf[1024];
+    DWORD code = ep->ExceptionRecord->ExceptionCode;
+    void *addr = ep->ExceptionRecord->ExceptionAddress;
+    const char *access_type = "";
+    char access_info[128] = "";
+
+    if (code == 0xC0000005 && ep->ExceptionRecord->NumberParameters >= 2) {
+        ULONG_PTR rw = ep->ExceptionRecord->ExceptionInformation[0];
+        ULONG_PTR target = ep->ExceptionRecord->ExceptionInformation[1];
+        access_type = (rw == 0) ? "READ" : (rw == 1) ? "WRITE" : "EXEC";
+        snprintf(access_info, sizeof(access_info),
+            "Access violation %s address 0x%08lX",
+            access_type, (unsigned long)target);
+    }
+
     snprintf(buf, sizeof(buf),
         "Duke Nukem 3D crashed!\n\n"
-        "Exception code: 0x%08lX\n"
-        "Address: 0x%p\n\n"
+        "Exception: 0x%08lX at 0x%p\n"
+        "%s\n\n"
         "Check duke3d_startup.log for details.",
-        ep->ExceptionRecord->ExceptionCode,
-        ep->ExceptionRecord->ExceptionAddress);
+        (unsigned long)code, addr, access_info);
+
     if (_startup_log) {
         fprintf(_startup_log, "CRASH: Exception 0x%08lX at %p\n",
-            ep->ExceptionRecord->ExceptionCode,
-            ep->ExceptionRecord->ExceptionAddress);
+            (unsigned long)code, addr);
+        if (access_info[0])
+            fprintf(_startup_log, "CRASH: %s\n", access_info);
+#ifdef _X86_
+        {
+            CONTEXT *ctx = ep->ContextRecord;
+            fprintf(_startup_log, "EAX=%08lX EBX=%08lX ECX=%08lX EDX=%08lX\n",
+                ctx->Eax, ctx->Ebx, ctx->Ecx, ctx->Edx);
+            fprintf(_startup_log, "ESI=%08lX EDI=%08lX EBP=%08lX ESP=%08lX\n",
+                ctx->Esi, ctx->Edi, ctx->Ebp, ctx->Esp);
+            fprintf(_startup_log, "EIP=%08lX\n", ctx->Eip);
+            /* Mini stack dump */
+            fprintf(_startup_log, "Stack (ESP):");
+            {
+                unsigned long *sp = (unsigned long *)(uintptr_t)ctx->Esp;
+                int i;
+                for (i = 0; i < 16 && !IsBadReadPtr(sp+i, 4); i++)
+                    fprintf(_startup_log, " %08lX", sp[i]);
+            }
+            fprintf(_startup_log, "\n");
+        }
+#endif
         fflush(_startup_log);
         fclose(_startup_log);
     }

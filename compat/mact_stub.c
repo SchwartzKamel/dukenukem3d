@@ -135,7 +135,7 @@ void SCRIPT_GetString(int handle, char *section, char *key, char *dest) {
     dest[0] = 0;
     if (!sc) return;
     e = find_entry(sc, section, key);
-    if (e) { strncpy(dest, e->value, MAX_ENTRY_LEN - 1); dest[MAX_ENTRY_LEN - 1] = '\0'; }
+    if (e) { strncpy(dest, e->value, 127); dest[127] = '\0'; }
 }
 
 void SCRIPT_GetDoubleString(int handle, char *section, char *key, char *dest1, char *dest2) {
@@ -146,10 +146,10 @@ void SCRIPT_GetDoubleString(int handle, char *section, char *key, char *dest1, c
     space = strchr(buf, ' ');
     if (space) {
         *space = 0;
-        strncpy(dest1, buf, MAX_ENTRY_LEN - 1); dest1[MAX_ENTRY_LEN - 1] = '\0';
-        strncpy(dest2, space+1, MAX_ENTRY_LEN - 1); dest2[MAX_ENTRY_LEN - 1] = '\0';
+        strncpy(dest1, buf, 79); dest1[79] = '\0';
+        strncpy(dest2, space+1, 79); dest2[79] = '\0';
     } else {
-        strncpy(dest1, buf, MAX_ENTRY_LEN - 1); dest1[MAX_ENTRY_LEN - 1] = '\0';
+        strncpy(dest1, buf, 79); dest1[79] = '\0';
     }
 }
 
@@ -246,11 +246,19 @@ void SafeRead(long handle, void *buf, long count) {
 }
 
 void Error(char *fmt, ...) {
+    char buf[512];
     va_list ap;
     va_start(ap, fmt);
-    vfprintf(stderr, fmt, ap);
+    vsnprintf(buf, sizeof(buf), fmt, ap);
     va_end(ap);
-    fprintf(stderr, "\n");
+    fprintf(stderr, "%s\n", buf);
+    if (_startup_log) {
+        fprintf(_startup_log, "ERROR: %s\n", buf);
+        fflush(_startup_log);
+    }
+#ifdef _WIN32
+    MessageBoxA(NULL, buf, "Duke Nukem 3D - Error", MB_OK | MB_ICONERROR);
+#endif
     exit(1);
 }
 

@@ -5,6 +5,7 @@
  * with DOS-scancode translation, and basic timer services.
  */
 
+#define COMPAT_STARTUP_LOG_OWNER
 #include "SDL.h"
 #include "sdl_driver.h"
 #include "compat.h"

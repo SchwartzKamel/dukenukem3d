@@ -527,7 +527,7 @@ void readsavenames(void)
         if ((fil = fopen(fn,"rb")) == NULL ) continue;
         dfread(&dummy,4,1,fil);
 
-        if(dummy != BYTEVERSION) return;
+        if(dummy != BYTEVERSION) { fclose(fil); continue; }
         dfread(&dummy,4,1,fil);
         dfread(&ud.savegame[i][0],19,1,fil);
         fclose(fil);
@@ -542,6 +542,74 @@ void readsavenames(void)
 ===================
 */
 
+static void CONFIG_CreateDefaultCfg(const char *filename)
+{
+   FILE *fp = fopen(filename, "w");
+   if (!fp) return;
+   fprintf(fp, "[Screen Setup]\n");
+   fprintf(fp, "ScreenMode = 2\n");
+   fprintf(fp, "ScreenWidth = 640\n");
+   fprintf(fp, "ScreenHeight = 480\n");
+   fprintf(fp, "ScreenGamma = 0\n");
+   fprintf(fp, "ScreenSize = 8\n");
+   fprintf(fp, "Shadows = 1\n");
+   fprintf(fp, "Detail = 1\n");
+   fprintf(fp, "Tilt = 1\n");
+   fprintf(fp, "Messages = 1\n");
+   fprintf(fp, "Out = 0\n");
+   fprintf(fp, "Password = \n");
+   fprintf(fp, "\n[Sound Setup]\n");
+   fprintf(fp, "FXDevice = 13\n");
+   fprintf(fp, "MusicDevice = 13\n");
+   fprintf(fp, "FXVolume = 192\n");
+   fprintf(fp, "MusicVolume = 128\n");
+   fprintf(fp, "SoundToggle = 1\n");
+   fprintf(fp, "MusicToggle = 1\n");
+   fprintf(fp, "VoiceToggle = 1\n");
+   fprintf(fp, "AmbienceToggle = 1\n");
+   fprintf(fp, "NumVoices = 8\n");
+   fprintf(fp, "NumChannels = 2\n");
+   fprintf(fp, "NumBits = 16\n");
+   fprintf(fp, "MixRate = 22050\n");
+   fprintf(fp, "MidiPort = 0x330\n");
+   fprintf(fp, "ReverseStereo = 0\n");
+   fprintf(fp, "\n[Controls]\n");
+   fprintf(fp, "ControllerType = 1\n");
+   fprintf(fp, "MouseAimingFlipped = 0\n");
+   fprintf(fp, "MouseAiming = 0\n");
+   fprintf(fp, "GameMouseAiming = 0\n");
+   fprintf(fp, "AimingFlag = 0\n");
+   fprintf(fp, "EnableRudder = 0\n");
+   fprintf(fp, "JoystickPort = 0\n");
+   fprintf(fp, "\n[KeyDefinitions]\n");
+   fprintf(fp, "Move_Forward = \"W\", \"Up\"\n");
+   fprintf(fp, "Move_Backward = \"S\", \"Down\"\n");
+   fprintf(fp, "Turn_Left = \"Left\", \"\"\n");
+   fprintf(fp, "Turn_Right = \"Right\", \"\"\n");
+   fprintf(fp, "Strafe = \"LAlt\", \"RAlt\"\n");
+   fprintf(fp, "Strafe_Left = \"A\", \"\"\n");
+   fprintf(fp, "Strafe_Right = \"D\", \"\"\n");
+   fprintf(fp, "Fire = \"LCtrl\", \"RCtrl\"\n");
+   fprintf(fp, "Open = \"Space\", \"E\"\n");
+   fprintf(fp, "Run = \"LShift\", \"RShift\"\n");
+   fprintf(fp, "Jump = \"Space\", \"/\"\n");
+   fprintf(fp, "Crouch = \"C\", \"\"\n");
+   fprintf(fp, "Map = \"Tab\", \"\"\n");
+   fprintf(fp, "Aim_Up = \"PgUp\", \"\"\n");
+   fprintf(fp, "Aim_Down = \"PgDn\", \"\"\n");
+   fprintf(fp, "Weapon_1 = \"1\", \"\"\n");
+   fprintf(fp, "Previous_Weapon = \"\", \"\"\n");
+   fprintf(fp, "Next_Weapon = \"\", \"\"\n");
+   fprintf(fp, "\n[Comm Setup]\n");
+   fprintf(fp, "PlayerName = DUKE\n");
+   fprintf(fp, "RTSName = DUKE.RTS\n");
+   fprintf(fp, "\n[Misc]\n");
+   fprintf(fp, "Executions = 0\n");
+   fprintf(fp, "RunMode = 1\n");
+   fprintf(fp, "Crosshairs = 0\n");
+   fclose(fp);
+}
+
 void CONFIG_ReadSetup( void )
 {
    int32 dummy;
@@ -549,8 +617,21 @@ void CONFIG_ReadSetup( void )
 
    if (!SafeFileExists(setupfilename))
       {
-      Error("ReadSetup: %s does not exist\n"
-            "           Please run SETUP.EXE\n",setupfilename);
+      startup_log("  CONFIG: %s not found, creating defaults", setupfilename);
+      CONFIG_CreateDefaultCfg(setupfilename);
+      if (!SafeFileExists(setupfilename))
+         {
+         startup_log("  CONFIG: WARNING - could not create %s, using built-in defaults", setupfilename);
+         CONFIG_SetDefaults();
+         FXDevice = 13;  /* NumSoundCards - disables audio */
+         MusicDevice = 13;
+         ScreenMode = 2;
+         ScreenWidth = 640;
+         ScreenHeight = 480;
+         ControllerType = 1;
+         setupread = 1;
+         return;
+         }
       }
 
    CONFIG_SetDefaults();

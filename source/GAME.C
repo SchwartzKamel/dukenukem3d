@@ -7178,6 +7178,7 @@ void Startup(void)
    startup_log("  initengine()");
    initengine();
 // CTW END - MODIFICATION
+   startup_log("  initengine done");
    startup_log("  hud_init()");
    hud_init();
    startup_log("  inittimer()");
@@ -7187,23 +7188,29 @@ void Startup(void)
    puts("Loading art header.");
    startup_log("  loadpics(tiles000.art)");
    loadpics("tiles000.art");
+   startup_log("  loadpics done, numtiles=%ld", numtiles);
 
    startup_log("  readsavenames()");
    readsavenames();
+   startup_log("  readsavenames done");
 
-   startup_log("  setting MIRROR tile size");
+   startup_log("  tilesizx[MIRROR]=0 (MIRROR=%d, MAXTILES=%d)", MIRROR, MAXTILES);
    tilesizx[MIRROR] = tilesizy[MIRROR] = 0;
 
-   startup_log("  initmultiplayers()");
+   startup_log("  clearing playerreadyflag");
    for(i=0;i<MAXPLAYERS;i++) playerreadyflag[i] = 0;
+   startup_log("  initmultiplayers(0,0,0)");
    initmultiplayers(0,0,0);
+   startup_log("  initmultiplayers done, numplayers=%d", numplayers);
 
    if(numplayers > 1)
     puts("Multiplayer initialized.");
 
-   startup_log("  SetupGameButtons()");
+   startup_log("  ps[%d].palette = &palette[0]", myconnectindex);
    ps[myconnectindex].palette = (char *) &palette[0];
+   startup_log("  SetupGameButtons()");
    SetupGameButtons();
+   startup_log("  SetupGameButtons done");
 
    if(networkmode == 255)
        networkmode = 1;
@@ -7214,7 +7221,9 @@ void Startup(void)
    startup_log("  SoundStartup()");
    puts("Checking sound inits.");
    SoundStartup();
+   startup_log("  loadtmb()");
    loadtmb();
+   startup_log("  Startup() complete");
 }
 
 
