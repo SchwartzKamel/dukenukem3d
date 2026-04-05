@@ -1779,6 +1779,7 @@ florscan (long x1, long x2, long sectnum)
 	if (picanm[globalpicnum]&192) globalpicnum += animateoffs((short)globalpicnum,(short)sectnum);
 
 	if (waloff[globalpicnum] == 0) loadtile(globalpicnum);
+	if (waloff[globalpicnum] == 0) return;
 	globalbufplc = waloff[globalpicnum];
 
 	globalshade = (long)sec->floorshade;
@@ -1938,6 +1939,7 @@ wallscan(long x1, long x2, short *uwal, short *dwal, long *swal, long *lwal)
 	if ((dwal[x1] < 0) && (dwal[x2] < 0)) return;
 
 	if (waloff[globalpicnum] == 0) loadtile(globalpicnum);
+	if (waloff[globalpicnum] == 0) return;
 
 	xnice = (pow2long[picsiz[globalpicnum]&15] == tsizx);
 	if (xnice) tsizx--;
@@ -2060,6 +2062,7 @@ maskwallscan(long x1, long x2, short *uwal, short *dwal, long *swal, long *lwal)
 	if ((dwal[x1] < 0) && (dwal[x2] < 0)) return;
 
 	if (waloff[globalpicnum] == 0) loadtile(globalpicnum);
+	if (waloff[globalpicnum] == 0) return;
 
 	startx = x1;
 
@@ -2277,6 +2280,7 @@ transmaskwallscan(long x1, long x2)
 	if ((tilesizx[globalpicnum] <= 0) || (tilesizy[globalpicnum] <= 0)) return;
 
 	if (waloff[globalpicnum] == 0) loadtile(globalpicnum);
+	if (waloff[globalpicnum] == 0) return;
 
 	setuptvlineasm(globalshiftval);
 
@@ -3489,12 +3493,14 @@ drawsprite (long snum)
 	xb = spritesx[snum];
 	yp = spritesy[snum];
 	tilenum = tspr->picnum;
+	if ((unsigned)tilenum >= (unsigned)MAXTILES) return;
 	spritenum = tspr->owner;
 	cstat = tspr->cstat;
 
 	if ((cstat&48) != 48)
 	{
 		if (picanm[tilenum]&192) tilenum += animateoffs(tilenum,spritenum+32768);
+		if ((unsigned)tilenum >= (unsigned)MAXTILES) tilenum = 0;
 		if ((tilesizx[tilenum] <= 0) || (tilesizy[tilenum] <= 0) || (spritenum < 0))
 			return;
 	}
@@ -6893,7 +6899,9 @@ rotatesprite (long sx, long sy, long z, short a, short picnum, signed char dasha
 
 	if ((cx1 > cx2) || (cy1 > cy2)) return;
 	if (z <= 16) return;
+	if ((unsigned)picnum >= (unsigned)MAXTILES) return;
 	if (picanm[picnum]&192) picnum += animateoffs(picnum,(short)0xc000);
+	if ((unsigned)picnum >= (unsigned)MAXTILES) return;
 	if ((tilesizx[picnum] <= 0) || (tilesizy[picnum] <= 0)) return;
 
 	if (((dastat&128) == 0) || (numpages < 2) || (beforedrawrooms != 0))
@@ -8666,6 +8674,7 @@ grouscan (long dax1, long dax2, long sectnum, char dastat)
 	}
 
 	if ((picanm[globalpicnum]&192) != 0) globalpicnum += animateoffs(globalpicnum,sectnum);
+	if ((unsigned)globalpicnum >= (unsigned)MAXTILES) globalpicnum = 0;
 	setgotpic(globalpicnum);
 	if ((tilesizx[globalpicnum] <= 0) || (tilesizy[globalpicnum] <= 0)) return;
 	if (waloff[globalpicnum] == 0) loadtile(globalpicnum);

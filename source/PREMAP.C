@@ -285,19 +285,18 @@ void cacheit(void)
     cachegoodsprites();
 
     for(i=0;i<numwalls;i++)
-        if( waloff[wall[i].picnum] == 0 )
     {
-        if(waloff[wall[i].picnum] == 0)
+        if((unsigned)wall[i].picnum < (unsigned)MAXTILES && waloff[wall[i].picnum] == 0)
             tloadtile(wall[i].picnum);
-        if(wall[i].overpicnum >= 0 && waloff[wall[i].overpicnum] == 0 )
+        if(wall[i].overpicnum >= 0 && (unsigned)wall[i].overpicnum < (unsigned)MAXTILES && waloff[wall[i].overpicnum] == 0)
             tloadtile(wall[i].overpicnum);
     }
 
     for(i=0;i<numsectors;i++)
     {
-        if( waloff[sector[i].floorpicnum] == 0 )
+        if((unsigned)sector[i].floorpicnum < (unsigned)MAXTILES && waloff[sector[i].floorpicnum] == 0)
             tloadtile( sector[i].floorpicnum );
-        if( waloff[sector[i].ceilingpicnum] == 0 )
+        if((unsigned)sector[i].ceilingpicnum < (unsigned)MAXTILES && waloff[sector[i].ceilingpicnum] == 0)
         {
             tloadtile( sector[i].ceilingpicnum );
             if( waloff[sector[i].ceilingpicnum] == LA)
@@ -311,7 +310,7 @@ void cacheit(void)
         while(j >= 0)
         {
             if(sprite[j].xrepeat != 0 && sprite[j].yrepeat != 0 && (sprite[j].cstat&32768) == 0)
-                if(waloff[sprite[j].picnum] == 0)
+                if((unsigned)sprite[j].picnum < (unsigned)MAXTILES && waloff[sprite[j].picnum] == 0)
                     cachespritenum(j);
             j = nextspritesect[j];
         }
