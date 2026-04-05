@@ -1552,13 +1552,13 @@ def main():
     voc_count = sum(1 for k in audio_assets if k.endswith(".VOC"))
     print(f"  Generated {midi_count} MIDI files, {voc_count} VOC files")
 
-    # -- 9. Generate demo stubs and timbre file --------------------------------
-    print("\n=== Generating demo stubs and timbre file ===")
-    demo0 = create_demo_stub(volume=0, level=0, skill=2)
-    demo1 = create_demo_stub(volume=0, level=1, skill=2)
+    # -- 9. Generate timbre file -----------------------------------------------
+    # NOTE: Demo files (.dmo) are intentionally excluded from the GRP.
+    # 0-frame demo stubs cause an infinite playback loop (demo0→demo1→demo2
+    # NOT FOUND→demo1→...) that prevents the game from reaching the menu.
+    # Without demos, the game correctly falls through to drawbackground()+menus().
+    print("\n=== Generating timbre file ===")
     timbre = create_timbre_stub()
-    print(f"  DEMO0.DMO: {len(demo0)} bytes (0-frame stub, E1L1)")
-    print(f"  DEMO1.DMO: {len(demo1)} bytes (0-frame stub, E1L2)")
     print(f"  D3DTIMBR.TMB: {len(timbre)} bytes")
 
     # -- 10. Pack GRP ---------------------------------------------------------
@@ -1571,8 +1571,6 @@ def main():
     grp_contents.update(data_files)
     grp_contents.update(anm_data)
     grp_contents.update(audio_assets)
-    grp_contents["DEMO0.DMO"] = demo0
-    grp_contents["DEMO1.DMO"] = demo1
     grp_contents["D3DTIMBR.TMB"] = timbre
 
     # -- Include pre-generated audio files if they exist
