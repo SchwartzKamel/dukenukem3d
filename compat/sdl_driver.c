@@ -13,6 +13,14 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/types.h>
+#ifdef _WIN32
+#include <direct.h>
+#define MKDIR_CAPTURES() _mkdir("captures")
+#else
+#include <sys/stat.h>
+#define MKDIR_CAPTURES() mkdir("captures", 0755)
+#endif
 
 /* ── Video state ────────────────────────────────────────────────── */
 static SDL_Window   *window   = NULL;
@@ -23,6 +31,13 @@ static int screen_width  = 320;
 static int screen_height = 200;
 static int screen_pitch;
 static uint32_t palette32[256]; /* ARGB palette cache */
+
+/* ── AI playtesting state ───────────────────────────────────────── */
+static int headless_mode     = 0;
+static int frame_count       = 0;
+static int frame_limit       = 0;  /* 0 = unlimited */
+static int frame_limit_hit   = 0;
+static int capture_interval  = 0;  /* 0 = no auto-capture */
 
 /* ── Input state ────────────────────────────────────────────────── */
 static unsigned char keystatus_array[256];
@@ -142,8 +157,24 @@ static int sdl_to_dos_scancode(SDL_Scancode sc)
 int sdl_init(int xdim, int ydim)
 {
     char errbuf[512];
+    const char *env_val;
 
     startup_log("  sdl_init(%d, %d) called", xdim, ydim);
+
+    /* Parse AI playtesting env vars */
+    env_val = getenv("DUKE3D_HEADLESS");
+    headless_mode = (env_val && atoi(env_val) == 1) ? 1 : 0;
+
+    env_val = getenv("DUKE3D_FRAME_LIMIT");
+    frame_limit = env_val ? atoi(env_val) : 0;
+    if (frame_limit < 0) frame_limit = 0;
+
+    env_val = getenv("DUKE3D_CAPTURE_INTERVAL");
+    capture_interval = env_val ? atoi(env_val) : 0;
+    if (capture_interval < 0) capture_interval = 0;
+
+    frame_count = 0;
+    frame_limit_hit = 0;
 
     /* Clean up previous resources if re-initializing (e.g. video mode change) */
     if (texture)  { SDL_DestroyTexture(texture);   texture  = NULL; }
@@ -166,10 +197,14 @@ int sdl_init(int xdim, int ydim)
     screen_height = ydim;
 
     startup_log("  SDL_CreateWindow(%d x %d)...", xdim, ydim);
-    window = SDL_CreateWindow("Duke Nukem 3D",
-                              SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-                              xdim, ydim,
-                              SDL_WINDOW_RESIZABLE | SDL_WINDOW_SHOWN);
+    {
+        Uint32 win_flags = SDL_WINDOW_RESIZABLE;
+        win_flags |= headless_mode ? SDL_WINDOW_HIDDEN : SDL_WINDOW_SHOWN;
+
+        window = SDL_CreateWindow("Duke Nukem 3D",
+                                  SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+                                  xdim, ydim, win_flags);
+    }
     if (!window) {
         startup_log("  FATAL: SDL_CreateWindow failed: %s", SDL_GetError());
         snprintf(errbuf, sizeof(errbuf),
@@ -178,17 +213,21 @@ int sdl_init(int xdim, int ydim)
     }
     startup_log("  Window created OK");
 
-    renderer = SDL_CreateRenderer(window, -1,
-                                  SDL_RENDERER_ACCELERATED |
-                                  SDL_RENDERER_PRESENTVSYNC);
-    if (!renderer) {
-        /* Fall back to software renderer */
+    if (headless_mode) {
         renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE);
+    } else {
+        renderer = SDL_CreateRenderer(window, -1,
+                                      SDL_RENDERER_ACCELERATED |
+                                      SDL_RENDERER_PRESENTVSYNC);
         if (!renderer) {
-            snprintf(errbuf, sizeof(errbuf),
-                "SDL_CreateRenderer failed: %s", SDL_GetError());
-            error_fatal("SDL Error", errbuf);
+            /* Fall back to software renderer */
+            renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE);
         }
+    }
+    if (!renderer) {
+        snprintf(errbuf, sizeof(errbuf),
+            "SDL_CreateRenderer failed: %s", SDL_GetError());
+        error_fatal("SDL Error", errbuf);
     }
 
     SDL_RenderSetLogicalSize(renderer, xdim, ydim);
@@ -211,7 +250,8 @@ int sdl_init(int xdim, int ydim)
     }
     screen_pitch = xdim;
 
-    SDL_SetRelativeMouseMode(SDL_TRUE);
+    if (!headless_mode)
+        SDL_SetRelativeMouseMode(SDL_TRUE);
 
     /* Default grey-ramp palette */
     for (int i = 0; i < 256; i++)
@@ -232,6 +272,101 @@ void sdl_shutdown(void)
     free(screenbuf); screenbuf = NULL;
     SDL_Quit();
 }
+
+/* ── Frame capture ──────────────────────────────────────────────── */
+
+int sdl_capture_frame(const char *filename)
+{
+    FILE *fp;
+    int row_size, pad, img_size, file_size;
+    int x, y;
+    uint8_t bmp_header[14];
+    uint8_t bmp_info[40];
+
+    if (!screenbuf || !filename) return -1;
+
+    fp = fopen(filename, "wb");
+    if (!fp) return -1;
+
+    /* BMP rows must be padded to 4-byte boundaries */
+    row_size = screen_width * 3;
+    pad = (4 - (row_size % 4)) % 4;
+    row_size += pad;
+    img_size = row_size * screen_height;
+    file_size = 54 + img_size;
+
+    /* BMP file header (14 bytes) */
+    memset(bmp_header, 0, sizeof(bmp_header));
+    bmp_header[0] = 'B'; bmp_header[1] = 'M';
+    bmp_header[2] = (uint8_t)(file_size);
+    bmp_header[3] = (uint8_t)(file_size >> 8);
+    bmp_header[4] = (uint8_t)(file_size >> 16);
+    bmp_header[5] = (uint8_t)(file_size >> 24);
+    bmp_header[10] = 54;
+
+    /* BMP info header (40 bytes) */
+    memset(bmp_info, 0, sizeof(bmp_info));
+    bmp_info[0] = 40;
+    bmp_info[4]  = (uint8_t)(screen_width);
+    bmp_info[5]  = (uint8_t)(screen_width >> 8);
+    bmp_info[6]  = (uint8_t)(screen_width >> 16);
+    bmp_info[7]  = (uint8_t)(screen_width >> 24);
+    bmp_info[8]  = (uint8_t)(screen_height);
+    bmp_info[9]  = (uint8_t)(screen_height >> 8);
+    bmp_info[10] = (uint8_t)(screen_height >> 16);
+    bmp_info[11] = (uint8_t)(screen_height >> 24);
+    bmp_info[12] = 1;  /* planes */
+    bmp_info[14] = 24; /* bits per pixel */
+
+    if (fwrite(bmp_header, 1, 14, fp) != 14 ||
+        fwrite(bmp_info, 1, 40, fp) != 40) {
+        fclose(fp);
+        return -1;
+    }
+
+    /* Write pixel data bottom-to-top, BGR order */
+    for (y = screen_height - 1; y >= 0; y--) {
+        const unsigned char *src_row = screenbuf + y * screen_pitch;
+        for (x = 0; x < screen_width; x++) {
+            uint32_t argb = palette32[src_row[x]];
+            uint8_t bgr[3];
+            bgr[0] = (uint8_t)(argb);        /* B */
+            bgr[1] = (uint8_t)(argb >> 8);   /* G */
+            bgr[2] = (uint8_t)(argb >> 16);  /* R */
+            fwrite(bgr, 1, 3, fp);
+        }
+        /* Row padding */
+        if (pad > 0) {
+            uint8_t zeros[3] = {0, 0, 0};
+            fwrite(zeros, 1, (size_t)pad, fp);
+        }
+    }
+
+    fclose(fp);
+    return 0;
+}
+
+static void auto_capture(int fnum, int is_last)
+{
+    char path[256];
+
+    if (!capture_interval && !is_last) return;
+
+    /* Capture first frame, every N-th frame, and last frame */
+    if (fnum == 1 || is_last ||
+        (capture_interval > 0 && (fnum % capture_interval) == 0)) {
+        MKDIR_CAPTURES();
+        snprintf(path, sizeof(path), "captures/frame_%04d.bmp", fnum);
+        sdl_capture_frame(path);
+    }
+}
+
+int sdl_get_frame_count(void)
+{
+    return frame_count;
+}
+
+/* ── Video presentation ────────────────────────────────────────── */
 
 void sdl_nextpage(void)
 {
@@ -258,6 +393,17 @@ void sdl_nextpage(void)
     SDL_RenderClear(renderer);
     SDL_RenderCopy(renderer, texture, NULL, NULL);
     SDL_RenderPresent(renderer);
+
+    frame_count++;
+
+    /* Auto-capture if interval is set */
+    auto_capture(frame_count, 0);
+
+    /* Check frame limit */
+    if (frame_limit > 0 && frame_count >= frame_limit) {
+        auto_capture(frame_count, 1);
+        frame_limit_hit = 1;
+    }
 }
 
 void sdl_setpalette(unsigned char *pal, int start, int num)
@@ -365,7 +511,7 @@ void sdl_getmouse(int *dx, int *dy, int *buttons)
 
 int sdl_checkquit(void)
 {
-    return sdl_quit_requested;
+    return sdl_quit_requested || frame_limit_hit;
 }
 
 /* ── Timer ──────────────────────────────────────────────────────── */

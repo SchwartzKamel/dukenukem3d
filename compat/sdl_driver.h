@@ -23,6 +23,10 @@ void sdl_inittimer(void);
 long sdl_getticks(void);
 void sdl_delay(int ms);
 
+/* Frame capture (AI playtesting) */
+int sdl_capture_frame(const char *filename);
+int sdl_get_frame_count(void);
+
 /* Globals exposed to engine */
 extern int sdl_quit_requested;
 
