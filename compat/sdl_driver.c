@@ -200,6 +200,8 @@ int sdl_init(int xdim, int ydim)
     {
         Uint32 win_flags = SDL_WINDOW_RESIZABLE;
         win_flags |= headless_mode ? SDL_WINDOW_HIDDEN : SDL_WINDOW_SHOWN;
+        if (!headless_mode)
+            win_flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
 
         window = SDL_CreateWindow("Duke Nukem 3D",
                                   SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
@@ -455,6 +457,16 @@ void sdl_pollevents(void)
         case SDL_KEYDOWN:
         case SDL_KEYUP: {
             int dos_sc = sdl_to_dos_scancode(ev.key.keysym.scancode);
+
+            /* Alt+Enter toggles fullscreen */
+            if (ev.type == SDL_KEYDOWN &&
+                ev.key.keysym.scancode == SDL_SCANCODE_RETURN &&
+                (ev.key.keysym.mod & KMOD_ALT)) {
+                Uint32 fs = SDL_GetWindowFlags(window) & SDL_WINDOW_FULLSCREEN_DESKTOP;
+                SDL_SetWindowFullscreen(window, fs ? 0 : SDL_WINDOW_FULLSCREEN_DESKTOP);
+                break;
+            }
+
             if (dos_sc >= 0 && dos_sc < 256) {
                 int pressed = (ev.type == SDL_KEYDOWN) ? 1 : 0;
                 keystatus_array[dos_sc] = (unsigned char)pressed;
