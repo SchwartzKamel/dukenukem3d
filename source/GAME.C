@@ -7673,7 +7673,12 @@ int main(int argc,char **argv)
     ud.warp_on = 0;
 
     startup_log("=== ENTERING MAIN GAME LOOP ===");
-    startup_log_close();
+    /* Keep log open for crash handler — just flush */
+    if (_startup_log) fflush(_startup_log);
+
+    /* Force palette refresh for first frame of gameplay */
+    setbrightness(ud.brightness>>2,&ps[myconnectindex].palette[0]);
+    restorepalette = 0;
 
     while ( !(ps[myconnectindex].gm&MODE_END) ) //The whole loop!!!!!!!!!!!!!!!!!!
     {

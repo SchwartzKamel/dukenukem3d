@@ -22,6 +22,15 @@ long stereowidth = 23040, stereopixelwidth = 28, ostereopixelwidth = -1;
 volatile long stereomode = 0, visualpage, activepage, whiteband, blackband;
 volatile char oa1, o3c2, ortca, ortcb, overtbits, laststereoint;
 
+/* Safe palookup accessor — fall back to palookup[0] if NULL */
+static inline char *safe_palookup(long pal)
+{
+	extern char *palookup[];
+	if ((unsigned long)pal < MAXPALOOKUPS && palookup[pal] != NULL)
+		return palookup[pal];
+	return palookup[0];
+}
+
 /* Forward declarations for functions defined at end of file */
 void stereonextpage(void);
 void setstereo(long dastereomode);
@@ -1599,9 +1608,9 @@ ceilscan (long x1, long x2, long sectnum)
 	sectortype *sec;
 
 	sec = &sector[sectnum];
-	if (palookup[sec->ceilingpal] != globalpalwritten)
+	if (safe_palookup(sec->ceilingpal) != globalpalwritten)
 	{
-		globalpalwritten = palookup[sec->ceilingpal];
+		globalpalwritten = safe_palookup(sec->ceilingpal);
 		setpalookupaddress(globalpalwritten);
 	}
 
@@ -1767,9 +1776,9 @@ florscan (long x1, long x2, long sectnum)
 	sectortype *sec;
 
 	sec = &sector[sectnum];
-	if (palookup[sec->floorpal] != globalpalwritten)
+	if (safe_palookup(sec->floorpal) != globalpalwritten)
 	{
-		globalpalwritten = palookup[sec->floorpal];
+		globalpalwritten = safe_palookup(sec->floorpal);
 		setpalookupaddress(globalpalwritten);
 	}
 
@@ -1949,7 +1958,7 @@ wallscan(long x1, long x2, short *uwal, short *dwal, long *swal, long *lwal)
 	ynice = (pow2long[picsiz[globalpicnum]>>4] == tsizy);
 	if (ynice) tsizy = (picsiz[globalpicnum]>>4);
 
-	fpalookup = FP_OFF(palookup[globalpal]);
+	fpalookup = FP_OFF(safe_palookup(globalpal));
 
 	setupvlineasm(globalshiftval);
 
@@ -2074,7 +2083,7 @@ maskwallscan(long x1, long x2, short *uwal, short *dwal, long *swal, long *lwal)
 	ynice = (pow2long[picsiz[globalpicnum]>>4] == tsizy);
 	if (ynice) tsizy = (picsiz[globalpicnum]>>4);
 
-	fpalookup = FP_OFF(palookup[globalpal]);
+	fpalookup = FP_OFF(safe_palookup(globalpal));
 
 	setupmvlineasm(globalshiftval);
 
@@ -2190,13 +2199,14 @@ transmaskvline (long x)
 	y2v--;
 	if (y2v < y1v) return;
 
-	palookupoffs = FP_OFF(palookup[globalpal]) + (getpalookup((long)mulscale16(swall[x],globvis),globalshade)<<8);
+	palookupoffs = FP_OFF(safe_palookup(globalpal)) + (getpalookup((long)mulscale16(swall[x],globvis),globalshade)<<8);
 
 	vinc = swall[x]*globalyscale;
 	vplc = globalzd + vinc*(y1v-globalhoriz+1);
 
 	i = lwall[x]+globalxpanning;
 	if (i >= tilesizx[globalpicnum]) i %= tilesizx[globalpicnum];
+	if (waloff[globalpicnum] == 0) { loadtile(globalpicnum); if (waloff[globalpicnum] == 0) return; }
 	bufplc = waloff[globalpicnum]+i*tilesizy[globalpicnum];
 
 	p = ylookup[y1v]+x+frameoffset;
@@ -2223,8 +2233,8 @@ transmaskvline2 (long x)
 	y2ve[1] = min(dwall[x2],startdmost[x2+windowx1]-windowy1)-1;
 	if (y2ve[1] < y1ve[1]) { transmaskvline(x); return; }
 
-	palookupoffse[0] = FP_OFF(palookup[globalpal]) + (getpalookup((long)mulscale16(swall[x],globvis),globalshade)<<8);
-	palookupoffse[1] = FP_OFF(palookup[globalpal]) + (getpalookup((long)mulscale16(swall[x2],globvis),globalshade)<<8);
+	palookupoffse[0] = FP_OFF(safe_palookup(globalpal)) + (getpalookup((long)mulscale16(swall[x],globvis),globalshade)<<8);
+	palookupoffse[1] = FP_OFF(safe_palookup(globalpal)) + (getpalookup((long)mulscale16(swall[x2],globvis),globalshade)<<8);
 
 	setuptvlineasm2(globalshiftval,palookupoffse[0],palookupoffse[1]);
 
@@ -2232,6 +2242,8 @@ transmaskvline2 (long x)
 	vince[1] = swall[x2]*globalyscale;
 	vplce[0] = globalzd + vince[0]*(y1ve[0]-globalhoriz+1);
 	vplce[1] = globalzd + vince[1]*(y1ve[1]-globalhoriz+1);
+
+	if (waloff[globalpicnum] == 0) { loadtile(globalpicnum); if (waloff[globalpicnum] == 0) return; }
 
 	i = lwall[x] + globalxpanning;
 	if (i >= tilesizx[globalpicnum]) i %= tilesizx[globalpicnum];
@@ -4404,7 +4416,7 @@ drawvox(long dasprx, long daspry, long dasprz, long dasprang,
 
 	i = klabs(dmulscale6(dasprx-globalposx,cosang,daspry-globalposy,sinang));
 	j = (long)(getpalookup((long)mulscale21(globvis,i),(long)dashade)<<8);
-	setupdrawslab(ylookup[1],FP_OFF(palookup[dapal])+j);
+	setupdrawslab(ylookup[1],FP_OFF(safe_palookup(dapal))+j);
 	j = 1310720;
 	j *= min(daxscale,dayscale); j >>= 6;  //New hacks (for sized-down voxels)
 	for(k=0;k<MAXVOXMIPS;k++)
@@ -4643,7 +4655,7 @@ ceilspritehline (long x2, long y)
 	asm1 = mulscale14(globalx2,v);
 	asm2 = mulscale14(globaly2,v);
 
-	asm3 = FP_OFF(palookup[globalpal]) + (getpalookup((long)mulscale28(klabs(v),globvis),globalshade)<<8);
+	asm3 = FP_OFF(safe_palookup(globalpal)) + (getpalookup((long)mulscale28(klabs(v),globvis),globalshade)<<8);
 
 	if ((globalorientation&2) == 0)
 		mhline(globalbufplc,bx,(x2-x1)<<16,0L,by,ylookup[y]+x1+frameoffset);
@@ -7094,7 +7106,7 @@ dorotatesprite (long sx, long sy, long z, short a, short picnum, signed char das
 	bufplc = waloff[picnum];
 
 	if (palookup[dapalnum] == NULL) return;
-	palookupoffs = FP_OFF(palookup[dapalnum]) + (getpalookup(0L,(long)dashade)<<8);
+	palookupoffs = FP_OFF(safe_palookup(dapalnum)) + (getpalookup(0L,(long)dashade)<<8);
 
 	i = divscale32(1L,z);
 	xv = mulscale14(sinang,i);
@@ -7669,9 +7681,9 @@ drawmapview (long dax, long day, long zoome, short ang)
 			globalorientation = (long)sec->floorstat;
 			if ((globalorientation&1) != 0) continue;
 
-			if (palookup[sec->floorpal] != globalpalwritten)
+			if (safe_palookup(sec->floorpal) != globalpalwritten)
 			{
-				globalpalwritten = palookup[sec->floorpal];
+				globalpalwritten = safe_palookup(sec->floorpal);
 				setpalookupaddress(globalpalwritten);
 			}
 			globalpicnum = sec->floorpicnum;
@@ -7825,7 +7837,7 @@ drawmapview (long dax, long day, long zoome, short ang)
 			else
 				globalshade = ((long)sector[spr->sectnum].floorshade);
 			globalshade = max(min(globalshade+spr->shade+6,numpalookups-1),0);
-			asm3 = FP_OFF(palookup[spr->pal]+(globalshade<<8));
+			asm3 = FP_OFF(safe_palookup(spr->pal)+(globalshade<<8));
 			globvis = globalhisibility;
 			if (sec->visibility != 0) globvis = mulscale4(globvis,(long)((unsigned char)(sec->visibility+16)));
 			globalpolytype = ((spr->cstat&2)>>1)+1;
@@ -8780,7 +8792,7 @@ grouscan (long dax1, long dax2, long sectnum, char dastat)
 	if (sec->visibility != 0) globvis = mulscale4(globvis,(long)((unsigned char)(sec->visibility+16)));
 	globvis = mulscale13(globvis,daz);
 	globvis = mulscale16(globvis,xdimscale);
-	j = FP_OFF(palookup[globalpal]);
+	j = FP_OFF(safe_palookup(globalpal));
 
 	setupslopevlin(((long)(picsiz[globalpicnum]&15))+(((long)(picsiz[globalpicnum]>>4))<<8),waloff[globalpicnum],-ylookup[1]);
 
