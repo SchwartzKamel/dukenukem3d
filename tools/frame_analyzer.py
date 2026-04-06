@@ -67,7 +67,7 @@ def region_crop(img: Image.Image, x: int, y: int, w: int, h: int) -> Image.Image
     return img.crop((x, y, x + w, y + h))
 
 
-def has_visible_content(img: Image.Image, min_unique_colors: int = 4, max_black_ratio: float = 0.90) -> bool:
+def has_visible_content(img: Image.Image, min_unique_colors: int = 4, max_black_ratio: float = 0.98) -> bool:
     """Check if the frame has meaningful visible content.
 
     A frame has visible content if it's not mostly black AND has enough color variety.

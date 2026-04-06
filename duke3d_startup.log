@@ -1,0 +1,113 @@
+Duke Nukem 3D startup log
+========================
+main() entered, argc=1
+Propagating args to MMULTI
+Calling copyprotect()
+Calling setvmode(0x03)
+Searching for duke3d.grp...
+duke3d.grp not found, trying DUKE3D.GRP...
+Found GRP: DUKE3D.GRP
+  initgroupfile: opening 'DUKE3D.GRP' (slot 0)
+  initgroupfile: open() returned fd=4
+  initgroupfile: loaded 450 files, total data 9336499 bytes
+  initgroupfile:   [0] 'TILES000.ART' (offset 0)
+  initgroupfile:   [1] 'PALETTE.DAT' (offset 2427840)
+  initgroupfile:   [2] 'TABLES.DAT' (offset 2502338)
+  initgroupfile:   [3] 'E1L1.MAP' (offset 2510786)
+  initgroupfile:   [4] 'E1L2.MAP' (offset 2511448)
+GRP loaded successfully
+Calling checkcommandline()
+Z_AvailHeap() = 16777216
+Calling Startup()
+  KB_Startup()
+  compilecons()
+  kopen4load: 'GAME.CON' not on disk, searching 1 GRP(s)
+  kopen4load: GRP[0] has 450 files
+  kopen4load: found 'GAME.CON' in GRP[0] entry 47
+  kopen4load: 'DEFS.CON' not on disk, searching 1 GRP(s)
+  kopen4load: GRP[0] has 450 files
+  kopen4load: found 'DEFS.CON' in GRP[0] entry 48
+  kopen4load: 'USER.CON' not on disk, searching 1 GRP(s)
+  kopen4load: GRP[0] has 450 files
+  kopen4load: found 'USER.CON' in GRP[0] entry 49
+  CONFIG_GetSetupFilename()
+  CONFIG_ReadSetup()
+  CONFIG: DUKE3D.CFG not found, creating defaults
+  CONTROL_Startup()
+  initengine()
+  initengine: mmxoverlay
+  initengine: loadtables
+  kopen4load: 'tables.dat' not on disk, searching 1 GRP(s)
+  kopen4load: GRP[0] has 450 files
+  kopen4load: found 'tables.dat' in GRP[0] entry 2
+  initengine: lowrecip/voxoff init
+  initengine: clearbuf waloff
+  initengine: clearbuf show2d
+  initengine: loadpalette
+  kopen4load: 'palette.dat' not on disk, searching 1 GRP(s)
+  kopen4load: GRP[0] has 450 files
+  kopen4load: found 'palette.dat' in GRP[0] entry 1
+  initengine: done
+  initengine done
+  hud_init()
+  inittimer()
+  loadpics(tiles000.art)
+  loadpics: filename='tiles000.art'
+  loadpics: trying 'tiles000.art' (k=0)
+  kopen4load: 'tiles000.art' not on disk, searching 1 GRP(s)
+  kopen4load: GRP[0] has 450 files
+  kopen4load: found 'tiles000.art' in GRP[0] entry 0
+  loadpics: opened 'tiles000.art' as handle 63
+  loadpics: artversion=1
+  loadpics: numtiles=4944, start=0, end=4943
+  loadpics: trying 'tiles001.art' (k=1)
+  kopen4load: 'tiles001.art' not on disk, searching 1 GRP(s)
+  kopen4load: GRP[0] has 450 files
+  kopen4load: 'tiles001.art' NOT FOUND anywhere
+  loadpics done, numtiles=4944
+  readsavenames()
+  readsavenames done
+  tilesizx[MIRROR]=0 (MIRROR=560, MAXTILES=6144)
+  clearing playerreadyflag
+  initmultiplayers(0,0,0)
+  initmultiplayers done, numplayers=1
+  ps[0].palette = &palette[0]
+  SetupGameButtons()
+  SetupGameButtons done
+  MusicStartup()
+  SoundStartup()
+  loadtmb()
+  kopen4load: 'd3dtimbr.tmb' not on disk, searching 1 GRP(s)
+  kopen4load: GRP[0] has 450 files
+  kopen4load: found 'd3dtimbr.tmb' in GRP[0] entry 428
+  Startup() complete
+Startup() complete
+Post-Startup: getnames()
+Post-Startup: RTS_Init
+Post-Startup: pre-setgamemode
+Calling setgamemode(2, 640, 480)
+  sdl_init(320, 200) called
+  SDL_Init(VIDEO|TIMER)...
+  SDL_Init OK
+  SDL_CreateWindow(320 x 200)...
+  Window created OK
+setgamemode OK - xdim=320, ydim=200
+genspriteremaps()
+  kopen4load: 'lookup.dat' not on disk, searching 1 GRP(s)
+  kopen4load: GRP[0] has 450 files
+  kopen4load: found 'lookup.dat' in GRP[0] entry 50
+setbrightness(0)
+ESCESCAPE check
+FX_StopAllSounds + clearsoundlocks
+Entering game loop setup (warp_on=0)
+Calling Logo()
+  kopen4load: 'demo0.dmo' not on disk, searching 1 GRP(s)
+  kopen4load: GRP[0] has 450 files
+  kopen4load: 'demo0.dmo' NOT FOUND anywhere
+  kopen4load: 'tiles000.art' not on disk, searching 1 GRP(s)
+  kopen4load: GRP[0] has 450 files
+  kopen4load: found 'tiles000.art' in GRP[0] entry 0
+gameexit called: ' '
+  kopen4load: 'duke3d.bin' not on disk, searching 1 GRP(s)
+  kopen4load: GRP[0] has 450 files
+  kopen4load: 'duke3d.bin' NOT FOUND anywhere
