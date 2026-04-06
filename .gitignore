@@ -21,3 +21,8 @@ generated_assets/
 __pycache__/
 DUKE3D.GRP
 SDL2-*
+
+captures/
+DUKE3D.CFG
+duke3d_startup.log
+duke3d.tmp
