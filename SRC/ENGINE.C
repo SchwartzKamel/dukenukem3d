@@ -2462,7 +2462,7 @@ loadpalette()
 	if ((transluc = (char *)kkmalloc(65536L)) == NULL)
 		allocache(&transluc,65536,&permanentlock);
 
-	globalpalwritten = palookup[0]; globalpal = 0;
+	globalpalwritten = safe_palookup(0); globalpal = 0;
 	setpalookupaddress(globalpalwritten);
 
 	fixtransluscence(FP_OFF(transluc));
@@ -2607,7 +2607,7 @@ slowhline (long xr, long yp)
 	asm1 = globalx1*r;
 	asm2 = globaly2*r;
 
-	asm3 = (long)globalpalwritten + ((long)getpalookup((long)mulscale16(r,globvis),globalshade)<<8);
+	asm3 = FP_OFF(safe_palookup(globalpal)) + ((long)getpalookup((long)mulscale16(r,globvis),globalshade)<<8);
 	if (!(globalorientation&256))
 	{
 		mhline(globalbufplc,globaly1*r+globalxpanning-asm1*(xr-xl),(xr-xl)<<16,0L,
@@ -7483,15 +7483,15 @@ makepalookup(long palnum, char *remapbuf, signed char r, signed char g, signed c
 	{
 		for(i=0;i<256;i++)
 		{
-			ptr = (char *)(FP_OFF(palookup[0])+remapbuf[i]);
-			ptr2 = (char *)(FP_OFF(palookup[palnum])+i);
+			ptr = (char *)(FP_OFF(safe_palookup(0))+remapbuf[i]);
+			ptr2 = (char *)(FP_OFF(safe_palookup(palnum))+i);
 			for(j=0;j<numpalookups;j++)
 				{ *ptr2 = *ptr; ptr += 256; ptr2 += 256; }
 		}
 	}
 	else
 	{
-		ptr2 = (char *)FP_OFF(palookup[palnum]);
+		ptr2 = (char *)FP_OFF(safe_palookup(palnum));
 		for(i=0;i<numpalookups;i++)
 		{
 			palscale = divscale16(i,numpalookups);
@@ -7510,7 +7510,7 @@ makepalookup(long palnum, char *remapbuf, signed char r, signed char g, signed c
 		for(i=0;i<256;i++)
 		{
 			dist = palette[i*3]*3+palette[i*3+1]*5+palette[i*3+2]*2;
-			ptr = (char *)(FP_OFF(palookup[palnum])+i);
+			ptr = (char *)(FP_OFF(safe_palookup(palnum))+i);
 			for(j=0;j<32;j++)
 				ptr[j<<8] = (char)min(max(mulscale10(dist,32-j),0),15);
 		}
@@ -7852,7 +7852,7 @@ drawmapview (long dax, long day, long zoome, short ang)
 			else
 				globalshade = ((long)sector[spr->sectnum].floorshade);
 			globalshade = max(min(globalshade+spr->shade+6,numpalookups-1),0);
-			asm3 = FP_OFF(safe_palookup(spr->pal)+(globalshade<<8));
+			asm3 = FP_OFF(safe_palookup(spr->pal)) + ((long)(globalshade<<8));
 			globvis = globalhisibility;
 			if (sec->visibility != 0) globvis = mulscale4(globvis,(long)((unsigned char)(sec->visibility+16)));
 			globalpolytype = ((spr->cstat&2)>>1)+1;
