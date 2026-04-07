@@ -22,13 +22,22 @@ long stereowidth = 23040, stereopixelwidth = 28, ostereopixelwidth = -1;
 volatile long stereomode = 0, visualpage, activepage, whiteband, blackband;
 volatile char oa1, o3c2, ortca, ortcb, overtbits, laststereoint;
 
-/* Safe palookup accessor — fall back to palookup[0] if NULL */
+/* Safe palookup accessor — fall back to palookup[0], then static identity */
+static unsigned char _palookup_identity[256];
+static int _palookup_identity_init = 0;
 static inline char *safe_palookup(long pal)
 {
 	extern char *palookup[];
 	if ((unsigned long)pal < MAXPALOOKUPS && palookup[pal] != NULL)
 		return palookup[pal];
-	return palookup[0];
+	if (palookup[0] != NULL)
+		return palookup[0];
+	/* Last resort: identity map (each index maps to itself) */
+	if (!_palookup_identity_init) {
+		int i; for (i = 0; i < 256; i++) _palookup_identity[i] = (unsigned char)i;
+		_palookup_identity_init = 1;
+	}
+	return (char *)_palookup_identity;
 }
 
 /* Forward declarations for functions defined at end of file */
@@ -393,8 +402,10 @@ long prevlineasm1(long vinc, long paloffs, long cnt, long vplc, long bufplc, lon
 	const long lbpl = rasm_bpl;
 	const long lshift = rasm_shift;
 	long i;
+	if (!buf || !d) return vplc;
 	for (i = cnt; i >= 0; i--) {
-		*d = pal[buf[(uint32_t)vplc >> lshift]];
+		unsigned char idx = buf[(uint32_t)vplc >> lshift];
+		*d = pal ? pal[idx] : idx;
 		d += lbpl;
 		vplc -= vinc;
 	}
@@ -409,8 +420,10 @@ long vlineasm1(long vinc, long paloffs, long cnt, long vplc, long bufplc, long d
 	const long lbpl = rasm_bpl;
 	const long lshift = rasm_shift;
 	long i;
+	if (!buf || !d) return vplc;
 	for (i = cnt; i >= 0; i--) {
-		*d = pal[buf[(uint32_t)vplc >> lshift]];
+		unsigned char idx = buf[(uint32_t)vplc >> lshift];
+		*d = pal ? pal[idx] : idx;
 		d += lbpl;
 		vplc += vinc;
 	}
@@ -428,11 +441,12 @@ long tvlineasm1(long vinc, long paloffs, long cnt, long vplc, long bufplc, long 
 	const long lbpl = rasm_bpl;
 	const long lshift = rasm_shift;
 	long i;
+	if (!buf || !d) return vplc;
 	if (!ltrans) return vlineasm1(vinc,paloffs,cnt,vplc,bufplc,dest);
 	for (i = cnt; i >= 0; i--) {
 		unsigned char ch = buf[(uint32_t)vplc >> lshift];
 		if (__builtin_expect(ch != 255, 1))
-			*d = ltrans[(*d) + (pal[ch] << 8)];
+			*d = ltrans[(*d) + ((pal ? pal[ch] : ch) << 8)];
 		d += lbpl;
 		vplc += vinc;
 	}
@@ -453,10 +467,11 @@ long mvlineasm1(long vinc, long paloffs, long cnt, long vplc, long bufplc, long 
 	const long lbpl = rasm_bpl;
 	const long lshift = rasm_shift;
 	long i;
+	if (!buf || !d) return vplc;
 	for (i = cnt; i >= 0; i--) {
 		unsigned char ch = buf[(uint32_t)vplc >> lshift];
 		if (__builtin_expect(ch != 255, 1))
-			*d = pal[ch];
+			*d = pal ? pal[ch] : ch;
 		d += lbpl;
 		vplc += vinc;
 	}
@@ -6053,7 +6068,7 @@ drawline256 (long x1, long y1, long x2, long y2, char col)
 {
 	long dx, dy, i, j, p, inc, plc, daend;
 
-	col = palookup[0][col];
+	col = safe_palookup(0)[col];
 
 	dx = x2-x1; dy = y2-y1;
 	if (dx >= 0)
