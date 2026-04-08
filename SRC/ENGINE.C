@@ -351,7 +351,11 @@ __attribute__((hot))
 long hlineasm4(long cnt, long p2, long shade, long xv, long yv, long dest) {
 	unsigned char * __restrict__ d = (unsigned char *)(intptr_t)dest;
 	const unsigned char * __restrict__ src = (const unsigned char *)(intptr_t)asm3;
-	const unsigned char * __restrict__ pal = (const unsigned char *)(intptr_t)shade;
+	/* shade is an OFFSET into the palette, not a full address.
+	   The base palette address is rasm_paladdr (set by setpalookupaddress). */
+	const unsigned char * __restrict__ pal = rasm_paladdr
+		? (const unsigned char *)((intptr_t)rasm_paladdr + shade)
+		: NULL;
 	const long xinc = asm1, yinc = asm2;
 	const long llogx = rasm_logx, llogy = rasm_logy;
 	long i;
