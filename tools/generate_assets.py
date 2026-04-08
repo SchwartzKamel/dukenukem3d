@@ -710,6 +710,8 @@ def _classify_tile(name, tile_num):
     # Font / alpha ranges
     if 2822 <= tile_num <= 2915:
         return (8, 8, 'font')
+    if 2929 <= tile_num <= 2939:
+        return (16, 16, 'font')
     if 2940 <= tile_num <= 3009:
         return (16, 16, 'font')
     if 3010 <= tile_num <= 3025:
@@ -1090,9 +1092,17 @@ def _gen_font_char(w, h, tile_num, seed):
     draw = ImageDraw.Draw(img)
     _init_font()
     if 2822 <= tile_num <= 2915:
+        # STARTALPHANUM: '!' through '~' sequential (gametext uses *t - '!' + 2822)
         char_code = 33 + (tile_num - 2822)
+    elif 2929 <= tile_num <= 2939:
+        # BIGALPHANUM digit/dash range (menutext uses *t - '0' + BIGALPHANUM - 10)
+        if tile_num == 2929:
+            char_code = ord('-')
+        else:
+            char_code = ord('0') + (tile_num - 2930)
     elif 2940 <= tile_num <= 3009:
-        char_code = 33 + (tile_num - 2940)
+        # BIGALPHANUM: 'A'-'Z' start at 2940 (menutext uses *t - 'A' + BIGALPHANUM)
+        char_code = ord('A') + (tile_num - 2940)
     elif 3072 <= tile_num <= 3163:
         char_code = 33 + (tile_num - 3072)
     elif 3010 <= tile_num <= 3025:
