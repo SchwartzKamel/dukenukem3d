@@ -42,6 +42,7 @@ static int capture_interval  = 0;  /* 0 = no auto-capture */
 /* ── Input state ────────────────────────────────────────────────── */
 static unsigned char keystatus_array[256];
 static int mouse_dx = 0, mouse_dy = 0, mouse_buttons = 0;
+static int mouse_grabbed = 0;
 int sdl_quit_requested = 0;
 
 /* ── SDL scancode → DOS scancode mapping ────────────────────────── */
@@ -252,8 +253,9 @@ int sdl_init(int xdim, int ydim)
     }
     screen_pitch = xdim;
 
+    /* Don't grab mouse at startup — let user click in to grab */
     if (!headless_mode)
-        SDL_SetRelativeMouseMode(SDL_TRUE);
+        SDL_ShowCursor(SDL_ENABLE);
 
     /* Default grey-ramp palette */
     for (int i = 0; i < 256; i++)
@@ -483,6 +485,10 @@ void sdl_pollevents(void)
             break;
 
         case SDL_MOUSEBUTTONDOWN:
+            if (!mouse_grabbed && !headless_mode) {
+                SDL_SetRelativeMouseMode(SDL_TRUE);
+                mouse_grabbed = 1;
+            }
             if (ev.button.button == SDL_BUTTON_LEFT)   mouse_buttons |= 1;
             if (ev.button.button == SDL_BUTTON_RIGHT)  mouse_buttons |= 2;
             if (ev.button.button == SDL_BUTTON_MIDDLE) mouse_buttons |= 4;
@@ -492,6 +498,15 @@ void sdl_pollevents(void)
             if (ev.button.button == SDL_BUTTON_LEFT)   mouse_buttons &= ~1;
             if (ev.button.button == SDL_BUTTON_RIGHT)  mouse_buttons &= ~2;
             if (ev.button.button == SDL_BUTTON_MIDDLE) mouse_buttons &= ~4;
+            break;
+
+        case SDL_WINDOWEVENT:
+            if (ev.window.event == SDL_WINDOWEVENT_FOCUS_LOST) {
+                if (mouse_grabbed) {
+                    SDL_SetRelativeMouseMode(SDL_FALSE);
+                    mouse_grabbed = 0;
+                }
+            }
             break;
 
         default:
