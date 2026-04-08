@@ -677,6 +677,39 @@ def parse_names_h():
     return result
 
 
+# Variable-width table for BIGALPHANUM font tiles (tiles 2929-3009 + punctuation).
+# Maps the character to a pixel width matching the original Duke3D proportions.
+# The game's menutext() uses tilesizx[tile] for character advance, so these
+# widths directly control text spacing.
+_BIGALPHA_WIDTHS = {
+    '-': 10, '.': 6, ',': 6, '!': 6, '?': 10, ';': 6, ':': 6, "'": 6,
+    '0': 10, '1': 8, '2': 10, '3': 10, '4': 10, '5': 10,
+    '6': 10, '7': 10, '8': 10, '9': 10,
+    'A': 12, 'B': 12, 'C': 12, 'D': 12, 'E': 11, 'F': 11,
+    'G': 12, 'H': 12, 'I': 8, 'J': 10, 'K': 12, 'L': 11,
+    'M': 14, 'N': 13, 'O': 12, 'P': 12, 'Q': 12, 'R': 12,
+    'S': 11, 'T': 12, 'U': 12, 'V': 12, 'W': 14, 'X': 12,
+    'Y': 12, 'Z': 12,
+}
+
+
+def _bigalpha_width(tile_num):
+    """Return the pixel width for a BIGALPHANUM-range tile."""
+    _init_font()
+    if tile_num == 2929:
+        ch = '-'
+    elif 2930 <= tile_num <= 2939:
+        ch = chr(ord('0') + tile_num - 2930)
+    elif 2940 <= tile_num <= 2965:
+        ch = chr(ord('A') + tile_num - 2940)
+    else:
+        # Punctuation specials by tile number
+        punc_map = {3002: '.', 3003: ',', 3004: '!', 3005: '?',
+                    3006: ';', 3007: ':', 3022: "'"}
+        ch = punc_map.get(tile_num)
+    return _BIGALPHA_WIDTHS.get(ch, 12)
+
+
 def _classify_tile(name, tile_num):
     """Return (width, height, category) for a game tile."""
     # Full-screen tiles
@@ -711,16 +744,16 @@ def _classify_tile(name, tile_num):
     if 2822 <= tile_num <= 2915:
         return (8, 8, 'font')
     if 2929 <= tile_num <= 2939:
-        return (16, 16, 'font')
+        return (_bigalpha_width(tile_num), 16, 'font')
     if 2940 <= tile_num <= 3009:
-        return (16, 16, 'font')
+        return (_bigalpha_width(tile_num), 16, 'font')
     if 3010 <= tile_num <= 3025:
         return (4, 5, 'font')
     if 3072 <= tile_num <= 3163:
         return (4, 5, 'font')
     if name in ('BIGPERIOD', 'BIGCOMMA', 'BIGX', 'BIGQ',
                 'BIGSEMI', 'BIGCOLIN', 'BIGAPPOS'):
-        return (16, 16, 'font')
+        return (_bigalpha_width(tile_num), 16, 'font')
     if name == 'BLANK':
         return (8, 8, 'font')
     # Weapon view sprites
@@ -1190,7 +1223,8 @@ def generate_game_tiles(palette):
             num_to_name[t] = f'ALPHANUM_{t - sa}'
 
     ba = names.get('BIGALPHANUM', 2940)
-    for t in range(ba, ba + 70):
+    # Digits/dash are at BIGALPHANUM-11 through BIGALPHANUM-1 (tiles 2929-2939)
+    for t in range(ba - 11, ba + 70):
         if t not in num_to_name:
             num_to_name[t] = f'BIGALPHA_{t - ba}'
 
