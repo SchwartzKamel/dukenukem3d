@@ -762,7 +762,14 @@ def _classify_tile(name, tile_num):
                 'RPG', 'SHOTGUN', 'HANDHOLDINGLASER', 'HANDHOLDINGACCESS',
                 'HANDREMOTE', 'HANDTHROW', 'HAND', 'TIP', 'FALLINGCLIP',
                 'CLIPINHAND', 'ROTATEGUN', 'GLAIR', 'CRACKKNUCKLES',
-                'SCUBAMASK', 'SPACEMASK'):
+                'SCUBAMASK', 'SPACEMASK', 'SHOTGUNSHELL'):
+        return (64, 64, 'weapon')
+    # Weapon animation frame tiles (e.g. FIRSTGUN_F1, SHOTGUN_F3)
+    if '_F' in name and name.split('_F')[0] in (
+            'CRACKKNUCKLES', 'DEVISTATOR', 'KNEE', 'FIRSTGUN', 'SHOTGUNSHELL',
+            'CHAINGUN', 'RPGGUN', 'FREEZE', 'SHRINKER', 'HANDHOLDINGLASER',
+            'TRIPBOMB', 'HANDHOLDINGACCESS', 'HANDREMOTE', 'HANDTHROW',
+            'SCUBAMASK', 'SPACEMASK', 'SHOTGUN'):
         return (64, 64, 'weapon')
     # Boss sprites
     if name.startswith('BOSS') and 'SCREEN' not in name:
@@ -939,20 +946,198 @@ def _gen_digit_tile(w, h, digit, seed):
 
 
 def _gen_weapon(w, h, name, seed):
-    """Weapon view sprite with gun silhouette and neon highlight."""
+    """Weapon view sprite — unique per weapon type with animation frames.
+
+    Renders a recognizable first-person weapon silhouette at the bottom
+    of the tile (grip at bottom, barrel pointing up-right), matching how
+    displayweapon() positions them on screen.
+    """
     img = Image.new("RGB", (w, h), (0, 0, 0))
     draw = ImageDraw.Draw(img)
-    cx, cy = w // 2, h // 2
-    draw.rectangle([cx - w // 4, cy - 2, cx + w // 4, cy + 2],
-                   fill=(60, 65, 70))
-    draw.rectangle([cx - w // 6, cy, cx - w // 6 + 6, cy + h // 3],
-                   fill=(50, 55, 60))
-    draw.rectangle([cx - w // 4 - 2, cy - 3, cx - w // 4 + 2, cy + 3],
-                   fill=(40, 45, 50))
-    draw.line([(cx - w // 4, cy - 2), (cx + w // 4, cy - 2)],
-             fill=(0, 200, 255))
-    draw.point((cx + w // 4, cy), fill=(255, 200, 50))
-    draw.point((cx + w // 4 + 1, cy), fill=(255, 150, 0))
+
+    # Determine weapon type and frame from tile name
+    base_name = name.split('_F')[0] if '_F' in name else name
+    frame = 0
+    if '_F' in name:
+        try:
+            frame = int(name.split('_F')[1])
+        except (ValueError, IndexError):
+            frame = 0
+
+    # Map named tiles to their weapon family
+    _NAME_TO_WEAPON = {
+        'FIRSTGUN': 'pistol', 'FIRSTGUNRELOAD': 'pistol',
+        'FALLINGCLIP': 'pistol', 'CLIPINHAND': 'pistol', 'HAND': 'pistol',
+        'SHOTGUN': 'shotgun', 'SHOTGUNSHELL': 'shotgun',
+        'CHAINGUN': 'chaingun',
+        'RPGGUN': 'rpg', 'RPGMUZZLEFLASH': 'rpg', 'RPG': 'rpg',
+        'DEVISTATOR': 'devastator',
+        'FREEZE': 'freezer',
+        'SHRINKER': 'shrinker',
+        'KNEE': 'fist', 'CRACKKNUCKLES': 'fist',
+        'TRIPBOMB': 'tripbomb', 'HANDHOLDINGLASER': 'tripbomb',
+        'HANDHOLDINGACCESS': 'tripbomb',
+        'HANDREMOTE': 'pipebomb', 'HANDTHROW': 'pipebomb',
+        'TIP': 'pipebomb', 'GLAIR': 'pipebomb',
+        'ROTATEGUN': 'pistol',
+        'SCUBAMASK': 'mask', 'SPACEMASK': 'mask',
+    }
+    weapon = _NAME_TO_WEAPON.get(base_name, 'pistol')
+
+    # Recoil offset for animation frames (simulates firing kick)
+    recoil_y = min(frame * 2, 8)
+    flash = frame in (1, 2)  # muzzle flash on early fire frames
+
+    # Color scheme per weapon
+    _WEAPON_COLORS = {
+        'pistol':     ((140, 140, 150), (0, 180, 255), (80, 80, 90)),
+        'shotgun':    ((130, 110, 90),  (255, 160, 40), (90, 75, 60)),
+        'chaingun':   ((120, 125, 130), (255, 80, 40),  (70, 75, 80)),
+        'rpg':        ((100, 120, 100), (255, 200, 50), (65, 80, 65)),
+        'devastator': ((130, 100, 100), (255, 50, 50),  (85, 60, 60)),
+        'freezer':    ((100, 130, 160), (50, 200, 255), (60, 85, 110)),
+        'shrinker':   ((120, 100, 140), (200, 50, 255), (75, 60, 95)),
+        'fist':       ((180, 140, 110), (255, 220, 180), (120, 90, 70)),
+        'tripbomb':   ((130, 130, 100), (255, 255, 80), (80, 80, 60)),
+        'pipebomb':   ((140, 130, 100), (255, 200, 50), (90, 80, 60)),
+        'mask':       ((80, 120, 100),  (0, 200, 150),  (50, 80, 65)),
+    }
+    body_col, accent_col, shadow_col = _WEAPON_COLORS.get(
+        weapon, ((130, 130, 130), (0, 200, 255), (80, 80, 80)))
+
+    if flash:
+        accent_col = (255, 255, 200)  # bright muzzle flash
+
+    # Draw weapon silhouettes — grip at bottom, barrel top-right
+    bx, by = w // 2, h - 12 - recoil_y  # base point (grip)
+
+    if weapon == 'pistol':
+        # Grip
+        draw.rectangle([bx - 4, by, bx + 3, by + 10], fill=shadow_col)
+        draw.rectangle([bx - 3, by, bx + 2, by + 9], fill=body_col)
+        # Slide/barrel
+        draw.rectangle([bx - 8, by - 14, bx + 10, by], fill=body_col)
+        draw.rectangle([bx - 7, by - 13, bx + 9, by - 1], fill=body_col)
+        # Barrel highlight
+        draw.line([(bx - 8, by - 14), (bx + 10, by - 14)], fill=accent_col)
+        # Trigger guard
+        draw.rectangle([bx - 2, by + 1, bx + 1, by + 4], fill=shadow_col)
+        if flash:
+            draw.ellipse([bx + 6, by - 22, bx + 18, by - 12], fill=accent_col)
+
+    elif weapon == 'shotgun':
+        # Wide barrel/receiver
+        draw.rectangle([bx - 14, by - 18, bx + 14, by - 6], fill=body_col)
+        # Double barrel
+        draw.rectangle([bx - 12, by - 24, bx - 6, by - 6], fill=shadow_col)
+        draw.rectangle([bx + 6, by - 24, bx + 12, by - 6], fill=shadow_col)
+        # Stock/grip
+        draw.rectangle([bx - 6, by - 6, bx + 6, by + 10], fill=body_col)
+        draw.rectangle([bx - 4, by + 2, bx + 4, by + 10], fill=shadow_col)
+        # Barrel tips
+        draw.line([(bx - 12, by - 24), (bx - 6, by - 24)], fill=accent_col)
+        draw.line([(bx + 6, by - 24), (bx + 12, by - 24)], fill=accent_col)
+        if flash:
+            draw.ellipse([bx - 14, by - 34, bx + 14, by - 20], fill=accent_col)
+
+    elif weapon == 'chaingun':
+        # Multi-barrel cluster
+        for dx in (-6, -2, 2, 6):
+            draw.rectangle([bx + dx - 1, by - 28, bx + dx + 1, by - 4],
+                           fill=body_col)
+        # Housing
+        draw.rectangle([bx - 10, by - 8, bx + 10, by + 2], fill=body_col)
+        # Grip
+        draw.rectangle([bx - 4, by + 2, bx + 4, by + 10], fill=shadow_col)
+        # Rotating barrel highlight
+        rot_dx = (frame * 3) % 12 - 6
+        draw.line([(bx + rot_dx - 1, by - 28), (bx + rot_dx - 1, by - 4)],
+                  fill=accent_col)
+        if flash:
+            draw.ellipse([bx - 8, by - 38, bx + 8, by - 26], fill=accent_col)
+
+    elif weapon == 'rpg':
+        # Wide tube launcher
+        draw.rectangle([bx - 8, by - 26, bx + 8, by - 2], fill=body_col)
+        draw.rectangle([bx - 6, by - 24, bx + 6, by - 4], fill=shadow_col)
+        # Sight
+        draw.rectangle([bx - 2, by - 30, bx + 2, by - 26], fill=accent_col)
+        # Grip
+        draw.rectangle([bx - 4, by - 2, bx + 4, by + 10], fill=body_col)
+        # Rocket tip
+        draw.rectangle([bx - 3, by - 28, bx + 3, by - 24], fill=accent_col)
+        if flash:
+            draw.ellipse([bx - 10, by - 40, bx + 10, by - 24], fill=accent_col)
+
+    elif weapon == 'devastator':
+        # Dual barrels
+        draw.rectangle([bx - 14, by - 22, bx - 4, by], fill=body_col)
+        draw.rectangle([bx + 4, by - 22, bx + 14, by], fill=body_col)
+        # Central grip
+        draw.rectangle([bx - 4, by - 4, bx + 4, by + 10], fill=shadow_col)
+        # Barrel accents
+        draw.line([(bx - 14, by - 22), (bx - 4, by - 22)], fill=accent_col)
+        draw.line([(bx + 4, by - 22), (bx + 14, by - 22)], fill=accent_col)
+        if flash:
+            side = -9 if frame % 2 == 0 else 9
+            draw.ellipse([bx + side - 6, by - 32, bx + side + 6, by - 20],
+                         fill=accent_col)
+
+    elif weapon == 'freezer':
+        # Tank-style weapon
+        draw.rectangle([bx - 6, by - 22, bx + 6, by - 2], fill=body_col)
+        # Ice crystal barrel
+        draw.polygon([(bx, by - 30), (bx - 6, by - 22), (bx + 6, by - 22)],
+                     fill=accent_col)
+        # Grip
+        draw.rectangle([bx - 4, by - 2, bx + 4, by + 10], fill=shadow_col)
+        # Frost effect
+        for dx in (-8, -4, 0, 4, 8):
+            draw.point((bx + dx, by - 26 + abs(dx) // 2), fill=accent_col)
+        if flash:
+            draw.ellipse([bx - 10, by - 36, bx + 10, by - 24], fill=accent_col)
+
+    elif weapon == 'shrinker':
+        # Ring-shaped barrel
+        draw.ellipse([bx - 10, by - 24, bx + 10, by - 8], outline=body_col,
+                     width=2)
+        draw.ellipse([bx - 8, by - 22, bx + 8, by - 10], outline=accent_col)
+        # Handle
+        draw.rectangle([bx - 4, by - 8, bx + 4, by + 10], fill=body_col)
+        if flash:
+            draw.ellipse([bx - 6, by - 20, bx + 6, by - 12], fill=accent_col)
+
+    elif weapon == 'fist':
+        # Fist/knuckle shape
+        draw.ellipse([bx - 12, by - 16, bx + 12, by + 4], fill=body_col)
+        draw.ellipse([bx - 10, by - 14, bx + 10, by + 2], fill=accent_col)
+        # Fingers
+        for dx in (-8, -3, 2, 7):
+            draw.rectangle([bx + dx, by - 18 - recoil_y,
+                           bx + dx + 4, by - 10], fill=body_col)
+
+    elif weapon in ('tripbomb', 'pipebomb'):
+        # Hand holding item
+        draw.ellipse([bx - 8, by - 10, bx + 8, by + 6], fill=body_col)
+        # Object in hand
+        draw.ellipse([bx - 5, by - 18, bx + 5, by - 8], fill=accent_col)
+        draw.rectangle([bx - 3, by - 6, bx + 3, by + 10], fill=shadow_col)
+
+    elif weapon == 'mask':
+        # Mask overlay shape
+        draw.ellipse([bx - 16, by - 20, bx + 16, by + 8], fill=body_col)
+        draw.ellipse([bx - 12, by - 16, bx + 12, by + 4],
+                     outline=accent_col)
+        # Eye holes
+        draw.ellipse([bx - 8, by - 10, bx - 2, by - 4], fill=(0, 0, 0))
+        draw.ellipse([bx + 2, by - 10, bx + 8, by - 4], fill=(0, 0, 0))
+
+    else:
+        # Fallback generic weapon
+        draw.rectangle([bx - 6, by - 18, bx + 6, by], fill=body_col)
+        draw.rectangle([bx - 3, by, bx + 3, by + 10], fill=shadow_col)
+        draw.line([(bx - 6, by - 18), (bx + 6, by - 18)], fill=accent_col)
+
     return img
 
 
@@ -1237,6 +1422,32 @@ def generate_game_tiles(palette):
     for t in range(mf, mf + 92):
         if t not in num_to_name:
             num_to_name[t] = f'MINIFONT_{t - mf}'
+
+    # Weapon view sprites — register animation frame sequences
+    _WEAPON_FRAME_RANGES = {
+        'CRACKKNUCKLES': (2324, 4),
+        'DEVISTATOR': (2510, 7),
+        'KNEE': (2521, 3),
+        'FIRSTGUN': (2524, 9),   # includes reload frames through HAND
+        'SHOTGUNSHELL': (2535, 1),
+        'CHAINGUN': (2536, 8),
+        'RPGGUN': (2544, 4),
+        'FREEZE': (2548, 6),
+        'SHRINKER': (2556, 8),   # through HANDHOLDINGLASER
+        'HANDHOLDINGLASER': (2563, 3),
+        'TRIPBOMB': (2566, 3),
+        'HANDHOLDINGACCESS': (2568, 2),
+        'HANDREMOTE': (2570, 3),
+        'HANDTHROW': (2573, 6),
+        'SCUBAMASK': (2581, 3),
+        'SPACEMASK': (2584, 3),
+        'SHOTGUN': (2613, 8),
+    }
+    for wname, (base, count) in _WEAPON_FRAME_RANGES.items():
+        for i in range(count):
+            t = base + i
+            if t not in num_to_name:
+                num_to_name[t] = f'{wname}_F{i}'
 
     for tile_num, name in sorted(num_to_name.items()):
         w, h, category = _classify_tile(name, tile_num)
