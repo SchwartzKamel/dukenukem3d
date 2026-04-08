@@ -292,6 +292,45 @@ void CONFIG_SetDefaults( void )
    ControllerType = 1;
    FXDevice = 13;
    MusicDevice = 13;
+
+   /* Default key bindings (modern WASD + classic Duke3D layout) */
+   CONTROL_MapKey(gamefunc_Move_Forward,    sc_UpArrow,     sc_W);
+   CONTROL_MapKey(gamefunc_Move_Backward,   sc_DownArrow,   sc_S);
+   CONTROL_MapKey(gamefunc_Turn_Left,       sc_LeftArrow,   0);
+   CONTROL_MapKey(gamefunc_Turn_Right,      sc_RightArrow,  0);
+   CONTROL_MapKey(gamefunc_Strafe_Left,     sc_A,           0);
+   CONTROL_MapKey(gamefunc_Strafe_Right,    sc_D,           0);
+   CONTROL_MapKey(gamefunc_Fire,            sc_LeftControl, 0);
+   CONTROL_MapKey(gamefunc_Open,            sc_E,           0);
+   CONTROL_MapKey(gamefunc_Run,             sc_LeftShift,   0);
+   CONTROL_MapKey(gamefunc_Jump,            sc_Space,       0);
+   CONTROL_MapKey(gamefunc_Crouch,          sc_Z,           sc_C);
+   CONTROL_MapKey(gamefunc_Look_Up,         sc_PgUp,        0);
+   CONTROL_MapKey(gamefunc_Look_Down,       sc_PgDn,        0);
+   CONTROL_MapKey(gamefunc_Aim_Up,          sc_Home,        0);
+   CONTROL_MapKey(gamefunc_Aim_Down,        sc_End,         0);
+   CONTROL_MapKey(gamefunc_Weapon_1,        sc_1,           0);
+   CONTROL_MapKey(gamefunc_Weapon_2,        sc_2,           0);
+   CONTROL_MapKey(gamefunc_Weapon_3,        sc_3,           0);
+   CONTROL_MapKey(gamefunc_Weapon_4,        sc_4,           0);
+   CONTROL_MapKey(gamefunc_Weapon_5,        sc_5,           0);
+   CONTROL_MapKey(gamefunc_Weapon_6,        sc_6,           0);
+   CONTROL_MapKey(gamefunc_Weapon_7,        sc_7,           0);
+   CONTROL_MapKey(gamefunc_Weapon_8,        sc_8,           0);
+   CONTROL_MapKey(gamefunc_Weapon_9,        sc_9,           0);
+   CONTROL_MapKey(gamefunc_Weapon_10,       sc_0,           0);
+   CONTROL_MapKey(gamefunc_Map,             sc_Tab,         0);
+   CONTROL_MapKey(gamefunc_Strafe,          sc_LeftAlt,     0);
+   CONTROL_MapKey(gamefunc_Center_View,     sc_kpad_5,      0);
+   CONTROL_MapKey(gamefunc_Inventory,       sc_Return,      0);
+   CONTROL_MapKey(gamefunc_Inventory_Left,  sc_OpenBracket, 0);
+   CONTROL_MapKey(gamefunc_Inventory_Right, sc_CloseBracket,0);
+   CONTROL_MapKey(gamefunc_TurnAround,      sc_BackSpace,   0);
+   CONTROL_MapKey(gamefunc_SendMessage,     sc_T,           0);
+   CONTROL_MapKey(gamefunc_Shrink_Screen,   sc_Minus,       0);
+   CONTROL_MapKey(gamefunc_Enlarge_Screen,  sc_Equals,      0);
+   CONTROL_MapKey(gamefunc_Holster_Weapon,  sc_ScrollLock,  0);
+   CONTROL_MapKey(gamefunc_Quick_Kick,      sc_Q,           0);
 }
 /*
 ===================

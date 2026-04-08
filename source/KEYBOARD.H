@@ -141,22 +141,22 @@ typedef uint8 kb_scancode;
 
 // Extended scan codes
 
-#define  sc_UpArrow      0x5a
-#define  sc_DownArrow    0x6a
-#define  sc_LeftArrow    0x6b
-#define  sc_RightArrow   0x6c
-#define  sc_Insert       0x5e
-#define  sc_Delete       0x5f
-#define  sc_Home         0x61
-#define  sc_End          0x62
-#define  sc_PgUp         0x63
-#define  sc_PgDn         0x64
-#define  sc_RightAlt     0x65
-#define  sc_RightControl 0x66
-#define  sc_kpad_Slash   0x67
-#define  sc_kpad_Enter   0x68
+#define  sc_UpArrow      0xc8
+#define  sc_DownArrow    0xd0
+#define  sc_LeftArrow    0xcb
+#define  sc_RightArrow   0xcd
+#define  sc_Insert       0xd2
+#define  sc_Delete       0xd3
+#define  sc_Home         0xc7
+#define  sc_End          0xcf
+#define  sc_PgUp         0xc9
+#define  sc_PgDn         0xd1
+#define  sc_RightAlt     0xb8
+#define  sc_RightControl 0x9d
+#define  sc_kpad_Slash   0xb5
+#define  sc_kpad_Enter   0x9c
 #define  sc_PrintScreen  0x69
-#define  sc_LastScanCode 0x6e
+#define  sc_LastScanCode 0xd3
 
 // Ascii scan codes
 
@@ -166,7 +166,7 @@ typedef uint8 kb_scancode;
 #define  asc_Tab         9
 #define  asc_Space       32
 
-#define MAXKEYBOARDSCAN  128
+#define MAXKEYBOARDSCAN  256
 
 
 /*
