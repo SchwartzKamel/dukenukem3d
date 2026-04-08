@@ -1259,7 +1259,9 @@ void CONTROL_Startup(controltype which, int32 (*TimeFunction)(void),
     ctrl_time_func = TimeFunction;
     ctrl_tps = ticspersecond;
 
-    CONTROL_ClearAssignments();
+    /* Do NOT call CONTROL_ClearAssignments() here — CONFIG_ReadSetup()
+       has already loaded key bindings before CONTROL_Startup() is called,
+       and clearing them would wipe all player controls. */
 
     /* Enable mouse by default on modern systems */
     CONTROL_MousePresent = true;

@@ -90,11 +90,9 @@ int SCRIPT_Load(char *filename) {
                 { char *k = p; while (*k && isspace((unsigned char)*k)) k++;
                   char *ke = eq-1; while (ke > k && isspace((unsigned char)*ke)) *ke-- = 0;
                   strncpy(e->key, k, 63); e->key[63] = '\0'; }
-                /* trim value */
+                /* trim value — store raw, let accessors handle quotes */
                 { char *v = eq+1; while (*v && isspace((unsigned char)*v)) v++;
                   char *ve = v + strlen(v) - 1; while (ve > v && isspace((unsigned char)*ve)) *ve-- = 0;
-                  /* strip quotes */
-                  if (*v == '"') { v++; char *q = strchr(v, '"'); if (q) *q = 0; }
                   strncpy(e->value, v, MAX_ENTRY_LEN-1); e->value[MAX_ENTRY_LEN-1] = '\0'; }
                 sc->num_entries++;
             }
@@ -138,24 +136,64 @@ void SCRIPT_GetString(int handle, char *section, char *key, char *dest, int dest
     if (!sc || dest_size <= 0) return;
     e = find_entry(sc, section, key);
     if (e) {
-        int maxcopy = dest_size - 1;
-        strncpy(dest, e->value, maxcopy);
-        dest[maxcopy] = '\0';
+        char *v = e->value;
+        int len;
+        /* strip surrounding quotes if present */
+        if (*v == '"') {
+            char *q;
+            v++;
+            q = strchr(v, '"');
+            if (q) len = (int)(q - v); else len = (int)strlen(v);
+        } else {
+            len = (int)strlen(v);
+        }
+        if (len >= dest_size) len = dest_size - 1;
+        memcpy(dest, v, len);
+        dest[len] = '\0';
     }
 }
 
 void SCRIPT_GetDoubleString(int handle, char *section, char *key, char *dest1, int dest1_size, char *dest2, int dest2_size) {
-    char buf[512];
-    char *space;
-    SCRIPT_GetString(handle, section, key, buf, sizeof(buf));
+    script_t *sc = get_script(handle);
+    script_entry_t *e;
+    char *v, *q;
+    int len;
+
     dest1[0] = dest2[0] = 0;
-    space = strchr(buf, ' ');
-    if (space) {
-        *space = 0;
-        if (dest1_size > 1) { strncpy(dest1, buf, dest1_size - 1); dest1[dest1_size - 1] = '\0'; }
-        if (dest2_size > 1) { strncpy(dest2, space+1, dest2_size - 1); dest2[dest2_size - 1] = '\0'; }
+    if (!sc) return;
+    e = find_entry(sc, section, key);
+    if (!e) return;
+    v = e->value;
+
+    /* Parse first quoted string: "str1" */
+    while (*v && isspace((unsigned char)*v)) v++;
+    if (*v == '"') {
+        v++;
+        q = strchr(v, '"');
+        if (q) { len = (int)(q - v); if (len >= dest1_size) len = dest1_size - 1;
+                 memcpy(dest1, v, len); dest1[len] = '\0'; v = q + 1; }
+        else   { len = (int)strlen(v); if (len >= dest1_size) len = dest1_size - 1;
+                 memcpy(dest1, v, len); dest1[len] = '\0'; return; }
     } else {
-        if (dest1_size > 1) { strncpy(dest1, buf, dest1_size - 1); dest1[dest1_size - 1] = '\0'; }
+        /* unquoted single value */
+        len = (int)strlen(v); if (len >= dest1_size) len = dest1_size - 1;
+        memcpy(dest1, v, len); dest1[len] = '\0';
+        return;
+    }
+
+    /* Skip comma/whitespace between quoted strings */
+    while (*v && (*v == ',' || isspace((unsigned char)*v))) v++;
+
+    /* Parse second quoted string: "str2" */
+    if (*v == '"') {
+        v++;
+        q = strchr(v, '"');
+        if (q) { len = (int)(q - v); } else { len = (int)strlen(v); }
+        if (len >= dest2_size) len = dest2_size - 1;
+        memcpy(dest2, v, len); dest2[len] = '\0';
+    } else if (*v) {
+        len = (int)strlen(v); if (len >= dest2_size) len = dest2_size - 1;
+        memcpy(dest2, v, len); dest2[len] = '\0';
     }
 }
 
