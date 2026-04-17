@@ -311,7 +311,7 @@ int minitextshade(int x,int y,char *t,char s,char p,char sb)
 
 void gamenumber(long x,long y,long n,char s)
 {
-    char b[10];
+    char b[34];
     ltoa(n,b,10);
     gametext(x,y,b,s,2+8+16);
 }
@@ -1433,7 +1433,7 @@ void weapon_amounts(struct player_struct *p,long x,long y,long u)
 void digitalnumber(long x,long y,long n,char s,char cs)
 {
     short i, j, k, p, c;
-    char b[10];
+    char b[34];
 
     ltoa(n,b,10);
     i = strlen(b);
