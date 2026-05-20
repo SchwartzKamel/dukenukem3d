@@ -124,6 +124,30 @@ def load_env(path):
     return env
 
 # ---------------------------------------------------------------------------
+# Atomic file write helper (audit-r5: safe asset writes)
+# ---------------------------------------------------------------------------
+
+def _atomic_write_bytes(path: str, data: bytes) -> None:
+    """Write bytes to a file atomically using tmp+rename pattern.
+    
+    This ensures that if the process is killed or hits an error mid-write,
+    the original file (if it exists) is left untouched rather than corrupted.
+    Uses POSIX atomic rename within the same filesystem.
+    """
+    tmp_path = path + ".tmp"
+    try:
+        with open(tmp_path, "wb") as f:
+            f.write(data)
+        os.replace(tmp_path, path)
+    except OSError:
+        # Clean up temp file on error to avoid leaving stray .tmp files
+        try:
+            os.remove(tmp_path)
+        except OSError:
+            pass
+        raise
+
+# ---------------------------------------------------------------------------
 # FLUX AI texture generation
 # ---------------------------------------------------------------------------
 
@@ -2041,22 +2065,22 @@ def main():
     # Write individual files to generated_assets/
     for fname, data in grp_contents.items():
         out_path = os.path.join(output_dir, fname)
-        with open(out_path, "wb") as f:
-            f.write(data)
+        _atomic_write_bytes(out_path, data)
         print(f"  {out_path}")
+
 
     # Write GRP to generated_assets/ and project root
     grp_out = os.path.join(output_dir, "DUKE3D.GRP")
-    with open(grp_out, "wb") as f:
-        f.write(grp_data)
+    _atomic_write_bytes(grp_out, grp_data)
     print(f"  {grp_out}")
+
 
     # Only write to project root if not using custom output directory
     if not args.output:
         grp_root = os.path.join(PROJECT_ROOT, "DUKE3D.GRP")
-        with open(grp_root, "wb") as f:
-            f.write(grp_data)
+        _atomic_write_bytes(grp_root, grp_data)
         print(f"  {grp_root}")
+
 
     # -- Summary --------------------------------------------------------------
     print("\n=== Done! ===")
