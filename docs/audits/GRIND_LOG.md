@@ -1834,3 +1834,33 @@ Keep v5 as the standing dispatch contract.
 ### Lessons
 - v6 contract held cleanly across all 6 cycle-45 grind agents (no spurious stops on sibling edits).
 - xdist agent claimed "772+ passed" but didn't run full suite under xdist — caught only at operator post-run validation. Reinforces "always run end-to-end after grind" rule.
+
+---
+
+## 2026-05-21 — Cycle 46
+
+### Cycle 46 audit-pass (this batch): audio-engineer-r13, test-engineer-r14
+- audio-engineer-r13: verified cycle-42 manifest race closure (both ThreadPool + asyncio paths LIVE), MUSIC subsystem sweep clean, voice catalog stable. 3 new todos (filelock redesign coordination, r12 backlog reclassification, voice catalog future extension).
+- test-engineer-r14: verified r13 MAXTILES picks CLOSED, xdist markers LIVE, frame-analyzer hotspot 6.97s/31% identified. 5 new todos (frame-analyzer parametrization, 2× xpass promotion, mutation gap, determinism contract).
+
+### Cycle 46 grind (this batch — 6 closures, all green)
+- ✅ build-r14-header-deps — Makefile `-MMD -MP` + `-include` for `.d` files; verified header-touch triggers rebuild.
+- ✅ sec-r13-game-c-strcat-tempbuf-harden — source/GAME.C 2× strcat→strncat with bounded `sizeof - strlen - 1` pattern (lines 6490, 6716).
+- ✅ asset-r13-pool-collision-detection — tools/generate_assets.py `_process_pool_results` raises RuntimeError on duplicate tile_num from multiprocessing workers (lines 847-883).
+- ✅ compat-r12-audio-defines — compat/audio_stub.c extracted 3 literals to `AUDIO_BUFFER_SIZE`, `AUDIO_MIX_INIT_MAX_RETRIES`, `AUDIO_MIX_INIT_BASE_DELAY_MS`.
+- ✅ asset-r13-manifest-checksums — tools/generate_tables.py + tools/generate_audio.py SHA256 per-entry + top-level `manifest_checksum`; tests verify mutation detection.
+- ✅ perf-r12-xdist-fixture-redesign — tests/conftest.py filelock-based singleton init for `generated_audio_artifacts`; `pytest.ini` re-enabled `addopts = -n auto --dist loadscope`. Parallel 14.76s vs serial 22.98s. **Closes perf-r12-pytest-xdist-integration (open since cycle 45).**
+
+### Collateral fix (operator, this batch)
+- tests/test_audio_pipeline.py — 2× regex updated to accept either literal `3`/`100` or new defines (`AUDIO_MIX_INIT_MAX_RETRIES`/`AUDIO_MIX_INIT_BASE_DELAY_MS`). Direct fallout from compat-r12-audio-defines extraction; tests now ratchet to either form.
+
+### Build/test deltas
+- 780 → **805 passing** (+25 across 6 successful closures + xdist parallelization stabilized)
+- make clean && make -j: green
+- pytest -q (parallel via addopts): 805 passed, 34 skipped, 2 xfailed, 2 xpassed in ~14s
+- 4 cumulative MAXTILES/xdist chains now fully CLOSED
+
+### Notes
+- v6 contract held across all 6 grind agents; sibling edits tolerated correctly.
+- xdist re-enable validated in BOTH default (auto) and `-n 0` serial paths before commit (lesson from cycle 45 over-claim).
+- compat-r12-audio-defines collateral on test_audio_pipeline.py is the expected ratchet pattern when extracting magic numbers — fix-forward, not revert.
