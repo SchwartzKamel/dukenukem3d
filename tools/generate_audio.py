@@ -20,6 +20,28 @@ PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 OUTPUT_DIR = os.path.join(PROJECT_ROOT, "generated_assets", "sounds")
 ENV_FILE = os.path.join(PROJECT_ROOT, ".env")
 
+
+def _atomic_write_bytes(path: str, data: bytes) -> None:
+    """Write bytes to a file atomically using tmp+rename pattern.
+    
+    This ensures that if the process is killed or hits an error mid-write,
+    the original file (if it exists) is left untouched rather than corrupted.
+    Uses POSIX atomic rename within the same filesystem.
+    """
+    tmp_path = path + ".tmp"
+    try:
+        with open(tmp_path, "wb") as f:
+            f.write(data)
+        os.replace(tmp_path, path)
+    except OSError:
+        # Clean up temp file on error to avoid leaving stray .tmp files
+        try:
+            os.remove(tmp_path)
+        except OSError:
+            pass
+        raise
+
+
 # (filename, prompt, voice)
 VOICE_LINES = [
     # Player taunts / one-liners
@@ -273,8 +295,7 @@ def _generate_audio_parallel_local(workers, use_deterministic):
             try:
                 result_idx, filename, wav_data = future.result()
                 out_path = os.path.join(OUTPUT_DIR, filename)
-                with open(out_path, "wb") as f:
-                    f.write(wav_data)
+                _atomic_write_bytes(out_path, wav_data)
                 results[idx] = filename
                 # Update manifest entry with successful generation
                 SOUND_MANIFEST[idx]["status"] = "generated"
@@ -353,8 +374,7 @@ async def _generate_audio_async_main(concurrency, endpoint, api_key, model, acqu
             SOUND_MANIFEST[idx]["generated_at"] = timestamp
 
             out_path = os.path.join(OUTPUT_DIR, filename)
-            with open(out_path, "wb") as f:
-                f.write(wav_data)
+            _atomic_write_bytes(out_path, wav_data)
             generated[idx] = filename
 
     return [f for f in generated if f is not None]
