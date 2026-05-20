@@ -79,7 +79,7 @@ typedef struct {
 static recv_buf_t recv_bufs[MAXPLAYERS];
 
 /* Packet queue for getpacket() */
-#define PACKET_QUEUE_SIZE 512
+#define PACKET_QUEUE_SIZE 1024
 typedef struct {
 	char data[MAXPACKETSIZE];
 	short length;
@@ -87,6 +87,8 @@ typedef struct {
 } queued_packet_t;
 static queued_packet_t packet_queue[PACKET_QUEUE_SIZE];
 static int pq_head = 0, pq_tail = 0;
+static int pq_count = 0;
+static int pq_dropped_packets = 0;
 
 /* ---- Internal helpers ---- */
 
@@ -161,11 +163,11 @@ static void net_poll_sockets(void)
 		while (recv_bufs[i].len >= NET_HEADER_SIZE) {
 			int from_player = recv_bufs[i].buf[0];
 			int dest        = recv_bufs[i].buf[1];
-			int payload_len = recv_bufs[i].buf[2] | (recv_bufs[i].buf[3] << 8);
-			int total_len, pq_next;
+			int payload_len = recv_bufs[i].buf[2] | (((unsigned)recv_bufs[i].buf[3]) << 8);
+			int total_len;
 
 			/* Validate bounds before relay-forwarding */
-			if (payload_len <= 0 || payload_len > MAXPACKETSIZE) {
+			if (payload_len <= 0 || payload_len > MAXPACKETSIZE - NET_HEADER_SIZE) {
 				recv_bufs[i].len = 0;
 				break;
 			}
@@ -181,14 +183,21 @@ static void net_poll_sockets(void)
 
 			/* Queue locally if destined for us */
 			if ((is_host && dest == 0) || (!is_host)) {
-				pq_next = (pq_tail + 1) % PACKET_QUEUE_SIZE;
-				if (pq_next != pq_head) {
-					memcpy(packet_queue[pq_tail].data,
-					       recv_bufs[i].buf + NET_HEADER_SIZE, payload_len);
-					packet_queue[pq_tail].length      = (short)payload_len;
-					packet_queue[pq_tail].from_player  = (short)from_player;
-					pq_tail = pq_next;
+				int is_full = (pq_count >= PACKET_QUEUE_SIZE);
+				
+				if (is_full) {
+					/* DROP-OLDEST policy: discard oldest unread packet to make room for new one */
+					pq_head = (pq_head + 1) % PACKET_QUEUE_SIZE;
+					pq_dropped_packets++;
+				} else {
+					pq_count++;
 				}
+				
+				memcpy(packet_queue[pq_tail].data,
+				       recv_bufs[i].buf + NET_HEADER_SIZE, payload_len);
+				packet_queue[pq_tail].length      = (short)payload_len;
+				packet_queue[pq_tail].from_player  = (short)from_player;
+				pq_tail = (pq_tail + 1) % PACKET_QUEUE_SIZE;
 			}
 
 			/* Remove processed packet from buffer */
@@ -200,7 +209,19 @@ static void net_poll_sockets(void)
 	}
 }
 
-/* ---- CRC (kept for compatibility) ---- */
+/* ---- CRC (kept for compatibility) ----
+ * 
+ * The initcrc(), getcrc(), and updatecrc16() functions are currently DORMANT.
+ * The 4-byte wire format header [sender][dest][len_lo][len_hi] has no CRC field.
+ * To enable CRC validation, the wire format must be bumped to 8 bytes to include
+ * a 4-byte CRC checksum. This is a backwards-incompatible protocol change and would
+ * require updating NET_PROTOCOL_VERSION and both sendpacket()/getpacket() to:
+ *   (1) calculate CRC over the full payload
+ *   (2) append CRC to transmitted packets
+ *   (3) verify CRC on received packets
+ * These functions are retained to facilitate that future protocol bump without
+ * implementing CRC logic from scratch again.
+ */
 
 initcrc()
 {
@@ -258,6 +279,8 @@ initmultiplayers(char damultioption, char dacomrateoption, char dapriority)
 		lastsendtime[i] = 0;
 	}
 	pq_head = pq_tail = 0;
+	pq_count = 0;
+	pq_dropped_packets = 0;
 	is_host = 0;
 	net_initialized = 0;
 
@@ -466,8 +489,25 @@ singleplayer:
 uninitmultiplayers()
 {
 	int32_t i;
+	unsigned char disconnect_pkt[NET_HEADER_SIZE + 1];
 
 	if (!net_initialized) return;
+
+	/* Send DISCONNECT (marker=0xFF) to all known peers before closing sockets */
+	disconnect_pkt[0] = (unsigned char)myconnectindex;
+	disconnect_pkt[1] = 255;  /* broadcast */
+	disconnect_pkt[2] = 1;    /* payload length lo */
+	disconnect_pkt[3] = 0;    /* payload length hi */
+	disconnect_pkt[4] = 0xFF; /* disconnect marker */
+	
+	for (i = 0; i < MAXPLAYERS; i++) {
+		if (player_sockets[i] != INVALID_SOCKET) {
+			net_send_raw(player_sockets[i], disconnect_pkt, NET_HEADER_SIZE + 1);
+		}
+	}
+
+	/* Wait ~250ms for packets to drain from the wire */
+	net_sleep(250);
 
 	for (i = 0; i < MAXPLAYERS; i++) {
 		if (player_sockets[i] != INVALID_SOCKET) {
