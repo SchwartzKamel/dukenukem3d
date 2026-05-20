@@ -1193,3 +1193,48 @@ INSERT proof included in their returns. Zero hallucinations.
 - Open HIGH: 4 (3 net-r3 architectural + 2 cycle-29 engine-r9
   un-grinded yet: actor-tile-metadata-bounds redo +
   player-weapon-ammo-bounds redo).
+
+## Cycle 31 — 2026-05-20T14:48 UTC (audit-only)
+
+### Audit-pass (2 in parallel, stale-rotation)
+
+- **network-multiplayer-r6** (last r5 cycle 25, 6 cycles stale —
+  was stalest persona). 4 new net-r6 todos:
+  - HIGH `net-r6-type4-strcpy-fix` — packet type 4 (chat) uses
+    strcpy on attacker-controlled string into fixed buffer.
+  - HIGH `net-r6-type8-negative-size` — packet type 8 map change
+    permits negative-size arithmetic via signed cast on untrusted
+    size byte.
+  - MEDIUM `net-r6-type6-string-bounds` — type 6 version-string
+    parser doesn't enforce NUL terminator.
+  - MEDIUM `net-r6-type16-17-required-len` — extension packets
+    16/17 missing the required_len pre-check used in
+    types 0/1 cycle-26 hardening.
+
+  Both contract rules satisfied: grep-proof confirmed
+  cycle-22/24/26/28 prior fixes still intact; SELECT-after-INSERT
+  proof included.
+
+- **test-engineer-r9** (last r8 cycle 27, 4 cycles stale). 4 new
+  todos all MEDIUM/LOW:
+  - `test-r9-static-analysis-balance` — too many grep-based tests;
+    flag classes needing runtime coverage.
+  - `test-r9-slow-test-drift-scan` — sweep for tests >2s without
+    @slow marker.
+  - `test-r9-font-error-hardening` — extend asset-r8 font-render
+    coverage.
+  - `test-r9-saferead-runtime` — cycle-28 SafeRead fix has no
+    runtime test, only the warning suppression.
+
+### Backlog snapshot
+
+- 104 pending / 202 done / 3 blocked (was 96 / 202 / 3 at cycle
+  30 close; +8 from this audit).
+- Open CRITICAL: 1 (`build-r7-lto-maxtiles-mismatch`).
+- Open HIGH (counting net-r6 additions): 6 (3 net-r3
+  architectural + 2 cycle-30 re-dispatch + 2 net-r6 new).
+
+### Lessons
+
+- The 2-rule contract (grep-verify + SELECT-after-INSERT) held on
+  both agents. Streak rebuilds from 0; 2 clean audit agents.
