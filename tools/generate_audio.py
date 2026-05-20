@@ -24,14 +24,18 @@ ENV_FILE = os.path.join(PROJECT_ROOT, ".env")
 def _redact_endpoint(url: str) -> str:
     """Redact sensitive endpoint URL for logging.
 
-    Returns a redacted form showing only first 20 and last 10 characters
-    to avoid exposing the full endpoint in logs/error messages.
+    Returns a logging-safe rendering of a connection-string URL showing
+    only scheme + host's first label; drops query, path, account suffix.
     """
     if not url:
-        return "<redacted>"
-    if len(url) <= 30:
-        return "<redacted>"
-    return f"{url[:20]}...{url[-10:]}"
+        return ""
+    from urllib.parse import urlparse
+    try:
+        p = urlparse(url)
+        host = (p.hostname or "").split(".")[0]
+        return f"{p.scheme}://{host}.***"
+    except Exception:
+        return "***"
 
 
 def _atomic_write_bytes(path: str, data: bytes) -> None:

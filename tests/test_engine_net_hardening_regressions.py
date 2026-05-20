@@ -1463,6 +1463,60 @@ class TestPacketType6FieldBounds:
             "Packet type 6 loop must check MAXPLAYERNAMELENGTH: "
             "for (i=2; ... && i - 2 < MAXPLAYERNAMELENGTH)"
         )
+    
+    def test_packet_type_6_null_termination_after_truncate(self, repo_root):
+        """Verify packet type 6 name buffer is null-terminated after truncation.
+        
+        When a player name exceeds MAXPLAYERNAMELENGTH, the handler truncates
+        and must explicitly null-terminate to prevent strlen/strcpy from reading
+        past the buffer boundary.
+        """
+        game_c = repo_root / "source" / "GAME.C"
+        if not game_c.exists():
+            pytest.skip(f"{game_c} not found")
+        
+        content = game_c.read_text(errors="replace")
+        
+        # Find the case 6 block starting from the sentinel
+        case_6_start = content.find("net-r8-type-6-bounds")
+        assert case_6_start >= 0, (
+            "Packet type 6 bounds check must include sentinel comment: "
+            "net-r8-type-6-bounds"
+        )
+        
+        # Extract 1200+ chars from the sentinel to capture the full case 6 block including truncation branch
+        case_6_context = content[case_6_start:case_6_start + 1200]
+        
+        # Verify truncation branch exists with sentinel comment + MAXPLAYERNAMELENGTH
+        has_truncation_branch = (
+            "MAXPLAYERNAMELENGTH" in case_6_context and
+            "Truncating" in case_6_context
+        )
+        assert has_truncation_branch, (
+            "Packet type 6 must have truncation branch that mentions "
+            "MAXPLAYERNAMELENGTH and 'Truncating'"
+        )
+        
+        # Verify explicit null-termination after truncation
+        # Look for patterns like: user_name[...][MAXPLAYERNAMELENGTH-1] = 0
+        # or: user_name[...][MAXPLAYERNAMELENGTH-1] = '\0'
+        # or: memset/strncpy that guarantees termination
+        truncation_null_term = re.search(
+            r'else\s*\{.*?'
+            r'(?:'
+            r'user_name\s*\[\s*other\s*\]\s*\[\s*MAXPLAYERNAMELENGTH\s*-\s*1\s*\]\s*=\s*(?:0|\'\\0\'|"\\0")|'
+            r'memset\s*\([^)]*user_name\s*\[\s*other\s*\]\s*[^)]*\)|'
+            r'strncpy\s*\([^)]*\)'
+            r').*?\}',
+            case_6_context,
+            re.MULTILINE | re.DOTALL
+        )
+        
+        assert truncation_null_term, (
+            "Packet type 6 truncation branch must explicitly null-terminate, e.g.:\n"
+            "ud.user_name[other][MAXPLAYERNAMELENGTH-1] = 0;\n"
+            "or use memset/strncpy to guarantee termination."
+        )
 
 
 class TestRTSNumlumpsOverflow:
@@ -1993,4 +2047,191 @@ class TestMusicPlaySongStateConsistency:
             "1. Return MUSIC_Error when Mix_LoadMUS_RW fails\n"
             "2. Only set music_playing = 1 after successful Mix_PlayMusic call\n"
             "3. Include sentinel comment 'audio-r10-music-state-consistency'"
+        )
+
+
+class TestScansectorDepthCap:
+    """Verify cycle-38 engine-r12 scansector depth overflow guard."""
+
+    def test_scansector_depth_cap_guard_present(self, repo_root):
+        """SRC/ENGINE.C scansector() must have >= 256 overflow guard before push."""
+        engine_c = repo_root / "SRC" / "ENGINE.C"
+        if not engine_c.exists():
+            pytest.skip(f"{engine_c} not found")
+
+        content = engine_c.read_text(errors="replace")
+
+        # Check for the sentinel comment that marks the fix
+        has_sentinel = "engine-r12-scansector-depth-cap: stack overflow guard" in content
+
+        # Check for the guard condition >= 256
+        has_guard = ("sectorbordercnt >= 256" in content or 
+                     "sectorbordercnt >= SCANSECTOR_MAX_DEPTH" in content or
+                     "sectorbordercnt >= MAXSECTORS" in content)
+
+        assert has_sentinel, (
+            "SRC/ENGINE.C scansector() must include sentinel comment:\n"
+            "'engine-r12-scansector-depth-cap: stack overflow guard'"
+        )
+
+        assert has_guard, (
+            "SRC/ENGINE.C scansector() must include overflow guard:\n"
+            "'if (sectorbordercnt >= 256) return;' or equivalent\n"
+            "placed BEFORE the sectorborder[] push operation"
+        )
+
+    def test_scansector_guard_before_push(self, repo_root):
+        """Verify guard check precedes sectorborder[] increment."""
+        engine_c = repo_root / "SRC" / "ENGINE.C"
+        if not engine_c.exists():
+            pytest.skip(f"{engine_c} not found")
+
+        content = engine_c.read_text(errors="replace")
+
+        # Extract scansector function body to verify guard ordering
+        # Pattern: Find the region with both the sentinel and the push
+        sentinel_idx = content.find("engine-r12-scansector-depth-cap")
+        push_idx = content.find("sectorborder[sectorbordercnt++]")
+
+        if sentinel_idx == -1:
+            pytest.skip("Sentinel comment not found")
+        if push_idx == -1:
+            pytest.skip("sectorborder push not found")
+
+        # Verify sentinel appears before the push operation
+        assert sentinel_idx < push_idx, (
+            "Sentinel comment must appear before sectorborder[] push operation"
+        )
+
+        # Extract the region between sentinel and push to verify guard structure
+        guard_region = content[sentinel_idx:push_idx+50]
+
+        # Verify guard condition is present in the region
+        has_guard_check = ("sectorbordercnt >= 256" in guard_region or
+                          "sectorbordercnt >= SCANSECTOR_MAX_DEPTH" in guard_region or
+                          "sectorbordercnt >= MAXSECTORS" in guard_region)
+
+        assert has_guard_check, (
+            "Guard check 'if (sectorbordercnt >= 256) return;' must be\n"
+            "between sentinel comment and sectorborder[] push operation"
+        )
+
+
+
+class TestActorsDasectnumBounds:
+    """Verify r12 ACTORS.C dasectnum bounds check (engine-r12-actors-dasectnum-bounds)."""
+
+    def test_actors_dasectnum_bounds_check(self, repo_root):
+        """ACTORS.C must bounds-check dasectnum before sector[] dereferences around lines 675-690."""
+        actors_c = repo_root / "source" / "ACTORS.C"
+        if not actors_c.exists():
+            pytest.skip(f"{actors_c} not found")
+
+        content = actors_c.read_text(errors="replace")
+
+        # Check for the sentinel comment that marks the fix
+        has_sentinel = "engine-r12-actors-dasectnum-bounds" in content
+
+        # Check for MAXSECTORS bounds check pattern near the vulnerable area
+        # Pattern: if((unsigned)dasectnum >= MAXSECTORS)
+        has_bounds_check = "if((unsigned)dasectnum >= MAXSECTORS)" in content
+
+        # Verify both the sentinel and the bounds check are present
+        assert has_sentinel and has_bounds_check, (
+            "source/ACTORS.C around lines 675-690 must have:\n"
+            "1. Sentinel comment: 'engine-r12-actors-dasectnum-bounds: sector bounds guard'\n"
+            "2. Bounds check pattern: 'if((unsigned)dasectnum >= MAXSECTORS)'\n"
+            "The guard must be placed BEFORE sector[dasectnum] accesses to prevent OOB dereference."
+        )
+
+        # Verify the guard is present in the right area (within ~10 lines of the original 675-690)
+        # Extract content around the guard location
+        lines = content.split('\n')
+        guard_line = None
+        sentinel_line = None
+
+        for i, line in enumerate(lines):
+            if "engine-r12-actors-dasectnum-bounds" in line:
+                sentinel_line = i
+            if "if((unsigned)dasectnum >= MAXSECTORS)" in line:
+                guard_line = i
+
+        # The guard and sentinel should be near each other or on the same line
+        assert sentinel_line is not None, (
+            "Sentinel comment 'engine-r12-actors-dasectnum-bounds' not found in ACTORS.C"
+        )
+        assert guard_line is not None, (
+            "Bounds check 'if((unsigned)dasectnum >= MAXSECTORS)' not found in ACTORS.C"
+        )
+
+        # They should be on the same line or very close
+        if guard_line is not None and sentinel_line is not None:
+            assert abs(guard_line - sentinel_line) <= 1, (
+                f"Sentinel comment (line {sentinel_line}) and bounds check (line {guard_line}) "
+                f"should be on the same line or adjacent. Found {abs(guard_line - sentinel_line)} lines apart."
+            )
+
+
+class TestSpawnSectnumBounds:
+    """Verify r12 spawn() sectnum bounds check (engine-r12-game-spawn-sect-bounds)."""
+
+    def test_spawn_sectnum_bounds_check(self, repo_root):
+        """GAME.C spawn() must bounds-check sprite[i].sectnum before sector[] deref."""
+        game_c = repo_root / "source" / "GAME.C"
+        if not game_c.exists():
+            pytest.skip(f"{game_c} not found")
+
+        content = game_c.read_text(errors="replace")
+
+        # Find the spawn function
+        if "spawn(" not in content:
+            pytest.skip("spawn function not found in GAME.C")
+
+        # Check for sentinel comment around line 3409-3410
+        has_sentinel = "engine-r12-game-spawn-sect-bounds" in content
+
+        assert has_sentinel, (
+            "GAME.C spawn() must have sentinel comment "
+            "'engine-r12-game-spawn-sect-bounds: sectnum guard before sector[] deref'"
+        )
+
+        # Extract lines around 3409-3410 (±15 lines for flexibility)
+        lines = content.split('\n')
+        
+        # Find lines near 3409 where sector[SECT] first appears
+        sect_deref_line = None
+        guard_line = None
+        sentinel_line = None
+        
+        for i, line in enumerate(lines):
+            # Roughly around line 3409 (0-indexed would be ~3408-3410)
+            if i >= 3350 and i <= 3450:
+                if "engine-r12-game-spawn-sect-bounds" in line:
+                    sentinel_line = i
+                if "sector[SECT].floorz" in line or "sector[SECT].ceilingz" in line:
+                    sect_deref_line = i
+                # Check for MAXSECTORS guard
+                if "(unsigned)sprite[i].sectnum >= MAXSECTORS" in line:
+                    guard_line = i
+        
+        # Verify sentinel exists
+        assert sentinel_line is not None, (
+            "Sentinel comment 'engine-r12-game-spawn-sect-bounds' not found near line 3409"
+        )
+        
+        # Verify guard exists
+        assert guard_line is not None, (
+            "Bounds check '(unsigned)sprite[i].sectnum >= MAXSECTORS' not found near line 3409"
+        )
+        
+        # Verify guard comes BEFORE the sector[] deref
+        if sect_deref_line is not None:
+            assert guard_line < sect_deref_line, (
+                f"MAXSECTORS guard (line {guard_line}) must come BEFORE sector[SECT] deref (line {sect_deref_line})"
+            )
+        
+        # Verify they are within ~15 lines of each other
+        assert abs(sentinel_line - guard_line) <= 2, (
+            f"Sentinel (line {sentinel_line}) and guard (line {guard_line}) "
+            f"should be on same or adjacent lines. Found {abs(sentinel_line - guard_line)} lines apart."
         )

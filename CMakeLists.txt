@@ -48,6 +48,9 @@ set(COMPAT_SRCS
     compat/audio_stub.c
     compat/mact_stub.c
     compat/hud.c
+    compat/maxtiles_engine_value.c
+    compat/maxtiles_game_value.c
+    compat/maxtiles_guard.c
 )
 
 # Force C language for uppercase .C files (GCC treats .C as C++)

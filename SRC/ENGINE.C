@@ -1051,7 +1051,11 @@ scansector (short sectnum)
 					templong = x1*y2-x2*y1;
 					if (((unsigned)templong+262144) < 524288)
 						if (mulscale5(templong,templong) <= (x2-x1)*(x2-x1)+(y2-y1)*(y2-y1))
+						{
+							/* engine-r12-scansector-depth-cap: stack overflow guard */
+							if (sectorbordercnt >= 256) return;
 							sectorborder[sectorbordercnt++] = nextsectnum;
+						}
 				}
 
 			if ((z == startwall) || (wall[z-1].point2 != z))

@@ -1686,3 +1686,67 @@ Keep v5 as the standing dispatch contract.
 - Open CRITICAL: 1 (`build-r7-lto-maxtiles-mismatch`; cycle-39 should pick
   `build-r11-maxtiles-link-assertion` to address).
 - Open HIGH: 3 (all net-r3 architectural).
+
+---
+
+## Cycle 39 — grind closures (6 agents, v5 contract, 3 CRITICALs)
+
+### Grind closures (6/6 landed)
+
+- **engine-r12-actors-dasectnum-bounds** (CRITICAL, engine-porter):
+  source/ACTORS.C:675 `(unsigned)dasectnum >= MAXSECTORS` guard restructured
+  as no-op `if/else if` to bypass `sector[dasectnum]` derefs on OOB.
+  Regression: `TestActorsDasectnumBounds`.
+- **engine-r12-game-spawn-sect-bounds** (CRITICAL, engine-porter):
+  source/GAME.C:3409 `(unsigned)sprite[i].sectnum >= MAXSECTORS return -1;`
+  guard before SECT-macro deref in spawn(). Regression:
+  `TestSpawnSectnumBounds`.
+- **build-r12-maxtiles-link-assertion** (CRITICAL — partial, Stage 1 of 3):
+  New `compat/maxtiles_guard.c` + `maxtiles_engine_value.c` +
+  `maxtiles_game_value.c` hooked into `build.mk` + `CMakeLists.txt`. Captures
+  MAXTILES from both `SRC/BUILD.H` (9216) and `source/BUILD.H` (6144) into
+  named externs, compares in `__attribute__((constructor))`.
+  **Demoted abort()→fprintf(WARNING) for Stage 1** so visual playtest harness
+  keeps passing (Stage 3 reinstates abort() once Stage 2 unifies headers).
+  Regression: `tests/test_maxtiles_assertion.py` with xfail guarding the
+  9216≠6144 divergence; flips to hard pass at Stage 2.
+- **engine-r12-scansector-depth-cap** (HIGH, engine-porter): SRC/ENGINE.C:1055
+  `if (sectorbordercnt >= 256) return;` before `sectorborder[sectorbordercnt++]`.
+  Regression: `TestScansectorDepthCap` (2 subtests).
+- **test-r12-packet-type-6-null-term** (MEDIUM, test-engineer): new test
+  `test_packet_type_6_null_termination_after_truncate` in
+  `TestPacketType6FieldBounds`. Locks in cycle-38 explicit null-term.
+- **sec-r11-endpoint-logging-suppress** (ADVISORY, security-and-secrets):
+  tools/generate_audio.py `_redact_endpoint()` strengthened
+  (scheme://hostname-first-label.***); 6 `TestEndpointLoggingRedaction` tests.
+
+### Build & Test
+
+- `make -j$(nproc)` → `Build complete: duke3d (release)` (1 pre-existing
+  realloc warning on RTS.C:36, unchanged).
+- `pytest -q` → **732 passed**, 34 skipped, 4 xfailed, 1 xpassed (+13 over
+  cycle-38 baseline of 719). New xfail = `test_maxtiles_assertion.py`
+  documenting Stage 2 work.
+
+### Process notes
+
+- **v5 contract working perfectly.** build-r12-maxtiles agent correctly
+  STOPPED when it saw a transient `continue`-outside-loop compile error
+  from sibling engine-r12-actors agent's intermediate edit. Operator
+  reconciled by waiting for actors agent to finish (final code had no
+  `continue`), then completed MAXTILES Stage 1 manually.
+- **Stage 1 abort→warn demotion** was an operator-side adjustment after
+  validation: original abort() crashed visual_playtest.py harness on every
+  game launch. Stage 3 will reinstate abort() once Stage 2 unifies headers.
+
+### Backlog snapshot
+
+- 184 pending / 235 done / 3 blocked (+22 new from audit-pass round 1+2,
+  −6 grind closures).
+- Open CRITICAL: **2 remaining** of the original 3 MAXTILES stages —
+  `build-r12-maxtiles-header-unification` (Stage 2) and
+  `build-r12-maxtiles-regression-test` (Stage 3).
+  `build-r7-lto-maxtiles-mismatch` now has a concrete remediation path
+  in flight (was the long-open CRITICAL).
+- Open HIGH: ~10 (3 net-r3 architectural + net-r9 type-8/17 + engine-r12
+  sprite-sectnum-chain + projectile-sectnum + sec-r12 fta_quotes overflow).

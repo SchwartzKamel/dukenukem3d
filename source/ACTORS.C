@@ -672,7 +672,9 @@ movesprite(short spritenum, long xchange, long ychange, long zchange, unsigned l
             retval = clipmove(&sprite[spritenum].x,&sprite[spritenum].y,&daz,&dasectnum,((xchange*TICSPERFRAME)<<11),((ychange*TICSPERFRAME)<<11),cd,(4<<8),(4<<8),cliptype);
         }
 
-        if( dasectnum < 0 || ( dasectnum >= 0 &&
+        if((unsigned)dasectnum >= MAXSECTORS) /* engine-r12-actors-dasectnum-bounds: sector bounds guard */
+            ;
+        else if( dasectnum < 0 || ( dasectnum >= 0 &&
             ( ( hittype[spritenum].actorstayput >= 0 && hittype[spritenum].actorstayput != dasectnum ) ||
               ( ( sprite[spritenum].picnum == BOSS2 ) && sprite[spritenum].pal == 0 && sector[dasectnum].lotag != 3 ) ||
               ( ( sprite[spritenum].picnum == BOSS1 || sprite[spritenum].picnum == BOSS2 ) && sector[dasectnum].lotag == 1 ) ||

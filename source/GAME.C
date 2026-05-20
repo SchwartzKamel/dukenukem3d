@@ -3406,6 +3406,8 @@ short spawn( short j, short pn )
         hittype[i].movflag = 0;
         hittype[i].tempang = 0;
         hittype[i].dispicnum = 0;
+        /* engine-r12-game-spawn-sect-bounds: sectnum guard before sector[] deref */
+        if((unsigned)sprite[i].sectnum >= MAXSECTORS) return -1;
         hittype[i].floorz = sector[SECT].floorz;
         hittype[i].ceilingz = sector[SECT].ceilingz;
 
