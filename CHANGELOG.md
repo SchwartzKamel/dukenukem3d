@@ -58,10 +58,15 @@ Versions ≥ v0.1.0 are tracked as annotated git tags; the audit-grind cycles
   sendpacket).
 
 ### Testing
-- 569 passed / 33 skipped (fast); 602 with --runslow (was 543 at v0.1.33).
-- New: multiplayer regression harness (`tests/test_net_protocol.py`),
-  audio semaphore-timeout + manifest-sync tests
-  (`tests/test_audio_pipeline.py`).
+- **610 collected tests** (cycles 19–22 added 41 new tests):
+  - Cycle 19: Foundation (baseline audit)
+  - Cycle 20: Asset schema + bounds validation (+7 tests)
+  - Cycle 21: Regression suite closure (+19 tests via new regression harness)
+  - Cycle 22: Final validation + cross-agent coverage (+15 tests)
+- Pre-cycle-19 baseline: 569 fast / 33 skipped = 602 with --runslow (was 543 at v0.1.33).
+- New suites: multiplayer regression harness (`tests/test_net_protocol.py`),
+  audio semaphore-timeout + manifest-sync tests (`tests/test_audio_pipeline.py`),
+  pydantic schema validation, frame analyzer, cache1d benchmarks, savegame loader bounds.
 
 ### Documentation
 - 12 cycle-by-cycle audit reports under `docs/audits/` covering 10

@@ -301,6 +301,13 @@ Sub-agents **must follow the no-git-mutation rule**:
 - ❌ Forbidden: `git reset`, `git stash`, `git revert`, `git cherry-pick`, or any tree-mutating command
 - **Git state is owned by you (the operator).** Sub-agents propose changes; you apply them.
 
+**Anti-Hallucination Return Format (Cycle 22):** All audit findings must be grounded in evidence. Sub-agents must include:
+- **Grep output** for code location claims (e.g., `grep -n "function_name" source/*.C | head -5`)
+- **Diff-stat summaries** when citing changes (e.g., `git diff v0.1.33..HEAD -- source/GAME.C | diffstat`)
+- **File existence verification** before citing paths (e.g., `ls -la source/FILE.C`)
+- **Test evidence** when asserting test counts or coverage (e.g., `pytest --collect-only -q`)
+- This prevents agents from inventing findings or citing non-existent code locations.
+
 ### Example: Contributing During an Active Grind
 
 1. You push a feature branch with changes to `source/GAME.C`.

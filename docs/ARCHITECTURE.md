@@ -437,5 +437,51 @@ This section documents critical safety fixes landed in recent audit cycles to pr
   - **Impact:** Audio state mutations now serialized; eliminates callback-invocation races.
   - **Cite:** `compat/audio_stub.c` (FX_Set* lock guards).
 
+### Cycles 16–18: Asset Pipeline & Build Integrity Hardening
+
+- **Atomic file writes for generated assets** (`tools/generate_assets.py`, cycle 18)
+  - **Issue:** Asset pipeline wrote directly to output files (DUKE3D.GRP, PALETTE.DAT, TABLES.DAT); concurrent reads during partial writes could corrupt game state.
+  - **Fix:** Introduced `_atomic_write_bytes()` pattern — write to temporary file, fsync, then rename atomically.
+  - **Impact:** All asset outputs now atomic; no partial GRP corruption risk even if build interrupts.
+  - **Cite:** `tools/generate_assets.py:2080–2093` (atomic write integration), docs/audits/asset-pipeline-r7.md.
+
+- **Build system MAXTILES conflict detection** (`build-system.agent`, cycles 16–17)
+  - **Issue:** `source/BUILD.H` and `SRC/BUILD.H` declared MAXTILES with conflicting bounds (6144 vs 9216); LTO type mismatch risked buffer overflow.
+  - **Fix:** Consolidated MAXTILES declaration; added build-time validation that both headers agree.
+  - **Impact:** Cross-compilation safe; LTO inlining no longer corrupts tile indexing.
+  - **Cite:** `source/BUILD.H` vs `SRC/BUILD.H`, docs/audits/build-system-r7.md.
+
+### Cycles 19–22: Critical Engine & Multiplayer Hardening
+
+- **CRITICAL — sprite.yvel unbounded player array index** (`source/ACTORS.C`, cycles 20–22)
+  - **Issue:** 14+ sites used `sprite[x].yvel` directly as player index without bounds checking (e.g., `ps[sprite[owner].yvel].fist_incs`). Malicious/corrupted sprites could write to arbitrary player structs.
+  - **Fix:** Inserted guards `if(sprite[x].yvel >= 0 && sprite[x].yvel < MAXPLAYERS)` before all `ps[]` array accesses; audit identified all 14 risky sites.
+  - **Impact:** Player struct memory now protected from sprite-driven array overflow; critical for multiplayer savegame safety.
+  - **Cite:** `source/ACTORS.C:205, 1128, 1034, 4441–4443, 6258–6293, 6888–6980` (guarded sites), docs/audits/engine-porter-r7.md.
+
+- **HIGH — savegame loader file I/O bounds validation** (`source/MENUES.C`, cycle 22)
+  - **Issue:** 83+ `kdfread()` sites in savegame/loadgame logic lacked validation; truncated save files could trigger out-of-bounds reads or silent data loss.
+  - **Fix:** Added read-size assertions and explicit bounds checks on `kdfread()` return values.
+  - **Impact:** Corrupted save files now detected and logged; prevents cascade corruption.
+  - **Cite:** `source/MENUES.C` (saveplayer/loadplayer fix sites), docs/audits/engine-porter-r7.md.
+
+- **Pydantic schema validation for asset configuration** (`tools/_asset_schemas.py`, cycle 20)
+  - **Issue:** Asset pipeline configuration (TEXTURE_DEFS, SPRITE_DEFS, VOICE_LINES) had no validation; typos or out-of-range tile numbers propagated silently into generated assets.
+  - **Fix:** Introduced pydantic v2 schemas with explicit bounds (`tile_num: 0–6143`, `dimensions: > 0`, etc.); module import-time validation.
+  - **Impact:** Configuration errors caught at startup; no malformed assets generated.
+  - **Cite:** `tools/_asset_schemas.py:112–114`, docs/audits/asset-pipeline-r7.md.
+
+- **Network connection timeout & keep-alive hardening** (`SRC/MMULTI.C`, cycle 21)
+  - **Issue:** Multiplayer net code had no connection timeout; hung sockets in relay scenarios.
+  - **Fix:** Added explicit timeout on socket reads; keep-alive heartbeats for idle connections.
+  - **Impact:** Stalled multiplayer connections now detected and closed gracefully.
+  - **Cite:** `SRC/MMULTI.C` (timeout + heartbeat logic), docs/audits/network-multiplayer-r4.md.
+
+- **Secret scanning YAML coverage extension** (`tools/check_secrets.sh`, cycle 22)
+  - **Issue:** Secret-scan hook only checked `.env`, `*.md`, `*.py`; missed API keys in GitHub Actions YAML (`.github/workflows/*.yml`, `build_windows.bat`).
+  - **Fix:** Extended pre-commit hook to scan `.yml` and `.bat` files; added patterns for common token prefixes.
+  - **Impact:** Accidentally committed tokens in CI files now blocked at push time.
+  - **Cite:** `tools/check_secrets.sh`, `.github/workflows/build.yml`, docs/audits/security-and-secrets-r7.md.
+
 For detailed audit findings and rationale, see [docs/audits/SUMMARY.md](docs/audits/SUMMARY.md).
 
