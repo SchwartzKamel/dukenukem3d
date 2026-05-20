@@ -1445,3 +1445,49 @@ tree for the agents' claimed pattern strings.
 - Open CRITICAL: 1 (build-r7-lto-maxtiles-mismatch).
 - Open HIGH: still 3 net-r3 architectural.
 
+
+---
+
+## Cycle 35 — 2026-05-20 audit-pass
+
+### Dispatched (2)
+
+- `engine-porter-r10` (5 cycles stale) — verified cycle-30/33 fixes
+  (OPERATESECTORS_MAX_DEPTH, PICNUM_SAFE, WEAPON_VALID/CLAMP,
+  MAX_CONFIG_KEY); 4 new findings:
+  - `engine-r10-rts-overflow` (CRITICAL) — RTS.C:85-91 integer
+    overflow in WAD header numlumps parse.
+  - `engine-r10-tempshort-overflow` (HIGH) — ACTORS.C:494 unbounded
+    stack buffer write.
+  - `engine-r10-dasect-unvalidated` (CRITICAL) — ACTORS.C:470
+    unvalidated sector index dereference.
+  - `engine-r10-player-sprite-unvalidated` (HIGH) — GAME.C:1715-1717
+    unvalidated sprite index in HUD frags display.
+- `audio-engineer-r9` (5 cycles stale) — verified cycles 26/33/34
+  (SDL_FreeRW, Mix_Init/Quit, schema_version/_redact_endpoint); 4 new
+  findings:
+  - `audio-r9-text-length` (MEDIUM) — VOICE_LINES manifest unbounded
+    prompt_summary/notes fields.
+  - `audio-r9-music-error-parity` (MEDIUM) — MUSIC_PlaySong always
+    returns MUSIC_Ok despite Mix_LoadMUS_RW failure.
+  - `audio-r9-rw-alloc-safety` (LOW) — SDL_RWFromConstMem allocation
+    coverage audit.
+  - `audio-r9-voice-enum-strict` (LOW) — SOUND_MANIFEST generation
+    vs validation enum alignment.
+
+### v4 contract compliance
+
+Both agents:
+- Returned literal grep output for every VERIFIED claim.
+- Returned SELECT-after-INSERT proof with each new todo id.
+- Ended return with a unique-token line that operator grep-confirmed.
+- Did NOT run `git stash`/`git reset`/`git checkout -- <file>`.
+- `git stash list` empty post-cycle; `git status --short` shows only
+  the 2 new untracked audit docs.
+
+### Backlog snapshot
+
+- 121 pending / 211 done / 3 blocked (+8 from this audit).
+- Open CRITICAL: 3 (build-r7-lto-maxtiles-mismatch + 2 new engine-r10).
+- Open HIGH: 5 (3 net-r3 architectural + 2 new engine-r10).
+
