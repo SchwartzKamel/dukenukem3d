@@ -47,6 +47,7 @@ typedef struct { long *hand, leng; char *lock; } cactype;
 cactype cac[MAXCACHEOBJECTS];
 static long lockrecip[200];
 static long lastCandidateBesto = 0, lastCandidateBestz = 0, lastCandidateSize = 0;
+static long cache1d_free_bytes = 0;
 
 initcache(long dacachestart, long dacachesize)
 {
@@ -56,6 +57,7 @@ initcache(long dacachestart, long dacachesize)
 
 	cachestart = dacachestart;
 	cachesize = dacachesize;
+	cache1d_free_bytes = dacachesize;
 
 	cac[0].leng = cachesize;
 	cac[0].lock = &zerochar;
@@ -152,11 +154,13 @@ allocache (long *newhandle, long newbytes, char *newlockptr)
 	cac[bestz].hand = newhandle; *newhandle = cachestart+besto;
 	cac[bestz].leng = newbytes;
 	cac[bestz].lock = newlockptr;
+	cache1d_free_bytes -= newbytes;
 	cachecount++;
 
-		//Add new empty block if necessary
+		/*Add new empty block if necessary*/
 	if (sucklen <= 0) return;
 
+	cache1d_free_bytes += sucklen;
 	bestz++;
 	if (bestz == cacnum)
 	{
@@ -177,16 +181,22 @@ allocache (long *newhandle, long newbytes, char *newlockptr)
 suckcache (long *suckptr)
 {
 	long i;
+	long freed_bytes;
 
-		//Can't exit early, because invalid pointer might be same even though lock = 0
+	/* Early exit fastpath: if enough free space, skip defragmentation */
+	if (cache1d_free_bytes > (cachesize >> 2)) return;
+
+	/*Can't exit early, because invalid pointer might be same even though lock = 0*/
 	for(i=0;i<cacnum;i++)
 		if ((long)(*cac[i].hand) == (long)suckptr)
 		{
+			freed_bytes = cac[i].leng;
 			if (*cac[i].lock) *cac[i].hand = 0;
 			cac[i].lock = &zerochar;
 			cac[i].hand = 0;
+			cache1d_free_bytes += freed_bytes;
 
-				//Combine empty blocks
+			/*Combine empty blocks*/
 			if ((i > 0) && (*cac[i-1].lock == 0))
 			{
 				cac[i-1].leng += cac[i].leng;
@@ -204,6 +214,9 @@ agecache()
 {
 	long cnt;
 	char ch;
+
+	/* Early exit fastpath: if more than half the cache is free, skip aging */
+	if (cache1d_free_bytes > (cachesize >> 1)) return;
 
 	if (agecount >= cacnum) agecount = cacnum-1;
 	for(cnt=(cacnum>>4);cnt>=0;cnt--)
