@@ -42,13 +42,82 @@ if echo "$STAGED_DIFF" | grep -E '^\+.*_API_KEY=' | \
     EXIT_CODE=1
 fi
 
-# Check for common token prefixes (sk-, ghp-, xoxb-, etc.) that aren't in comments
+# Check for common token prefixes (sk-, ghp_, xoxb-, etc.) that aren't in comments
 if echo "$STAGED_DIFF" | grep -E '^\+(.*)(sk-[a-zA-Z0-9]{20,}|ghp_[a-zA-Z0-9]{20,}|xoxb-[a-zA-Z0-9]{20,})' | \
    grep -v 'check_secrets\.sh' | \
    grep -v '#' | \
    grep -v '\.env\.example' > /dev/null 2>&1; then
     echo "🔴 ERROR: Detected potential token pattern in staged changes!"
     echo "   Check staged files for token prefixes (sk-, ghp_, xoxb-)"
+    EXIT_CODE=1
+fi
+
+# Check for AWS access keys (AKIA prefix)
+if echo "$STAGED_DIFF" | grep -E 'AKIA[0-9A-Z]{16}' | \
+   grep -v 'check_secrets\.sh' | \
+   grep -v '#' | \
+   grep -v '\.env\.example' > /dev/null 2>&1; then
+    echo "🔴 ERROR: Detected potential AWS access key in staged changes!"
+    echo "   Check staged files for AKIA pattern"
+    EXIT_CODE=1
+fi
+
+# Check for GitHub fine-grained tokens
+if echo "$STAGED_DIFF" | grep -E 'github_pat_[0-9A-Za-z_]{50,}' | \
+   grep -v 'check_secrets\.sh' | \
+   grep -v '#' | \
+   grep -v '\.env\.example' > /dev/null 2>&1; then
+    echo "🔴 ERROR: Detected potential GitHub fine-grained token in staged changes!"
+    echo "   Check staged files for github_pat_ pattern"
+    EXIT_CODE=1
+fi
+
+# Check for SSH private keys (multiline patterns - match +/-/space at start since it's git diff output)
+if echo "$STAGED_DIFF" | grep -E '^[\+\-\@].*BEGIN (RSA |OPENSSH |EC |DSA )?PRIVATE KEY' | \
+   grep -v 'check_secrets\.sh' | \
+   grep -v '\.env\.example' > /dev/null 2>&1; then
+    echo "🔴 ERROR: Detected potential SSH private key in staged changes!"
+    echo "   Check staged files for BEGIN PRIVATE KEY pattern"
+    EXIT_CODE=1
+fi
+
+# Check for Stripe live keys
+if echo "$STAGED_DIFF" | grep -E 'sk_live_[0-9a-zA-Z]{24,}' | \
+   grep -v 'check_secrets\.sh' | \
+   grep -v '#' | \
+   grep -v '\.env\.example' > /dev/null 2>&1; then
+    echo "🔴 ERROR: Detected potential Stripe live key in staged changes!"
+    echo "   Check staged files for sk_live_ pattern"
+    EXIT_CODE=1
+fi
+
+# Check for Twilio account/API keys
+if echo "$STAGED_DIFF" | grep -E '(AC|SK)[a-f0-9]{32}' | \
+   grep -v 'check_secrets\.sh' | \
+   grep -v '#' | \
+   grep -v '\.env\.example' > /dev/null 2>&1; then
+    echo "🔴 ERROR: Detected potential Twilio key in staged changes!"
+    echo "   Check staged files for Twilio AC/SK pattern"
+    EXIT_CODE=1
+fi
+
+# Check for Azure connection strings and patterns (DefaultEndpointsProtocol, endpoint URIs)
+if echo "$STAGED_DIFF" | grep -E '(DefaultEndpointsProtocol|\.database\.windows\.net|\.blob\.core\.windows\.net)' | \
+   grep -v 'check_secrets\.sh' | \
+   grep -v '#' | \
+   grep -v '\.env\.example' > /dev/null 2>&1; then
+    echo "🔴 ERROR: Detected potential Azure connection string pattern in staged changes!"
+    echo "   Check staged files for Azure endpoint patterns"
+    EXIT_CODE=1
+fi
+
+# Check for Azure AccountKey with base64 content (88 chars is typical for account keys)
+if echo "$STAGED_DIFF" | grep -E 'AccountKey=[A-Za-z0-9+/]{88}' | \
+   grep -v 'check_secrets\.sh' | \
+   grep -v '#' | \
+   grep -v '\.env\.example' > /dev/null 2>&1; then
+    echo "🔴 ERROR: Detected potential Azure account key (88-char base64) in staged changes!"
+    echo "   Check staged files for AccountKey= pattern"
     EXIT_CODE=1
 fi
 
