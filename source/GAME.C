@@ -7130,19 +7130,16 @@ static char sixteen[] = "16 Possible Dukes";
 
 void compilecons(void)
 {
-   mymembuf = (char *)&hittype[0];
-   labelcode = (long *)&sector[0];
-   label = (char *)&sprite[0];
+    mymembuf = (char *)&hittype[0];
+    /* labelcode is now properly allocated, not aliased to sector[] */
+    label = (char *)&sprite[0];
 
-//   printf("%ld %ld %ld\n",sizeof(hittype),sizeof(sector),sizeof(sprite));
-//   exit(0);
-
-   loadefs(confilename,mymembuf);
-   if( loadfromgrouponly )
-   {
-       printf("  * Writing defaults to current directory.\n");
-       loadefs(confilename,mymembuf);
-   }
+    loadefs(confilename,mymembuf);
+    if( loadfromgrouponly )
+    {
+        printf("  * Writing defaults to current directory.\n");
+        loadefs(confilename,mymembuf);
+    }
 }
 
 

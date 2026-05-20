@@ -135,6 +135,7 @@ static inline int sgn(int x) { return (x > 0) - (x < 0); }\
 
 #define MAXCYCLERS 256
 #define MAXSCRIPTSIZE 20460
+#define MAXLABELS 4096
 #define MAXANIMATES 64
 
 #define SP  sprite[i].yvel
@@ -396,7 +397,7 @@ extern SOUNDOWNER SoundOwner[NUM_SOUNDS][4];
 extern char playerreadyflag[MAXPLAYERS],playerquitflag[MAXPLAYERS];
 extern char sounds[NUM_SOUNDS][14];
 
-extern long script[MAXSCRIPTSIZE],*scriptptr,*insptr,*labelcode,labelcnt;
+extern long script[MAXSCRIPTSIZE],*scriptptr,*insptr,labelcode[MAXLABELS],labelcnt;
 extern char *label,*textptr,error,warning,killit_flag;
 extern long *actorscrptr[MAXTILES],*parsing_actor;
 extern char actortype[MAXTILES];
