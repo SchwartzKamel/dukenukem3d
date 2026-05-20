@@ -2670,7 +2670,7 @@ short tempsectorpicnum[MAXSECTORS];
 
 SE40_Draw(int spnum,long x,long y,long z,short a,short h,long smoothratio)
 {
- int i=0,j=0,k=0;
+ int i=0,j=0,k=0,statnum=0;
  int floor1=0,floor2=0,ok=0,fofmode=0;
  long offx,offy;
 
@@ -2706,49 +2706,60 @@ SE40_Draw(int spnum,long x,long y,long z,short a,short h,long smoothratio)
 
 // if(ok==0) { Message("no fof",RED); return; }
 
- for(j=0;j<MAXSPRITES;j++)
+ for(statnum=0;statnum<MAXSTATUS;statnum++)
  {
-  if(
-     sprite[j].picnum==1 &&
-     sprite[j].lotag==fofmode &&
-     sprite[j].hitag==sprite[floor1].hitag
-    ) { floor1=j; fofmode=sprite[j].lotag; ok++; break;}
+  for(j=headspritestat[statnum];j!=-1;j=nextspritestat[j])
+  {
+   if(
+      sprite[j].picnum==1 &&
+      sprite[j].lotag==fofmode &&
+      sprite[j].hitag==sprite[floor1].hitag
+     ) { floor1=j; fofmode=sprite[j].lotag; ok++; break;}
+  }
+  if (floor1!=spnum) break;
  }
 // if(ok==1) { Message("no floor1",RED); return; }
 
  if(fofmode==40) k=41; else k=40;
 
- for(j=0;j<MAXSPRITES;j++)
+ for(statnum=0;statnum<MAXSTATUS;statnum++)
  {
-  if(
-     sprite[j].picnum==1 &&
-     sprite[j].lotag==k &&
-     sprite[j].hitag==sprite[floor1].hitag
-    ) {floor2=j; ok++; break;}
+  for(j=headspritestat[statnum];j!=-1;j=nextspritestat[j])
+  {
+   if(
+      sprite[j].picnum==1 &&
+      sprite[j].lotag==k &&
+      sprite[j].hitag==sprite[floor1].hitag
+     ) {floor2=j; ok++; break;}
+  }
+  if (floor2!=0) break;
  }
 
 // if(ok==2) { Message("no floor2",RED); return; }
 
- for(j=0;j<MAXSPRITES;j++)  // raise ceiling or floor
+ for(statnum=0;statnum<MAXSTATUS;statnum++)
  {
-  if(sprite[j].picnum==1 &&
-     sprite[j].lotag==k+2 &&
-     sprite[j].hitag==sprite[floor1].hitag
-    )
-    {
-     if(k==40)
-     {tempsectorz[sprite[j].sectnum]=sector[sprite[j].sectnum].floorz;
-      sector[sprite[j].sectnum].floorz+=(((z-sector[sprite[j].sectnum].floorz)/32768)+1)*32768;
-      tempsectorpicnum[sprite[j].sectnum]=sector[sprite[j].sectnum].floorpicnum;
-      sector[sprite[j].sectnum].floorpicnum=13;
+  for(j=headspritestat[statnum];j!=-1;j=nextspritestat[j])
+  {
+   if(sprite[j].picnum==1 &&
+      sprite[j].lotag==k+2 &&
+      sprite[j].hitag==sprite[floor1].hitag
+     )
+     {
+      if(k==40)
+      {tempsectorz[sprite[j].sectnum]=sector[sprite[j].sectnum].floorz;
+       sector[sprite[j].sectnum].floorz+=(((z-sector[sprite[j].sectnum].floorz)/32768)+1)*32768;
+       tempsectorpicnum[sprite[j].sectnum]=sector[sprite[j].sectnum].floorpicnum;
+       sector[sprite[j].sectnum].floorpicnum=13;
+      }
+      if(k==41)
+      {tempsectorz[sprite[j].sectnum]=sector[sprite[j].sectnum].ceilingz;
+       sector[sprite[j].sectnum].ceilingz+=(((z-sector[sprite[j].sectnum].ceilingz)/32768)-1)*32768;
+       tempsectorpicnum[sprite[j].sectnum]=sector[sprite[j].sectnum].ceilingpicnum;
+       sector[sprite[j].sectnum].ceilingpicnum=13;
+      }
      }
-     if(k==41)
-     {tempsectorz[sprite[j].sectnum]=sector[sprite[j].sectnum].ceilingz;
-      sector[sprite[j].sectnum].ceilingz+=(((z-sector[sprite[j].sectnum].ceilingz)/32768)-1)*32768;
-      tempsectorpicnum[sprite[j].sectnum]=sector[sprite[j].sectnum].ceilingpicnum;
-      sector[sprite[j].sectnum].ceilingpicnum=13;
-     }
-    }
+  }
  }
 
  i=floor1;
@@ -2759,22 +2770,25 @@ SE40_Draw(int spnum,long x,long y,long z,short a,short h,long smoothratio)
  animatesprites(x,y,a,smoothratio);
  drawmasks();
 
- for(j=0;j<MAXSPRITES;j++)  // restore ceiling or floor
+ for(statnum=0;statnum<MAXSTATUS;statnum++)
  {
-  if(sprite[j].picnum==1 &&
-     sprite[j].lotag==k+2 &&
-     sprite[j].hitag==sprite[floor1].hitag
-    )
-    {
-     if(k==40)
-     {sector[sprite[j].sectnum].floorz=tempsectorz[sprite[j].sectnum];
-      sector[sprite[j].sectnum].floorpicnum=tempsectorpicnum[sprite[j].sectnum];
-     }
-     if(k==41)
-     {sector[sprite[j].sectnum].ceilingz=tempsectorz[sprite[j].sectnum];
-      sector[sprite[j].sectnum].ceilingpicnum=tempsectorpicnum[sprite[j].sectnum];
-     }
-    }// end if
+  for(j=headspritestat[statnum];j!=-1;j=nextspritestat[j])
+  {
+   if(sprite[j].picnum==1 &&
+      sprite[j].lotag==k+2 &&
+      sprite[j].hitag==sprite[floor1].hitag
+     )
+     {
+      if(k==40)
+      {sector[sprite[j].sectnum].floorz=tempsectorz[sprite[j].sectnum];
+       sector[sprite[j].sectnum].floorpicnum=tempsectorpicnum[sprite[j].sectnum];
+      }
+      if(k==41)
+      {sector[sprite[j].sectnum].ceilingz=tempsectorz[sprite[j].sectnum];
+       sector[sprite[j].sectnum].ceilingpicnum=tempsectorpicnum[sprite[j].sectnum];
+      }
+     }// end if
+  }
  }// end for
 
 } // end SE40

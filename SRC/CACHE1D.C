@@ -46,6 +46,7 @@ long cachestart = 0, cacnum = 0, agecount = 0;
 typedef struct { long *hand, leng; char *lock; } cactype;
 cactype cac[MAXCACHEOBJECTS];
 static long lockrecip[200];
+static long lastCandidateBesto = 0, lastCandidateBestz = 0, lastCandidateSize = 0;
 
 initcache(long dacachestart, long dacachesize)
 {
@@ -81,6 +82,36 @@ allocache (long *newhandle, long newbytes, char *newlockptr)
 
 		//Find best place
 	bestval = 0x7fffffff; o1 = cachesize;
+	
+	// Try candidate cache first if size is similar
+	if (lastCandidateSize > 0 && lastCandidateSize <= newbytes + 256)
+	{
+		long cand_o1 = lastCandidateBesto;
+		long cand_o2 = cand_o1 + newbytes;
+		if (cand_o2 <= cachesize && lastCandidateBestz >= 0 && lastCandidateBestz < cacnum)
+		{
+			daval = 0;
+			for(i=cand_o1,zz=lastCandidateBestz;i<cand_o2;i+=cac[zz++].leng)
+			{
+				if (*cac[zz].lock == 0) continue;
+				if (*cac[zz].lock >= 200) { daval = 0x7fffffff; break; }
+				daval += mulscale32(cac[zz].leng+65536,lockrecip[*cac[zz].lock]);
+				if (daval >= bestval) break;
+			}
+			if (daval < bestval)
+			{
+				bestval = daval; besto = cand_o1; bestz = lastCandidateBestz;
+				if (bestval == 0)
+				{
+					lastCandidateBesto = besto;
+					lastCandidateBestz = bestz;
+					lastCandidateSize = newbytes;
+					goto cachealloc_found;
+				}
+			}
+		}
+	}
+	
 	for(z=cacnum-1;z>=0;z--)
 	{
 		o1 -= cac[z].leng;
@@ -100,6 +131,11 @@ allocache (long *newhandle, long newbytes, char *newlockptr)
 			if (bestval == 0) break;
 		}
 	}
+	
+	lastCandidateBesto = besto;
+	lastCandidateBestz = bestz;
+	lastCandidateSize = newbytes;
+	cachealloc_found:
 
 	//printf("%ld %ld %ld\n",besto,newbytes,*newlockptr);
 
