@@ -2090,3 +2090,14 @@ None. All sentinels intact across cycles 41–57 (re-verified by net-r13 + build
 - **compat-layer-r15:** **0 findings, 0 todos** (legitimate clean-pass per anti-hallucination contract v6). Verified cycle 58 AUDIO_DEFAULT_SAMPLE_RATE=44100 live single-source. All cycle-46-onward memory-hack constants intact, zero drift. C11/gnu89 pragma walls intact. SDL2 lifecycle pairing complete + atexit. Windows cross-compilation health: CMakeLists.txt LANGUAGE C still prevents /Tc errors.
 
 **Backlog delta:** ~273 → ~278 pending (+5 net-r14 CRIT/MED intake).
+
+---
+
+## Cycle 60 (audit-pass tick, 2026-05-20T22:50Z)
+
+**Stalest rotation:** test-engineer (last r15 @ cycle 54) + security-and-secrets (last r15 @ cycle 54). Both 6 cycles old.
+
+- **test-engineer-r16:** 3 findings, **4 todos** (**1 CRITICAL escalated**). CRIT: `test-r16-mega-file-split-escalated` — tests/test_engine_net_hardening_regressions.py at 3803 lines (+327 vs r15), IDE-navigation pain zone reached; recommend 3-way split next grind. MED: test_build_warnings.py incomplete-assert false-pass risk (sys.exit before assertion); test_security_posture.py regex/YAML brittleness (high false-positive surface). Suite health: 917 collected, 100% pass, 0 xpass (cycle 56 promotion delivered), 0 flake, 21.01s wallclock.
+- **security-and-secrets-r16:** 5 findings, **5 todos** (0 CRIT/HIGH). MED: `sec-r16-scanner-gap-new-patterns` (6 NEW gaps — Google Cloud JSON, Slack xoxp-, npm_, rk_live_, hf_, org-), `sec-r16-manifest-loader-adoption-audit` (verify other loaders haven't drifted), `sec-r16-ci-secret-masking-audit`, `sec-r16-precommit-hook-activation` (hook script exists but `.git/hooks/pre-commit` not installed for fresh clones). LOW: `sec-r16-sentinel-documentation-gap`. Verified: 10 active scanner patterns, manifest verify-on-load LIVE, workflow permissions least-privilege, 100% requirements pinning (CVE-free).
+
+**Backlog delta:** ~278 → ~287 pending (+9 intake from test-r16 + sec-r16).
