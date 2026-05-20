@@ -854,7 +854,16 @@ def _process_pool_results(results_iterator, asset_type):
     tiles = {}
     failures = []
     
-    for tile_num, tile_data, *error_info in sorted(results_iterator, key=lambda x: x[0]):
+    # asset-r13-pool-collision-detection: assert no duplicate tile_num
+    seen_tile_nums = set()
+    pool_results = list(results_iterator)
+    for result in pool_results:
+        tile_num = result[0]
+        if tile_num in seen_tile_nums:
+            raise RuntimeError(f"asset-r13: duplicate tile_num {tile_num} from pool workers — possible PROCEDURAL_MAP race")
+        seen_tile_nums.add(tile_num)
+    
+    for tile_num, tile_data, *error_info in sorted(pool_results, key=lambda x: x[0]):
         if error_info and error_info[0]:  # error_str is present
             error_str = error_info[0]
             failures.append((tile_num, error_str))

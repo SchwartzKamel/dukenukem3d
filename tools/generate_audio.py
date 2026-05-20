@@ -6,6 +6,7 @@ import argparse
 import asyncio
 import base64
 import concurrent.futures
+import hashlib
 import json
 import os
 import struct
@@ -57,6 +58,25 @@ def _atomic_write_bytes(path: str, data: bytes) -> None:
         except OSError:
             pass
         raise
+
+
+def _sha256_of_file(path):  # asset-r13-manifest-checksums: per-file checksum
+    """Compute SHA256 checksum of a file."""
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(65536), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def _sha256_of_manifest(manifest_dict):  # asset-r13-manifest-checksums: top-level checksum
+    """Compute SHA256 checksum of manifest, excluding the manifest_checksum field itself."""
+    canonical = json.dumps(
+        {k: v for k, v in sorted(manifest_dict.items()) if k != "manifest_checksum"},
+        sort_keys=True,
+        separators=(",", ":")
+    )
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
 # (filename, prompt, voice)
@@ -282,6 +302,30 @@ async def generate_audio_async(session, prompt, voice, endpoint, api_key, model)
         return None, f"Failed: {e}"
 
 
+def _add_checksums_to_manifest(manifest_dict, output_dir):  # asset-r13-manifest-checksums: SHA256 integrity
+    """Add per-file checksums to manifest entries and compute manifest checksum.
+    
+    Args:
+        manifest_dict: Dict with schema_version and entries keys
+        output_dir: Directory where WAV files are stored
+    
+    Returns:
+        Updated manifest dict with checksums
+    """
+    # Add per-file checksums for each entry
+    for entry in manifest_dict.get("entries", []):
+        wav_filename = entry.get("wav")
+        if wav_filename:
+            wav_path = os.path.join(output_dir, wav_filename)
+            if os.path.exists(wav_path):
+                entry["checksum"] = _sha256_of_file(wav_path)
+    
+    # Compute and add top-level manifest checksum
+    manifest_dict["manifest_checksum"] = _sha256_of_manifest(manifest_dict)
+    
+    return manifest_dict
+
+
 def main():
     parser = argparse.ArgumentParser(description="Generate audio assets for Duke3D")
     parser.add_argument(
@@ -345,6 +389,9 @@ def main():
         "schema_version": "1.0",
         "entries": SOUND_MANIFEST
     }
+    
+    # Add checksums to manifest entries and manifest itself
+    manifest_to_write = _add_checksums_to_manifest(manifest_to_write, OUTPUT_DIR)
     
     manifest_path = os.path.join(OUTPUT_DIR, "MANIFEST.json")
     try:

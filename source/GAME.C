@@ -6486,7 +6486,10 @@ void nonsharedkeys(void)
                     if(music_select == 6) music_select = 0;
 #endif
                     strcpy(&tempbuf[0],"PLAYING ");
-                    strcat(&tempbuf[0],&music_fn[0][music_select][0]);
+                    {
+                        size_t remaining = sizeof(tempbuf) - strlen(tempbuf) - 1;  /* sec-r13-game-c-strcat-tempbuf-harden: bounded strcat */
+                        strncat(tempbuf, &music_fn[0][music_select][0], remaining);
+                    }
                     playmusic(&music_fn[0][music_select][0]);
                     strncpy(&fta_quotes[26][0],&tempbuf[0],sizeof(fta_quotes[26])-1);  /* sec-r12-strcat-fta-quotes-overflow: bound + null-term */
                     fta_quotes[26][sizeof(fta_quotes[26])-1] = '\0';
@@ -6709,7 +6712,10 @@ void nonsharedkeys(void)
         {
             KB_ClearKeyDown( sc_F5 );
             strcpy(&tempbuf[0],&music_fn[0][music_select][0]);
-            strcat(&tempbuf[0],".  USE SHIFT-F5 TO CHANGE.");
+            {
+                size_t remaining = sizeof(tempbuf) - strlen(tempbuf) - 1;  /* sec-r13-game-c-strcat-tempbuf-harden: bounded strcat */
+                strncat(tempbuf, ".  USE SHIFT-F5 TO CHANGE.", remaining);
+            }
             strncpy(&fta_quotes[26][0],&tempbuf[0],sizeof(fta_quotes[26])-1);  /* sec-r12-strcat-fta-quotes-overflow: bound + null-term */
             fta_quotes[26][sizeof(fta_quotes[26])-1] = '\0';
             FTA(26,&ps[myconnectindex]);

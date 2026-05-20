@@ -17,7 +17,9 @@ else
 endif
 
 CC      = gcc
-CFLAGS  = $(LEGACY_STD) $(OPT_FLAGS) $(WARN_FLAGS) $(LTO_FLAGS) $(COMMON_DEFINES) -DPLATFORM_UNIX
+# build-r14-header-deps: auto-generate header dependency files
+DEPFLAGS = -MMD -MP
+CFLAGS  = $(LEGACY_STD) $(OPT_FLAGS) $(WARN_FLAGS) $(LTO_FLAGS) $(COMMON_DEFINES) -DPLATFORM_UNIX $(DEPFLAGS)
 
 # ===== Smart SDL2 Detection =====
 SDL2_CFLAGS := $(shell pkg-config --cflags sdl2 2>/dev/null || sdl2-config --cflags 2>/dev/null)
@@ -63,7 +65,7 @@ LIBS    = $(SDL2_LIBS) $(MIXER_LIBS) -lm
 # ===== Windows x86 cross-compilation settings =====
 # 32-bit build: BUILD engine uses long for pointer storage, long==4==sizeof(void*) on ILP32
 WIN_CC = i686-w64-mingw32-gcc
-WIN_CFLAGS  = $(LEGACY_STD) $(OPT_FLAGS) $(WARN_FLAGS) $(LTO_FLAGS) $(COMMON_DEFINES) -DPLATFORM_WIN32
+WIN_CFLAGS  = $(LEGACY_STD) $(OPT_FLAGS) $(WARN_FLAGS) $(LTO_FLAGS) $(COMMON_DEFINES) -DPLATFORM_WIN32 $(DEPFLAGS)
 WIN_SDL2_CFLAGS = $(if $(SDL2_WIN_CFLAGS),$(SDL2_WIN_CFLAGS),$(shell pkg-config --cflags sdl2 2>/dev/null))
 ifeq ($(WIN_SDL2_CFLAGS),)
   # Check common MinGW SDL2 paths
@@ -212,3 +214,7 @@ test-compile: $(BUILD_DIR)
 		echo "Compiling $$f..."; \
 		$(CC) $(COMPAT_STD) -Wall $(SDL2_CFLAGS) $(INCLUDES) -c $$f -o /dev/null 2>&1 | head -5 || true; \
 	done
+
+# build-r14-header-deps: include auto-generated dependency files
+-include $(ALL_OBJS:.o=.d)
+-include $(WIN_ALL_OBJS:.o=.d)

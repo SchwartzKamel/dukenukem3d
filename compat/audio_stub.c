@@ -48,6 +48,14 @@ static void (*fx_callback)(unsigned long) = NULL;
 
 #define MIXER_MAX_CHANNELS 32
 
+/* compat-r12-audio-buffer-size-define: latency-vs-responsiveness tradeoff
+ * 2048 frames @ 44.1kHz = ~46ms — chosen for game audio responsiveness. */
+#define AUDIO_BUFFER_SIZE 2048
+
+/* compat-r12-retry-backoff-constants: Mix_OpenAudio init retry tuning */
+#define AUDIO_MIX_INIT_MAX_RETRIES 3
+#define AUDIO_MIX_INIT_BASE_DELAY_MS 100
+
 static int            mixer_initialized = 0;
 static Mix_Chunk     *mixer_channel_chunk[MIXER_MAX_CHANNELS];
 static unsigned long  mixer_channel_cbval[MIXER_MAX_CHANNELS];
@@ -369,18 +377,18 @@ int FX_Init(int SoundCard, int numvoices, int numchannels,
     // Retry Mix_OpenAudio with exponential backoff for transient failures (e.g., audio device busy)
     int mix_open_attempt;
     int mix_open_result = -1;
-    for (mix_open_attempt = 1; mix_open_attempt <= 3; mix_open_attempt++) {
+    for (mix_open_attempt = 1; mix_open_attempt <= AUDIO_MIX_INIT_MAX_RETRIES; mix_open_attempt++) {
         mix_open_result = Mix_OpenAudio(mixrate ? (int)mixrate : 44100,
                                         MIX_DEFAULT_FORMAT,
                                         numchannels > 1 ? 2 : 1,
-                                        2048);
+                                        AUDIO_BUFFER_SIZE);
         if (mix_open_result >= 0) {
             break; // Success
         }
         fprintf(stderr, "Audio init attempt %d/3 failed: %s\n", mix_open_attempt, Mix_GetError());
         if (mix_open_attempt < 3) {
             // Exponential backoff: 100ms, 200ms, 400ms
-            int delay_ms = 100 * (1 << (mix_open_attempt - 1));
+            int delay_ms = AUDIO_MIX_INIT_BASE_DELAY_MS * (1 << (mix_open_attempt - 1));
             SDL_Delay(delay_ms);
         }
     }

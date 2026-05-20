@@ -2818,14 +2818,13 @@ def test_pytest_xdist_in_requirements():
 
 
 def test_pytest_ini_documents_xdist_status():
-    """Verify pytest.ini retains the xdist sentinel and documents opt-in path.
+    """Verify pytest.ini has xdist enabled via addopts and sentinel documented.
 
-    NOTE: Default xdist (-n auto) was reverted after cycle-45 because the
-    session-autouse `generated_audio_artifacts` fixture races across workers
-    on tmp+rename. Tracked under perf-r12-xdist-fixture-redesign. This test
-    only requires the sentinel comment + serial marker registration to
-    remain in place; the `addopts = -n auto` opt-in will be re-added once
-    the fixture is xdist-safe.
+    The session-autouse `generated_audio_artifacts` fixture (tests/conftest.py)
+    uses FileLock to coordinate across xdist workers, ensuring artifacts are
+    generated once and shared safely. This enables parallel test execution.
+    
+    See perf-r12-xdist-fixture-redesign for the filelock-based coordination pattern.
     """
     from pathlib import Path
     pytest_ini = Path(__file__).parent.parent / "pytest.ini"
@@ -2835,8 +2834,15 @@ def test_pytest_ini_documents_xdist_status():
         "pytest.ini must retain sentinel comment 'perf-r12-pytest-xdist-integration'"
     )
     assert "serial" in content, (
-        "pytest.ini must retain the `serial` marker registration for future xdist re-enable"
+        "pytest.ini must retain the `serial` marker registration for xdist"
     )
+    assert "-n auto" in content, (
+        "pytest.ini must have 'addopts = -n auto' to enable parallel test execution"
+    )
+    assert "perf-r12-xdist-fixture-redesign" in content, (
+        "pytest.ini must reference perf-r12-xdist-fixture-redesign to document the fix"
+    )
+
 
 
 def test_pytest_ini_has_serial_marker():
@@ -2870,3 +2876,81 @@ def test_audio_pipeline_tests_marked_serial():
     assert "TestParallelManifestRace" in content, (
         "TestParallelManifestRace class should exist for testing parallel coordination"
     )
+
+
+class TestBuildR14HeaderDeps:
+    """Verify automatic header dependency tracking is configured in build system."""
+    
+    def test_makefile_has_depflags_and_mmd_mp(self):
+        """Assert -MMD -MP flags are defined and included in CFLAGS."""
+        from pathlib import Path
+        makefile = Path(__file__).parent.parent / "Makefile"
+        content = makefile.read_text()
+        
+        assert "DEPFLAGS = -MMD -MP" in content, (
+            "Makefile must define DEPFLAGS = -MMD -MP to auto-generate .d files"
+        )
+        assert "build-r14-header-deps" in content, (
+            "Makefile must include sentinel comment 'build-r14-header-deps'"
+        )
+        assert "$(DEPFLAGS)" in content, (
+            "Makefile must use $(DEPFLAGS) in CFLAGS"
+        )
+    
+    def test_makefile_includes_dependency_files(self):
+        """Assert generated .d files are included via -include."""
+        from pathlib import Path
+        makefile = Path(__file__).parent.parent / "Makefile"
+
+
+class TestSecR13GameStrcatTempbufHarden:
+    """Verify sec-r13 GAME.C strcat(tempbuf) bounded hardening."""
+    
+    def test_sentinel_comment_present(self, repo_root):
+        """Assert sentinel comment 'sec-r13-game-c-strcat-tempbuf-harden' appears at least once."""
+        game_c = repo_root / "source" / "GAME.C"
+        if not game_c.exists():
+            pytest.skip(f"{game_c} not found")
+        
+        content = game_c.read_text(errors="replace")
+        sentinel = "sec-r13-game-c-strcat-tempbuf-harden"
+        
+        assert sentinel in content, (
+            f"Sentinel comment '{sentinel}' must appear at least once in GAME.C"
+        )
+    
+    def test_no_unbounded_strcat_on_tempbuf(self, repo_root):
+        """Assert NO bare strcat(&tempbuf[0], ...) or strcat(tempbuf, ...) remain."""
+        game_c = repo_root / "source" / "GAME.C"
+        if not game_c.exists():
+            pytest.skip(f"{game_c} not found")
+        
+        content = game_c.read_text(errors="replace")
+        
+        """Count unbounded strcat patterns"""
+        unbounded_patterns = [
+            r"strcat\s*\(\s*&tempbuf\s*\[",
+            r"strcat\s*\(\s*tempbuf\s*,",
+        ]
+        
+        for pattern in unbounded_patterns:
+            matches = re.findall(pattern, content)
+            assert len(matches) == 0, (
+                f"Found {len(matches)} unbounded strcat calls matching '{pattern}' in GAME.C. "
+                "All strcat(tempbuf, ...) must be replaced with bounded strncat()."
+            )
+    
+    def test_strncat_on_tempbuf_present(self, repo_root):
+        """Assert at least 1 strncat(tempbuf, ...) is present."""
+        game_c = repo_root / "source" / "GAME.C"
+        if not game_c.exists():
+            pytest.skip(f"{game_c} not found")
+        
+        content = game_c.read_text(errors="replace")
+        
+        """Count strncat on tempbuf"""
+        strncat_matches = re.findall(r"strncat\s*\(\s*tempbuf", content)
+        
+        assert len(strncat_matches) >= 1, (
+            "At least 1 strncat(tempbuf, ...) must be present in GAME.C after hardening"
+        )

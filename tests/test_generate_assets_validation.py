@@ -5,7 +5,7 @@ import os
 
 # Import the validation function
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'tools'))
-from generate_assets import _validate_texture_dimensions, TEXTURE_DEFS, SPRITE_DEFS
+from generate_assets import _validate_texture_dimensions, TEXTURE_DEFS, SPRITE_DEFS, _process_pool_results
 
 
 def test_validate_texture_dimensions_passes():
@@ -456,3 +456,62 @@ def test_font_worker_error_handling(tmp_path):
     finally:
         generate_assets.OUTPUT_DIR = original_output_dir
         generate_assets.GENERATION_LOG_FILE = original_log_file
+
+
+# ---------------------------------------------------------------------------
+# asset-r13-pool-collision-detection tests
+# ---------------------------------------------------------------------------
+
+class TestPoolCollisionDetection:
+    """Test suite for pool collision detection in _process_pool_results."""
+    
+    def test_process_pool_results_detects_duplicate_tile_nums(self):
+        """Should raise RuntimeError when pool results contain duplicate tile_num."""
+        # Mock pool results with two entries having the same tile_num
+        pool_results = [
+            (10, (64, 64, 0, b'pixels1')),
+            (10, (64, 64, 0, b'pixels2')),  # duplicate tile_num
+        ]
+        
+        with pytest.raises(RuntimeError) as exc_info:
+            _process_pool_results(iter(pool_results), "Procedural")
+        
+        # Verify error message contains asset-r13 identifier and duplicate tile_num reference
+        error_msg = str(exc_info.value)
+        assert "asset-r13" in error_msg, f"Error should contain 'asset-r13', got: {error_msg}"
+        assert "duplicate tile_num" in error_msg, f"Error should contain 'duplicate tile_num', got: {error_msg}"
+        assert "10" in error_msg, f"Error should mention tile_num 10, got: {error_msg}"
+    
+    def test_process_pool_results_allows_unique_tile_nums(self):
+        """Should process successfully when all tile_nums are unique."""
+        # Pool results with unique tile_nums
+        pool_results = [
+            (5, (64, 64, 0, b'pixels1')),
+            (10, (64, 64, 0, b'pixels2')),
+            (15, (64, 64, 0, b'pixels3')),
+        ]
+        
+        tiles, failures = _process_pool_results(iter(pool_results), "Procedural")
+        
+        assert len(tiles) == 3, f"Should have 3 tiles, got {len(tiles)}"
+        assert 5 in tiles, "Tile 5 should be in results"
+        assert 10 in tiles, "Tile 10 should be in results"
+        assert 15 in tiles, "Tile 15 should be in results"
+        assert len(failures) == 0, f"Should have no failures, got {failures}"
+    
+    def test_process_pool_results_detects_duplicate_among_many(self):
+        """Should detect duplicate even when mixed with other unique tiles."""
+        pool_results = [
+            (1, (64, 64, 0, b'pixels1')),
+            (2, (64, 64, 0, b'pixels2')),
+            (3, (64, 64, 0, b'pixels3')),
+            (2, (64, 64, 0, b'pixels2_dup')),  # duplicate in middle
+            (4, (64, 64, 0, b'pixels4')),
+        ]
+        
+        with pytest.raises(RuntimeError) as exc_info:
+            _process_pool_results(iter(pool_results), "Sprite")
+        
+        error_msg = str(exc_info.value)
+        assert "asset-r13" in error_msg
+        assert "duplicate tile_num" in error_msg

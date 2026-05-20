@@ -8,6 +8,7 @@ Mirrors the pattern established by tools/generate_audio.py (cycle 34).
 """
 
 import argparse
+import hashlib
 import json
 import os
 import sys
@@ -20,6 +21,25 @@ OUTPUT_DIR = os.path.join(PROJECT_ROOT, "generated_assets")
 
 # Table names in the manifest (deterministic order)
 TABLE_NAMES = ["sine", "radar", "brightness", "fonts"]
+
+
+def _sha256_of_file(path):  # asset-r13-manifest-checksums: per-file checksum
+    """Compute SHA256 checksum of a file."""
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(65536), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def _sha256_of_manifest(manifest_dict):  # asset-r13-manifest-checksums: top-level checksum
+    """Compute SHA256 checksum of manifest, excluding the manifest_checksum field itself."""
+    canonical = json.dumps(
+        {k: v for k, v in sorted(manifest_dict.items()) if k != "manifest_checksum"},
+        sort_keys=True,
+        separators=(",", ":")
+    )
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
 def validate_manifest(manifest):
@@ -54,15 +74,16 @@ def validate_manifest(manifest):
         )
 
 
-def create_manifest(generated_at=None):
+def create_manifest(generated_at=None, tables_path=None):
     """Create the manifest dict wrapping TABLES.DAT metadata.
     
     Args:
         generated_at: ISO 8601 timestamp string. If None, uses current UTC time.
-                      For determinism (e.g., CI), pass "1970-01-01T00:00:00Z".
+                       For determinism (e.g., CI), pass "1970-01-01T00:00:00Z".
+        tables_path: Path to TABLES.DAT file for checksum computation.
     
     Returns:
-        Dictionary with schema_version, generated_at, and table_names.
+        Dictionary with schema_version, generated_at, table_names, per-file checksums, and manifest_checksum.
     """
     if generated_at is None:
         generated_at = datetime.now(timezone.utc).isoformat()
@@ -72,6 +93,14 @@ def create_manifest(generated_at=None):
         "generated_at": generated_at,
         "table_names": TABLE_NAMES,
     }
+    
+    # asset-r13-manifest-checksums: SHA256 integrity
+    # Add per-file checksum if tables_path is provided
+    if tables_path and os.path.exists(tables_path):
+        manifest["tables_checksum"] = _sha256_of_file(tables_path)
+    
+    # Compute and add top-level manifest checksum
+    manifest["manifest_checksum"] = _sha256_of_manifest(manifest)
     
     validate_manifest(manifest)
     return manifest
@@ -108,7 +137,7 @@ def main():
 
     # Create and write manifest
     generated_at = "1970-01-01T00:00:00Z" if args.deterministic else None
-    manifest = create_manifest(generated_at)
+    manifest = create_manifest(generated_at, tables_path)
     
     manifest_path = os.path.join(OUTPUT_DIR, "TABLES_MANIFEST.json")
     try:

@@ -209,6 +209,112 @@ class TestManifestSchema:
     def test_manifest_only_expected_keys(self):
         """Manifest should only contain expected keys (for schema strictness)."""
         manifest = create_manifest("1970-01-01T00:00:00Z")
-        expected_keys = {"schema_version", "generated_at", "table_names"}
+        # When tables_path is not provided, only these keys should be present
+        expected_keys = {"schema_version", "generated_at", "table_names", "manifest_checksum"}
         actual_keys = set(manifest.keys())
         assert expected_keys == actual_keys
+
+
+class TestManifestChecksums:  # asset-r13-manifest-checksums: SHA256 integrity
+    """Tests for manifest checksum generation and validation."""
+
+    def test_manifest_has_manifest_checksum_field(self):
+        """Manifest must have manifest_checksum field."""
+        manifest = create_manifest("1970-01-01T00:00:00Z")
+        assert "manifest_checksum" in manifest
+        assert isinstance(manifest["manifest_checksum"], str)
+        assert len(manifest["manifest_checksum"]) == 64  # SHA256 hex
+
+    def test_manifest_has_tables_checksum_field(self):
+        """Manifest must have tables_checksum field when tables_path is provided."""
+        # Create a temporary tables file
+        import tempfile
+        tables_dat = create_tables_dat()
+        
+        with tempfile.NamedTemporaryFile(delete=False) as tmp:
+            tmp.write(tables_dat)
+            tmp_path = tmp.name
+        
+        try:
+            manifest = create_manifest("1970-01-01T00:00:00Z", tmp_path)
+            assert "tables_checksum" in manifest
+            assert isinstance(manifest["tables_checksum"], str)
+            assert len(manifest["tables_checksum"]) == 64  # SHA256 hex
+        finally:
+            os.unlink(tmp_path)
+
+    def test_manifest_checksum_is_valid_hex(self):
+        """manifest_checksum must be a valid 64-character hex string."""
+        manifest = create_manifest("1970-01-01T00:00:00Z")
+        checksum = manifest["manifest_checksum"]
+        
+        # Should be exactly 64 hex characters
+        try:
+            int(checksum, 16)
+        except ValueError:
+            assert False, f"manifest_checksum is not a valid hex string: {checksum}"
+
+    def test_tables_checksum_is_valid_hex(self):
+        """tables_checksum must be a valid 64-character hex string."""
+        import tempfile
+        tables_dat = create_tables_dat()
+        
+        with tempfile.NamedTemporaryFile(delete=False) as tmp:
+            tmp.write(tables_dat)
+            tmp_path = tmp.name
+        
+        try:
+            manifest = create_manifest("1970-01-01T00:00:00Z", tmp_path)
+            checksum = manifest.get("tables_checksum")
+            
+            if checksum:
+                # Should be exactly 64 hex characters
+                try:
+                    int(checksum, 16)
+                except ValueError:
+                    assert False, f"tables_checksum is not a valid hex string: {checksum}"
+        finally:
+            os.unlink(tmp_path)
+
+    def test_manifest_checksum_matches_computed(self):
+        """manifest_checksum must match the computed SHA256 of the manifest."""
+        import hashlib
+        
+        manifest = create_manifest("1970-01-01T00:00:00Z")
+        stored_checksum = manifest.get("manifest_checksum")
+        
+        # Compute the checksum (excluding the manifest_checksum field itself)
+        manifest_copy = {k: v for k, v in sorted(manifest.items()) if k != "manifest_checksum"}
+        canonical = json.dumps(manifest_copy, sort_keys=True, separators=(",", ":"))
+        computed_checksum = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+        
+        assert computed_checksum == stored_checksum, \
+            f"manifest_checksum mismatch: stored {stored_checksum}, computed {computed_checksum}"
+
+    def test_tables_checksum_matches_file(self):
+        """tables_checksum must match the actual SHA256 of the tables file."""
+        import hashlib
+        import tempfile
+        
+        tables_dat = create_tables_dat()
+        
+        with tempfile.NamedTemporaryFile(delete=False) as tmp:
+            tmp.write(tables_dat)
+            tmp_path = tmp.name
+        
+        try:
+            manifest = create_manifest("1970-01-01T00:00:00Z", tmp_path)
+            stored_checksum = manifest.get("tables_checksum")
+            
+            if stored_checksum:
+                # Compute the actual checksum
+                h = hashlib.sha256()
+                with open(tmp_path, "rb") as f:
+                    for chunk in iter(lambda: f.read(65536), b""):
+                        h.update(chunk)
+                computed_checksum = h.hexdigest()
+                
+                assert computed_checksum == stored_checksum, \
+                    f"tables_checksum mismatch: stored {stored_checksum}, computed {computed_checksum}"
+        finally:
+            os.unlink(tmp_path)

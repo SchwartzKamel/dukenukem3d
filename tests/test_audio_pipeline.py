@@ -705,13 +705,14 @@ class TestMixInitRetryBackoff:
             "SDL_Delay call not found in FX_Init"
         )
         
-        # Check for the exponential backoff pattern: 100 * (1 << ...)
+        # Check for the exponential backoff pattern: (100 or AUDIO_MIX_INIT_BASE_DELAY_MS) * (1 << ...)
+        # compat-r12-audio-defines extracted literal 100 to AUDIO_MIX_INIT_BASE_DELAY_MS define.
         has_backoff = re.search(
-            r'100\s*\*\s*\(\s*1\s*<<',
+            r'(?:100|AUDIO_MIX_INIT_BASE_DELAY_MS)\s*\*\s*\(\s*1\s*<<',
             content
         )
         assert has_backoff, (
-            "Exponential backoff pattern (100 * (1 <<)) not found"
+            "Exponential backoff pattern ((100|AUDIO_MIX_INIT_BASE_DELAY_MS) * (1 <<)) not found"
         )
 
     def test_mix_get_error_in_retry_block(self):
@@ -741,15 +742,16 @@ class TestMixInitRetryBackoff:
             content = f.read()
         
         # Check that Mix_OpenAudio is called with assignment to a variable
-        # and there's a loop structure
+        # and there's a loop structure. compat-r12-audio-defines replaced
+        # the literal `3` with AUDIO_MIX_INIT_MAX_RETRIES, so accept either.
         has_loop_structure = bool(re.search(
-            r'for\s*\(\s*\w+\s*=\s*1\s*;.*<=\s*3\s*;',
+            r'for\s*\(\s*\w+\s*=\s*1\s*;.*<=\s*(?:3|AUDIO_MIX_INIT_MAX_RETRIES)\s*;',
             content
         ))
         has_mix_open = "Mix_OpenAudio" in content
         
         assert has_loop_structure, (
-            "Retry loop structure (for loop with <= 3) not found"
+            "Retry loop structure (for loop with <= 3 or <= AUDIO_MIX_INIT_MAX_RETRIES) not found"
         )
         assert has_mix_open, "Mix_OpenAudio call not found"
 

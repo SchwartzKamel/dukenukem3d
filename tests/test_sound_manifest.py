@@ -203,7 +203,7 @@ class TestManifestFileGeneration:
             pytest.fail(f"MANIFEST.json is not valid JSON: {e}")
 
     def test_manifest_file_matches_constant(self):
-        """MANIFEST.json file content must match SOUND_MANIFEST constant."""
+        """MANIFEST.json file content must match SOUND_MANIFEST constant (except checksums)."""
         manifest_path = os.path.join(PROJECT_ROOT, "generated_assets", "sounds", "MANIFEST.json")
         with open(manifest_path) as f:
             file_manifest = json.load(f)
@@ -211,9 +211,15 @@ class TestManifestFileGeneration:
         # New manifest has entries field
         entries = file_manifest.get("entries", [])
         
+        # Remove checksum fields before comparing (checksums are computed dynamically)
+        entries_without_checksums = []
+        for entry in entries:
+            entry_copy = {k: v for k, v in entry.items() if k != "checksum"}
+            entries_without_checksums.append(entry_copy)
+        
         # Compare entries as JSON strings to avoid comparison issues with null/None
-        assert json.dumps(entries, sort_keys=True) == json.dumps(generate_audio.SOUND_MANIFEST, sort_keys=True), \
-            "MANIFEST.json entries do not match SOUND_MANIFEST constant in generate_audio.py"
+        assert json.dumps(entries_without_checksums, sort_keys=True) == json.dumps(generate_audio.SOUND_MANIFEST, sort_keys=True), \
+            "MANIFEST.json entries do not match SOUND_MANIFEST constant in generate_audio.py (excluding checksums)"
 
 
 class TestManifestMapping:
@@ -569,3 +575,152 @@ class TestManifestSchemaPydantic:
         assert not validation_errors, f"Pydantic validation errors:\n" + "\n".join(validation_errors)
         assert len(validated_entries) == len(entries), \
             f"Expected {len(entries)} validated entries, got {len(validated_entries)}"
+
+
+class TestManifestChecksums:  # asset-r13-manifest-checksums: SHA256 integrity
+    """Validate SHA256 checksums in the manifest for integrity verification."""
+
+    def test_manifest_file_has_checksums(self):
+        """MANIFEST.json must have checksums for integrity validation."""
+        manifest_path = os.path.join(PROJECT_ROOT, "generated_assets", "sounds", "MANIFEST.json")
+        with open(manifest_path) as f:
+            manifest = json.load(f)
+        
+        # Check that manifest_checksum exists and is a valid hex string
+        assert "manifest_checksum" in manifest, "MANIFEST.json missing manifest_checksum field"
+        assert isinstance(manifest["manifest_checksum"], str), \
+            f"manifest_checksum must be string, got {type(manifest['manifest_checksum'])}"
+        assert len(manifest["manifest_checksum"]) == 64, \
+            f"manifest_checksum must be 64-char SHA256 hex, got length {len(manifest['manifest_checksum'])}"
+        
+        # Validate it's a valid hex string
+        try:
+            int(manifest["manifest_checksum"], 16)
+        except ValueError:
+            pytest.fail(f"manifest_checksum is not a valid hex string: {manifest['manifest_checksum']}")
+
+    def test_manifest_entries_have_checksums(self):
+        """Each manifest entry must have a checksum field with 64-char hex string."""
+        manifest_path = os.path.join(PROJECT_ROOT, "generated_assets", "sounds", "MANIFEST.json")
+        with open(manifest_path) as f:
+            manifest = json.load(f)
+        
+        entries = manifest.get("entries", [])
+        assert len(entries) > 0, "MANIFEST.json entries is empty"
+        
+        for i, entry in enumerate(entries):
+            assert "checksum" in entry, \
+                f"Entry {i} ({entry.get('wav', '?')}): missing checksum field"
+            assert isinstance(entry["checksum"], str), \
+                f"Entry {i} ({entry.get('wav', '?')}): checksum must be string, got {type(entry['checksum'])}"
+            assert len(entry["checksum"]) == 64, \
+                f"Entry {i} ({entry.get('wav', '?')}): checksum must be 64-char SHA256 hex, got length {len(entry['checksum'])}"
+            
+            # Validate it's a valid hex string
+            try:
+                int(entry["checksum"], 16)
+            except ValueError:
+                pytest.fail(f"Entry {i} ({entry.get('wav', '?')}): checksum is not a valid hex string: {entry['checksum']}")
+
+    def test_manifest_checksum_is_valid(self):
+        """Verify that manifest_checksum matches the computed SHA256 of the manifest."""
+        import hashlib
+        
+        manifest_path = os.path.join(PROJECT_ROOT, "generated_assets", "sounds", "MANIFEST.json")
+        with open(manifest_path) as f:
+            manifest = json.load(f)
+        
+        stored_checksum = manifest.get("manifest_checksum")
+        assert stored_checksum is not None, "manifest_checksum not found"
+        
+        # Compute the checksum (excluding the manifest_checksum field itself)
+        manifest_copy = {k: v for k, v in sorted(manifest.items()) if k != "manifest_checksum"}
+        canonical = json.dumps(manifest_copy, sort_keys=True, separators=(",", ":"))
+        computed_checksum = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+        
+        assert computed_checksum == stored_checksum, \
+            f"manifest_checksum mismatch: stored {stored_checksum}, computed {computed_checksum}"
+
+    def test_entry_checksums_are_valid(self):
+        """Verify that each entry's checksum matches the actual file SHA256."""
+        import hashlib
+        
+        manifest_path = os.path.join(PROJECT_ROOT, "generated_assets", "sounds", "MANIFEST.json")
+        with open(manifest_path) as f:
+            manifest = json.load(f)
+        
+        output_dir = os.path.dirname(manifest_path)
+        entries = manifest.get("entries", [])
+        
+        for i, entry in enumerate(entries):
+            wav_filename = entry.get("wav")
+            stored_checksum = entry.get("checksum")
+            
+            if not wav_filename or not stored_checksum:
+                continue
+            
+            wav_path = os.path.join(output_dir, wav_filename)
+            if not os.path.exists(wav_path):
+                # Skip if file doesn't exist
+                continue
+            
+            # Compute the actual checksum
+            h = hashlib.sha256()
+            with open(wav_path, "rb") as f:
+                for chunk in iter(lambda: f.read(65536), b""):
+                    h.update(chunk)
+            computed_checksum = h.hexdigest()
+            
+            assert computed_checksum == stored_checksum, \
+                f"Entry {i} ({wav_filename}): checksum mismatch. Stored {stored_checksum}, computed {computed_checksum}"
+
+    def test_checksum_detects_file_mutations(self):
+        """Verify that checksums can detect file mutations."""
+        import hashlib
+        import tempfile
+        
+        manifest_path = os.path.join(PROJECT_ROOT, "generated_assets", "sounds", "MANIFEST.json")
+        with open(manifest_path) as f:
+            manifest = json.load(f)
+        
+        entries = manifest.get("entries", [])
+        if not entries:
+            pytest.skip("No entries to test")
+        
+        # Use the first entry
+        entry = entries[0]
+        wav_filename = entry.get("wav")
+        stored_checksum = entry.get("checksum")
+        
+        if not wav_filename or not stored_checksum:
+            pytest.skip("Entry does not have wav filename or checksum")
+        
+        output_dir = os.path.dirname(manifest_path)
+        wav_path = os.path.join(output_dir, wav_filename)
+        
+        if not os.path.exists(wav_path):
+            pytest.skip(f"WAV file not found: {wav_path}")
+        
+        # Read original file and compute its checksum
+        with open(wav_path, "rb") as f:
+            original_data = f.read()
+        
+        h = hashlib.sha256()
+        h.update(original_data)
+        original_checksum = h.hexdigest()
+        
+        assert original_checksum == stored_checksum, \
+            f"Original file checksum mismatch: {original_checksum} != {stored_checksum}"
+        
+        # Mutate the file by flipping one byte
+        if len(original_data) > 0:
+            mutated_data = bytearray(original_data)
+            mutated_data[0] = (mutated_data[0] + 1) % 256
+            
+            h = hashlib.sha256()
+            h.update(bytes(mutated_data))
+            mutated_checksum = h.hexdigest()
+            
+            # The checksums should be different
+            assert mutated_checksum != stored_checksum, \
+                "Mutation detection failed: mutated data has same checksum as original"

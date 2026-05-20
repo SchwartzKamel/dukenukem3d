@@ -402,3 +402,87 @@ class TestAssetPipelineIntegration:
                 f"WAV mismatch: {entry['wav']} != {file_entry['wav']}"
             assert entry["voice"] == file_entry["voice"], \
                 f"Voice mismatch for {entry['wav']}: {entry['voice']} != {file_entry['voice']}"
+
+
+class TestCompatR12AudioDefines:
+    """Regression test for compat-r12 audio buffer size and retry backoff defines.
+    
+    Ensures magic constants are properly extracted to #defines and used throughout
+    the audio initialization code.
+    """
+
+    def test_audio_buffer_size_define_exists(self):
+        """AUDIO_BUFFER_SIZE #define is present in compat/audio_stub.c."""
+        audio_stub_path = os.path.join(PROJECT_ROOT, "compat", "audio_stub.c")
+        with open(audio_stub_path, "r") as f:
+            content = f.read()
+        
+        assert "#define AUDIO_BUFFER_SIZE 2048" in content, \
+            "compat/audio_stub.c missing #define AUDIO_BUFFER_SIZE 2048"
+
+    def test_audio_mix_init_max_retries_define_exists(self):
+        """AUDIO_MIX_INIT_MAX_RETRIES #define is present in compat/audio_stub.c."""
+        audio_stub_path = os.path.join(PROJECT_ROOT, "compat", "audio_stub.c")
+        with open(audio_stub_path, "r") as f:
+            content = f.read()
+        
+        assert "#define AUDIO_MIX_INIT_MAX_RETRIES 3" in content, \
+            "compat/audio_stub.c missing #define AUDIO_MIX_INIT_MAX_RETRIES 3"
+
+    def test_audio_mix_init_base_delay_ms_define_exists(self):
+        """AUDIO_MIX_INIT_BASE_DELAY_MS #define is present in compat/audio_stub.c."""
+        audio_stub_path = os.path.join(PROJECT_ROOT, "compat", "audio_stub.c")
+        with open(audio_stub_path, "r") as f:
+            content = f.read()
+        
+        assert "#define AUDIO_MIX_INIT_BASE_DELAY_MS 100" in content, \
+            "compat/audio_stub.c missing #define AUDIO_MIX_INIT_BASE_DELAY_MS 100"
+
+    def test_buffer_size_literal_replaced_in_mix_open_audio(self):
+        """Literal 2048 is replaced by AUDIO_BUFFER_SIZE in Mix_OpenAudio call."""
+        audio_stub_path = os.path.join(PROJECT_ROOT, "compat", "audio_stub.c")
+        with open(audio_stub_path, "r") as f:
+            lines = f.readlines()
+        
+        # Find the Mix_OpenAudio call and verify it uses AUDIO_BUFFER_SIZE
+        in_mix_open_call = False
+        found_buffer_size_macro = False
+        
+        for i, line in enumerate(lines):
+            if "Mix_OpenAudio" in line:
+                in_mix_open_call = True
+            
+            if in_mix_open_call:
+                # Look for AUDIO_BUFFER_SIZE usage within the call (next few lines)
+                if "AUDIO_BUFFER_SIZE" in line:
+                    found_buffer_size_macro = True
+                    in_mix_open_call = False
+                    break
+                
+                # If we hit the closing paren, reset
+                if ");" in line:
+                    in_mix_open_call = False
+        
+        assert found_buffer_size_macro, \
+            "Mix_OpenAudio call does not use AUDIO_BUFFER_SIZE macro"
+
+    def test_retry_count_literal_replaced(self):
+        """Literal 3 is replaced by AUDIO_MIX_INIT_MAX_RETRIES in for loop."""
+        audio_stub_path = os.path.join(PROJECT_ROOT, "compat", "audio_stub.c")
+        with open(audio_stub_path, "r") as f:
+            content = f.read()
+        
+        # Find the for loop that contains mix_open_attempt
+        assert "for (mix_open_attempt = 1; mix_open_attempt <= AUDIO_MIX_INIT_MAX_RETRIES" in content, \
+            "for loop does not use AUDIO_MIX_INIT_MAX_RETRIES macro for retry count"
+
+    def test_delay_base_literal_replaced(self):
+        """Literal 100 is replaced by AUDIO_MIX_INIT_BASE_DELAY_MS in delay calculation."""
+        audio_stub_path = os.path.join(PROJECT_ROOT, "compat", "audio_stub.c")
+        with open(audio_stub_path, "r") as f:
+            content = f.read()
+        
+        # Find the delay calculation line
+        assert "int delay_ms = AUDIO_MIX_INIT_BASE_DELAY_MS * (1 << (mix_open_attempt - 1))" in content, \
+            "delay calculation does not use AUDIO_MIX_INIT_BASE_DELAY_MS macro"
+
