@@ -565,3 +565,36 @@ One of the 5 parallel grind sub-agents ran `git reset --hard HEAD` and `git stas
 - CACHE1D.C / tests: dropped — agent's design was flawed anyway; perf-cache-allocation reopened blocked.
 
 **Mitigation for cycle 13:** Add to sub-agent prompts an explicit rule "Do NOT run `git reset`, `git stash`, `git checkout -- .`, or any tree-mutating git command — your job is to edit files, the operator handles git state." This persistence regression has now appeared in cycles 11 and 12; the prompt-level guard is needed.
+
+---
+
+## Cycle 13 — 2026-05-20T10:XX UTC
+
+**Direct work (operator, 7 todos closed):**
+- `sec-workflow-permissions` — added top-level `permissions: contents: read` to build.yml + release.yml.
+- `build-r5-ci-concurrency-cancel` — concurrency block (cancel-in-progress=true on build, false on release).
+- `test-r5-ci-runslow-gate` — added `--runslow` to both pytest invocations in build.yml (`build-linux` + `test-assets`).
+- `docs-r5-changelog-init` — created CHANGELOG.md with Unreleased section + v0.1.0–v0.1.33 backfill.
+- `sec-gpl-compat-headers` + `sec-gpl-tools-headers` + `add-gpl-headers-compat` — added `SPDX-License-Identifier: GPL-2.0-or-later` to 28 files (10 in compat/, 18 in tools/ including .sh).
+
+**Sub-agent grind (3 todos closed):**
+- `audio-r4-wav-riff-validation` (audio-engineer) — `compat/audio_stub.c` `wav_file_size()` now validates "RIFF" magic + "WAVE" format + chunk-size sanity; returns 0 on failure with stderr log.
+- `audio-r4-channel-exhaustion-handling` (audio-engineer) — `mixer_play` and `mixer_play_3d` now recycle via `Mix_GroupOldest(-1)` + `Mix_HaltChannel` on `-1`; persistent failure frees the chunk and logs. (+61/-4 in compat/audio_stub.c)
+- `fix-engine-unchecked-file-io-r2` (engine-porter) — `source/MENUES.C` saveplayer dfwrite sites: 49 sites converted to the cycle-11 `if (ferror(fil)) { fclose; return -1; }` pattern. All `TODO(file-io-r2)` markers removed. (+245/-1)
+
+**Audit-pass new todos (15 across 3 personas — under cap):**
+- `asset-pipeline-r5` (5): atomic-writes (still in generate_assets.py), CI artifact validation, edge-case tests, GRP CRC future, manifest schema (dup-flag of blocked item).
+- `performance-profiler-r5` (5): wallscan branch-predict, palette32 SIMD, cache-walk fastpath, PLAYER.C trig caching, audio callback lock-free.
+- `network-multiplayer-r3` (5): **2 CRITICAL** — `from_player` bounds violation (`SRC/MMULTI.C:193`), `sendpacket()` OOB (`SRC/MMULTI.C:597`); plus replay protection, IPv6 support, packet-loss diagnostic (HIGH).
+
+**Build/test deltas:** baseline (553/31, build green) preserved across all 7 +3 +3 sub-agent operations.
+
+**Persistence regression posture:** Zero. The "no-git-mutating-commands" rule added to every sub-agent prompt this cycle held cleanly across 5 parallel agents (2 grind in source files + 3 audit-pass in docs). Edits from all agents persisted on first verification.
+
+**Backlog after cycle:** ~155 done, ~64 pending, 3 blocked.
+
+**Hot CRITICAL items surfaced this cycle for next grind:**
+- `net-r3-from-player-bounds` (CRITICAL — single-line bounds check, easy win).
+- `net-r3-sendpacket-oob` (CRITICAL — array index validation).
+
+These two are tiny + isolated and should be the first pull next cycle.
