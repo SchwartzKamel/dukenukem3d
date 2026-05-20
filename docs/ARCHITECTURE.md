@@ -533,5 +533,58 @@ This section documents critical safety fixes landed in recent audit cycles to pr
   - **Impact:** Cycle-25/r8 hardening now protected from regression; future changes caught by CI.
   - **Cite:** `tests/test_engine_net_hardening_regressions.py`, docs/audits/test-engineer-r8.md.
 
+### Cycles 28–33: CMake LTO Parity & Engine Safety Hardening
+
+- **Cycle 28: CMake LTO explicit support** (`CMakeLists.txt`, cycle 28)
+  - **Issue:** `CMakeLists.txt` lacked LTO (Link-Time Optimization) support while Makefile used `-flto` flags; build parity gap.
+  - **Fix:** Added `check_ipo_supported()` + `set_property(INTERPROCEDURAL_OPTIMIZATION TRUE)` to CMakeLists.txt (lines 60, 63).
+  - **Impact:** CMake builds now apply LTO optimization parity with Makefile; release binary performance consistent across build systems.
+  - **Cite:** `CMakeLists.txt:60–63`, docs/audits/build-system-r9.md.
+
+- **HIGH — CONFIG.C buffer overflow hardening** (`source/CONFIG.C`, cycle 30)
+  - **Issue:** Config file parser used unsafe `strcpy()` on user-controlled input (setupfilename[128], temp[80] buffers); injection vectors.
+  - **Fix:** Replaced `strcpy()` with `strncpy()` + explicit NUL termination; replaced `sprintf()` with `snprintf()` on all config file parsing paths (cycle 30, commit 0aaa2b5).
+  - **Impact:** Config file parsing now buffer-safe; malformed `.cfg` files cannot overflow into adjacent memory.
+  - **Cite:** `source/CONFIG.C` (strncpy/snprintf sites), docs/audits/engine-porter-r9.md.
+
+- **HIGH — SECTOR.C infinite recursion prevention** (`source/SECTOR.C`, cycle 30)
+  - **Issue:** `operatesectors()` function recursively followed sector `lotag` chains without depth limit; malicious CON scripts could exhaust stack via infinite chains.
+  - **Fix:** Added static recursion depth counter with `OPERATESECTORS_MAX_DEPTH = 64` limit; aborts with SECURITY warning if exceeded (cycle 30, commit e884df0).
+  - **Impact:** Stack overflow from malicious maps now impossible; recursion depth protection built-in.
+  - **Cite:** `source/SECTOR.C:549–595`, docs/audits/engine-porter-r9.md.
+
+- **HIGH — Actor tile metadata bounds guard (PICNUM_SAFE)** (`source/DUKE3D.H:104`, `source/ACTORS.C`, cycle 33)
+  - **Issue:** Sprite `picnum` field (loaded from savegames, set via CON scripts) used directly as index to tile metadata arrays (`tilesizy[]`, `actortype[]`) without bounds validation; out-of-bounds read possible.
+  - **Fix:** Introduced `PICNUM_SAFE(p)` macro: `(((unsigned)(p)) < MAXTILES ? (p) : 0)` to clamp picnum to safe range; applied at 15+ tile metadata access sites in `source/ACTORS.C` (cycle 33, commit 0569b17).
+  - **Impact:** Sprite tile metadata access now guaranteed in-bounds; memory disclosure and crash vectors closed.
+  - **Cite:** `source/DUKE3D.H:104`, `source/ACTORS.C:635–649`, docs/audits/engine-porter-r9.md.
+
+- **MEDIUM — Weapon & ammo bounds validation** (`source/DUKE3D.H`, `source/ACTORS.C`, `source/PLAYER.C`, cycle 30 & 33)
+  - **Issue:** Weapon array (`weapons[]`, `ammo[]`) accesses lacked bounds checking; unchecked `addweapon()`, `addammo()`, `checkavailweapon()` calls.
+  - **Fix:** Added `WEAPON_VALID(w)` macro (`((unsigned)(w) < (unsigned)MAX_WEAPONS)`) and `WEAPON_CLAMP(w)` helper in `source/DUKE3D.H` (cycle 30); applied to weapon state updates in `source/ACTORS.C` + `source/PLAYER.C` (cycle 33, commit 0569b17).
+  - **Impact:** Weapon/ammo state mutations now bounds-safe; invalid weapon indices rejected or clamped to zero.
+  - **Cite:** `source/DUKE3D.H:98–101`, `source/ACTORS.C` (weapon bounds checks), docs/audits/engine-porter-r9.md.
+
+- **HIGH — Network packet type 4 (chat) safety** (`source/GAME.C case 4`, cycle 33)
+  - **Issue:** Chat packet handler used `strcpy()` on untrusted player-sent chat string without length bounds; overflow possible.
+  - **Fix:** Replaced `strcpy()` with `strncpy()` + explicit NUL-termination; added length validation before deserialization (cycle 33, commit 0569b17).
+  - **Impact:** Chat packet buffer overflow closed; multiplayer chat now safe.
+  - **Cite:** `source/GAME.C:case 4` (packet type-4 handler), docs/audits/network-multiplayer-r6.md, docs/audits/security-and-secrets-r9.md.
+
+- **HIGH — Network packet type 8 (map change) validation** (`source/GAME.C case 8`, cycle 33)
+  - **Issue:** Map-change packet deserialization (`copybufbyte()` on `boardfilename[]`) lacked pre-validation of packet size vs buffer capacity; negative sizes possible.
+  - **Fix:** Added explicit size validation before `copybufbyte()`: check packet payload length against `sizeof(boardfilename)` and `INT_MAX` guard (cycle 33, commit 0569b17).
+  - **Impact:** Map-change packet injection attacks now caught; multiplayer map loading safe.
+  - **Cite:** `source/GAME.C:case 8` (packet type-8 handler), docs/audits/network-multiplayer-r6.md.
+
+- **Macro definitions for safety** (`source/DUKE3D.H:98–107`, cycles 30–33)
+  - **Issue:** Scattered bounds checks made code hard to audit; inconsistent patterns across CONFIG, SECTOR, ACTORS, GAME, PLAYER modules.
+  - **Fix:** Introduced three centralized safety macros:
+    - `#define MAX_CONFIG_KEY 64` — config key string length cap (cycle 30).
+    - `#define WEAPON_VALID(w) (((unsigned)(w) < (unsigned)MAX_WEAPONS))` — weapon index bounds test (cycle 30).
+    - `#define PICNUM_SAFE(p) (((unsigned)(p)) < MAXTILES ? (p) : 0)` — tile picnum bounds guard (cycle 33).
+  - **Impact:** Central, auditable definitions; future bounds checks reference macros instead of magic numbers; easier to maintain and reason about safety invariants.
+  - **Cite:** `source/DUKE3D.H:98–107`, docs/audits/engine-porter-r9.md.
+
 For detailed audit findings and rationale, see [docs/audits/SUMMARY.md](docs/audits/SUMMARY.md).
 

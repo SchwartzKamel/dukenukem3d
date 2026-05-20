@@ -56,21 +56,29 @@ Versions ≥ v0.1.0 are tracked as annotated git tags; the audit-grind cycles
   `mm_pack_u16_le` / `mm_unpack_u16_le` static inline helpers; refactored
   5 byte-shuffle sites (payload length, protocol version, disconnect,
   sendpacket).
+- **Cycles 28–33 Safety Hardening:**
+  - `source/CONFIG.C` — replaced `strcpy`/`sprintf` on config buffers with `strncpy`/`snprintf` + explicit NUL termination (cycle 30).
+  - `source/SECTOR.C` — capped `operatesectors()` recursion depth at 64 (`OPERATESECTORS_MAX_DEPTH`) to prevent stack overflow from malicious CON-script lotag chains (cycle 30).
+  - `source/DUKE3D.H` — added `PICNUM_SAFE(p)` macro to guard tile metadata access (sprite.picnum bounds check, cycle 33); `WEAPON_VALID(w)` and `WEAPON_CLAMP(w)` macros for weapon array access (cycle 30, re-dispatched cycle 33).
+  - `source/GAME.C` — hardened net packet types 4 (chat: strncpy + null-term) and 8 (map change: size validation before copybufbyte) (cycle 33).
+  - `source/ACTORS.C` + `source/PLAYER.C` — added bounds checks for `addammo()`, `addweapon()`, and weapon state updates (cycle 33).
 
 ### Testing
-- **672 collected tests** (cycles 19–27 added 113 new tests cumulative):
+- **702 collected tests** (cycles 19–33 added 133 new tests cumulative):
   - Cycle 19: Foundation (baseline audit)
   - Cycle 20: Asset schema + bounds validation (+7 tests)
   - Cycle 21: Regression suite closure (+19 tests via new regression harness)
   - Cycle 22: Final validation + cross-agent coverage (+15 tests)
   - Cycles 23–24: Engine bounds hardening + build-h consistency (+41 tests)
   - Cycles 25–27: Cycle-25/r8 CRITICAL/HIGH hardening + audio RWops regression tests (+30 tests)
+  - Cycles 28–33: CMake LTO parity, CONFIG/SECTOR hardening, PICNUM_SAFE/WEAPON_VALID guards, net packet validation (+30 tests)
 - Pre-cycle-19 baseline: 569 fast / 33 skipped = 602 with --runslow (was 543 at v0.1.33).
 - New suites: multiplayer regression harness (`tests/test_net_protocol.py`),
   audio semaphore-timeout + manifest-sync tests (`tests/test_audio_pipeline.py`),
   pydantic schema validation, frame analyzer, cache1d benchmarks, savegame loader bounds,
   build.h consistency xfail (MAXTILES mismatch CRITICAL open), engine hardening suite (allocache overflow,
-  hlineasm shift bounds, savegame partial-reads, net packet dispatch), audio RWops resource leaks.
+  hlineasm shift bounds, savegame partial-reads, net packet dispatch), audio RWops resource leaks,
+  CONFIG bounds safety, SECTOR recursion depth, PICNUM_SAFE tile guard, WEAPON_VALID/WEAPON_CLAMP.
 
 ### Documentation
 - 12 cycle-by-cycle audit reports under `docs/audits/` covering 10
