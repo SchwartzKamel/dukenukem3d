@@ -105,6 +105,18 @@ SPRITE_DEFS = [
 ]
 
 # ---------------------------------------------------------------------------
+# Module-load schema validation (catches typos/bad bounds at import time)
+# ---------------------------------------------------------------------------
+
+try:
+    from _asset_schemas import validate_texture_defs, validate_sprite_defs
+    validate_texture_defs(TEXTURE_DEFS)
+    validate_sprite_defs(SPRITE_DEFS)
+except ImportError:
+    # pydantic not installed in some lean envs; skip silently.
+    pass
+
+# ---------------------------------------------------------------------------
 # .env loading
 # ---------------------------------------------------------------------------
 
