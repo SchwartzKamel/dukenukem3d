@@ -598,3 +598,31 @@ One of the 5 parallel grind sub-agents ran `git reset --hard HEAD` and `git stas
 - `net-r3-sendpacket-oob` (CRITICAL — array index validation).
 
 These two are tiny + isolated and should be the first pull next cycle.
+
+---
+
+## Cycle 15 — 2026-05-20T10:57 UTC
+
+**6 todos closed via 5 parallel sub-agents** (one agent handled 2 co-located GAMEDEF.C todos):
+
+- `fix-engine-conlabelcnt-bounds` (CRITICAL) + `fix-engine-label-string-overflow` (HIGH) — `source/GAMEDEF.C` (+80/-3). 5 CON-script case handlers now bound `labelcnt` against `MAXLABELS=4096`; `getlabel()` bounds identifier copy at 63 chars. Closes the loop with cycle-12's `labelcode[]` array.
+- `net-r3-from-player-bounds` (CRITICAL) + `net-r3-sendpacket-oob` (CRITICAL) — `SRC/MMULTI.C` (+17). Two wire-supplied / call-supplied indices now bounds-checked against `MAXPLAYERS` with drop+log.
+- `audio-r5-soundowner-overflow-fix` (HIGH) — `source/SOUNDS.C` (+14). `xyzsound()` ages out oldest voice when SoundOwner inner-array fills, mirroring cycle-13 Mix_GroupOldest channel recycle.
+- `fix-compat-volume-thread-safety` (MEDIUM) — `compat/audio_stub.c` (+54/-5). SDL_LockAudio guards added to FX_SetVolume, FX_SetReverb, FX_SetFastReverb, FX_SetReverbDelay matching cycle-11 FX_SetCallBack pattern.
+- `test-audio-round-trip-playback` (LOW) — `tests/test_audio_playback_roundtrip.py` (+394). 18 new tests covering WAV header validation, voice-manifest sync, channel-exhaustion regression, SoundOwner cap regression.
+
+**Build/test deltas:** baseline 553/31 → 569/33 (+16 passed, +2 skipped from new audio tests). Build clean.
+
+**Persistence regression posture:** Zero across 5 parallel agents. The no-git-mutation rule held for the 13th consecutive sub-agent.
+
+**Coordination notes:**
+- Combined 2 co-located GAMEDEF.C todos into one agent; combined 2 co-located MMULTI.C todos into one agent. 5 agents on 5 different files = zero overlap.
+- All 3 CRITICAL items in the queue at cycle start were closed this cycle.
+
+**Backlog after cycle:** ~153 done / ~77 pending / 3 blocked.
+
+**Top items for next cycle's audit-pass or grind:**
+- 2 net-r3 HIGH (replay protection, IPv6) — not CRITICAL but exposed-surface.
+- perf-r5 Tier-1 (palette32 SIMD) — measurable rendering win.
+- asset-r5-atomic-writes — generate_assets.py still missing tmp+replace.
+- Rotation candidates for next audit-pass: test-engineer-r6, documentation-curator-r6, security-and-secrets-r6 (stalest).
