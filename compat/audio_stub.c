@@ -125,10 +125,35 @@ static unsigned long voc_file_size(const unsigned char *p)
 static unsigned long wav_file_size(const unsigned char *p)
 {
     unsigned long sz;
-    if (p[0] != 'R' || p[1] != 'I') return 0;
-    /* SAFETY: p[4..7] unchecked — caller pre-condition (see header). */
+    
+    /* Validate RIFF header: bytes 0..3 must be "RIFF" */
+    if (p[0] != 'R' || p[1] != 'I' || p[2] != 'F' || p[3] != 'F') {
+        return 0;
+    }
+    
+    /* Extract chunk size from bytes 4..7 (little-endian) */
     sz = (unsigned long)p[4] | ((unsigned long)p[5] << 8)
        | ((unsigned long)p[6] << 16) | ((unsigned long)p[7] << 24);
+    
+    /* Sanity check: chunk size must be >= 12 (for minimal WAVE format) */
+    if (sz < 12) {
+        fprintf(stderr, "wav_file_size: invalid chunk size %lu (< 12 bytes)\n", sz);
+        return 0;
+    }
+    
+    /* Sanity check: chunk size must be reasonable */
+    if (sz > MAX_SOUND_FILE_SIZE - 8) {
+        fprintf(stderr, "wav_file_size: chunk size %lu exceeds max (%u bytes)\n", 
+                sz, MAX_SOUND_FILE_SIZE - 8);
+        return 0;
+    }
+    
+    /* Validate WAVE format marker at bytes 8..11 */
+    if (p[8] != 'W' || p[9] != 'A' || p[10] != 'V' || p[11] != 'E') {
+        fprintf(stderr, "wav_file_size: missing WAVE format marker\n");
+        return 0;
+    }
+    
     return sz + 8;
 }
 
@@ -163,7 +188,23 @@ static int mixer_play(const char *ptr, int loops, int vol,
         vol > 255 ? MIX_MAX_VOLUME : (vol * MIX_MAX_VOLUME) / 255);
 
     channel = Mix_PlayChannel(-1, chunk, loops);
-    if (channel < 0) { Mix_FreeChunk(chunk); return -1; }
+    if (channel < 0) {
+        /*
+         * All mixer channels are busy. Recycle the oldest playing channel
+         * to make room for this new sound.
+         */
+        int oldest = Mix_GroupOldest(-1);
+        if (oldest >= 0) {
+            Mix_HaltChannel(oldest);
+            channel = Mix_PlayChannel(-1, chunk, loops);
+        }
+        
+        if (channel < 0) {
+            fprintf(stderr, "mixer_play: failed to play chunk (all channels busy)\n");
+            Mix_FreeChunk(chunk);
+            return -1;
+        }
+    }
 
     if (channel < MIXER_MAX_CHANNELS) {
         SDL_LockAudio();
@@ -200,7 +241,23 @@ static int mixer_play_3d(const char *ptr, int angle, int distance,
     if (!chunk) return -1;
 
     channel = Mix_PlayChannel(-1, chunk, 0);
-    if (channel < 0) { Mix_FreeChunk(chunk); return -1; }
+    if (channel < 0) {
+        /*
+         * All mixer channels are busy. Recycle the oldest playing channel
+         * to make room for this new 3D sound.
+         */
+        int oldest = Mix_GroupOldest(-1);
+        if (oldest >= 0) {
+            Mix_HaltChannel(oldest);
+            channel = Mix_PlayChannel(-1, chunk, 0);
+        }
+        
+        if (channel < 0) {
+            fprintf(stderr, "mixer_play_3d: failed to play chunk (all channels busy)\n");
+            Mix_FreeChunk(chunk);
+            return -1;
+        }
+    }
 
     if (channel < MIXER_MAX_CHANNELS) {
         SDL_LockAudio();
