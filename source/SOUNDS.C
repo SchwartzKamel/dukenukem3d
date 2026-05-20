@@ -439,6 +439,20 @@ int xyzsound(short num,short i,long x,long y,long z)
 
     if ( voice > FX_Ok )
     {
+        /* 
+         * Bounds check: SoundOwner[num] can hold at most 4 owners.
+         * If array is full (Sound[num].num >= 4), drop the oldest
+         * and shift remaining owners down (age-out strategy).
+         */
+        if (Sound[num].num >= 4)
+        {
+            int j;
+            FX_StopSound(SoundOwner[num][0].voice);
+            for (j = 0; j < 3; j++)
+                SoundOwner[num][j] = SoundOwner[num][j + 1];
+            Sound[num].num--;
+        }
+        
         SoundOwner[num][Sound[num].num].i = i;
         SoundOwner[num][Sound[num].num].voice = voice;
         Sound[num].num++;
