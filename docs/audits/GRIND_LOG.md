@@ -306,3 +306,37 @@ Round 2 audit of 3 primary documentation files for consistency with recent commi
 - None. All sub-agents respected no-commit constraint.
 
 ---
+
+## Cycle 7 — 2026-05-20T07:42Z
+
+**Dispatched:** 6 sub-agents (haiku, parallel).
+
+**Todos completed (6):**
+- `fix-build-cmake-install-assets`, `audit-build-cmake-install-assets`,
+  `fix-build-script-hygiene`, `fix-build-portable-stat-cmd`,
+  `fix-build-release-strip-symbols` (build-cluster)
+- `test-slow-marker` (test-slow-marker)
+
+**Todos reverted to pending (10):**
+Five sub-agents (`docs-cluster`, `frame-analyzer-perf`, `compat-doc-stubs`,
+`ci-macos`) reported success but their file edits did not persist to the
+working tree. SQL marks were rolled back for re-dispatch next cycle:
+- docs-cluster: `docs-readme-homebrew-outdated`, `docs-audio-manifest`,
+  `docs-parallel-perf`, `docs-sdl-detection`, `docs-ci-caching`
+- frame-analyzer-perf: `perf-frame-analyzer-bytes`,
+  `perf-frame-analyzer-edges`
+- compat-doc-stubs: `audit-compat-voc-bounds-check`,
+  `audit-compat-joystick-stub`
+- ci-macos: `ci-build-macos-coverage`
+
+**Build/test deltas:**
+- Build: green (`make -j$(nproc)` clean).
+- Binary: 696,752 → 650,688 bytes (stripped release).
+- Tests default: 511 passed, 20 skipped (slow opt-in).
+- Tests `--runslow`: 530 passed, 1 skipped (parity).
+
+**Human-attention items:**
+- Sub-agent persistence regression: 5/6 agents claimed success but did not
+  write to disk. Worth investigating whether the task tool's filesystem is
+  isolated or whether agents bailed out silently. For now, validate working
+  tree after every cycle and revert SQL for unlanded work.
