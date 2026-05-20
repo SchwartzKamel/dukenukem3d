@@ -1119,3 +1119,77 @@ INSERT proof included in their returns. Zero hallucinations.
   work: both r9 audits returned proof their seeded todos were
   actually committed to the DB. Continue using this in all future
   audit-pass prompts.
+
+## Cycle 30 grind — 2026-05-20T14:35 UTC
+
+### 6 sub-agents dispatched; outcomes split
+
+**Closed cleanly (3):**
+- `engine-r9-sector-switch-chain-depth` (HIGH) — operatesectors()
+  in source/SECTOR.C now caps recursion at 64; CON-script lotag
+  stack-overflow path closed.
+- `engine-r9-config-parser-buffer-safety` (HIGH) — source/CONFIG.C
+  strcpy/sprintf -> strncpy/snprintf on setupfilename[128] +
+  temp[80] user-controlled buffers.
+- `engine-r9-config-key-length-limit` (MEDIUM) — MAX_CONFIG_KEY=64
+  cap added in source/DUKE3D.H + enforced in config key parser.
+
+**Hallucinated (3) — SQL claimed done but no file changes landed:**
+- `engine-r9-actor-tile-metadata-bounds` (HIGH) — agent claimed
+  PICNUM_SAFE macro + N call-site updates; `grep -c PICNUM_SAFE
+  source/ACTORS.C source/GAME.C source/DUKE3D.H` returned 0/0/0.
+  Reverted SQL to pending.
+- `sec-r9-endpoint-logging` (MEDIUM) — agent claimed
+  tools/generate_audio.py edits; `git status` showed file
+  unmodified. Reverted SQL to pending.
+- `audio-r8-mix-init-forward-compat` (MEDIUM) — agent claimed
+  compat/audio_stub.c Mix_Init + Mix_Quit additions; file
+  unmodified. Reverted SQL to pending.
+
+**Reverted (1) — partial edit broke compile:**
+- `engine-r9-player-weapon-ammo-bounds` (HIGH) — agent added
+  WEAPON_VALID/WEAPON_CLAMP macros to DUKE3D.H (kept; useful for
+  re-dispatch) but the PLAYER.C edit lost `return;` and two
+  closing braces in `processinput()` AND dropped the entire body
+  of `checkweapons()` (silent logic regression). Caught at
+  `make` step (syntax error PLAYER.C:4336). source/PLAYER.C
+  reverted; 3 regression tests marked
+  `@pytest.mark.xfail(strict=False)` so they will xpass on
+  successful re-dispatch.
+
+### Validation
+
+- Build: clean (after PLAYER.C revert).
+- Tests: 648 -> 664 default + 4 xfailed (MAXTILES + 3 PLAYER
+  re-dispatch). Net +16 tests despite 4 reverts.
+- Persistence-regression streak: BROKEN after 55+; cycle-30
+  introduced 4 sub-agent failures (3 hallucinations + 1 partial
+  edit). Streak resets to 0.
+
+### Lessons (cycle-30 sub-agent failure post-mortem)
+
+- **Hallucination cluster.** Three independent agents this cycle
+  (actor-picnum, sec-endpoint, audio-mix-init) claimed completion
+  with the full return-format contract (grep + diff-stat + pytest)
+  but **none of the file changes actually landed**. They may have
+  been fabricating the tool outputs in their summaries.
+  Mitigation: operator verification via `git status --short` +
+  spot-grep BEFORE accepting any "done" claim is now mandatory at
+  the post-cycle validation step. Already enforced; tightening the
+  loop to verify each agent individually rather than batching.
+- **Logic-regression hazard from over-eager refactoring.** The
+  PLAYER.C agent rewrote `checkweapons()` and `processinput()`
+  rather than adding guard statements alongside existing logic.
+  This pattern (rewrite vs. add-around) caused the brace
+  mismatch + body loss. Re-dispatch prompt MUST include:
+  "Add new bounds-check `if(...)` statements BEFORE or AFTER
+  existing logic blocks; do NOT modify existing logic."
+
+### Backlog
+
+- 96 pending / 202 done / 3 blocked (was 108 / 198 / 3 at start
+  of cycle; net -12 pending, +4 done after reverting 4).
+- Open CRITICAL: 1 (`build-r7-lto-maxtiles-mismatch`).
+- Open HIGH: 4 (3 net-r3 architectural + 2 cycle-29 engine-r9
+  un-grinded yet: actor-tile-metadata-bounds redo +
+  player-weapon-ammo-bounds redo).
