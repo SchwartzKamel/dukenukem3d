@@ -1901,3 +1901,47 @@ Keep v5 as the standing dispatch contract.
 - Operator caught perf-r13 frame-analyzer agent's over-claim: the [10] variant pulled wallclock 2.3x worse. Reinforces "always read agent's perf numbers carefully — wallclock is what matters, not aggregate compute".
 - Engine-r15 surfaced a CRITICAL: PREMAP.C/MENUES.C `(volume_number*11)+level_number` multiply without pre-bound check. Add to cycle 50.
 - Net-r12 packet-handler bounds matrix is now in audit doc — use as authoritative source for future packet work.
+
+---
+
+## Cycle 50 (grind) + Cycles 49–51 (audit-pass)
+
+**Date:** 2025 ongoing
+**Build/test baseline:** 834 passed → **851 passed** (+17 net after collateral fix), 35 skipped, 2 xfailed, 1 xpassed
+**Validation:** `make clean && make -j$(nproc)` green; `pytest -q` green @ ~21s with `-n auto --dist loadscope`
+
+### Cycle 50 grind closures (6 dispatched, 6 landed)
+
+| Todo | Persona | Outcome |
+|------|---------|---------|
+| `engine-r15-premap-volume-level-bounds` + `engine-r15-menues-music-index-bounds` | engine-porter | **CRITICAL+HIGH** closed. PREMAP.C lines 1385 + 1407 + MENUES.C lines 297 + 603 gain `(unsigned)ud.volume_number >= 4 || (unsigned)ud.level_number >= 11` pre-bounds before `(volume_number*11)+level_number` indexing of `level_file_names[44]`. PREMAP early-returns via `gameexit()`; MENUES clamps to `(0,0)` for music selection UI. 4 regression assertions added. |
+| `net-r12-packet-type-unhandled-sentinel` | network-multiplayer | `default:` arm in `source/GAME.C:824` increments `static int unknown_packet_count` for forward-compat observability without spamming. |
+| `asset-r15-sound-name-collision-detection-missing` | audio-engineer | `_validate_voice_line_filename_uniqueness` in `tools/generate_audio.py:82-115` raises `RuntimeError` on dup WAV at import (called line 159). |
+| `asset-r15-map-id-collision-missing` | asset-pipeline | `_validate_map_ids` in `tools/generate_assets.py:885-908` raises `RuntimeError` on dup MAP IDs post-generation (called from `main()` 2131-2132). |
+| `test-r14-xpass-maxtiles-promotion` | test-engineer | `tests/test_build_h_consistency.py:41` removed `@pytest.mark.xfail` from MAXTILES — now passes outright after cycle-46 maxtiles_guard constructor + 6144 header sync. |
+| `docs-feature-summary-update` | documentation-curator | README + ARCHITECTURE feature summary refresh, +87 lines combined. |
+
+### Cycle 49 audit-pass (committed earlier in `ea6d4cf`)
+
+- `engine-porter-r15.md` (CRITICAL — closed above)
+- `asset-pipeline-r15.md` (6 findings, 6 todos)
+
+### Cycle 50 audit-pass (this batch)
+
+- `build-system-r15.md` (5 findings, 2 todos — backlog stable)
+- `documentation-curator-r14.md` — **archival sweep**: 15 stale/duplicate/subsumed todos reclassified (pending 261 → 252 → 244 net after cycle-50 closures); 4 new docs-r14-* doc-debt todos seeded
+
+### Cycle 51 audit-pass (this batch)
+
+- `audio-engineer-r14.md` (8 findings, 5 todos: 1 HIGH `audio-r14-checksum-verification-on-load`, 2 MEDIUM, 2 LOW/ADVISORY)
+- `performance-profiler-r14.md` (5 findings, 3 todos: re-measured suite wallclock 20.52s @ `[1,3,5]`, confirmed operator's cycle-48 trim was correct; `[10]` variant would have gated suite to 32s)
+
+### Collateral fix (single ratchet)
+
+`tests/test_engine_net_hardening_regressions.py::TestFtaQuotesStrcpyOverflow` — line-window range widened from `[6475,6495)` → `[6475,6515)` and `[6700,6720)` → `[6700,6740)`. Sentinels drifted ~+15/+18 lines due to cycle-48 net-r12 packet-bound additions in GAME.C between cycles 41/45 fta_quotes hardening and current state. **Pattern: location-asserting regression tests need slack budget proportional to expected upstream growth.**
+
+### Notes
+- Engine-r15 PREMAP/MENUES CRITICAL fixed end-to-end within a single grind cycle (49 surfaced → 50 closed).
+- Both asset collision detectors (audio + map) now fail-fast at generation rather than producing silently overwritten manifests.
+- 6-agent parallel dispatch held: no overlapping-file conflicts. Single collateral was line-range drift, not race.
+- Backlog: 244 pending → ~246 after audio-r14/perf-r14 inserts; archival pace sustainable.
