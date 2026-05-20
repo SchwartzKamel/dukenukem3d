@@ -103,3 +103,39 @@ def test_generated_map_is_valid(tmp_path, monkeypatch):
 
     version = struct.unpack("<i", data)[0]
     assert version == 7
+
+
+@pytest.mark.slow
+def test_worker_error_recovery(tmp_path, monkeypatch):
+    """Test that worker errors don't poison the entire pool; partial output survives.
+    
+    Injects a failure into one of the texture generators and verifies:
+    1. Pipeline still completes (doesn't crash)
+    2. Partial output is preserved
+    3. Exit code is non-zero to signal CI
+    4. Failure is logged
+    """
+    generate_script = os.path.join(PROJECT_ROOT, "tools", "generate_assets.py")
+    
+    # Set flag to inject a failure into texture tile 1
+    env = os.environ.copy()
+    env["TEST_INJECT_WORKER_FAILURE"] = "1"
+    
+    result = subprocess.run(
+        [sys.executable, generate_script, "--no-ai", "--output", str(tmp_path)],
+        cwd=PROJECT_ROOT,
+        capture_output=True, text=True, timeout=120,
+        env=env
+    )
+    
+    # Should exit with non-zero due to failure
+    assert result.returncode != 0, f"Expected non-zero exit, got {result.returncode}. Stdout:\n{result.stdout}\nStderr:\n{result.stderr}"
+    
+    # But output files should still be created (partial output preserved)
+    grp_path = tmp_path / "DUKE3D.GRP"
+    assert grp_path.exists(), f"GRP not found despite partial failure: {grp_path}"
+    grp_size = grp_path.stat().st_size
+    assert grp_size > 100000, f"GRP too small: {grp_size} bytes (expected > 100K despite failure)"
+    
+    # Failure should be logged in stdout
+    assert "FAILED" in result.stdout or "failed" in result.stdout, "Failure not logged in output"

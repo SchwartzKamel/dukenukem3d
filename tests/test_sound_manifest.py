@@ -13,6 +13,43 @@ import sys
 import pytest
 
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
+
+# ============================================================================
+# Pydantic-inspired validator for sound manifest entries
+# ============================================================================
+
+class SoundManifestEntry:
+    """Lightweight validator for sound manifest entries (non-pydantic)."""
+    
+    def __init__(self, **kwargs):
+        """Validate sound manifest entry fields."""
+        self.wav = kwargs.get('wav')
+        self.engine_sound_id = kwargs.get('engine_sound_id')
+        self.engine_sound_id_int = kwargs.get('engine_sound_id_int')
+        self.voice = kwargs.get('voice')
+        self.category = kwargs.get('category')
+        self.prompt_summary = kwargs.get('prompt_summary')
+        self.status = kwargs.get('status', 'generated')
+        self.generated_at = kwargs.get('generated_at')
+        self.notes = kwargs.get('notes')
+        
+        # Validate sound_id matches C identifier pattern
+        if self.engine_sound_id is not None:
+            if not isinstance(self.engine_sound_id, str):
+                raise ValueError(f"engine_sound_id must be str or None, got {type(self.engine_sound_id)}")
+            if not re.match(r'^[A-Z_][A-Z0-9_]*$', self.engine_sound_id):
+                raise ValueError(f"engine_sound_id '{self.engine_sound_id}' does not match pattern ^[A-Z_][A-Z0-9_]*$")
+        
+        # Validate voice
+        valid_voices = {'alloy', 'echo', 'onyx'}
+        if self.voice not in valid_voices:
+            raise ValueError(f"voice '{self.voice}' not in {valid_voices}")
+        
+        # Validate wav path
+        if not (self.wav.endswith('.wav') or self.wav.endswith('.WAV')):
+            raise ValueError(f"wav '{self.wav}' does not end with .wav or .WAV")
+
 sys.path.insert(0, os.path.join(PROJECT_ROOT, "tools"))
 
 # Import the audio generation module to get VOICE_LINES and SOUND_MANIFEST
@@ -460,3 +497,59 @@ class TestManifestWavConsistency:
         
         assert not invalid_entries, f"Invalid voice values: {', '.join(invalid_entries)}"
 
+
+
+class TestManifestJsonRoundtrip:
+    """Validate JSON serialization/deserialization consistency."""
+
+    def test_voice_category_alignment_survives_json_roundtrip(self):
+        """Load MANIFEST.json, dump to JSON, reload, verify voice categories are identical."""
+        manifest_path = os.path.join(PROJECT_ROOT, "generated_assets", "sounds", "MANIFEST.json")
+        
+        with open(manifest_path, "r") as f:
+            original_manifest = json.load(f)
+        
+        # Extract voice-to-category mapping from original
+        original_voice_categories = {}
+        for entry in original_manifest:
+            key = f"{entry['wav']}::{entry['voice']}"
+            original_voice_categories[key] = entry["category"]
+        
+        # Dump to JSON string and reload
+        json_string = json.dumps(original_manifest)
+        reloaded_manifest = json.loads(json_string)
+        
+        # Extract voice-to-category mapping from reloaded
+        reloaded_voice_categories = {}
+        for entry in reloaded_manifest:
+            key = f"{entry['wav']}::{entry['voice']}"
+            reloaded_voice_categories[key] = entry["category"]
+        
+        # Verify they match exactly
+        assert original_voice_categories == reloaded_voice_categories, \
+            "Voice-to-category alignment changed after JSON roundtrip"
+
+
+class TestManifestSchemaPydantic:
+    """Validate manifest entries against pydantic schema with strict validators."""
+
+    def test_all_manifest_entries_pass_schema_validation(self):
+        """Load every manifest entry and validate through SoundManifestEntry model."""
+        manifest_path = os.path.join(PROJECT_ROOT, "generated_assets", "sounds", "MANIFEST.json")
+        
+        with open(manifest_path, "r") as f:
+            manifest = json.load(f)
+        
+        validated_entries = []
+        validation_errors = []
+        
+        for i, entry_data in enumerate(manifest):
+            try:
+                entry = SoundManifestEntry(**entry_data)
+                validated_entries.append(entry)
+            except Exception as e:
+                validation_errors.append(f"Entry {i} ({entry_data.get('wav', '?')}): {str(e)}")
+        
+        assert not validation_errors, f"Pydantic validation errors:\n" + "\n".join(validation_errors)
+        assert len(validated_entries) == len(manifest), \
+            f"Expected {len(manifest)} validated entries, got {len(validated_entries)}"

@@ -636,20 +636,28 @@ def _generate_texture_worker(task):
     
     task: (tile_num, width, height, description, palette_obj)
     Returns: (tile_num, (width, height, picanm, column_major_pixels))
+           or (tile_num, None, error_str) on failure
     """
-    tile_num, tw, th, desc, palette = task
-    
-    # Use only procedural generation (no AI in worker)
-    if tile_num in PROCEDURAL_MAP:
-        img = PROCEDURAL_MAP[tile_num](tw, th)
-    elif tile_num in GENERIC_COLORS:
-        img = proc_generic(tw, th, GENERIC_COLORS[tile_num], 100 + tile_num)
-    else:
-        img = proc_generic(tw, th, (128, 128, 128), 100 + tile_num)
-    
-    indexed = quantize_image(img, palette)
-    col_major = rgb_to_column_major(indexed, tw, th)
-    return (tile_num, (tw, th, 0, col_major))
+    try:
+        tile_num, tw, th, desc, palette = task
+        
+        # Test hook: inject failure for testing error recovery
+        if os.getenv("TEST_INJECT_WORKER_FAILURE") and tile_num == 1:
+            raise RuntimeError("Injected test failure for tile 1")
+        
+        # Use only procedural generation (no AI in worker)
+        if tile_num in PROCEDURAL_MAP:
+            img = PROCEDURAL_MAP[tile_num](tw, th)
+        elif tile_num in GENERIC_COLORS:
+            img = proc_generic(tw, th, GENERIC_COLORS[tile_num], 100 + tile_num)
+        else:
+            img = proc_generic(tw, th, (128, 128, 128), 100 + tile_num)
+        
+        indexed = quantize_image(img, palette)
+        col_major = rgb_to_column_major(indexed, tw, th)
+        return (tile_num, (tw, th, 0, col_major))
+    except Exception as e:
+        return (task[0], None, str(e))
 
 
 def _generate_sprite_worker(task):
@@ -657,13 +665,17 @@ def _generate_sprite_worker(task):
     
     task: (tile_num, width, height, description, palette_obj)
     Returns: (tile_num, (width, height, picanm, column_major_pixels))
+           or (tile_num, None, error_str) on failure
     """
-    tile_num, tw, th, desc, palette = task
-    
-    img = proc_sprite_placeholder(tw, th, desc, 200 + tile_num)
-    indexed = quantize_image(img, palette)
-    col_major = rgb_to_column_major(indexed, tw, th)
-    return (tile_num, (tw, th, 0, col_major))
+    try:
+        tile_num, tw, th, desc, palette = task
+        
+        img = proc_sprite_placeholder(tw, th, desc, 200 + tile_num)
+        indexed = quantize_image(img, palette)
+        col_major = rgb_to_column_major(indexed, tw, th)
+        return (tile_num, (tw, th, 0, col_major))
+    except Exception as e:
+        return (task[0], None, str(e))
 
 
 def _generate_font_tile_worker(task):
@@ -671,13 +683,17 @@ def _generate_font_tile_worker(task):
     
     task: (tile_num, char_code, palette_obj)
     Returns: (tile_num, (width, height, picanm, column_major_pixels))
+           or (tile_num, None, error_str) on failure
     """
-    tile_num, char_code, palette = task
-    
-    img = _render_font_tile(char_code, 8, 8)
-    indexed = quantize_image(img, palette)
-    col_major = rgb_to_column_major(indexed, 8, 8)
-    return (tile_num, (8, 8, 0, col_major))
+    try:
+        tile_num, char_code, palette = task
+        
+        img = _render_font_tile(char_code, 8, 8)
+        indexed = quantize_image(img, palette)
+        col_major = rgb_to_column_major(indexed, 8, 8)
+        return (tile_num, (8, 8, 0, col_major))
+    except Exception as e:
+        return (task[0], None, str(e))
 
 
 PROCEDURAL_MAP = {
@@ -705,6 +721,35 @@ PROCEDURAL_MAP = {
 
 # Every tile has a dedicated generator
 GENERIC_COLORS = {}
+
+
+def _process_pool_results(results_iterator, asset_type):
+    """Process multiprocessing pool results, handling errors gracefully.
+    
+    Returns: (tiles_dict, failures_list)
+    - tiles_dict: mapping of tile_num to tile_data
+    - failures_list: list of (tile_num, error_message) for any failed workers
+    """
+    tiles = {}
+    failures = []
+    
+    for tile_num, tile_data, *error_info in sorted(results_iterator, key=lambda x: x[0]):
+        if error_info and error_info[0]:  # error_str is present
+            error_str = error_info[0]
+            failures.append((tile_num, error_str))
+            print(f"  Tile {tile_num:3d} [{asset_type}] FAILED: {error_str}")
+        elif tile_data is None:  # failed but error_str may be in error_info
+            if error_info:
+                failures.append((tile_num, error_info[0]))
+                print(f"  Tile {tile_num:3d} [{asset_type}] FAILED: {error_info[0]}")
+            else:
+                failures.append((tile_num, "Unknown error"))
+                print(f"  Tile {tile_num:3d} [{asset_type}] FAILED: Unknown error")
+        else:
+            tiles[tile_num] = tile_data
+            print(f"  Tile {tile_num:3d} [{asset_type}] OK")
+    
+    return tiles, failures
 
 # ---------------------------------------------------------------------------
 # NAMES.H parser and game-critical tile generation
@@ -1779,6 +1824,7 @@ def main():
     print("=== Generating textures ===")
     # tiles dict: tile_num -> (width, height, picanm, column_major_pixels)
     tiles = {}
+    all_failures = []  # Track worker failures from multiprocessing
 
     # For --no-ai path, parallelize texture generation using multiprocessing
     if not use_ai:
@@ -1795,10 +1841,9 @@ def main():
         print(f"  Using {worker_count} workers for texture generation")
         with multiprocessing.Pool(worker_count) as pool:
             results = pool.imap_unordered(_generate_texture_worker, texture_tasks)
-            # Collect results and sort by tile_num for determinism
-            for tile_num, tile_data in sorted(results, key=lambda x: x[0]):
-                tiles[tile_num] = tile_data
-                print(f"  Tile {tile_num:3d} [Procedural] OK")
+            texture_tiles, texture_failures = _process_pool_results(results, "Procedural")
+            tiles.update(texture_tiles)
+            all_failures.extend(texture_failures)
         
         # Prepare tasks for SPRITE_DEFS
         sprite_tasks = [
@@ -1808,9 +1853,9 @@ def main():
         
         with multiprocessing.Pool(worker_count) as pool:
             results = pool.imap_unordered(_generate_sprite_worker, sprite_tasks)
-            for tile_num, tile_data in sorted(results, key=lambda x: x[0]):
-                tiles[tile_num] = tile_data
-                print(f"  Tile {tile_num:3d} [Sprite] OK")
+            sprite_tiles, sprite_failures = _process_pool_results(results, "Sprite")
+            tiles.update(sprite_tiles)
+            all_failures.extend(sprite_failures)
         
         # Prepare tasks for font tiles
         font_tasks = [
@@ -1821,8 +1866,9 @@ def main():
         print("  Generating font tiles 2048-2175")
         with multiprocessing.Pool(worker_count) as pool:
             results = pool.imap_unordered(_generate_font_tile_worker, font_tasks)
-            for tile_num, tile_data in sorted(results, key=lambda x: x[0]):
-                tiles[tile_num] = tile_data
+            font_tiles, font_failures = _process_pool_results(results, "Font")
+            tiles.update(font_tiles)
+            all_failures.extend(font_failures)
     else:
         # Sequential generation for --ai path (with AI, then procedural fallback)
         for tile_num, tw, th, desc, prompt in TEXTURE_DEFS:
@@ -2019,6 +2065,15 @@ def main():
     if not args.output:
         grp_root = os.path.join(PROJECT_ROOT, "DUKE3D.GRP")
         print(f"  GRP copy:    {grp_root}")
+    
+    # Return non-zero if any worker failures occurred (preserve partial output but signal CI)
+    if all_failures:
+        print(f"\n=== Warnings ===")
+        print(f"  {len(all_failures)} tile(s) failed to generate:")
+        for tile_num, error_msg in all_failures:
+            print(f"    Tile {tile_num}: {error_msg}")
+        return 1
+    
     return 0
 
 
