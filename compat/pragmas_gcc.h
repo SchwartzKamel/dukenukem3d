@@ -509,12 +509,12 @@ static inline void int5(void) { }
  * Branch prediction hints for hot-path optimization
  * ====================================================================== */
 
-#ifndef likely
+#if defined(__GNUC__) || defined(__clang__) || defined(__INTEL_COMPILER)
 #define likely(x)   __builtin_expect(!!(x), 1)
-#endif
-
-#ifndef unlikely
 #define unlikely(x) __builtin_expect(!!(x), 0)
+#else
+#define likely(x)   (x)
+#define unlikely(x) (x)
 #endif
 
 #endif /* PRAGMAS_GCC_H_ */

@@ -1570,3 +1570,62 @@ All v4-clean (no resets, sentinel tokens grep-verified).
 - Open CRITICAL: 1 (`build-r7-lto-maxtiles-mismatch` only — both engine-r10
   CRITICALs closed this cycle).
 - Open HIGH: 3 (net-r3 architectural).
+
+---
+
+## Cycle 37 — 2026-05-20T16:50Z
+
+### Grind (6 agents, all clean closures — v5 contract held)
+
+| Todo | Persona | File | Sentinel | Status |
+|------|---------|------|----------|--------|
+| `sec-c-unsafe-network` | security + engine | source/GAME.C:355,359,2323,6479 | `strncpy(...,128)` + `strncat(...,2047)` | ✅ done |
+| `fix-net-host-accept-timeout` | network-multiplayer | SRC/MMULTI.C:55,173-192,461-463 | `NET_HOST_ACCEPT_TIMEOUT_SEC` | ✅ done |
+| `perf-frame-analyzer-parallel-load` | performance-profiler | tools/frame_analyzer.py:12,266-271 | `ThreadPoolExecutor` (max_workers=min(N,4)) | ✅ done |
+| `docs-r10-architecture-cycles-28-36` | documentation-curator | docs/ARCHITECTURE.md:591-712 | `## Cycles 28–36: CMake LTO Parity, Audio Schema v1.0 & Net/Engine Hardening` | ✅ done |
+| `compat-r9-likely-unlikely-clang-guard` | compat-layer | compat/pragmas_gcc.h:512-518 | `#if defined(__GNUC__) \|\| defined(__clang__) \|\| defined(__INTEL_COMPILER)` | ✅ done |
+| `docs-r10-changelog-test-count-refresh` | documentation-curator | CHANGELOG.md | `Cycles 34–36 refinements` (test count 702→717) | ✅ done |
+
+Regression tests added: `TestGameUnsafeStringReplacements`, `TestHostAcceptTimeout` (5 sub-tests), `test_analyze_frame_sequence_deterministic`.
+
+### v5 contract behaviour
+
+All 6 agents:
+- Returned literal git/grep output for every claim.
+- Returned a single unique sentinel token; operator grep-confirmed each one.
+- Did NOT run `git stash`/`git reset`/`git checkout -- <file>`/`git clean`.
+- `git stash list` empty throughout cycle.
+- `git reflog` showed no `reset: moving to HEAD` events during the cycle.
+
+Conclusion: v5 wording (explicit "STOP and report if tree unexpected") + tight
+single-file scoping per agent prevented the cycle-34/36 reset-storm pattern.
+Keep v5 as the standing dispatch contract.
+
+### Audit-pass (3 personas, doc-only — ran concurrently)
+
+- `engine-porter-r11` (290 lines, +3 todos: `engine-r11-drawsprite-sectnum` HIGH,
+  `engine-r11-scansector-bounds` MEDIUM, `engine-r11-drawrooms-cursectnum` MEDIUM).
+  R10 closures re-verified; tempshort[] (ACTORS.C:494) still latent and
+  carry-forward to cycle 38.
+- `audio-engineer-r10` (403 lines, +5 todos: test error-paths, schema-migration,
+  voice-registry-design, grp-repacking-automation, music-state-consistency).
+  4 r9 todos confirmed still open.
+- `build-system-r11` (367 lines, +4 todos: `build-r11-maxtiles-link-assertion`
+  CRITICAL, `build-r11-cmake-lto-link-explicit` MEDIUM, plus 2 informational/LOW).
+  Memory-hack invariants re-verified ACTIVE. R7 MAXTILES CRITICAL still
+  the only open CRITICAL after this cycle.
+
+### Build & Test
+
+- `make -j$(nproc)` → `Build complete: duke3d (release)` (1 pre-existing realloc
+  warning on RTS.C:36 lumpinfo, unchanged).
+- `pytest -q` → **690 passed**, 34 skipped, 3 xfailed, 1 xpassed (+11 over
+  cycle-36 baseline of 679).
+
+### Backlog snapshot
+
+- ~128 pending / 228 done / 3 blocked (after this cycle: +12 audit-pass todos,
+  −6 grind closures).
+- Open CRITICAL: 1 (`build-r7-lto-maxtiles-mismatch`; net-new `build-r11-maxtiles-link-assertion`
+  proposes the concrete remediation step).
+- Open HIGH: 4 (3 net-r3 architectural + 1 new `engine-r11-drawsprite-sectnum`).

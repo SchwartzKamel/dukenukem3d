@@ -321,6 +321,62 @@ class TestAnalyzeFrameSequence:
         for p in paths:
             Path(p).unlink()
 
+    @pytest.mark.parametrize("num_frames", [5])
+    def test_analyze_frame_sequence_deterministic(self, num_frames):
+        """Regression test: analyze_frame_sequence() returns identical results
+        regardless of execution order (ThreadPoolExecutor parallelization).
+        
+        Creates a fixture of N frames and verifies that multiple analyses
+        produce bitwise-identical outputs, confirming no race conditions or
+        non-determinism introduced by parallel loading.
+        """
+        # Create fixture of N frames (colorful, so they have variation)
+        fixture_paths = []
+        for i in range(num_frames):
+            img = _make_colorful_image((24, 24))
+            # Modify slightly per frame to create variation
+            pixels = img.load()
+            for y in range(24):
+                for x in range(24):
+                    r, g, b = pixels[x, y]
+                    pixels[x, y] = ((r + i * 10) % 256, (g + i * 5) % 256, b)
+            p = TESTDATA_DIR / f"determ_frame_{i}.bmp"
+            img.save(str(p), format="BMP")
+            fixture_paths.append(str(p))
+        
+        try:
+            # Run analysis multiple times and verify results are identical
+            results = []
+            for run_idx in range(3):
+                result = analyze_frame_sequence(fixture_paths)
+                results.append(result)
+            
+            # All runs should produce identical outputs
+            for i in range(1, len(results)):
+                assert results[i]["frame_count"] == results[0]["frame_count"]
+                assert results[i]["all_black"] == results[0]["all_black"]
+                assert results[i]["any_content"] == results[0]["any_content"]
+                assert results[i]["frames_with_content"] == results[0]["frames_with_content"]
+                assert results[i]["has_progression"] == results[0]["has_progression"]
+                # Frame diff values should be equal (or very close due to floating point)
+                assert abs(results[i]["avg_frame_diff"] - results[0]["avg_frame_diff"]) < 1e-10
+                # Per-frame results should be identical
+                assert len(results[i]["per_frame"]) == len(results[0]["per_frame"])
+                for j, (pf_curr, pf_prev) in enumerate(zip(results[i]["per_frame"], results[0]["per_frame"])):
+                    assert pf_curr["is_black"] == pf_prev["is_black"]
+                    assert pf_curr["has_content"] == pf_prev["has_content"]
+                    assert pf_curr["unique_colors"] == pf_prev["unique_colors"]
+                    assert pf_curr["dimensions"] == pf_prev["dimensions"]
+                    # Brightness stats should match closely (allow for floating point precision)
+                    for key in ["min", "max", "mean", "median"]:
+                        assert abs(pf_curr["brightness"][key] - pf_prev["brightness"][key]) < 1e-6, \
+                            f"Brightness mismatch for {key} in frame {j}"
+                    assert len(pf_curr["top_colors"]) == len(pf_prev["top_colors"])
+        finally:
+            # Cleanup fixture
+            for p in fixture_paths:
+                Path(p).unlink()
+
 
 class TestBrightnessStats:
     def test_black_image_brightness(self):

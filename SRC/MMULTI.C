@@ -26,6 +26,7 @@ typedef int socklen_t;
 #define net_sleep(ms) Sleep(ms)
 #else
 #include <sys/socket.h>
+#include <sys/select.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
@@ -49,6 +50,9 @@ typedef int SOCKET;
    misconfigured client scenarios. Handshake has separate 15s timeout. */
 #define NET_CONNECT_TIMEOUT 30
 #define HANDSHAKE_TIMEOUT_SEC 15
+/* Host-side accept() timeout (seconds). Prevents crashed client from blocking forever.
+   Asymmetric with client handshake timeout to allow graceful degradation. */
+#define NET_HOST_ACCEPT_TIMEOUT_SEC 10
 #define NET_PROTOCOL_VERSION 0x0001
 
 #define updatecrc16(crc,dat) crc = (((crc<<8)&65535)^crctable[((((unsigned short)crc)>>8)&65535)^dat])
@@ -164,6 +168,27 @@ static void net_send_raw(SOCKET sock, const unsigned char *data, int len)
 		}
 		sent += r;
 	}
+}
+
+/* Accept with timeout (prevents crashed client from blocking host indefinitely) */
+static SOCKET net_accept_timeout(SOCKET server_sock, struct sockaddr_in *client_addr,
+                                 socklen_t *client_len, int timeout_sec)
+{
+	SOCKET client;
+	fd_set readfds;
+	struct timeval tv;
+
+	FD_ZERO(&readfds);
+	FD_SET(server_sock, &readfds);
+	tv.tv_sec = timeout_sec;
+	tv.tv_usec = 0;
+
+	if (select((int)server_sock + 1, &readfds, NULL, NULL, &tv) <= 0) {
+		return INVALID_SOCKET;
+	}
+
+	client = accept(server_sock, (struct sockaddr *)client_addr, client_len);
+	return client;
 }
 
 /* Blocking receive with timeout (used during handshake only) */
@@ -433,8 +458,9 @@ initmultiplayers(char damultioption, char dacomrateoption, char dapriority)
 				break;
 			}
 
-			client = accept(server_socket,
-			                (struct sockaddr *)&client_addr, &client_len);
+			client = net_accept_timeout(server_socket,
+			                            (struct sockaddr *)&client_addr, &client_len,
+			                            NET_HOST_ACCEPT_TIMEOUT_SEC);
 			if (client != INVALID_SOCKET) {
 				int idx = numplayers;
 				int flag = 1;

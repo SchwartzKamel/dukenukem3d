@@ -586,5 +586,127 @@ This section documents critical safety fixes landed in recent audit cycles to pr
   - **Impact:** Central, auditable definitions; future bounds checks reference macros instead of magic numbers; easier to maintain and reason about safety invariants.
   - **Cite:** `source/DUKE3D.H:98–107`, docs/audits/engine-porter-r9.md.
 
+---
+
+## Cycles 28–36: CMake LTO Parity, Audio Schema v1.0 & Net/Engine Hardening
+
+This section documents the major architectural changes introduced from cycles 28 through 36, focusing on build system optimization, asset pipeline formalization, and comprehensive security hardening across the engine and multiplayer subsystems.
+
+### Build System: CMake LTO Parity (Cycle 28)
+
+**Challenge:** The legacy Makefile provided explicit link-time optimization (`-flto` flag), but CMakeLists.txt lacked equivalent IPO configuration. This created a **LTO parity gap** — developers using CMake received unoptimized binaries compared to Makefile builds, losing ~8–12% performance on hot-path rendering and physics.
+
+**Solution (Cycle 28):** Added CMake `CheckIPOSupported` module + `INTERPROCEDURAL_OPTIMIZATION` property to CMakeLists.txt (lines 60, 63). CMake now queries the compiler's IPO capability at configure time and enables `-flto` equivalent optimizations automatically.
+
+**Impact:** 
+- CMake builds now achieve performance parity with Makefile builds.
+- LTO-enabled binaries pass through interprocedural optimization during linking, closing the performance gap.
+- Cross-platform consistency — LTO works on Linux/macOS with GCC/Clang and Windows with MSVC.
+
+**Memory Hacks Preserved:** SDL2_VERSION single-source in build.mk remains the sole version definition; CMakeLists.txt `LANGUAGE C` property (no `/Tc` flag) enforces correct language mode for .C files.
+
+**Cite:** `CMakeLists.txt:60–63`, `build.mk:33`, docs/audits/build-system-r9.md, docs/audits/build-system-r10.md.
+
+---
+
+### Audio Pipeline Formalization: Schema v1.0 & Manifest Validation (Cycle 34)
+
+**Challenge:** Audio asset generation (`tools/generate_audio.py`) lacked formal schema versioning and manifest validation. The tool generated SOUND_MANIFEST entries without guaranteeing structure compatibility or detecting configuration drift.
+
+**Solution (Cycle 34):** 
+1. **Schema Version Enforcement:** SOUND_MANIFEST wrapped with `schema_version: "1.0"` field. `validate_manifest()` function enforces schema match at load time.
+2. **Manifest Validation:** `validate_manifest(manifest_data, source_path)` function validates that:
+   - `schema_version` matches "1.0" (rejects future incompatible versions)
+   - Required fields (`entries`, `voice_model`, `endpoint`) present
+   - No mismatched payload sizes or missing entries
+3. **Endpoint Redaction:** `_redact_endpoint(url)` function redacts Azure endpoint URLs before logging (prevents accidental credential exposure in build logs).
+
+**Impact:**
+- Asset generation pipeline becomes versioned and self-describing.
+- Manifest validation catches configuration errors at generation time, not runtime.
+- Credential hygiene improved — Azure endpoints no longer logged in plaintext.
+- Future audio schema updates (v1.1, v2.0) can be detected and handled gracefully.
+
+**Cite:** `tools/generate_audio.py:24` (_redact_endpoint), `tools/generate_audio.py:118–174` (validate_manifest), `tools/generate_audio.py:339–341` (schema_version wrapping), docs/audits/audio-engineer-r9.md.
+
+---
+
+### Engine Bounds Hardening: Multi-Cycle Recursion & Array Access Safety (Cycles 30–36)
+
+**Challenge:** The BUILD engine's deep recursive patterns and dynamic array access (particularly sprites, sectors, and tile metadata) exposed multiple stack and memory safety vulnerabilities:
+- Infinite sector recursion chains (CON scripts could trigger stack exhaustion)
+- Unchecked array indices from untrusted data (savegames, network packets)
+- Configuration parsing with unbounded string operations
+
+**Solution Summary (Cycles 30–36):**
+
+- **SECTOR.C Recursion Cap (Cycle 30):** `operatesectors()` function protected by `OPERATESECTORS_MAX_DEPTH = 64` counter. Aborts with SECURITY warning if exceeded. Prevents stack exhaustion from malicious maps with circular lotag chains.
+  - **Cite:** `source/SECTOR.C:35–40`, `source/SECTOR.C:558–560`, docs/audits/engine-porter-r9.md.
+
+- **CONFIG.C Hardening (Cycle 30):** Configuration file argument handling switched from `strcpy()` to bounded `snprintf()`. Added `MAX_CONFIG_KEY = 64` macro to cap config key string length. Prevents buffer overflow via crafted config files.
+  - **Cite:** `source/DUKE3D.H:107`, `source/CONFIG.C`, docs/audits/security-and-secrets-r10.md.
+
+- **Tile Metadata Access (Cycle 33):** Introduced `PICNUM_SAFE(p)` macro — clamps sprite `picnum` field to safe range before array access. Applied at 6+ callsites in ACTORS.C and GAME.C to protect tile metadata arrays (`tilesizy[]`, `actortype[]`, `tilesizx[]`).
+  - **Cite:** `source/DUKE3D.H:104`, `source/ACTORS.C:651,665`, `source/GAME.C:1295,3462,3473,5695`, docs/audits/engine-porter-r10.md.
+
+- **Weapon/Ammo Bounds (Cycle 33):** `WEAPON_VALID(w)` and `WEAPON_CLAMP(w)` macros validate weapon indices before access. Applied in ACTORS.C and PLAYER.C to protect weapon state mutations.
+  - **Cite:** `source/DUKE3D.H:98–101`, `source/ACTORS.C:120,133,202,240`, `source/PLAYER.C:3624`, docs/audits/engine-porter-r10.md.
+
+- **RTS Lump Header Overflow Guard (Cycle 36):** RTS.C lump parsing protected against integer overflow in `header.numlumps * sizeof(filelump_t)`. Added bounds check: `if (header.numlumps > 65536)` → Error(). Prevents malicious .rts files from exhausting stack via alloca().
+  - **Cite:** `source/RTS.C:83–91`, docs/audits/GRIND_LOG.md (cycle 36).
+
+- **Actor Sector Traversal Bounds (Cycle 36):** ACTORS.C sector loop protected against buffer overflow. Added `if (sectend >= 1024)` check before `tempshort[sectend++]` write. Unvalidated sector index read protected by `if (dasect < 0 || dasect >= MAXSECTORS) continue;`.
+  - **Cite:** `source/ACTORS.C:470,494`, docs/audits/engine-porter-r10.md, docs/audits/GRIND_LOG.md (cycle 36).
+
+- **HUD Sprite Index Validation (Cycle 36):** Frags display and player status rendering protected against invalid sprite indices. Added `if ((unsigned)ps[i].i >= MAXSPRITES) continue;` to prevent OOB sprite array dereferences.
+  - **Cite:** `source/GAME.C:1715–1717`, docs/audits/GRIND_LOG.md (cycle 36).
+
+- **Sprite Queue Count Sanity (Baseline, verified cycle 30–33):** `spriteqamount` range-checked against [0, MAXSPRITES] before deserialization.
+  - **Cite:** `source/MENUES.C:402`, docs/audits/engine-porter-r10.md.
+
+---
+
+### Network Multiplayer Hardening: Packet Bounds & Partial-Send Retry (Cycles 26–36)
+
+**Challenge:** Multiplayer packet handling exposed buffer overflow and packet injection risks:
+- Untrusted chat strings written to fixed buffers without length validation
+- Map-change packet fields deserialized without size guards
+- TCP partial sends (when send() returns fewer bytes than requested) could silently drop packets or corrupt multiplayer state
+
+**Solution Summary (Cycles 26–36):**
+
+- **Chat Packet Bounds (Cycle 33):** Type-4 (chat) packet handler replaced `strcpy()` with `strncpy()` + explicit NUL-termination. Added length validation: `if (packbufleng > 1 && packbufleng <= sizeof(recbuf))` before deserialization.
+  - **Cite:** `source/GAME.C:567–576`, docs/audits/security-and-secrets-r10.md.
+
+- **Map-Change Packet Validation (Cycle 33):** Type-8 (map change) packet handler validates packet size against `sizeof(boardfilename)` and checks game settings (level, volume, skill) against valid ranges. Invalid values clamped to 0 with diagnostic logging.
+  - **Cite:** `source/GAME.C:683–710`, docs/audits/security-and-secrets-r10.md.
+
+- **TCP Partial-Send Retry Loop (Cycle 33):** SRC/MMULTI.C `send()` calls wrapped in 8-attempt retry loop with EINTR/EAGAIN handling. Added `tcp_send_failures` counter to track retry exhaustion. Prevents packet loss when TCP stack cannot accept full payload in one syscall.
+  - **Cite:** `SRC/MMULTI.C:140–167`, docs/audits/GRIND_LOG.md (cycle 36).
+
+- **From-Player Index Bounds (Cycle 30, verified through cycle 36):** Network packet `from_player` field validated against [0, MAXPLAYERS) before player state access. Prevents spoofed packets from corrupting arbitrary player slots.
+  - **Cite:** `SRC/MMULTI.C:202`, docs/audits/security-and-secrets-r10.md.
+
+---
+
+### Performance: Frame Analyzer Cold-Start Optimization (Cycle 36)
+
+**Challenge:** Python testing tools like `tools/frame_analyzer.py` suffered from slow cold-start due to eager PIL/numpy/scipy imports. Each test invocation loaded these heavy dependencies (0.2s–0.3s overhead), slowing feedback loops on CI/CD pipelines and developer workflows.
+
+**Solution (Cycle 36):** Implemented lazy import helpers with singleton caching in frame_analyzer.py (lines 15–50):
+- `_get_pil()` — defers PIL.Image import until first frame loaded
+- `_get_numpy()` — defers numpy import until pixel analysis requested
+- `_get_scipy()` — defers scipy.ndimage import until convolution-based edge detection needed
+
+**Impact:**
+- Cold-start time reduced by **22x** (0.2s → 0.009s).
+- Imports only loaded when actually used (pixel operations, edge detection).
+- Developer iteration speed significantly improved; test feedback loop faster.
+- CI/CD pipeline throughput improved; fewer timeouts on resource-constrained runners.
+
+**Cite:** `tools/frame_analyzer.py:15–50`, docs/audits/performance-profiler-r10.md.
+
+---
+
 For detailed audit findings and rationale, see [docs/audits/SUMMARY.md](docs/audits/SUMMARY.md).
 

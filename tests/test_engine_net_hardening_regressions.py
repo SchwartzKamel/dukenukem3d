@@ -1555,3 +1555,215 @@ class TestSpriteQAmountBounds:
         assert kdfread_pattern.start() > new_check_pos, (
             "kdfread must come AFTER the new bounds-check."
         )
+
+
+class TestHostAcceptTimeout:
+    """Regression test for host-side accept() timeout hardening.
+
+    Finding: A crashed client attempting to connect could block the host's
+    accept() call indefinitely, preventing the host from accepting other
+    connections or timing out gracefully. The host loop has an overall
+    NET_CONNECT_TIMEOUT (30s) but no per-accept timeout, so a single slow
+    connection blocks other players.
+
+    Fix: Add select() with NET_HOST_ACCEPT_TIMEOUT_SEC (10s) before each
+    accept() call on both POSIX and Windows platforms. On timeout, accept()
+    returns INVALID_SOCKET and the loop continues, allowing the host to
+    either accept other connections or reach the overall timeout.
+    """
+
+    def test_host_accept_timeout_constant_defined(self, repo_root):
+        """Verify NET_HOST_ACCEPT_TIMEOUT_SEC constant is defined."""
+        mmulti_c = repo_root / "SRC" / "MMULTI.C"
+        content = mmulti_c.read_text(errors="replace")
+
+        assert "NET_HOST_ACCEPT_TIMEOUT_SEC" in content, (
+            "Missing NET_HOST_ACCEPT_TIMEOUT_SEC constant in SRC/MMULTI.C"
+        )
+
+        const_pattern = re.search(
+            r'#define\s+NET_HOST_ACCEPT_TIMEOUT_SEC\s+(\d+)',
+            content
+        )
+        assert const_pattern, "NET_HOST_ACCEPT_TIMEOUT_SEC not found as #define"
+        timeout_value = int(const_pattern.group(1))
+        assert timeout_value == 10, (
+            f"NET_HOST_ACCEPT_TIMEOUT_SEC should be 10, got {timeout_value}"
+        )
+
+    def test_select_included_for_posix(self, repo_root):
+        """Verify sys/select.h is included for POSIX select() support."""
+        mmulti_c = repo_root / "SRC" / "MMULTI.C"
+        content = mmulti_c.read_text(errors="replace")
+
+        select_include_pattern = re.search(
+            r'#include\s+<sys/select\.h>',
+            content
+        )
+        assert select_include_pattern, (
+            "Missing #include <sys/select.h> for POSIX select() support"
+        )
+
+    def test_net_accept_timeout_function_exists(self, repo_root):
+        """Verify net_accept_timeout() function is implemented."""
+        mmulti_c = repo_root / "SRC" / "MMULTI.C"
+        content = mmulti_c.read_text(errors="replace")
+
+        func_pattern = re.search(
+            r'static\s+SOCKET\s+net_accept_timeout\s*\('
+            r'\s*SOCKET\s+server_sock.*?\n\s*\{.*?select\s*\(',
+            content,
+            re.DOTALL
+        )
+        assert func_pattern, (
+            "net_accept_timeout() function with select() not found"
+        )
+
+    def test_accept_loop_uses_timeout_wrapper(self, repo_root):
+        """Verify the host accept loop uses net_accept_timeout()."""
+        mmulti_c = repo_root / "SRC" / "MMULTI.C"
+        content = mmulti_c.read_text(errors="replace")
+
+        accept_pattern = re.search(
+            r'client\s*=\s*net_accept_timeout\s*\('
+            r'\s*server_socket,.*?NET_HOST_ACCEPT_TIMEOUT_SEC\s*\)',
+            content,
+            re.DOTALL
+        )
+        assert accept_pattern, (
+            "Accept loop does not use net_accept_timeout() with "
+            "NET_HOST_ACCEPT_TIMEOUT_SEC timeout"
+        )
+
+    def test_timeout_both_platforms_support(self, repo_root):
+        """Verify select() works on both Windows (winsock2) and POSIX."""
+        mmulti_c = repo_root / "SRC" / "MMULTI.C"
+        content = mmulti_c.read_text(errors="replace")
+
+        assert "#include <winsock2.h>" in content, (
+            "Missing winsock2.h include for Windows select() support"
+        )
+
+        assert "#include <sys/select.h>" in content, (
+            "Missing sys/select.h include for POSIX select() support"
+        )
+
+        assert "FD_ZERO" in content, "FD_ZERO macro not found"
+        assert "FD_SET" in content, "FD_SET macro not found"
+
+
+class TestGameUnsafeStringReplacements:
+    """Verify that unsafe strcpy/strcat have been replaced with safe equivalents."""
+
+    def test_user_quote_strcpy_replaced(self, repo_root):
+        """
+        Verify that strcpy calls on user_quote arrays are replaced with strncpy.
+        Test covers lines 355, 359 in source/GAME.C where user_quote buffers
+        are copied and must be NUL-terminated.
+        """
+        game_c = repo_root / "source" / "GAME.C"
+        content = game_c.read_text(errors="replace")
+        
+        # Check line 355: strcpy(user_quote[i],...) should be strncpy
+        line_355_pattern = re.search(
+            r'strncpy\s*\(\s*user_quote\s*\[\s*i\s*\]\s*,\s*user_quote\s*\[\s*i\s*-\s*1\s*\]\s*,\s*128\s*\)',
+            content
+        )
+        assert line_355_pattern, (
+            "Line 355: user_quote strcpy must be replaced with strncpy(user_quote[i],...,128)"
+        )
+        
+        # Check that NUL-termination follows at line 356
+        nul_term_355 = re.search(
+            r'strncpy\s*\(\s*user_quote\s*\[\s*i\s*\]\s*,\s*user_quote\s*\[\s*i\s*-\s*1\s*\]\s*,\s*128\s*\)\s*;\s*'
+            r'user_quote\s*\[\s*i\s*\]\s*\[\s*127\s*\]\s*=\s*0\s*;',
+            content
+        )
+        assert nul_term_355, (
+            "Line 356: NUL-termination (user_quote[i][127] = 0) required after strncpy"
+        )
+        
+        # Check line 359: strcpy(user_quote[0], daquote) should be strncpy
+        line_359_pattern = re.search(
+            r'strncpy\s*\(\s*user_quote\s*\[\s*0\s*\]\s*,\s*daquote\s*,\s*128\s*\)',
+            content
+        )
+        assert line_359_pattern, (
+            "Line 359: user_quote strcpy must be replaced with strncpy(user_quote[0],...,128)"
+        )
+        
+        # Check that NUL-termination follows at line 360
+        nul_term_359 = re.search(
+            r'strncpy\s*\(\s*user_quote\s*\[\s*0\s*\]\s*,\s*daquote\s*,\s*128\s*\)\s*;\s*'
+            r'user_quote\s*\[\s*0\s*\]\s*\[\s*127\s*\]\s*=\s*0\s*;',
+            content
+        )
+        assert nul_term_359, (
+            "Line 360: NUL-termination (user_quote[0][127] = 0) required after strncpy"
+        )
+
+    def test_chat_message_strcat_replaced(self, repo_root):
+        """
+        Verify that strcat on tempbuf+1 is replaced with strncat.
+        Test covers line 2321 in source/GAME.C where chat messages are appended
+        to the network buffer.
+        """
+        game_c = repo_root / "source" / "GAME.C"
+        content = game_c.read_text(errors="replace")
+        
+        # Check line 2321: strcat(tempbuf+1, recbuf) should be strncat
+        line_2321_pattern = re.search(
+            r'strncat\s*\(\s*tempbuf\s*\+\s*1\s*,\s*recbuf\s*,\s*2047\s*\)',
+            content
+        )
+        assert line_2321_pattern, (
+            "Line 2321: strcat(tempbuf+1,recbuf) must be replaced with strncat(tempbuf+1,recbuf,2047)"
+        )
+
+    def test_ridecule_strcat_replaced(self, repo_root):
+        """
+        Verify that strcat on tempbuf+1 with ridecule is replaced with strncat.
+        Test covers line 6479 in source/GAME.C where ridecule messages are appended
+        to the network buffer.
+        """
+        game_c = repo_root / "source" / "GAME.C"
+        content = game_c.read_text(errors="replace")
+        
+        # Check line 6479: strcat(tempbuf+1, ud.ridecule[...]) should be strncat
+        line_6479_pattern = re.search(
+            r'strncat\s*\(\s*tempbuf\s*\+\s*1\s*,\s*ud\s*\.\s*ridecule\s*\[\s*i\s*-\s*1\s*\]\s*,\s*2047\s*\)',
+            content
+        )
+        assert line_6479_pattern, (
+            "Line 6479: strcat(tempbuf+1,ud.ridecule[i-1]) must be replaced with strncat(...,2047)"
+        )
+
+    @pytest.mark.parametrize("unsafe_func,description", [
+        ("strcpy", "strcpy (unsafe string copy)"),
+        ("strcat", "strcat (unsafe string concatenation)"),
+    ])
+    def test_no_unsafe_functions_on_patched_lines(self, repo_root, unsafe_func, description):
+        """
+        Parametrized test: Verify that unsafe string functions are gone from patched lines.
+        This is the primary regression check - if someone accidentally reverts the changes,
+        this will catch it.
+        """
+        game_c = repo_root / "source" / "GAME.C"
+        if not game_c.exists():
+            pytest.skip(f"{game_c} not found")
+        
+        lines = game_c.read_text(errors="replace").split("\n")
+        
+        # Check lines 355, 359 for strcpy
+        if unsafe_func == "strcpy":
+            for line_num in [354, 358]:  # 0-indexed: line 355 = idx 354
+                assert unsafe_func not in lines[line_num], (
+                    f"Line {line_num+1}: {description} should be removed (found in: {lines[line_num][:80]})"
+                )
+        
+        # Check lines 2321, 6479 for strcat
+        if unsafe_func == "strcat":
+            for line_num in [2320, 6478]:  # 0-indexed
+                assert unsafe_func not in lines[line_num], (
+                    f"Line {line_num+1}: {description} should be removed (found in: {lines[line_num][:80]})"
+                )

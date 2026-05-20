@@ -63,8 +63,20 @@ Versions ≥ v0.1.0 are tracked as annotated git tags; the audit-grind cycles
   - `source/GAME.C` — hardened net packet types 4 (chat: strncpy + null-term) and 8 (map change: size validation before copybufbyte) (cycle 33).
   - `source/ACTORS.C` + `source/PLAYER.C` — added bounds checks for `addammo()`, `addweapon()`, and weapon state updates (cycle 33).
 
+### Cycles 34–36 refinements
+
+- **Audio manifest schema v1.0** (cycle 34): JSON schema with `schema_version`, enum-validated audio types, atomic writes. Added `validate_manifest()` helper; `_redact_endpoint()` strips PII from error logs.
+- **Recovered audio codec forward-compat** (cycle 34): `compat/audio_stub.c` — restored `Mix_Init(OGG|MP3)` + `Mix_Quit()` stubs, enabling robust Vorbis/MPEG fallback chains; originally committed cycle 33 but stashed mid-cycle, recovered via operator forensics.
+- **Engine bounds hardening phase II** (cycles 35–36):
+  - `source/RTS.C` — guard `if (header.numlumps < 0 || > 65536)` against WAD integer overflow (cycle 36, CRITICAL).
+  - `source/ACTORS.C` — validate `dasect` sector index (`if(dasect < 0 || dasect >= MAXSECTORS) continue;`) to prevent unvalidated dereference (cycle 36, CRITICAL).
+  - `source/GAME.C` — HUD frags display sprite index bounds: `if ((unsigned)ps[i].i >= MAXSPRITES) continue;` (cycle 36, HIGH).
+  - `source/MENUES.C` — spriteqamount overflow guard: `if(spriteqamount > 1024) spriteqamount = 0;` (cycle 36, MEDIUM).
+- **Network partial-send robustness** (cycle 36): `SRC/MMULTI.C` TCP retry loop for EINTR/EAGAIN (8-attempt backoff), `tcp_send_failures` counter, eliminating silent packet loss on signal interrupts.
+- **Performance: frame_analyzer lazy imports** (cycle 36): `tools/frame_analyzer.py` — deferred PIL/numpy/scipy module loads via `_import_pil()` / `_import_numpy()` / `_import_scipy()` helpers; cold-start import time reduced 22× (0.41s → 0.009s).
+
 ### Testing
-- **702 collected tests** (cycles 19–33 added 133 new tests cumulative):
+- **717 collected tests** (cycles 19–36 added 148 new tests cumulative):
   - Cycle 19: Foundation (baseline audit)
   - Cycle 20: Asset schema + bounds validation (+7 tests)
   - Cycle 21: Regression suite closure (+19 tests via new regression harness)
@@ -72,6 +84,7 @@ Versions ≥ v0.1.0 are tracked as annotated git tags; the audit-grind cycles
   - Cycles 23–24: Engine bounds hardening + build-h consistency (+41 tests)
   - Cycles 25–27: Cycle-25/r8 CRITICAL/HIGH hardening + audio RWops regression tests (+30 tests)
   - Cycles 28–33: CMake LTO parity, CONFIG/SECTOR hardening, PICNUM_SAFE/WEAPON_VALID guards, net packet validation (+30 tests)
+  - Cycles 34–36: Audio manifest schema validation, engine/net hardening, frame analyzer performance (+6 tests)
 - Pre-cycle-19 baseline: 569 fast / 33 skipped = 602 with --runslow (was 543 at v0.1.33).
 - New suites: multiplayer regression harness (`tests/test_net_protocol.py`),
   audio semaphore-timeout + manifest-sync tests (`tests/test_audio_pipeline.py`),

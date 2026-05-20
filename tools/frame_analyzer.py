@@ -9,6 +9,7 @@ from typing import Optional, Tuple, List, Dict
 import struct
 import statistics
 import sys
+from concurrent.futures import ThreadPoolExecutor
 
 
 # Lazy import helpers with singleton caching
@@ -262,7 +263,14 @@ def analyze_frame_sequence(frame_paths: List[str]) -> Dict:
         - avg_frame_diff: float (average difference between consecutive frames)
         - per_frame: list of analyze_frame() results
     """
-    frames = [load_frame(p) for p in frame_paths]
+    # Parallelize frame loading using ThreadPoolExecutor (I/O-bound operation)
+    # Use min(len(frame_paths), 4) to avoid excessive threads for small sequences
+    # and limit resource contention for large sequences.
+    max_workers = min(len(frame_paths), 4)
+    
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        frames = list(executor.map(load_frame, frame_paths))
+    
     per_frame = [analyze_frame(f) for f in frames]
 
     all_black = all(pf["is_black"] for pf in per_frame)

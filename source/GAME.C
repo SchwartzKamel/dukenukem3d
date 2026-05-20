@@ -352,10 +352,12 @@ adduserquote(char *daquote)
 
     for(i=MAXUSERQUOTES-1;i>0;i--)
     {
-        strcpy(user_quote[i],user_quote[i-1]);
+        strncpy(user_quote[i],user_quote[i-1],128);
+        user_quote[i][127] = 0;
         user_quote_time[i] = user_quote_time[i-1];
     }
-    strcpy(user_quote[0],daquote);
+    strncpy(user_quote[0],daquote,128);
+    user_quote[0][127] = 0;
     user_quote_time[0] = 180;
     pub = NUMPAGES;
 }
@@ -2318,7 +2320,7 @@ void typemode(void)
                 snprintf(recbuf,sizeof(recbuf),"%s: %s",ud.user_name[myconnectindex],typebuf);
                 j = strlen(recbuf);
                 recbuf[j] = 0;
-                strcat(tempbuf+1,recbuf);
+                strncat(tempbuf+1,recbuf,2047);
 
                 if(sendmessagecommand >= ud.multimode || movesperpacket == 4)
                 {
@@ -6474,7 +6476,7 @@ void nonsharedkeys(void)
 
                 tempbuf[ch] = 4;
                 tempbuf[ch+1] = 0;
-                strcat(tempbuf+1,ud.ridecule[i-1]);
+                strncat(tempbuf+1,ud.ridecule[i-1],2047);
 
                 i = 1+strlen(ud.ridecule[i-1]);
 
