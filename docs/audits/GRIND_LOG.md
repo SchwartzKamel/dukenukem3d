@@ -712,3 +712,65 @@ Todos NOT closed:
   it claimed to have done. Same "hallucinated success" pattern as
   cache1d. Tighten the post-task validation prompt: require
   `git status` diff output in the agent's return summary.
+
+## Cycle 22 + audit-pass — 2026-05-20T12:35 UTC
+
+### Cycle 22 audit-pass (2 sub-agents)
+
+- asset-pipeline-r7 — 0 CRITICAL/HIGH. Verified cycle-18 atomic-write
+  integration is comprehensive across TILES000.ART, PALETTE.DAT,
+  TABLES.DAT, DUKE3D.GRP. 2 MEDIUM todos seeded:
+  `asset-r7-schema-bounds`, `asset-r7-audio-atomic-writes`.
+- build-system-r7 — **1 CRITICAL** (`build-r7-lto-maxtiles-mismatch`:
+  source/BUILD.H MAXTILES=6144 vs SRC/BUILD.H=9216, arrays tilesizx
+  / tilesizy / walock / gotpic span mismatched sizes, LTO links
+  incompatible code units), 2 HIGH (`build-r7-makefile-race-condition`
+  matching operator-observed transient chmod failures;
+  `build-r7-windows-arch-mismatch` i686 vs x86_64). 3 todos seeded.
+
+### Cycle 22 grind (6 sub-agents, all 6 closed)
+
+- `perf-r5-cache-walk-fastpath` — `cache1d_free_bytes` counter +
+  fastpaths in suckcache (>25% free) and agecache (>50% free) on
+  SRC/CACHE1D.C. **Re-dispatch** after cycle-20 hallucination;
+  hardened prompt with mandatory grep+diff-stat in return contract.
+- `fix-net-connect-timeout-sec` — SRC/MMULTI.C 60s -> 30s with
+  `NET_CONNECT_TIMEOUT` define + rationale comment.
+- `sec-r7-cache-restore-keys` — release.yml SDL2 cache restore-keys
+  tightened to major.minor prefix; prevents cross-version stale
+  cache reuse.
+- `sec-r7-yaml-secret-patterns` — tools/check_secrets.sh documented
+  + 13-test regression suite (test_check_secrets_yaml_json_batch.py).
+  Also fixed the script to exclude itself + test fixtures via git
+  pathspec `:(exclude)` so the hook doesn't false-positive on its
+  own pattern strings or test fakes.
+- `perf-frame-analyzer-bytes` + `perf-frame-analyzer-edges` —
+  tools/frame_analyzer.py vectorized with numpy + scipy.ndimage
+  (scipy gated behind try/except with numpy fallback). 28x faster
+  on edge detection, 93% faster on frame_difference.
+- `asset-r7-schema-bounds` — _asset_schemas.py tile_num upper
+  bound 4943 -> 6143 (source/BUILD.H MAXTILES-1) + 2 boundary tests.
+
+### Validation
+
+- Build: clean (duke3d 654 KB release).
+- Tests: 595 -> 610 (+15 from cycle-22 grind).
+- Persistence-regression streak: **38+ consecutive parallel
+  sub-agents with zero git-mutation damage**.
+
+### Anti-hallucination follow-up
+
+The cycle-20 cache1d hallucination led to a stricter prompt
+template for cycle 22: mandatory `grep -n <token> <file>` and
+`git diff --stat <file>` in the return summary. Cycle-22 cache1d
+re-dispatch returned both correctly and the work landed.
+
+### Human-attention items
+
+- **CRITICAL build-r7-lto-maxtiles-mismatch held back from grind.**
+  Conflicting MAXTILES (6144 vs 9216) across the two BUILD.H copies
+  is a real LTO correctness issue but unification touches many
+  consumers. Needs a dedicated cycle with engine-porter + test-engineer
+  validation; left as pending todo for operator decision.
+- `build-r7-makefile-race-condition` and `build-r7-windows-arch-mismatch`
+  similarly held back — Makefile/CI changes warrant operator review.
