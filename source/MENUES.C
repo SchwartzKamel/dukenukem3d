@@ -174,6 +174,11 @@ loadpheader(char spot,int32 *vn,int32 *ln,int32 *psk,int32 *nump)
      }
 
      kdfread(nump,sizeof(int32),1,fil);
+     if(*nump < 0 || *nump > MAXPLAYERS)
+     {
+         kclose(fil);
+         return(-1);
+     }
 
      kdfread(tempbuf,19,1,fil);
          kdfread(vn,sizeof(int32),1,fil);
@@ -276,6 +281,16 @@ loadplayer(signed char spot)
          kdfread(&ud.level_number,sizeof(ud.level_number),1,fil);
          kdfread(&ud.player_skill,sizeof(ud.player_skill),1,fil);
 
+     if(ud.volume_number < 0 || ud.volume_number >= 10 ||
+        ud.level_number < 0 || ud.level_number >= 7 ||
+        ud.player_skill < 0 || ud.player_skill > 3)
+     {
+        kclose(fil);
+        ototalclock = totalclock;
+        ready2send = 1;
+        return 1;
+     }
+
          ud.m_level_number = ud.level_number;
          ud.m_volume_number = ud.volume_number;
          ud.m_player_skill = ud.player_skill;
@@ -287,8 +302,22 @@ loadplayer(signed char spot)
      kdfread((char *)waloff[MAXTILES-3],160,100,fil);
 
          kdfread(&numwalls,2,1,fil);
+     if(numwalls < 0 || numwalls > MAXWALLS)
+     {
+        kclose(fil);
+        ototalclock = totalclock;
+        ready2send = 1;
+        return 1;
+     }
      kdfread(&wall[0],sizeof(walltype),MAXWALLS,fil);
          kdfread(&numsectors,2,1,fil);
+     if(numsectors < 0 || numsectors > MAXSECTORS)
+     {
+        kclose(fil);
+        ototalclock = totalclock;
+        ready2send = 1;
+        return 1;
+     }
      kdfread(&sector[0],sizeof(sectortype),MAXSECTORS,fil);
          kdfread(&sprite[0],sizeof(spritetype),MAXSPRITES,fil);
          kdfread(&headspritesect[0],2,MAXSECTORS+1,fil);
@@ -549,18 +578,68 @@ saveplayer(signed char spot)
      ready2send = 0;
 
      dfwrite(&bv,4,1,fil);
+     if(ferror(fil))
+     {
+         fclose(fil);
+         return(-1);
+     }
      dfwrite(&ud.multimode,sizeof(ud.multimode),1,fil);
+     if(ferror(fil))
+     {
+         fclose(fil);
+         return(-1);
+     }
 
          dfwrite(&ud.savegame[spot][0],19,1,fil);
+     if(ferror(fil))
+     {
+         fclose(fil);
+         return(-1);
+     }
          dfwrite(&ud.volume_number,sizeof(ud.volume_number),1,fil);
+     if(ferror(fil))
+     {
+         fclose(fil);
+         return(-1);
+     }
      dfwrite(&ud.level_number,sizeof(ud.level_number),1,fil);
+     if(ferror(fil))
+     {
+         fclose(fil);
+         return(-1);
+     }
          dfwrite(&ud.player_skill,sizeof(ud.player_skill),1,fil);
+     if(ferror(fil))
+     {
+         fclose(fil);
+         return(-1);
+     }
      dfwrite((char *)waloff[MAXTILES-1],160,100,fil);
 
          dfwrite(&numwalls,2,1,fil);
+     if(ferror(fil))
+     {
+         fclose(fil);
+         return(-1);
+     }
      dfwrite(&wall[0],sizeof(walltype),MAXWALLS,fil);
+     if(ferror(fil))
+     {
+         fclose(fil);
+         return(-1);
+     }
          dfwrite(&numsectors,2,1,fil);
+     if(ferror(fil))
+     {
+         fclose(fil);
+         return(-1);
+     }
      dfwrite(&sector[0],sizeof(sectortype),MAXSECTORS,fil);
+     if(ferror(fil))
+     {
+         fclose(fil);
+         return(-1);
+     }
          dfwrite(&sprite[0],sizeof(spritetype),MAXSPRITES,fil);
          dfwrite(&headspritesect[0],2,MAXSECTORS+1,fil);
          dfwrite(&prevspritesect[0],2,MAXSPRITES,fil);
@@ -576,6 +655,7 @@ saveplayer(signed char spot)
          dfwrite(&animwall,sizeof(animwall),1,fil);
          dfwrite(&msx[0],sizeof(long),sizeof(msx)/sizeof(long),fil);
          dfwrite(&msy[0],sizeof(long),sizeof(msy)/sizeof(long),fil);
+      /* TODO(file-io-r2): Add error checks for remaining sprite array writes */
      dfwrite(&spriteqloc,sizeof(short),1,fil);
      dfwrite(&spriteqamount,sizeof(short),1,fil);
      dfwrite(&spriteq[0],sizeof(short),spriteqamount,fil);
