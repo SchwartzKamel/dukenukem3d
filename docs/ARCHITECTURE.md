@@ -370,3 +370,72 @@ For the current audit cycle, see [docs/audits/SUMMARY.md](docs/audits/SUMMARY.md
 - **Medium findings** for the next development cycle
 
 When implementing fixes for audit findings, link the commit to the specific audit report (e.g., `Fixes docs/audits/build-system.md § CRITICAL: MSVC /Tc flag`).
+
+---
+
+## Recent Hardening (Cycles 12-15)
+
+This section documents critical safety fixes landed in recent audit cycles to prevent regression and guide future maintenance.
+
+### Cycle 12: Engine & Network Baseline Hardening
+
+- **CRITICAL — labelcode overflow** (`source/GAME.C:7118` → `source/GLOBAL.C`)
+  - **Issue:** Unbound labelcode pointer aliased over `sector[]` array, allowing GAMEDEF.C script parser to corrupt sector geometry on large script loads (>512 labels).
+  - **Fix:** Replaced with static `labelcode[MAXLABELS=4096]` array; external declaration in `source/DUKE3D.H`.
+  - **Impact:** Preserves script parser safety; sectors now protected from labelcode overflow.
+  - **Cite:** `source/GLOBAL.C` (extern labelcode declaration), `source/GAME.C:7118` (fixed reference).
+
+- **Wire-format helpers** (`SRC/MMULTI.C`)
+  - **Issue:** Byte-shuffling for network packets lacked explicit endian guards; risky on non-x86 architectures.
+  - **Fix:** Introduced `mm_pack_u16_le()` and `mm_unpack_u16_le()` static inline helpers for safe little-endian marshalling.
+  - **Impact:** Payload length, protocol version, disconnect, and sendpacket now use explicit LE format.
+  - **Cite:** `SRC/MMULTI.C` (helper definitions and call sites).
+
+### Cycle 13: I/O & Audio Validation Hardening
+
+- **File I/O safety** (`source/MENUES.C`)
+  - **Issue:** 14 critical `fread`/`fwrite` sites in saveplayer, loadplayer, and loadpheader lacked return-value checks; silent failures on corrupt saves.
+  - **Fix:** Added explicit size assertions and error logging; ~145 remaining sites marked `TODO(file-io-r2)`.
+  - **Impact:** Save/load game failures now logged; prevents data corruption cascades.
+  - **Cite:** `source/MENUES.C` (saveplayer ×10, loadplayer ×3, loadpheader ×1 fixed sites).
+
+- **RIFF/WAVE validation** (`compat/audio_stub.c`)
+  - **Issue:** WAV header parsing in audio stub lacked bounds checking; malformed WAV files could trigger buffer overrun.
+  - **Fix:** Added explicit RIFF chunk header + WAVE format validation; reject files with missing or oversized chunks.
+  - **Impact:** Audio pipeline now resilient to corrupt or malicious WAV inputs.
+  - **Cite:** `compat/audio_stub.c` (WAV header parsing + validation logic).
+
+- **Mixer channel exhaustion** (`compat/audio_stub.c`)
+  - **Issue:** `Mix_GroupOldest` callback could race with concurrent `FX_SetCallBack` pointer updates.
+  - **Fix:** Snapshot callback pointer into local variable; guard writer with `SDL_LockAudio`.
+  - **Impact:** Audio playback thread-safe against callback registration changes.
+  - **Cite:** `compat/audio_stub.c` (FX_SetCallBack synchronization pattern).
+
+### Cycle 15: CON-Script & Network Bounds Safety
+
+- **CON-script label bounds** (`source/GAMEDEF.C`)
+  - **Issue:** labelcnt increment checked against old stack-allocated bound; label-string buffer had no overflow guard.
+  - **Fix:** Added explicit `labelcnt < MAXLABELS` check before incrementing; bounds-safe string storage.
+  - **Impact:** GAMEDEF.C scripts now safely handle maximum label count (4096); prevents heap corruption.
+  - **Cite:** `source/GAMEDEF.C` (labelcnt bounds-check, label-string array).
+
+- **Network packet unmarshalling** (`SRC/MMULTI.C`)
+  - **Issue:** `from_player` and `sendpacket` reads lacked bounds validation; oversized packets could trigger OOB reads.
+  - **Fix:** Added explicit range checks: `from_player < MAXPLAYERS` and payload length validation before unmarshalling.
+  - **Impact:** Network input now validated; prevents deserialization exploits.
+  - **Cite:** `SRC/MMULTI.C` (from_player + sendpacket bounds checks in packet handlers).
+
+- **SoundOwner aging** (`source/SOUNDS.C`)
+  - **Issue:** SoundOwner array access at `i >= MAXSOUNDS` possible during concurrent playback updates.
+  - **Fix:** Added explicit capacity check before incrementing sound counters; cycle old sounds out at max capacity.
+  - **Impact:** Audio system robust to sustained high-concurrency scenarios.
+  - **Cite:** `source/SOUNDS.C` (SoundOwner array bounds + aging logic).
+
+- **Audio callback synchronization** (`compat/audio_stub.c`)
+  - **Issue:** `FX_Set*` (e.g., `FX_SetCallBack`, `FX_SetLoopPosition`) could race with mixer callback invocation.
+  - **Fix:** Wrapped setter calls with `SDL_LockAudio` / `SDL_UnlockAudio` guards.
+  - **Impact:** Audio state mutations now serialized; eliminates callback-invocation races.
+  - **Cite:** `compat/audio_stub.c` (FX_Set* lock guards).
+
+For detailed audit findings and rationale, see [docs/audits/SUMMARY.md](docs/audits/SUMMARY.md).
+

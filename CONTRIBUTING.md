@@ -252,6 +252,64 @@ This is intentional and **must not be changed**. It enforces the principle that:
 
 If you ever see `generated_assets/` or `DUKE3D.GRP` in `git status`, it means you accidentally regenerated them in the repo. Ignore them with `git checkout -- generated_assets/ DUKE3D.GRP` and continue working.
 
+## Audit Grind & Persona Sub-Agents
+
+This project uses an **autonomous audit-grind orchestration system** to continuously verify code quality, documentation accuracy, and security posture. Understanding this automation helps you interpret audit reports and contribute effectively.
+
+### How It Works
+
+The audit-grind skill (`.github/skills/audit-grind/SKILL.md`) runs continuously or on-demand:
+
+1. **Invocation:** Operators trigger `/audit-grind` via Copilot CLI (or schedule with `/every 30m /audit-grind`).
+2. **Dispatch:** Audit-grind reads pending todos from the SQLite session database and assigns up to 6 specialized personas in parallel.
+3. **Execution:** Each persona (engine-porter, audio-engineer, test-engineer, etc.) audits their domain and generates a markdown report.
+4. **Findings:** Audit reports land in `docs/audits/<persona>-rN.md` with a master index in `docs/audits/SUMMARY.md`.
+5. **Todos:** High-priority findings are automatically seeded as todos in the session DB; contributors pick them up in subsequent cycles.
+
+### The 10 Specialized Personas
+
+Each persona is a `.github/agents/*.agent.md` file that defines scope, expertise, and veto authority:
+
+| Persona | Owns | Domain |
+|---------|------|--------|
+| **Engine Porter** | `SRC/`, `source/` | BUILD engine code, 64-bit safety, struct packing |
+| **Compat Layer** | `compat/` | SDL2 shims, platform compatibility, type safety |
+| **Asset Pipeline** | `tools/generate_*.py` | Texture/map/audio generation, GRP packing |
+| **Audio Engineer** | Audio generation, `audio_stub.c` | Voice lines, WAV synthesis, API key management |
+| **Build System** | `Makefile`, CMakeLists.txt, CI `.yml` | Cross-platform builds, Windows MinGW/MSVC |
+| **Test Engineer** | `tests/`, pytest suite | Test coverage, struct invariants, harness quality |
+| **Documentation Curator** | `README.md`, `CONTRIBUTING.md`, `ARCHITECTURE.md`, `docs/` | Accuracy, links, tone, command verification |
+| **Security & Secrets** | `.env`, credentials, `.github/workflows/` | Secret scanning, dependency audits, SPDX headers |
+| **Network & Multiplayer** | `MMULTI.C`, networking | TCP/IP safety, cross-platform netplay (future) |
+| **Performance Profiler** | Benchmarks, profiling data | Optimization, regression detection, metrics |
+
+### Audit Reports & Todos
+
+When audit-grind completes a round:
+
+- **Findings** are documented in `docs/audits/` with one report per persona (e.g., `engine-porter-r6.md`, `audio-engineer-r5.md`).
+- **Critical & High findings** generate todos in the session backlog.
+- **SUMMARY.md** maintains a cross-cutting index of all audit reports, personnel, and high-level verdicts.
+- **GRIND_LOG.md** logs each `/audit-grind` invocation with timestamp, persona dispatch list, and final status.
+
+See [docs/audits/SUMMARY.md](docs/audits/SUMMARY.md) for the current audit index.
+
+### Sub-Agent Constraints
+
+Sub-agents **must follow the no-git-mutation rule**:
+- ✅ Allowed: `git diff`, `git log`, `grep`, `pytest`, code analysis
+- ❌ Forbidden: `git reset`, `git stash`, `git revert`, `git cherry-pick`, or any tree-mutating command
+- **Git state is owned by you (the operator).** Sub-agents propose changes; you apply them.
+
+### Example: Contributing During an Active Grind
+
+1. You push a feature branch with changes to `source/GAME.C`.
+2. Audit-grind runs and dispatches the **engine-porter** persona to audit your changes.
+3. Engine-porter generates a report (e.g., `engine-porter-r7.md`) with findings.
+4. High-priority findings seed todos (e.g., "Fix struct packing in walltype on 64-bit").
+5. A contributor picks up the todo, implements the fix, and opens a PR.
+6. Audit-grind re-runs, engine-porter verifies the fix, and closes the todo.
+
 ## Pull Request Process
 
 1. **Fork** the repository and create a feature branch:

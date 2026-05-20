@@ -58,7 +58,7 @@ Versions ≥ v0.1.0 are tracked as annotated git tags; the audit-grind cycles
   sendpacket).
 
 ### Testing
-- 553 fast tests / 583 with --runslow (was 543 at v0.1.33).
+- 569 passed / 33 skipped (fast); 602 with --runslow (was 543 at v0.1.33).
 - New: multiplayer regression harness (`tests/test_net_protocol.py`),
   audio semaphore-timeout + manifest-sync tests
   (`tests/test_audio_pipeline.py`).
