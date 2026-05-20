@@ -387,8 +387,10 @@ def _generate_audio_parallel_local(workers, use_deterministic):
             future = executor.submit(process_voice_line, (idx, (filename, prompt, voice)))
             future_to_idx[future] = idx
 
-        # Collect results in order
+        # Collect results without mutating SOUND_MANIFEST (avoid race condition)
         results = [None] * len(VOICE_LINES)
+        result_status = [None] * len(VOICE_LINES)  # Track status: "success", "failed", or None
+        result_error = [None] * len(VOICE_LINES)  # Track error messages
         for future in concurrent.futures.as_completed(future_to_idx.keys()):
             idx = future_to_idx[future]
             try:
@@ -396,19 +398,26 @@ def _generate_audio_parallel_local(workers, use_deterministic):
                 out_path = os.path.join(OUTPUT_DIR, filename)
                 _atomic_write_bytes(out_path, wav_data)
                 results[idx] = filename
-                # Update manifest entry with successful generation
-                SOUND_MANIFEST[idx]["status"] = "generated"
-                SOUND_MANIFEST[idx]["generated_at"] = timestamp
+                result_status[idx] = "success"
                 print(f"    [Silence placeholder] OK")
             except Exception as e:
-                # Handle worker failure - mark manifest entry as failed
+                # Collect error info without mutating manifest
                 error_msg = f"{type(e).__name__}: {str(e)}"
-                SOUND_MANIFEST[idx]["status"] = "failed"
-                SOUND_MANIFEST[idx]["error"] = error_msg
-                SOUND_MANIFEST[idx]["generated_at"] = timestamp
-                print(f"    [ERROR] {SOUND_MANIFEST[idx]['wav']}: {error_msg}")
+                result_status[idx] = "failed"
+                result_error[idx] = error_msg
+                print(f"    [ERROR] {VOICE_LINES[idx][0]}: {error_msg}")
 
-        generated = [f for f in results if f is not None]
+    # audio-r12-parallel-manifest-race: sequentialize manifest writes after pool exit
+    for idx in range(len(VOICE_LINES)):
+        if result_status[idx] == "success":
+            SOUND_MANIFEST[idx]["status"] = "generated"
+            SOUND_MANIFEST[idx]["generated_at"] = timestamp
+        elif result_status[idx] == "failed":
+            SOUND_MANIFEST[idx]["status"] = "failed"
+            SOUND_MANIFEST[idx]["error"] = result_error[idx]
+            SOUND_MANIFEST[idx]["generated_at"] = timestamp
+
+    generated = [f for f in results if f is not None]
 
     return generated
 
@@ -451,8 +460,11 @@ async def _generate_audio_async_main(concurrency, endpoint, api_key, model, acqu
             task = bounded_generate(session, idx, filename, prompt, voice)
             tasks.append(task)
 
-        # Collect results
+        # Collect results without mutating SOUND_MANIFEST during async tasks
         results = await asyncio.gather(*tasks)
+        
+        # Prepare manifest updates locally first
+        manifest_updates = [None] * len(VOICE_LINES)
         for idx, filename, wav_data, error in results:
             is_fallback = False
             if wav_data is None:
@@ -462,19 +474,27 @@ async def _generate_audio_async_main(concurrency, endpoint, api_key, model, acqu
                 if error:
                     print(f"    [!] {error}")
                     status = "failed"
-                    SOUND_MANIFEST[idx]["error"] = error
-                print(f"    [Fallback: silence] OK")
+                    manifest_updates[idx] = ("failed", error)
+                else:
+                    print(f"    [Fallback: silence] OK")
+                    manifest_updates[idx] = ("fallback", None)
             else:
                 status = "generated"
                 print(f"    [AI] OK ({len(wav_data)} bytes)")
-
-            # Update manifest entry with status and timestamp
-            SOUND_MANIFEST[idx]["status"] = status
-            SOUND_MANIFEST[idx]["generated_at"] = timestamp
+                manifest_updates[idx] = ("generated", None)
 
             out_path = os.path.join(OUTPUT_DIR, filename)
             _atomic_write_bytes(out_path, wav_data)
             generated[idx] = filename
+
+        # audio-r12-parallel-manifest-race: sequentialize manifest writes after async tasks complete
+        for idx, update in enumerate(manifest_updates):
+            if update is not None:
+                status, error = update
+                SOUND_MANIFEST[idx]["status"] = status
+                SOUND_MANIFEST[idx]["generated_at"] = timestamp
+                if error:
+                    SOUND_MANIFEST[idx]["error"] = error
 
     return [f for f in generated if f is not None]
 

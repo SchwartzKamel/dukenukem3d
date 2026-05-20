@@ -1637,7 +1637,8 @@ getfilenames(char kind[6])
                 if ((type == 0) || ((fileinfo.attrib&16) > 0))
                         if ((fileinfo.name[0] != '.') || (fileinfo.name[1] != 0))
                         {
-                                strcpy(menuname[menunamecnt],fileinfo.name);
+                                strncpy(menuname[menunamecnt], fileinfo.name, 15); /* sec-r13-strcpy-menuname-filesystem-overflow: bound + null-term */
+                                menuname[menunamecnt][15] = '\0';
                                 menuname[menunamecnt][16] = type;
                                 menunamecnt++;
                         }
@@ -1854,7 +1855,10 @@ void menus(void)
                 if( x )
                 {
                     if(ud.pwlockout[0] == 0 || ud.lockout == 0 )
-                        strcpy(&ud.pwlockout[0],buf);
+                    {
+                        strncpy(&ud.pwlockout[0], buf, 19); /* sec-r13-strcpy-password-defensive: bound + null-term */
+                        ud.pwlockout[19] = '\0';
+                    }
                     else if( strcmp(buf,&ud.pwlockout[0]) == 0 )
                     {
                         ud.lockout = 0;

@@ -1783,3 +1783,29 @@ Keep v5 as the standing dispatch contract.
 ### Notes
 - v5 contract drift: build-r13 agent over-applied "stop on unexpected state" — sibling-file edits are EXPECTED concurrent, not a stop condition. Document v6 clarification next cycle.
 - Sub-agent SQL session quirk persists: verify INSERTed todos exist in operator SQL before dispatching grind on them.
+
+---
+
+## 2026-05-20 — Cycle 42
+
+### Cycle 42 audit-pass (committed acb45e0)
+- audio-engineer-r12 (CRITICAL ThreadPoolExecutor manifest race flagged)
+- security-and-secrets-r13 (2 HIGH unsafe strcpy in MENUES.C)
+
+### Cycle 42 grind (this batch — 6 closures)
+- ✅ build-r13-maxtiles-stage3-flip-abort-and-xfail (CRITICAL — **MAXTILES chain fully closed**; abort() reinstated in compat/maxtiles_guard.c). Closes build-r7-lto-maxtiles-mismatch.
+- ✅ audio-r12-parallel-manifest-race + audio-r12-async-manifest-race (CRITICAL — both ThreadPool + asyncio paths sequentialized in tools/generate_audio.py).
+- ✅ sec-r13-strcpy-menuname-filesystem-overflow + sec-r13-strcpy-password-defensive (HIGH×2 — source/MENUES.C strncpy + null-term at lines 1640, 1859).
+- ✅ asset-r13-exception-handling-hardening (HIGH — tools/generate_assets.py 5 except-blocks narrowed; new structured GENERATION_LOG.jsonl).
+- ✅ engine-r12-actors-projectile-sectnum (HIGH — source/GAME.C SE40_Draw, agent corrected file attribution from todo).
+- ✅ net-r9-type-8-boardfilename-underflow (HIGH — source/GAME.C:752 packbufleng<11 pre-check).
+
+### Build/test deltas
+- 743 → **764 passing** (+21 tests this cycle)
+- make clean && make -j: green
+- pytest -q: green (764 passed, 34 skipped, 2 xfailed, 2 xpassed)
+
+### Notes
+- v6 contract held: all 6 agents correctly tolerated concurrent sibling edits.
+- engine-r12-actors-projectile agent autonomously corrected todo's file attribution (ACTORS.C → GAME.C); sentinel + tests aimed at actual call site.
+- compat/maxtiles_guard.c now aborts on header mismatch — future MAXTILES drift will be loud at startup.

@@ -749,6 +749,7 @@ void getpackets(void)
                 ud.m_marker = ud.marker = packbuf[9];
                 ud.m_ffire = ud.ffire = packbuf[10];
 
+                if (packbufleng < 11) break;  /* net-r9-type-8-boardfilename-underflow: prevent unsigned wrap on packbufleng-11 */
                 copybufbyte(packbuf+10,boardfilename,packbufleng-11);
                 boardfilename[packbufleng-11] = 0;
 
@@ -2928,6 +2929,7 @@ SE40_Draw(int spnum,long x,long y,long z,short a,short h,long smoothratio)
       sprite[j].hitag==sprite[floor1].hitag
      )
      {
+      if ((unsigned)sprite[j].sectnum >= (unsigned)MAXSECTORS) continue;  /* engine-r12-actors-projectile-sectnum: bounds guard */
       if(k==40)
       {tempsectorz[sprite[j].sectnum]=sector[sprite[j].sectnum].floorz;
        sector[sprite[j].sectnum].floorz+=(((z-sector[sprite[j].sectnum].floorz)/32768)+1)*32768;
@@ -2961,6 +2963,7 @@ SE40_Draw(int spnum,long x,long y,long z,short a,short h,long smoothratio)
       sprite[j].hitag==sprite[floor1].hitag
      )
      {
+      if ((unsigned)sprite[j].sectnum >= (unsigned)MAXSECTORS) continue;  /* engine-r12-actors-projectile-sectnum: bounds guard */
       if(k==40)
       {sector[sprite[j].sectnum].floorz=tempsectorz[sprite[j].sectnum];
        sector[sprite[j].sectnum].floorpicnum=tempsectorpicnum[sprite[j].sectnum];

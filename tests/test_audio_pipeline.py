@@ -750,3 +750,129 @@ class TestMixInitRetryBackoff:
         )
         assert has_mix_open, "Mix_OpenAudio call not found"
 
+
+class TestParallelManifestRace:
+    """Test that manifest updates are sequentialized after thread pool / async tasks complete.
+    
+    Verifies the fix for audio-r12-parallel-manifest-race: concurrent ThreadPoolExecutor
+    and asyncio tasks must not mutate SOUND_MANIFEST directly. Instead, results are
+    collected and manifest updates are applied sequentially after all tasks complete.
+    """
+
+    def test_sentinel_comment_in_parallel_local(self):
+        """Verify sentinel comment is present in _generate_audio_parallel_local."""
+        with open(os.path.join(PROJECT_ROOT, "tools", "generate_audio.py"), "r") as f:
+            content = f.read()
+        
+        assert "audio-r12-parallel-manifest-race: sequentialize manifest writes after pool exit" in content, \
+            "Sentinel comment not found in _generate_audio_parallel_local path"
+
+    def test_sentinel_comment_in_async_main(self):
+        """Verify sentinel comment is present in _generate_audio_async_main."""
+        with open(os.path.join(PROJECT_ROOT, "tools", "generate_audio.py"), "r") as f:
+            content = f.read()
+        
+        # Verify the sentinel appears in the async path as well
+        sentinel_count = content.count("audio-r12-parallel-manifest-race: sequentialize manifest writes")
+        assert sentinel_count >= 2, \
+            f"Expected sentinel comment in both paths, found {sentinel_count} occurrences"
+
+    def test_manifest_no_mutation_in_executor_loop(self):
+        """Verify ThreadPoolExecutor loop doesn't mutate SOUND_MANIFEST during concurrent execution.
+        
+        Pattern check: SOUND_MANIFEST[idx] mutation should NOT occur inside the
+        as_completed() loop, only after executor.shutdown() (implicitly after with block).
+        """
+        with open(os.path.join(PROJECT_ROOT, "tools", "generate_audio.py"), "r") as f:
+            lines = f.readlines()
+        
+        # Find the _generate_audio_parallel_local function
+        in_parallel_func = False
+        in_as_completed_loop = False
+        found_issue = False
+        
+        for i, line in enumerate(lines):
+            if "def _generate_audio_parallel_local" in line:
+                in_parallel_func = True
+            elif in_parallel_func and "def " in line and "_generate_audio_parallel_local" not in line:
+                break  # End of function
+            
+            if in_parallel_func and "as_completed" in line:
+                in_as_completed_loop = True
+                loop_indent = len(line) - len(line.lstrip())
+            elif in_as_completed_loop:
+                current_indent = len(line) - len(line.lstrip())
+                if line.strip() and current_indent <= loop_indent and "for" not in line:
+                    # We've exited the as_completed loop
+                    in_as_completed_loop = False
+                elif in_as_completed_loop and "SOUND_MANIFEST[idx]" in line:
+                    # Check if this is inside try/except (old bad pattern)
+                    # New pattern should not have this inside as_completed loop
+                    if i < len(lines) - 5:
+                        context = "".join(lines[max(0, i-5):min(len(lines), i+5)])
+                        if "try:" in context and "result.result()" in context:
+                            # This looks like old pattern - mutation during as_completed
+                            found_issue = True
+                            break
+        
+        assert not found_issue, \
+            "SOUND_MANIFEST mutation detected inside as_completed() loop (should be after executor exits)"
+
+    def test_parallel_local_path_collects_results(self):
+        """Integration test: verify _generate_audio_parallel_local generates correct manifest entries."""
+        # Create a temporary directory for output
+        with tempfile.TemporaryDirectory() as tmpdir:
+            orig_output_dir = generate_audio.OUTPUT_DIR
+            try:
+                generate_audio.OUTPUT_DIR = tmpdir
+                
+                # Call the parallel local generator
+                generated = generate_audio._generate_audio_parallel_local(workers=2, use_deterministic=True)
+                
+                # Should have generated 21 files (one for each voice line)
+                assert len(generated) == 21, \
+                    f"Expected 21 generated files, got {len(generated)}"
+                
+                # Verify all files exist
+                for filename in generated:
+                    filepath = os.path.join(tmpdir, filename)
+                    assert os.path.exists(filepath), \
+                        f"Generated file not found: {filepath}"
+                    
+                    # Verify file is a valid WAV
+                    assert os.path.getsize(filepath) > 44, \
+                        f"WAV file too small (missing headers): {filepath}"
+                
+                # Verify SOUND_MANIFEST was updated correctly
+                for idx, entry in enumerate(generate_audio.SOUND_MANIFEST):
+                    if idx < len(generated):
+                        assert entry["status"] == "generated", \
+                            f"Entry {idx} should have status 'generated', got '{entry['status']}'"
+                        assert entry["generated_at"] == "1970-01-01T00:00:00Z", \
+                            f"Entry {idx} should have deterministic timestamp"
+            finally:
+                generate_audio.OUTPUT_DIR = orig_output_dir
+
+    def test_parallel_manifest_entries_have_correct_keys(self):
+        """Verify manifest entries have required keys after parallel generation."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            orig_output_dir = generate_audio.OUTPUT_DIR
+            try:
+                generate_audio.OUTPUT_DIR = tmpdir
+                
+                # Generate with deterministic timestamp
+                generate_audio._generate_audio_parallel_local(workers=2, use_deterministic=True)
+                
+                # Verify all entries have required keys
+                required_keys = {"wav", "status", "generated_at"}
+                for idx, entry in enumerate(generate_audio.SOUND_MANIFEST):
+                    for key in required_keys:
+                        assert key in entry, \
+                            f"Entry {idx} missing required key '{key}'"
+                    
+                    # Status should be 'generated' or 'failed'
+                    assert entry["status"] in ("generated", "failed"), \
+                        f"Entry {idx} has invalid status: {entry['status']}"
+            finally:
+                generate_audio.OUTPUT_DIR = orig_output_dir
+

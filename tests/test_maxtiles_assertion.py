@@ -1,10 +1,10 @@
 """Test link-time MAXTILES assertion mechanism.
 
 This test suite validates that the link-time MAXTILES assertion infrastructure
-is correctly in place. Stage 1 (current) will detect the mismatch and xfail
-until Stage 2 unifies the headers.
+is correctly in place. Stage 3 (current) enforces the invariant via abort() now
+that headers have been unified (both = 6144).
 
-See docs/audits/build-system-r12.md for the 3-stage remediation roadmap.
+See docs/audits/build-system-r12.md and build-system-r13.md for the remediation roadmap.
 """
 import re
 from pathlib import Path
@@ -58,13 +58,9 @@ def test_maxtiles_guard_constructor_present(repo_root):
 def test_maxtiles_values_match_between_headers(repo_root):
     """Verify MAXTILES is identical in SRC/BUILD.H and source/BUILD.H.
     
-    This test is expected to fail (xfail) under the current state where:
-    - SRC/BUILD.H (engine):    MAXTILES = 9216
-    - source/BUILD.H (game):   MAXTILES = 6144
-    
-    Stage 1 detects this mismatch via the constructor, which fires at
-    program initialization. This test documents the expected failure until
-    Stage 2 (header unification) resolves the conflict.
+    Stage 2 unified both headers to MAXTILES=6144. This test confirms the
+    unification remains in place. Stage 3 now enforces the invariant via abort()
+    in the constructor, so any divergence will crash early.
     """
     src_maxtiles = _extract_maxtiles(repo_root / "SRC/BUILD.H")
     source_maxtiles = _extract_maxtiles(repo_root / "source/BUILD.H")
@@ -89,3 +85,21 @@ def test_maxtiles_values_are_reasonable(repo_root):
     
     assert source_maxtiles in [6144, 9216], \
         f"source/BUILD.H MAXTILES={source_maxtiles} is unexpected"
+
+
+def test_maxtiles_guard_aborts_on_mismatch(repo_root):
+    """Verify that abort() is called on MAXTILES mismatch in Stage 3.
+    
+    The guard constructor now enforces the invariant by calling abort()
+    on mismatch. This test confirms the abort() symbol is present.
+    """
+    guard_file = repo_root / "compat/maxtiles_guard.c"
+    assert guard_file.exists(), "compat/maxtiles_guard.c does not exist"
+    
+    content = guard_file.read_text()
+    assert "abort()" in content, \
+        "abort() call not found in compat/maxtiles_guard.c (Stage 3 requirement)"
+    
+    # Verify the sentinel comment is present
+    assert "build-r13-maxtiles-stage3" in content, \
+        "Stage 3 sentinel comment not found in compat/maxtiles_guard.c"

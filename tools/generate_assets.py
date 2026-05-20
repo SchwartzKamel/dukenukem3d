@@ -11,7 +11,10 @@ Usage:
 
 import argparse
 import base64
+import datetime
 import io
+import json
+import logging
 import math
 import multiprocessing
 import os
@@ -47,6 +50,40 @@ PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 TESTDATA_DIR = os.path.join(PROJECT_ROOT, "testdata")
 OUTPUT_DIR = os.path.join(PROJECT_ROOT, "generated_assets")
 ENV_FILE = os.path.join(PROJECT_ROOT, ".env")
+GENERATION_LOG_FILE = os.path.join(OUTPUT_DIR, "GENERATION_LOG.jsonl")
+
+# ---------------------------------------------------------------------------
+# Structured Logging for Exception Diagnostics (asset-r13-exception-handling-hardening)
+# ---------------------------------------------------------------------------
+
+def log_generation_error(tile_num, error_type, error_message, worker_pid=None):
+    """Write structured exception record to GENERATION_LOG.jsonl (JSONL format).
+    
+    Args:
+        tile_num: tile number that failed
+        error_type: exception class name (str)
+        error_message: exception message (str)
+        worker_pid: worker process ID (int or None)
+    """
+    if worker_pid is None:
+        worker_pid = os.getpid()
+    
+    record = {
+        "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "tile_num": tile_num,
+        "error_type": error_type,
+        "error_message": error_message,
+        "worker_pid": worker_pid,
+    }
+    
+    try:
+        os.makedirs(OUTPUT_DIR, exist_ok=True)
+        with open(GENERATION_LOG_FILE, "a") as f:
+            json.dump(record, f)
+            f.write("\n")
+    except Exception as log_e:
+        # Fail silently if logging fails - don't cascade error
+        print(f"[!] Failed to write generation log: {log_e}", file=sys.stderr)
 
 # Texture definitions: (tile_num, width, height, description, flux_prompt)
 TEXTURE_DEFS = [
@@ -217,13 +254,22 @@ def generate_texture_ai(prompt, width, height, endpoint, api_key, model="FLUX.2-
         except (OSError, UnidentifiedImageError) as e:
             print(f"    [!] Image parsing failed (truncated/corrupt data): {type(e).__name__}: {e}", file=sys.stderr)
             return None
+        except (Image.DecompressionBombError, RuntimeError) as e:
+            # asset-r13-exception-handling-hardening: specific exception types
+            print(f"    [!] Image processing error (PIL-specific): {type(e).__name__}: {e}", file=sys.stderr)
+            return None
         except Exception as e:
-            # PIL decompression bomb or other PIL-specific errors
-            print(f"    [!] Image processing error: {type(e).__name__}: {e}", file=sys.stderr)
+            # asset-r13-exception-handling-hardening: fallback for unexpected errors
+            print(f"    [!] Image processing error (unexpected): {type(e).__name__}: {e}", file=sys.stderr)
             return None
 
+    except (ValueError, KeyError, AttributeError) as e:
+        # asset-r13-exception-handling-hardening: specific exception types
+        print(f"    [!] AI generation failed ({type(e).__name__}): {e}")
+        return None
     except Exception as e:
-        print(f"    [!] AI generation failed: {e}")
+        # asset-r13-exception-handling-hardening: fallback for unexpected errors
+        print(f"    [!] AI generation failed (unexpected): {e}")
         return None
 
 # ---------------------------------------------------------------------------
@@ -707,8 +753,16 @@ def _generate_texture_worker(task):
         indexed = quantize_image(img, palette)
         col_major = rgb_to_column_major(indexed, tw, th)
         return (tile_num, (tw, th, 0, col_major))
+    except (ValueError, OSError, KeyError, AttributeError) as e:
+        # asset-r13-exception-handling-hardening: specific exception types
+        error_str = f"{type(e).__name__}: {e}"
+        log_generation_error(task[0], type(e).__name__, str(e))
+        return (task[0], None, error_str)
     except Exception as e:
-        return (task[0], None, str(e))
+        # asset-r13-exception-handling-hardening: fallback for unexpected errors
+        error_str = f"Unexpected error: {type(e).__name__}: {e}"
+        log_generation_error(task[0], f"Unexpected[{type(e).__name__}]", str(e))
+        return (task[0], None, error_str)
 
 
 def _generate_sprite_worker(task):
@@ -725,8 +779,16 @@ def _generate_sprite_worker(task):
         indexed = quantize_image(img, palette)
         col_major = rgb_to_column_major(indexed, tw, th)
         return (tile_num, (tw, th, 0, col_major))
+    except (ValueError, OSError, KeyError, AttributeError) as e:
+        # asset-r13-exception-handling-hardening: specific exception types
+        error_str = f"{type(e).__name__}: {e}"
+        log_generation_error(task[0], type(e).__name__, str(e))
+        return (task[0], None, error_str)
     except Exception as e:
-        return (task[0], None, str(e))
+        # asset-r13-exception-handling-hardening: fallback for unexpected errors
+        error_str = f"Unexpected error: {type(e).__name__}: {e}"
+        log_generation_error(task[0], f"Unexpected[{type(e).__name__}]", str(e))
+        return (task[0], None, error_str)
 
 
 def _generate_font_tile_worker(task):
@@ -743,8 +805,16 @@ def _generate_font_tile_worker(task):
         indexed = quantize_image(img, palette)
         col_major = rgb_to_column_major(indexed, 8, 8)
         return (tile_num, (8, 8, 0, col_major))
+    except (ValueError, OSError, KeyError, AttributeError) as e:
+        # asset-r13-exception-handling-hardening: specific exception types
+        error_str = f"{type(e).__name__}: {e}"
+        log_generation_error(task[0], type(e).__name__, str(e))
+        return (task[0], None, error_str)
     except Exception as e:
-        return (task[0], None, str(e))
+        # asset-r13-exception-handling-hardening: fallback for unexpected errors
+        error_str = f"Unexpected error: {type(e).__name__}: {e}"
+        log_generation_error(task[0], f"Unexpected[{type(e).__name__}]", str(e))
+        return (task[0], None, error_str)
 
 
 PROCEDURAL_MAP = {

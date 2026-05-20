@@ -2423,3 +2423,146 @@ class TestActorsSpriteSectnumChain:
             "'if((unsigned)s->sectnum >= MAXSECTORS)'\n"
             "used in animation logic (ms, movefta, moveplayers functions)"
         )
+
+
+class TestType8BoardfilenameUnderflow:
+    """Verify net-r9-type-8-boardfilename-underflow fix in GAME.C."""
+
+    def test_type8_boardfilename_underflow_sentinel_present(self, repo_root):
+        """source/GAME.C must have sentinel 'net-r9-type-8-boardfilename-underflow' comment."""
+        game_c = repo_root / "source" / "GAME.C"
+        if not game_c.exists():
+            pytest.skip(f"{game_c} not found")
+
+        content = game_c.read_text(errors="replace")
+
+        assert "net-r9-type-8-boardfilename-underflow" in content, (
+            "source/GAME.C must contain sentinel comment 'net-r9-type-8-boardfilename-underflow' "
+            "to mark the fix for the unsigned integer underflow on packbufleng-11."
+        )
+
+    def test_type8_boardfilename_precondition_guard(self, repo_root):
+        """source/GAME.C must have 'packbufleng < 11' check before copybufbyte boardfilename call."""
+        game_c = repo_root / "source" / "GAME.C"
+        if not game_c.exists():
+            pytest.skip(f"{game_c} not found")
+
+        content = game_c.read_text(errors="replace")
+        lines = content.split('\n')
+
+        # Find the line with 'net-r9-type-8-boardfilename-underflow' sentinel
+        sentinel_line_idx = None
+        for i, line in enumerate(lines):
+            if "net-r9-type-8-boardfilename-underflow" in line:
+                sentinel_line_idx = i
+                break
+
+        assert sentinel_line_idx is not None, (
+            "Could not find sentinel comment 'net-r9-type-8-boardfilename-underflow' in source/GAME.C"
+        )
+
+        # Check that the sentinel line contains the precondition check
+        sentinel_line = lines[sentinel_line_idx]
+        assert "packbufleng < 11" in sentinel_line, (
+            f"Sentinel line {sentinel_line_idx + 1} must contain 'packbufleng < 11' precondition check. "
+            f"Found: {sentinel_line}"
+        )
+
+        # Verify copybufbyte call with boardfilename is within 5 lines after sentinel
+        found_copybufbyte = False
+        for j in range(sentinel_line_idx + 1, min(sentinel_line_idx + 6, len(lines))):
+            if "copybufbyte" in lines[j] and "boardfilename" in lines[j]:
+                found_copybufbyte = True
+                break
+
+        assert found_copybufbyte, (
+            f"source/GAME.C must have 'copybufbyte' call with 'boardfilename' "
+            f"within 5 lines after the sentinel at line {sentinel_line_idx + 1}"
+        )
+
+
+class TestActorsProjectileSectnumGuard:
+    """Verify bounds guard for sprite[j].sectnum in projectile deflection code."""
+
+    def test_engine_r12_sentinel_present(self, repo_root):
+        """source/GAME.C must have sentinel 'engine-r12-actors-projectile-sectnum' comment."""
+        game_c = repo_root / "source" / "GAME.C"
+        if not game_c.exists():
+            pytest.skip(f"{game_c} not found")
+
+        content = game_c.read_text(errors="replace")
+
+        assert "engine-r12-actors-projectile-sectnum" in content, (
+            "source/GAME.C must contain sentinel comment 'engine-r12-actors-projectile-sectnum' "
+            "to mark the fix for the OOB write to tempsectorz[] array."
+        )
+
+    def test_bounds_guard_pattern_present(self, repo_root):
+        """source/GAME.C must have bounds guard for (unsigned)sprite[j].sectnum >= (unsigned)MAXSECTORS."""
+        game_c = repo_root / "source" / "GAME.C"
+        if not game_c.exists():
+            pytest.skip(f"{game_c} not found")
+
+        content = game_c.read_text(errors="replace")
+
+        # Check for the bounds guard pattern
+        assert "(unsigned)sprite[j].sectnum >= (unsigned)MAXSECTORS" in content, (
+            "source/GAME.C must contain bounds guard pattern: "
+            "(unsigned)sprite[j].sectnum >= (unsigned)MAXSECTORS"
+        )
+
+
+class TestSecR13MenuesStrcpy:
+    """Tests for sec-r13 strcpy buffer overflow fixes in source/MENUES.C"""
+
+    def test_sec_r13_strcpy_menuname_filesystem_overflow_sentinel(self, repo_root):
+        """source/MENUES.C must have sentinel 'sec-r13-strcpy-menuname-filesystem-overflow' comment."""
+        menues_c = repo_root / "source" / "MENUES.C"
+        if not menues_c.exists():
+            pytest.skip(f"{menues_c} not found")
+
+        content = menues_c.read_text(errors="replace")
+
+        assert "sec-r13-strcpy-menuname-filesystem-overflow" in content, (
+            "source/MENUES.C must contain sentinel comment 'sec-r13-strcpy-menuname-filesystem-overflow' "
+            "to mark the fix for the strcpy buffer overflow on filesystem input menuname."
+        )
+
+    def test_sec_r13_strcpy_password_defensive_sentinel(self, repo_root):
+        """source/MENUES.C must have sentinel 'sec-r13-strcpy-password-defensive' comment."""
+        menues_c = repo_root / "source" / "MENUES.C"
+        if not menues_c.exists():
+            pytest.skip(f"{menues_c} not found")
+
+        content = menues_c.read_text(errors="replace")
+
+        assert "sec-r13-strcpy-password-defensive" in content, (
+            "source/MENUES.C must contain sentinel comment 'sec-r13-strcpy-password-defensive' "
+            "to mark the fix for the strcpy buffer overflow on password field."
+        )
+
+    def test_no_strcpy_menuname_in_menues_c(self, repo_root):
+        """source/MENUES.C must not have 'strcpy(menuname' remaining."""
+        menues_c = repo_root / "source" / "MENUES.C"
+        if not menues_c.exists():
+            pytest.skip(f"{menues_c} not found")
+
+        content = menues_c.read_text(errors="replace")
+
+        assert "strcpy(menuname" not in content, (
+            "source/MENUES.C must not have any remaining 'strcpy(menuname' calls. "
+            "All must be replaced with strncpy + null-terminator."
+        )
+
+    def test_no_strcpy_pwlockout_in_menues_c(self, repo_root):
+        """source/MENUES.C must not have 'strcpy(&ud.pwlockout' remaining."""
+        menues_c = repo_root / "source" / "MENUES.C"
+        if not menues_c.exists():
+            pytest.skip(f"{menues_c} not found")
+
+        content = menues_c.read_text(errors="replace")
+
+        assert "strcpy(&ud.pwlockout" not in content, (
+            "source/MENUES.C must not have any remaining 'strcpy(&ud.pwlockout' calls. "
+            "All must be replaced with strncpy + null-terminator."
+        )

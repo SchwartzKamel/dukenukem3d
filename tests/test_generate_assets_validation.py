@@ -278,3 +278,181 @@ def test_pil_load_truncated_images_disabled():
     assert ImageFile.LOAD_TRUNCATED_IMAGES is False, \
         "LOAD_TRUNCATED_IMAGES should be explicitly False to catch truncation errors"
 
+
+
+# ---------------------------------------------------------------------------
+# Exception Handling Tests (asset-r13-exception-handling-hardening)
+# ---------------------------------------------------------------------------
+
+def test_worker_error_logging_to_jsonl(tmp_path, monkeypatch):
+    """Verify that worker errors are logged to GENERATION_LOG.jsonl.
+    
+    This test verifies that when a worker raises an exception, it is:
+    1. Caught and converted to an error tuple (not propagated)
+    2. Logged to GENERATION_LOG.jsonl with timestamp, tile_num, error_type, error_message, worker_pid
+    """
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'tools'))
+    
+    # Temporarily override OUTPUT_DIR to use tmp_path
+    import generate_assets
+    original_output_dir = generate_assets.OUTPUT_DIR
+    original_log_file = generate_assets.GENERATION_LOG_FILE
+    
+    try:
+        generate_assets.OUTPUT_DIR = str(tmp_path)
+        generate_assets.GENERATION_LOG_FILE = str(tmp_path / "GENERATION_LOG.jsonl")
+        
+        # Create a test task that will raise an exception
+        from unittest.mock import patch
+        from palette import build_palette
+        
+        # Build a palette for the test
+        palette = build_palette()
+        
+        # Simulate a KeyError in quantize_image by mocking it
+        with patch('generate_assets.quantize_image', side_effect=KeyError("palette_key")):
+            task = (5, 64, 64, "test tile", palette)
+            result = generate_assets._generate_texture_worker(task)
+        
+        # Verify result is error tuple
+        assert result[0] == 5, "Tile number should be preserved"
+        assert result[1] is None, "Tile data should be None for error"
+        assert "KeyError" in result[2], "Error message should mention KeyError"
+        
+        # Verify log file was created and contains the error record
+        log_file = tmp_path / "GENERATION_LOG.jsonl"
+        assert log_file.exists(), "GENERATION_LOG.jsonl should be created"
+        
+        with open(log_file) as f:
+            log_lines = f.readlines()
+        
+        assert len(log_lines) > 0, "Log file should have at least one record"
+        
+        import json
+        last_record = json.loads(log_lines[-1])
+        assert last_record["tile_num"] == 5, "Logged tile_num should match"
+        assert last_record["error_type"] == "KeyError", "Logged error_type should be KeyError"
+        assert "palette_key" in last_record["error_message"], "Error message should be logged"
+        assert "timestamp" in last_record, "Timestamp should be present"
+        assert "worker_pid" in last_record, "worker_pid should be present"
+    
+    finally:
+        generate_assets.OUTPUT_DIR = original_output_dir
+        generate_assets.GENERATION_LOG_FILE = original_log_file
+
+
+@pytest.mark.parametrize("exception_type,exception_args", [
+    (ValueError, ("test ValueError",)),
+    (OSError, ("test OSError",)),
+    (KeyError, ("test_key",)),
+    (AttributeError, ("test AttributeError",)),
+])
+def test_worker_catches_specific_exceptions(tmp_path, exception_type, exception_args):
+    """Parametrized test: verify worker catches specific exception types.
+    
+    Test that the worker properly catches ValueError, OSError, KeyError, and
+    AttributeError without propagating them, returning error tuple instead.
+    """
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'tools'))
+    
+    import generate_assets
+    from unittest.mock import patch
+    from palette import build_palette
+    
+    original_output_dir = generate_assets.OUTPUT_DIR
+    original_log_file = generate_assets.GENERATION_LOG_FILE
+    
+    try:
+        generate_assets.OUTPUT_DIR = str(tmp_path)
+        generate_assets.GENERATION_LOG_FILE = str(tmp_path / "GENERATION_LOG.jsonl")
+        
+        palette = build_palette()
+        
+        # Mock quantize_image to raise the specified exception
+        with patch('generate_assets.quantize_image', side_effect=exception_type(*exception_args)):
+            task = (7, 64, 64, "test", palette)
+            result = generate_assets._generate_texture_worker(task)
+        
+        # Verify error tuple is returned
+        assert result[0] == 7, f"Tile number should be preserved for {exception_type.__name__}"
+        assert result[1] is None, f"Tile data should be None for {exception_type.__name__}"
+        assert exception_type.__name__ in result[2], f"Error message should mention {exception_type.__name__}"
+        
+        # Verify log was written
+        log_file = tmp_path / "GENERATION_LOG.jsonl"
+        if log_file.exists():
+            import json
+            with open(log_file) as f:
+                log_lines = f.readlines()
+            if log_lines:
+                record = json.loads(log_lines[-1])
+                assert record["error_type"] == exception_type.__name__, \
+                    f"Logged error_type should be {exception_type.__name__}"
+    
+    finally:
+        generate_assets.OUTPUT_DIR = original_output_dir
+        generate_assets.GENERATION_LOG_FILE = original_log_file
+
+
+def test_sprite_worker_error_handling(tmp_path):
+    """Verify sprite worker also catches specific exceptions and logs."""
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'tools'))
+    
+    import generate_assets
+    from unittest.mock import patch
+    from palette import build_palette
+    
+    original_output_dir = generate_assets.OUTPUT_DIR
+    original_log_file = generate_assets.GENERATION_LOG_FILE
+    
+    try:
+        generate_assets.OUTPUT_DIR = str(tmp_path)
+        generate_assets.GENERATION_LOG_FILE = str(tmp_path / "GENERATION_LOG.jsonl")
+        
+        palette = build_palette()
+        
+        # Mock proc_sprite_placeholder to raise ValueError
+        with patch('generate_assets.proc_sprite_placeholder', side_effect=ValueError("sprite error")):
+            task = (20, 32, 32, "sprite test", palette)
+            result = generate_assets._generate_sprite_worker(task)
+        
+        # Verify error tuple is returned
+        assert result[0] == 20, "Tile number should be preserved"
+        assert result[1] is None, "Tile data should be None"
+        assert "ValueError" in result[2], "Error should mention ValueError"
+    
+    finally:
+        generate_assets.OUTPUT_DIR = original_output_dir
+        generate_assets.GENERATION_LOG_FILE = original_log_file
+
+
+def test_font_worker_error_handling(tmp_path):
+    """Verify font tile worker also catches specific exceptions and logs."""
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'tools'))
+    
+    import generate_assets
+    from unittest.mock import patch
+    from palette import build_palette
+    
+    original_output_dir = generate_assets.OUTPUT_DIR
+    original_log_file = generate_assets.GENERATION_LOG_FILE
+    
+    try:
+        generate_assets.OUTPUT_DIR = str(tmp_path)
+        generate_assets.GENERATION_LOG_FILE = str(tmp_path / "GENERATION_LOG.jsonl")
+        
+        palette = build_palette()
+        
+        # Mock _render_font_tile to raise OSError
+        with patch('generate_assets._render_font_tile', side_effect=OSError("font error")):
+            task = (2929, 65, palette)
+            result = generate_assets._generate_font_tile_worker(task)
+        
+        # Verify error tuple is returned
+        assert result[0] == 2929, "Tile number should be preserved"
+        assert result[1] is None, "Tile data should be None"
+        assert "OSError" in result[2], "Error should mention OSError"
+    
+    finally:
+        generate_assets.OUTPUT_DIR = original_output_dir
+        generate_assets.GENERATION_LOG_FILE = original_log_file
