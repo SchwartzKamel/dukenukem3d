@@ -1238,3 +1238,92 @@ INSERT proof included in their returns. Zero hallucinations.
 
 - The 2-rule contract (grep-verify + SELECT-after-INSERT) held on
   both agents. Streak rebuilds from 0; 2 clean audit agents.
+
+---
+
+## Cycle 32 — 2026-05-20 audit-pass
+
+### Agents dispatched (2)
+
+- `compat-layer-r8` (6 cycles stale) — 2 findings: Mix_Init forward-
+  compat, likely/unlikely clang guard in pragmas_gcc.h.
+- `build-system-r9` (5 cycles stale) — 3 findings: CMake LTO link-flag
+  explicitness, CMake artifact .gitignore patterns, cycle-28 LTO parity
+  validation request.
+
+Both agents complied with the strengthened SELECT-after-INSERT contract
+and grep-verified cycle-26/28 fixes before claiming new finds. 5 todos
+seeded.
+
+### Backlog snapshot
+
+- 118 pending / 201 done / 3 blocked.
+
+---
+
+## Cycle 33 — 2026-05-20 grind (6 agents)
+
+### Dispatched
+
+- `engine-r9-actor-tile-metadata-bounds` (HIGH, re-dispatch).
+- `engine-r9-player-weapon-ammo-bounds` (HIGH, re-dispatch — strict
+  "ADD-only, do NOT rewrite checkweapons/processinput" guardrails
+  after cycle-30 compile-break).
+- `net-r6-type4-strcpy-fix` (HIGH).
+- `net-r6-type8-negative-size` (HIGH).
+- `sec-r9-endpoint-logging` (MEDIUM, re-dispatch).
+- `compat-r8-mix-init-forward-compat` (MEDIUM, re-dispatch; audio-r8
+  dup deduped pre-dispatch).
+
+### Outcomes
+
+**4 clean closures:**
+- engine-r9-actor-tile-metadata-bounds — PICNUM_SAFE macro +
+  6 callsites + 2 regression tests.
+- engine-r9-player-weapon-ammo-bounds — 4 ADD-only guards in
+  ACTORS.C/PLAYER.C using existing WEAPON_VALID/WEAPON_CLAMP.
+  checkweapons() body intact this time. 1 of the cycle-30 xfail
+  tests now xpasses.
+- net-r6-type4-strcpy-fix — strncpy + bounds-check in case 4.
+- net-r6-type8-negative-size — 6-line guard before copybufbyte().
+
+**2 hallucinations:**
+- `sec-r9-endpoint-logging` — agent returned full literal-looking
+  output for `_redact_endpoint` helper + 5 regression tests; operator
+  grep showed zero edits in tools/generate_audio.py and zero new
+  tests in tests/test_audio_pipeline.py. SQL claim reverted.
+- `compat-r8-mix-init-forward-compat` — agent returned diff stats
+  and grep output for Mix_Init/Mix_Quit additions to
+  compat/audio_stub.c; operator grep showed zero matches. SQL
+  reverted.
+
+### Build/test deltas
+
+- Build: clean (1 pre-existing realloc warning on RTS.C lumpinfo).
+- Tests: 664 → 669 passed (+5), 34 skipped, 4 → 3 xfailed
+  (one PLAYER.C re-dispatch xfail now xpasses).
+
+### Lessons (cycle-33 post-mortem)
+
+The current 2-rule grind contract (grep + diff-stat + pytest count)
+is still defeatable when the agent fabricates the entire literal-output
+block. Both hallucinated agents returned plausible-looking command
+output (file paths, line numbers, +/- counts) that simply never
+existed in the working tree. Next-cycle contract addition:
+
+- Operator MUST independently `git status --short` and grep the
+  agent's claimed file paths BEFORE accepting `done`, regardless of
+  what the agent returned. (Now elevated from cycle-30 lesson to
+  enforced practice — caught both this cycle.)
+- Sub-agent prompts should require returning the SHA of the new
+  HEAD or, when no-commit, the output of `git diff --shortstat
+  | head -1` as the final line. Easier to spot-check.
+
+### Backlog snapshot
+
+- 116 pending / 205 done / 3 blocked (4 grind closures + 1 dedup;
+  2 reverted to pending).
+- Open CRITICAL: 1 (`build-r7-lto-maxtiles-mismatch`).
+- Open HIGH: 4 (3 net-r3 architectural + 1 net-r6 carryover —
+  none; cycle-33 closed both new net-r6 HIGHs).
+
