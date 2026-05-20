@@ -414,11 +414,18 @@ int FX_SetCallBack(void (*function)(unsigned long))
 
 void FX_SetVolume(int volume)
 {
-    fx_volume = volume;
 #ifdef HAVE_SDL2_MIXER
-    if (mixer_initialized)
+    if (mixer_initialized) {
+        SDL_LockAudio();
+        fx_volume = volume;
+        SDL_UnlockAudio();
         Mix_Volume(-1, (volume > 255 ? MIX_MAX_VOLUME
                                      : (volume * MIX_MAX_VOLUME) / 255));
+    } else {
+        fx_volume = volume;
+    }
+#else
+    fx_volume = volume;
 #endif
 }
 
@@ -427,11 +434,53 @@ int  FX_GetVolume(void)         { return fx_volume; }
 void FX_SetReverseStereo(int setting) { fx_reverse_stereo = setting; }
 int  FX_GetReverseStereo(void)        { return fx_reverse_stereo; }
 
-void FX_SetReverb(int reverb)        { fx_reverb = reverb; }
-void FX_SetFastReverb(int reverb)    { fx_reverb = reverb; }
+void FX_SetReverb(int reverb)
+{
+#ifdef HAVE_SDL2_MIXER
+    if (mixer_initialized) {
+        SDL_LockAudio();
+        fx_reverb = reverb;
+        SDL_UnlockAudio();
+    } else {
+        fx_reverb = reverb;
+    }
+#else
+    fx_reverb = reverb;
+#endif
+}
+
+void FX_SetFastReverb(int reverb)
+{
+#ifdef HAVE_SDL2_MIXER
+    if (mixer_initialized) {
+        SDL_LockAudio();
+        fx_reverb = reverb;
+        SDL_UnlockAudio();
+    } else {
+        fx_reverb = reverb;
+    }
+#else
+    fx_reverb = reverb;
+#endif
+}
+
 int  FX_GetMaxReverbDelay(void)      { return 256; }
 int  FX_GetReverbDelay(void)         { return fx_reverb_delay; }
-void FX_SetReverbDelay(int delay)    { fx_reverb_delay = delay; }
+
+void FX_SetReverbDelay(int delay)
+{
+#ifdef HAVE_SDL2_MIXER
+    if (mixer_initialized) {
+        SDL_LockAudio();
+        fx_reverb_delay = delay;
+        SDL_UnlockAudio();
+    } else {
+        fx_reverb_delay = delay;
+    }
+#else
+    fx_reverb_delay = delay;
+#endif
+}
 
 int FX_VoiceAvailable(int priority)  { (void)priority; return 1; }
 
