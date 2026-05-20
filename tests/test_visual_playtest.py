@@ -33,24 +33,72 @@ CAPTURES_DIR = os.path.join(PROJECT_ROOT, "captures")
 # ---------------------------------------------------------------------------
 
 def sdl2_available():
-    """Check if libSDL2-2.0.so.0 is available in the runtime linker path."""
+    """Check if libSDL2 is available in the runtime linker path.
+    
+    Tries to load SDL2 on current platform:
+    - Linux: libSDL2-2.0.so.0
+    - macOS: libSDL2-2.0.0.dylib
+    - Windows: SDL2.dll
+    """
+    # Linux (primary)
     try:
         ctypes.CDLL("libSDL2-2.0.so.0")
         return True
     except OSError:
-        return False
+        pass
+    
+    # macOS
+    try:
+        ctypes.CDLL("libSDL2-2.0.0.dylib")
+        return True
+    except OSError:
+        pass
+    
+    # Windows
+    try:
+        ctypes.CDLL("SDL2.dll")
+        return True
+    except OSError:
+        pass
+    
+    return False
 
 
 def get_sdl2_lib_path():
-    """Try to find SDL2 library path from ctypes loading."""
-    # Try common Homebrew location first (most reliable)
-    homebrew_path = "/home/linuxbrew/.linuxbrew/lib"
-    if os.path.isdir(homebrew_path):
-        sdl2_file = os.path.join(homebrew_path, "libSDL2-2.0.so.0")
-        if os.path.isfile(sdl2_file):
-            return homebrew_path
+    """Try to find SDL2 library path from ctypes loading.
     
-    # Try to find via ldd or ldconfig
+    Checks common system library locations for:
+    - Linux: libSDL2-2.0.so.0 (via ldconfig, /usr/lib, /usr/local/lib, etc.)
+    - macOS: libSDL2-2.0.0.dylib (via /opt/homebrew/lib, /usr/local/lib)
+    - Windows: SDL2.dll (via PATH environment variable)
+    """
+    # macOS: Try Homebrew and standard locations first (most reliable for M1/M2)
+    macos_paths = [
+        "/opt/homebrew/lib",        # M1/M2 Homebrew
+        "/usr/local/lib",           # Intel Homebrew or manual install
+    ]
+    
+    for path in macos_paths:
+        if os.path.isdir(path):
+            sdl2_file = os.path.join(path, "libSDL2-2.0.0.dylib")
+            if os.path.isfile(sdl2_file):
+                return path
+    
+    # Linux: Try common locations
+    linux_paths = [
+        "/home/linuxbrew/.linuxbrew/lib",
+        "/usr/lib",
+        "/usr/lib/x86_64-linux-gnu",
+        "/usr/local/lib",
+    ]
+    
+    for path in linux_paths:
+        if os.path.isdir(path):
+            sdl2_file = os.path.join(path, "libSDL2-2.0.so.0")
+            if os.path.isfile(sdl2_file):
+                return path
+    
+    # Try ldconfig (Linux)
     try:
         result = subprocess.run(
             ["ldconfig", "-p"],
@@ -66,6 +114,21 @@ def get_sdl2_lib_path():
                     path = parts[1].strip()
                     if path:
                         return os.path.dirname(path)
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        pass
+    
+    # Windows: Check PATH for SDL2.dll
+    try:
+        result = subprocess.run(
+            ["where", "SDL2.dll"] if os.name == 'nt' else ["which", "SDL2.dll"],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        if result.returncode == 0:
+            dll_path = result.stdout.strip()
+            if dll_path:
+                return os.path.dirname(dll_path)
     except (subprocess.TimeoutExpired, FileNotFoundError):
         pass
     

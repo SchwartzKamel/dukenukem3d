@@ -127,7 +127,7 @@ class TestVoiceMappingConvention:
 class TestSilencePlaceholderGeneration:
     """Test WAV generation in --no-ai mode via subprocess."""
 
-    def test_no_ai_flag_generates_wav_files(self, tmp_path):
+    def test_no_ai_flag_generates_wav_files(self):
         """Invoking generate_audio.py --no-ai should produce 21 WAV files."""
         # Note: generate_audio.py uses PROJECT_ROOT internally to determine output path,
         # so we run it from the project root and check generated_assets/sounds/ there.

@@ -251,7 +251,7 @@ class TestSilenceWavGeneration:
 class TestNoAiCodePath:
     """Test the --no-ai code path end-to-end via subprocess."""
 
-    def test_no_ai_flag_generates_wav_files(self, tmp_path):
+    def test_no_ai_flag_generates_wav_files(self):
         """Invoking generate_audio.py --no-ai should produce 21 WAV files."""
         result = subprocess.run(
             [sys.executable, os.path.join(PROJECT_ROOT, "tools", "generate_audio.py"), "--no-ai"],

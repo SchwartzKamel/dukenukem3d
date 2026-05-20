@@ -18,10 +18,18 @@ def generated_audio_artifacts():
     This fixture is autouse=True so it runs at session start, ensuring audio files
     are available for all tests that need them.
     
+    NOTE: This fixture does not tear down (no cleanup code after yield). This is
+    intentional because:
+    - Session-scoped: generated_assets/sounds/ is part of the checked-in project state
+    - Regenerating files is idempotent: running generate_audio.py --no-ai multiple
+      times produces identical output (deterministic silence placeholders)
+    - Tests depend on the artifacts persisting for the full session
+    
     Returns a dict with:
         - sounds_dir: Path to generated_assets/sounds
         - manifest_path: Path to MANIFEST.json
         - wav_files: List of generated .WAV files
+        - manifest: Parsed MANIFEST.json dict
     """
     result = subprocess.run(
         [sys.executable, os.path.join(PROJECT_ROOT, "tools", "generate_audio.py"), "--no-ai"],

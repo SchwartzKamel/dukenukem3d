@@ -266,3 +266,43 @@ Round 2 audit of 3 primary documentation files for consistency with recent commi
 - None — all sub-agents respected the no-commit constraint. Orchestrator (me) is committing on user's standing authorization.
 
 ---
+## 2026-05-20T06:48:59Z — Cycle 6 (scheduled `/audit-grind`)
+
+**Trigger:** Scheduled prompt #1.
+**Operator AFK:** Yes.
+
+### Baseline
+- Build: green.
+- Tests: 523 passed, 1 skipped.
+- Backlog: 62 done / 65 pending.
+
+### Todos picked up & closed (19 closed)
+| persona | todos closed |
+|---|---|
+| audio-engineer | fix-audio-aiohttp-security-upgrade, fix-audio-threadpool-error-handling, fix-audio-asyncio-semaphore-timeout, fix-audio-manifest-status-tracking |
+| compat-layer | fix-compat-sdl-init-cleanup, fix-compat-audio-subsystem-leak, fix-compat-mixer-race-condition |
+| build-system | fix-build-ci-pip-cache, fix-build-release-deduplicate-assets, audit-build-test-compile-phony, audit-build-compat-a-orphan |
+| test-engineer | fixture-cleanup-docs, sdl-symbol-skip-clarity, remove-unused-tmp-path, sdl-cross-platform-paths |
+| asset-pipeline | fix-asset-palette-redundant-ramp, audit-asset-palette-rgb-validation, add-asset-texture-dimension-validation, fix-asset-grp-deterministic-ordering (orchestrator-closed; landed in cycle 5) |
+
+### Backlog delta
+- Before: 62 done / 65 pending.
+- After:  81 done / 46 pending.
+- Net pending: −19.
+
+### Build/test delta
+- Tests: **523 → 530 passed** (+7 from asset palette/dimension validation), 1 skipped, 0 failed.
+- Build: green (release).
+
+### Notable
+- compat/a.c (894 lines K&R asm port) DEAD CODE — archived to docs/archive/compat/, fully replaced by SRC/ENGINE.C implementations.
+- aiohttp pin bumped to >=3.9.0 (closes CVE-2023-37276).
+- SOUND_MANIFEST schema gained status/generated_at/error fields with deterministic `--no-ai` epoch.
+- SDL2 detection now Linux/macOS/Windows tri-platform in tests.
+- Mixer thread race condition closed with SDL_LockAudio guards.
+- Transient parallel-state weirdness during cycle: test-cleanup agent reported 2 failures mid-cycle; clean post-cycle run is 530/0/1 (green).
+
+### Human-attention items
+- None. All sub-agents respected no-commit constraint.
+
+---

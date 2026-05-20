@@ -1,6 +1,7 @@
 """Tests for palette generation and quantization."""
-from palette import build_palette, create_palette_dat, quantize_image
+from palette import build_palette, create_palette_dat, quantize_image, _nearest_color
 from PIL import Image
+import pytest
 
 
 def test_palette_has_256_colors():
@@ -57,3 +58,32 @@ def test_quantize_produces_valid_indices():
             px[x, y] = (x * 32, y * 32, (x + y) * 16)
     result = quantize_image(img, pal)
     assert all(0 <= b <= 255 for b in result)
+
+
+def test_nearest_color_valid_rgb():
+    """_nearest_color accepts valid RGB values (0-255)."""
+    pal = build_palette()
+    # Test boundary values and normal values
+    assert 0 <= _nearest_color(0, 0, 0, pal) <= 255
+    assert 0 <= _nearest_color(255, 255, 255, pal) <= 255
+    assert 0 <= _nearest_color(128, 128, 128, pal) <= 255
+    assert 0 <= _nearest_color(255, 0, 0, pal) <= 255
+
+
+def test_nearest_color_invalid_rgb_out_of_range():
+    """_nearest_color raises ValueError for out-of-range RGB values."""
+    pal = build_palette()
+    
+    # Test out-of-range values
+    with pytest.raises(ValueError, match="RGB values must be in range"):
+        _nearest_color(256, 128, 128, pal)
+    
+    with pytest.raises(ValueError, match="RGB values must be in range"):
+        _nearest_color(128, -1, 128, pal)
+    
+    with pytest.raises(ValueError, match="RGB values must be in range"):
+        _nearest_color(128, 128, 300, pal)
+    
+    with pytest.raises(ValueError, match="RGB values must be in range"):
+        _nearest_color(-1, -1, -1, pal)
+
