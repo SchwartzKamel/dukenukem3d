@@ -297,7 +297,15 @@ void getlabel(void)
 
     i = 0;
     while( ispecial(*textptr) == 0 )
+    {
+        if( i >= 63 )
+        {
+            printf("  * ERROR!(L%ld) Label name too long (>63 characters).\n",line_number);
+            error++;
+            break;
+        }
         label[(labelcnt<<6)+i++] = *(textptr++);
+    }
 
     label[(labelcnt<<6)+i] = 0;
 }
@@ -474,6 +482,14 @@ char parsecommand(void)
             {
                 getlabel();
                 scriptptr--;
+                
+                if( labelcnt >= MAXLABELS )
+                {
+                    printf("  * ERROR!(L%ld) Too many labels (>%d).\n",line_number,MAXLABELS-1);
+                    error++;
+                    return 0;
+                }
+                
                 labelcode[labelcnt] = (long) scriptptr;
                 labelcnt++;
 
@@ -540,7 +556,7 @@ char parsecommand(void)
             return 0;
         case 19:
             getlabel();
-            // Check to see it's already defined
+            /* Check to see it's already defined */
 
             for(i=0;i<NUMKEYWORDS;i++)
                 if( strcmp( label+(labelcnt<<6),keyw[i]) == 0 )
@@ -562,7 +578,16 @@ char parsecommand(void)
 
             transnum();
             if(i == labelcnt)
+            {
+                if( labelcnt >= MAXLABELS )
+                {
+                    printf("  * ERROR!(L%ld) Too many labels (>%d).\n",line_number,MAXLABELS-1);
+                    error++;
+                    scriptptr -= 2;
+                    return 0;
+                }
                 labelcode[labelcnt++] = *(scriptptr-1);
+            }
             scriptptr -= 2;
             return 0;
         case 14:
@@ -601,7 +626,7 @@ char parsecommand(void)
             {
                 scriptptr--;
                 getlabel();
-                // Check to see it's already defined
+                /* Check to see it's already defined */
 
                 for(i=0;i<NUMKEYWORDS;i++)
                     if( strcmp( label+(labelcnt<<6),keyw[i]) == 0 )
@@ -619,7 +644,20 @@ char parsecommand(void)
                         break;
                     }
                 if(i == labelcnt)
+                {
+                    if( labelcnt >= MAXLABELS )
+                    {
+                        printf("  * ERROR!(L%ld) Too many labels (>%d).\n",line_number,MAXLABELS-1);
+                        error++;
+                        for(j=0;j<2;j++)
+                        {
+                            if(keyword() >= 0) break;
+                            transnum();
+                        }
+                        return 0;
+                    }
                     labelcode[labelcnt++] = (long) scriptptr;
+                }
                 for(j=0;j<2;j++)
                 {
                     if(keyword() >= 0) break;
@@ -765,7 +803,33 @@ char parsecommand(void)
                     }
 
                 if(i == labelcnt)
+                {
+                    if( labelcnt >= MAXLABELS )
+                    {
+                        printf("  * ERROR!(L%ld) Too many labels (>%d).\n",line_number,MAXLABELS-1);
+                        error++;
+                        for(j=0;j<3;j++)
+                        {
+                            if(keyword() >= 0) break;
+                            if(j == 2)
+                            {
+                                k = 0;
+                                while(keyword() == -1)
+                                {
+                                    transnum();
+                                    scriptptr--;
+                                    k |= *scriptptr;
+                                }
+                                *scriptptr = k;
+                                scriptptr++;
+                                return 0;
+                            }
+                            else transnum();
+                        }
+                        return 0;
+                    }
                     labelcode[labelcnt++] = (long) scriptptr;
+                }
 
                 for(j=0;j<3;j++)
                 {
@@ -800,7 +864,7 @@ char parsecommand(void)
             {
                 scriptptr--;
                 getlabel();
-                // Check to see it's already defined
+                /* Check to see it's already defined */
 
                 for(i=0;i<NUMKEYWORDS;i++)
                     if( strcmp( label+(labelcnt<<6),keyw[i]) == 0 )
@@ -819,7 +883,20 @@ char parsecommand(void)
                     }
 
                 if(i == labelcnt)
+                {
+                    if( labelcnt >= MAXLABELS )
+                    {
+                        printf("  * ERROR!(L%ld) Too many labels (>%d).\n",line_number,MAXLABELS-1);
+                        error++;
+                        for(j=0;j<5;j++)
+                        {
+                            if(keyword() >= 0) break;
+                            transnum();
+                        }
+                        return 0;
+                    }
                     labelcode[labelcnt++] = (long) scriptptr;
+                }
 
                 for(j=0;j<5;j++)
                 {
