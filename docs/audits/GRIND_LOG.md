@@ -520,3 +520,48 @@ from start of cycle but with ten times more closed work.
   re-run those two personas if a formal report is wanted.
 - `sec-env-real-keys` (Azure key rotation) still pending; operator
   action required.
+
+---
+
+## Cycle 12 — 2026-05-20T10:Xx UTC
+
+**Dispatched (5 grind + 2 audit-pass agents in parallel):**
+- `perf-cache-realloc` (engine-porter) → CACHE1D.C allocache sentinel invalidation
+- `labelcode-fix` (engine-porter) → labelcode aliasing in GAME.C
+- `net-endianness` (network-multiplayer) → MMULTI.C LE helpers
+- `unsafe-argv` (security-and-secrets) → CONFIG.C strcpy→snprintf
+- `asset-manifest-validation` (asset-pipeline) → SOUND_MANIFEST pydantic + sync
+- `audio-engineer-r4` (audit) → 3 new HIGH/MEDIUM findings
+- `security-secrets-r5` (audit) → 4 new HIGH/MEDIUM findings
+
+**Closed (3):**
+- `fix-engine-labelcode-corruption` — replaced `labelcode = (long *)&sector[0]` aliasing with proper `labelcode[MAXLABELS=4096]` static array in `source/GLOBAL.C`, declared in `source/DUKE3D.H`, dealiased the assignment in `source/GAME.C` around line 7118 (+12/-14 across 3 files).
+- `audit-net-endianness` — Added documentation block + `mm_pack_u16_le`/`mm_unpack_u16_le` static inline helpers in `SRC/MMULTI.C` and refactored 5 byte-shuffle sites (payload-length unpack, protocol-version pack/unpack, disconnect, sendpacket). +42/-8.
+- `sec-c-unsafe-argv` — `source/CONFIG.C` lines 696/701 strcpy → snprintf with sizeof(dst); also hardened the `.map` extension append with strncat (+5/-4). myname[32] / boardfilename[128] verified in DUKE3D.H.
+
+**Blocked (3):**
+- `perf-cache-allocation` — Sub-agent's "Option A" design (invalidate sentinel before every return in `allocache`) defeats the speedup entirely because the suck pass runs on every call. Edits were also lost to the cycle-12 git-reset race. Needs human design: invalidate only when `suckcache()` merges adjacent blocks, OR cache the post-suck position correctly. Reopened with notes.
+- `fix-asset-voice-manifest-sync` / `fix-asset-manifest-schema-validation` — Sub-agent (`asset-manifest-validation`) reported repeated file reversions mid-edit; the work never landed. Re-dispatch needs to be serial (not parallel with engine agents that run `make clean`).
+
+**Audit-pass new todos (7 seeded, all persisted):**
+- `audio-r4-channel-exhaustion-handling` (HIGH)
+- `audio-r4-wav-riff-validation` (HIGH)
+- `audio-r4-soundowner-bounds-check` (MEDIUM)
+- `sec-gpl-compat-headers` (HIGH)
+- `sec-gpl-tools-headers` (HIGH)
+- `sec-workflow-permissions` (HIGH)
+- `sec-menues-path-validation` (MEDIUM advisory)
+
+**Build/test deltas:**
+- Build: green → green
+- Pytest: 553/31 → 553/31 (baseline preserved; one agent's intermediate snapshot showed 552 mid-cycle from race, resolved post-validate)
+
+**Persistence regression v5 (HUMAN-ATTENTION ITEM):**
+One of the 5 parallel grind sub-agents ran `git reset --hard HEAD` and `git stash` (visible in reflog `HEAD@{0..2}: reset: moving to HEAD`), wiping CACHE1D.C, CONFIG.C, the two new audit report files, and tests/test_cache1d_alloc.py. Operator-side recovery:
+- CONFIG.C snprintf fix: reapplied manually (trivial 2-site edit).
+- audio-engineer-r4.md and security-and-secrets-r5.md: recreated as honest stubs from agent return summaries (preserving findings + todo IDs).
+- SUMMARY.md security-r5 entry: re-added.
+- SQL todo state: all 7 new audit todos survived (had been INSERTed before the reset).
+- CACHE1D.C / tests: dropped — agent's design was flawed anyway; perf-cache-allocation reopened blocked.
+
+**Mitigation for cycle 13:** Add to sub-agent prompts an explicit rule "Do NOT run `git reset`, `git stash`, `git checkout -- .`, or any tree-mutating git command — your job is to edit files, the operator handles git state." This persistence regression has now appeared in cycles 11 and 12; the prompt-level guard is needed.
