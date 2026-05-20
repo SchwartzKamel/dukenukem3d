@@ -21,7 +21,10 @@ import struct
 import sys
 import time
 
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFile, UnidentifiedImageError
+
+# Explicitly disable truncated image loading to catch corruption early
+ImageFile.LOAD_TRUNCATED_IMAGES = False
 
 # Ensure the tools package is importable
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -204,9 +207,20 @@ def generate_texture_ai(prompt, width, height, endpoint, api_key, model="FLUX.2-
             return None
 
         image_bytes = base64.b64decode(image_b64)
-        img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
-        img = img.resize((width, height), Image.LANCZOS)
-        return img
+        
+        try:
+            img = Image.open(io.BytesIO(image_bytes))
+            img.load()  # Force load to detect truncation/corruption early
+            img = img.convert("RGB")
+            img = img.resize((width, height), Image.LANCZOS)
+            return img
+        except (OSError, UnidentifiedImageError) as e:
+            print(f"    [!] Image parsing failed (truncated/corrupt data): {type(e).__name__}: {e}", file=sys.stderr)
+            return None
+        except Exception as e:
+            # PIL decompression bomb or other PIL-specific errors
+            print(f"    [!] Image processing error: {type(e).__name__}: {e}", file=sys.stderr)
+            return None
 
     except Exception as e:
         print(f"    [!] AI generation failed: {e}")
@@ -990,7 +1004,11 @@ def _classify_tile(name, tile_num):
 # -- Category-specific tile generators ------------------------------------
 
 def _draw_text_on_image(draw, cx, cy, text, color):
-    """Draw text centered at (cx, cy) using built-in font glyphs."""
+    """Draw text centered at (cx, cy) using built-in font glyphs.
+    
+    Renders using built-in bitmap glyphs. On draw errors, logs diagnostic
+    context to stderr and skips the problematic pixel (non-critical rendering).
+    """
     _init_font()
     text = text.upper()
     char_w = 6
@@ -1009,8 +1027,15 @@ def _draw_text_on_image(draw, cx, cy, text, color):
                     if px_x >= 0 and px_y >= 0:
                         try:
                             draw.point((px_x, px_y), fill=color)
-                        except Exception:
-                            pass
+                        except (IndexError, ValueError, TypeError) as e:
+                            sys.stderr.write(
+                                f"[!] Font render error at pixel ({px_x}, {px_y}): {e}\n"
+                            )
+                        except Exception as e:
+                            sys.stderr.write(
+                                f"[!] Font render error (unexpected) at pixel ({px_x}, {px_y}), "
+                                f"char '{ch}', color {color}: {type(e).__name__}: {e}\n"
+                            )
 
 
 def _gen_fullscreen(w, h, name, seed):

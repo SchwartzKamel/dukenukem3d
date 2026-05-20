@@ -4,11 +4,15 @@
 Analyzes BMP frame captures from the game's headless mode to validate
 that rendering is working correctly.
 """
-from PIL import Image
+from PIL import Image, ImageFile, UnidentifiedImageError
+
+# Explicitly disable truncated image loading to catch corruption early
+ImageFile.LOAD_TRUNCATED_IMAGES = False
 from pathlib import Path
 from typing import Optional, Tuple, List, Dict
 import struct
 import statistics
+import sys
 import numpy as np
 
 try:
@@ -19,9 +23,28 @@ except ImportError:
 
 
 def load_frame(path: str) -> Image.Image:
-    """Load a captured BMP frame and return as RGB PIL Image."""
-    img = Image.open(path)
-    return img.convert("RGB")
+    """Load a captured BMP frame with robustness to truncation/corruption.
+    
+    Args:
+        path: Path to BMP file
+        
+    Returns:
+        PIL Image in RGB mode
+        
+    Raises:
+        OSError: If file cannot be read or is truncated/corrupted
+        UnidentifiedImageError: If file format is not recognized
+    """
+    try:
+        img = Image.open(path)
+        img.load()  # Force load to detect truncation/corruption early
+        return img.convert("RGB")
+    except (OSError, UnidentifiedImageError) as e:
+        print(f"[!] Frame load failed (truncated/corrupt file): {path}: {type(e).__name__}: {e}", file=sys.stderr)
+        raise
+    except Exception as e:
+        print(f"[!] Frame load error: {path}: {type(e).__name__}: {e}", file=sys.stderr)
+        raise
 
 
 def is_black_screen(img: Image.Image, threshold: float = 0.95, black_cutoff: int = 10) -> bool:
