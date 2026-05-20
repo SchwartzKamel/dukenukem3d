@@ -287,7 +287,12 @@ long SafeOpenRead(const char *filename) {
 }
 
 void SafeRead(long handle, void *buf, long count) {
-    read((int)handle, buf, (size_t)count);
+    ssize_t n = read((int)handle, buf, (size_t)count);
+    if (n < 0) {
+        fprintf(stderr, "SafeRead: read error\n");
+    } else if (n < (ssize_t)count) {
+        fprintf(stderr, "SafeRead: short read (%zd of %ld bytes)\n", n, count);
+    }
 }
 
 void Error(char *fmt, ...) {
