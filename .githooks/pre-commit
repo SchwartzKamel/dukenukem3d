@@ -1,0 +1,12 @@
+#!/bin/sh
+# .githooks/pre-commit
+# Git hook that runs security checks before allowing commits.
+# Enable with: git config core.hooksPath .githooks
+
+set -e
+
+# Run secret scan
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+"$REPO_ROOT/tools/check_secrets.sh"

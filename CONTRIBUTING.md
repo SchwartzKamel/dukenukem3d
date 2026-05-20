@@ -44,6 +44,42 @@ make assets                                  # shorthand via Makefile
 If you have FLUX API credentials in a `.env` file, omit `--no-ai` to use
 AI-generated textures with procedural fallbacks.
 
+### Secrets & API Keys
+
+This project uses external APIs for AI-generated assets (textures and audio).
+**Never commit API keys or credentials to the repository.**
+
+#### Setup
+
+1. **Copy the template:** `cp .env.example .env`
+2. **Add your credentials** to `.env`:
+   - `AUDIO_API_KEY`: Request from the project lead or obtain from Azure OpenAI portal
+   - `FLUX_API_KEY`: Obtain from Black Forest Labs (Flux API) or Azure Deployment
+3. **Verify `.env` is ignored:** The `.env` file is in `.gitignore` and should never be committed
+4. **Enable the secret-scan hook** to prevent accidental commits:
+   ```bash
+   git config core.hooksPath .githooks
+   ```
+
+#### Obtaining API Keys
+
+- **AUDIO_API_KEY**: Create a Cognitive Services resource in Azure portal (Text-to-Speech or OpenAI Audio API), then copy the API key from the Keys & Endpoint page
+- **FLUX_API_KEY**: Register at Black Forest Labs (blackforestlabs.ai) or use an Azure deployment of FLUX
+
+#### Pre-Commit Hook
+
+The project includes a secret-scan hook that prevents commits containing API keys or secrets:
+```bash
+git config core.hooksPath .githooks
+```
+
+This runs before each commit and will reject staged changes if it detects:
+- API keys with non-placeholder values
+- Long base64-looking strings after `_KEY=`
+- Common token prefixes (`sk-`, `ghp_`, `xoxb-`, etc.)
+
+If the hook rejects your commit, unstage the file and verify `.env` is not being committed.
+
 ## Code Style
 
 This project contains code from several eras. Please follow the conventions of
