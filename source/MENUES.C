@@ -655,21 +655,85 @@ saveplayer(signed char spot)
          dfwrite(&animwall,sizeof(animwall),1,fil);
          dfwrite(&msx[0],sizeof(long),sizeof(msx)/sizeof(long),fil);
          dfwrite(&msy[0],sizeof(long),sizeof(msy)/sizeof(long),fil);
-      /* TODO(file-io-r2): Add error checks for remaining sprite array writes */
      dfwrite(&spriteqloc,sizeof(short),1,fil);
+     if(ferror(fil))
+     {
+         fclose(fil);
+         return(-1);
+     }
      dfwrite(&spriteqamount,sizeof(short),1,fil);
+     if(ferror(fil))
+     {
+         fclose(fil);
+         return(-1);
+     }
      dfwrite(&spriteq[0],sizeof(short),spriteqamount,fil);
+     if(ferror(fil))
+     {
+         fclose(fil);
+         return(-1);
+     }
          dfwrite(&mirrorcnt,sizeof(short),1,fil);
+         if(ferror(fil))
+         {
+             fclose(fil);
+             return(-1);
+         }
          dfwrite(&mirrorwall[0],sizeof(short),64,fil);
+         if(ferror(fil))
+         {
+             fclose(fil);
+             return(-1);
+         }
          dfwrite(&mirrorsector[0],sizeof(short),64,fil);
+         if(ferror(fil))
+         {
+             fclose(fil);
+             return(-1);
+         }
      dfwrite(&show2dsector[0],sizeof(char),MAXSECTORS>>3,fil);
+     if(ferror(fil))
+     {
+         fclose(fil);
+         return(-1);
+     }
      dfwrite(&actortype[0],sizeof(char),MAXTILES,fil);
+     if(ferror(fil))
+     {
+         fclose(fil);
+         return(-1);
+     }
      dfwrite(&boardfilename[0],sizeof(boardfilename),1,fil);
+     if(ferror(fil))
+     {
+         fclose(fil);
+         return(-1);
+     }
 
      dfwrite(&numclouds,sizeof(numclouds),1,fil);
+     if(ferror(fil))
+     {
+         fclose(fil);
+         return(-1);
+     }
      dfwrite(&clouds[0],sizeof(short)<<7,1,fil);
+     if(ferror(fil))
+     {
+         fclose(fil);
+         return(-1);
+     }
      dfwrite(&cloudx[0],sizeof(short)<<7,1,fil);
+     if(ferror(fil))
+     {
+         fclose(fil);
+         return(-1);
+     }
      dfwrite(&cloudy[0],sizeof(short)<<7,1,fil);
+     if(ferror(fil))
+     {
+         fclose(fil);
+         return(-1);
+     }
 
      for(i=0;i<MAXSCRIPTSIZE;i++)
      {
@@ -683,7 +747,17 @@ saveplayer(signed char spot)
      }
 
      dfwrite(&scriptptrs[0],1,MAXSCRIPTSIZE,fil);
+     if(ferror(fil))
+     {
+         fclose(fil);
+         return(-1);
+     }
      dfwrite(&script[0],4,MAXSCRIPTSIZE,fil);
+     if(ferror(fil))
+     {
+         fclose(fil);
+         return(-1);
+     }
 
      for(i=0;i<MAXSCRIPTSIZE;i++)
         if( scriptptrs[i] )
@@ -699,6 +773,11 @@ saveplayer(signed char spot)
         actorscrptr[i] = (long *)j;
      }
      dfwrite(&actorscrptr[0],4,MAXTILES,fil);
+     if(ferror(fil))
+     {
+         fclose(fil);
+         return(-1);
+     }
      for(i=0;i<MAXTILES;i++)
          if(actorscrptr[i])
      {
@@ -732,7 +811,17 @@ saveplayer(signed char spot)
     }
 
     dfwrite(&scriptptrs[0],1,MAXSPRITES,fil);
+    if(ferror(fil))
+    {
+        fclose(fil);
+        return(-1);
+    }
     dfwrite(&hittype[0],sizeof(struct weaponhit),MAXSPRITES,fil);
+    if(ferror(fil))
+    {
+        fclose(fil);
+        return(-1);
+    }
 
     for(i=0;i<MAXSPRITES;i++)
     {
@@ -748,40 +837,195 @@ saveplayer(signed char spot)
     }
 
          dfwrite(&lockclock,sizeof(lockclock),1,fil);
+         if(ferror(fil))
+         {
+             fclose(fil);
+             return(-1);
+         }
      dfwrite(&pskybits,sizeof(pskybits),1,fil);
+     if(ferror(fil))
+     {
+         fclose(fil);
+         return(-1);
+     }
      dfwrite(&pskyoff[0],sizeof(pskyoff[0]),MAXPSKYTILES,fil);
+     if(ferror(fil))
+     {
+         fclose(fil);
+         return(-1);
+     }
          dfwrite(&animatecnt,sizeof(animatecnt),1,fil);
+         if(ferror(fil))
+         {
+             fclose(fil);
+             return(-1);
+         }
          dfwrite(&animatesect[0],2,MAXANIMATES,fil);
+         if(ferror(fil))
+         {
+             fclose(fil);
+             return(-1);
+         }
          for(i = animatecnt-1;i>=0;i--) animateptr[i] = (int32_t *)((intptr_t)animateptr[i]-(intptr_t)(&sector[0]));
          dfwrite(&animateptr[0],sizeof(animateptr[0]),MAXANIMATES,fil);
+         if(ferror(fil))
+         {
+             fclose(fil);
+             return(-1);
+         }
          for(i = animatecnt-1;i>=0;i--) animateptr[i] = (int32_t *)((intptr_t)animateptr[i]+(intptr_t)(&sector[0]));
          dfwrite(&animategoal[0],4,MAXANIMATES,fil);
+         if(ferror(fil))
+         {
+             fclose(fil);
+             return(-1);
+         }
          dfwrite(&animatevel[0],4,MAXANIMATES,fil);
+         if(ferror(fil))
+         {
+             fclose(fil);
+             return(-1);
+         }
 
          dfwrite(&earthquaketime,sizeof(earthquaketime),1,fil);
+         if(ferror(fil))
+         {
+             fclose(fil);
+             return(-1);
+         }
          dfwrite(&ud.from_bonus,sizeof(ud.from_bonus),1,fil);
+         if(ferror(fil))
+         {
+             fclose(fil);
+             return(-1);
+         }
      dfwrite(&ud.secretlevel,sizeof(ud.secretlevel),1,fil);
+     if(ferror(fil))
+     {
+         fclose(fil);
+         return(-1);
+     }
      dfwrite(&ud.respawn_monsters,sizeof(ud.respawn_monsters),1,fil);
+     if(ferror(fil))
+     {
+         fclose(fil);
+         return(-1);
+     }
      dfwrite(&ud.respawn_items,sizeof(ud.respawn_items),1,fil);
+     if(ferror(fil))
+     {
+         fclose(fil);
+         return(-1);
+     }
      dfwrite(&ud.respawn_inventory,sizeof(ud.respawn_inventory),1,fil);
+     if(ferror(fil))
+     {
+         fclose(fil);
+         return(-1);
+     }
      dfwrite(&ud.god,sizeof(ud.god),1,fil);
+     if(ferror(fil))
+     {
+         fclose(fil);
+         return(-1);
+     }
      dfwrite(&ud.auto_run,sizeof(ud.auto_run),1,fil);
+     if(ferror(fil))
+     {
+         fclose(fil);
+         return(-1);
+     }
      dfwrite(&ud.crosshair,sizeof(ud.crosshair),1,fil);
+     if(ferror(fil))
+     {
+         fclose(fil);
+         return(-1);
+     }
      dfwrite(&ud.monsters_off,sizeof(ud.monsters_off),1,fil);
+     if(ferror(fil))
+     {
+         fclose(fil);
+         return(-1);
+     }
      dfwrite(&ud.last_level,sizeof(ud.last_level),1,fil);
+     if(ferror(fil))
+     {
+         fclose(fil);
+         return(-1);
+     }
      dfwrite(&ud.eog,sizeof(ud.eog),1,fil);
+     if(ferror(fil))
+     {
+         fclose(fil);
+         return(-1);
+     }
      dfwrite(&ud.coop,sizeof(ud.coop),1,fil);
+     if(ferror(fil))
+     {
+         fclose(fil);
+         return(-1);
+     }
      dfwrite(&ud.marker,sizeof(ud.marker),1,fil);
+     if(ferror(fil))
+     {
+         fclose(fil);
+         return(-1);
+     }
      dfwrite(&ud.ffire,sizeof(ud.ffire),1,fil);
+     if(ferror(fil))
+     {
+         fclose(fil);
+         return(-1);
+     }
      dfwrite(&camsprite,sizeof(camsprite),1,fil);
+     if(ferror(fil))
+     {
+         fclose(fil);
+         return(-1);
+     }
      dfwrite(&connecthead,sizeof(connecthead),1,fil);
+     if(ferror(fil))
+     {
+         fclose(fil);
+         return(-1);
+     }
      dfwrite(connectpoint2,sizeof(connectpoint2),1,fil);
+     if(ferror(fil))
+     {
+         fclose(fil);
+         return(-1);
+     }
      dfwrite(&numplayersprites,sizeof(numplayersprites),1,fil);
+     if(ferror(fil))
+     {
+         fclose(fil);
+         return(-1);
+     }
      dfwrite((short *)&frags[0][0],sizeof(frags),1,fil);
+     if(ferror(fil))
+     {
+         fclose(fil);
+         return(-1);
+     }
 
      dfwrite(&randomseed,sizeof(randomseed),1,fil);
+     if(ferror(fil))
+     {
+         fclose(fil);
+         return(-1);
+     }
      dfwrite(&global_random,sizeof(global_random),1,fil);
+     if(ferror(fil))
+     {
+         fclose(fil);
+         return(-1);
+     }
      dfwrite(&parallaxyscale,sizeof(parallaxyscale),1,fil);
+     if(ferror(fil))
+     {
+         fclose(fil);
+         return(-1);
+     }
 
          fclose(fil);
 
