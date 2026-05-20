@@ -412,7 +412,14 @@ void getpackets(void)
                     {
                         if (playerquitflag[i] == 0) continue;
                         if (i == myconnectindex)
+                        {
+                            if (j >= packbufleng)
+                            {
+                                printf("NET: SECURITY: Packet type 0 truncated at lag read. Dropping.\n");
+                                break;
+                            }
                             otherminlag = (long)((signed char)packbuf[j]);
+                        }
                         j++;
                     }
 
@@ -426,19 +433,58 @@ void getpackets(void)
                 {
                     if (playerquitflag[i] == 0) continue;
 
+                    /* Check bitmask byte is available */
+                    if (k >= packbufleng)
+                    {
+                        printf("NET: SECURITY: Packet type 0 truncated at bitmask read. Dropping.\n");
+                        break;
+                    }
+
                     l = packbuf[k++];
                     if (i == myconnectindex)
                         { j += ((l&1)<<1)+(l&2)+((l&4)>>2)+((l&8)>>3)+((l&16)>>4)+((l&32)>>5)+((l&64)>>6)+((l&128)>>7); continue; }
 
                     copybufbyte(&osyn[i],&nsyn[i],sizeof(input));
-                    if (l&1)   nsyn[i].fvel = packbuf[j]+((short)packbuf[j+1]<<8), j += 2;
-                    if (l&2)   nsyn[i].svel = packbuf[j]+((short)packbuf[j+1]<<8), j += 2;
-                    if (l&4)   nsyn[i].avel = (signed char)packbuf[j++];
-                    if (l&8)   nsyn[i].bits = ((nsyn[i].bits&0xffffff00)|((long)packbuf[j++]));
-                    if (l&16)  nsyn[i].bits = ((nsyn[i].bits&0xffff00ff)|((long)packbuf[j++])<<8);
-                    if (l&32)  nsyn[i].bits = ((nsyn[i].bits&0xff00ffff)|((long)packbuf[j++])<<16);
-                    if (l&64)  nsyn[i].bits = ((nsyn[i].bits&0x00ffffff)|((long)packbuf[j++])<<24);
-                    if (l&128) nsyn[i].horz = (signed char)packbuf[j++];
+                    if (l&1)
+                    {
+                        if (j+1 >= packbufleng) { printf("NET: SECURITY: Packet type 0 truncated (fvel). Dropping.\n"); break; }
+                        nsyn[i].fvel = packbuf[j]+((short)packbuf[j+1]<<8), j += 2;
+                    }
+                    if (l&2)
+                    {
+                        if (j+1 >= packbufleng) { printf("NET: SECURITY: Packet type 0 truncated (svel). Dropping.\n"); break; }
+                        nsyn[i].svel = packbuf[j]+((short)packbuf[j+1]<<8), j += 2;
+                    }
+                    if (l&4)
+                    {
+                        if (j >= packbufleng) { printf("NET: SECURITY: Packet type 0 truncated (avel). Dropping.\n"); break; }
+                        nsyn[i].avel = (signed char)packbuf[j++];
+                    }
+                    if (l&8)
+                    {
+                        if (j >= packbufleng) { printf("NET: SECURITY: Packet type 0 truncated (bits0). Dropping.\n"); break; }
+                        nsyn[i].bits = ((nsyn[i].bits&0xffffff00)|((long)packbuf[j++]));
+                    }
+                    if (l&16)
+                    {
+                        if (j >= packbufleng) { printf("NET: SECURITY: Packet type 0 truncated (bits1). Dropping.\n"); break; }
+                        nsyn[i].bits = ((nsyn[i].bits&0xffff00ff)|((long)packbuf[j++])<<8);
+                    }
+                    if (l&32)
+                    {
+                        if (j >= packbufleng) { printf("NET: SECURITY: Packet type 0 truncated (bits2). Dropping.\n"); break; }
+                        nsyn[i].bits = ((nsyn[i].bits&0xff00ffff)|((long)packbuf[j++])<<16);
+                    }
+                    if (l&64)
+                    {
+                        if (j >= packbufleng) { printf("NET: SECURITY: Packet type 0 truncated (bits3). Dropping.\n"); break; }
+                        nsyn[i].bits = ((nsyn[i].bits&0x00ffffff)|((long)packbuf[j++])<<24);
+                    }
+                    if (l&128)
+                    {
+                        if (j >= packbufleng) { printf("NET: SECURITY: Packet type 0 truncated (horz). Dropping.\n"); break; }
+                        nsyn[i].horz = (signed char)packbuf[j++];
+                    }
 
                     if (nsyn[i].bits&(1<<26)) playerquitflag[i] = 0;
                     movefifoend[i]++;
@@ -467,32 +513,53 @@ void getpackets(void)
 
                 break;
             case 1:  //[1] (receive slave sync buffer)
-                j = 2; k = packbuf[1];
-
-                osyn = (input *)&inputfifo[(movefifoend[other]-1)&(MOVEFIFOSIZ-1)][0];
-                nsyn = (input *)&inputfifo[(movefifoend[other])&(MOVEFIFOSIZ-1)][0];
-
-                copybufbyte(&osyn[other],&nsyn[other],sizeof(input));
-                if (k&1)   nsyn[other].fvel = packbuf[j]+((short)packbuf[j+1]<<8), j += 2;
-                if (k&2)   nsyn[other].svel = packbuf[j]+((short)packbuf[j+1]<<8), j += 2;
-                if (k&4)   nsyn[other].avel = (signed char)packbuf[j++];
-                if (k&8)   nsyn[other].bits = ((nsyn[other].bits&0xffffff00)|((long)packbuf[j++]));
-                if (k&16)  nsyn[other].bits = ((nsyn[other].bits&0xffff00ff)|((long)packbuf[j++])<<8);
-                if (k&32)  nsyn[other].bits = ((nsyn[other].bits&0xff00ffff)|((long)packbuf[j++])<<16);
-                if (k&64)  nsyn[other].bits = ((nsyn[other].bits&0x00ffffff)|((long)packbuf[j++])<<24);
-                if (k&128) nsyn[other].horz = (signed char)packbuf[j++];
-                movefifoend[other]++;
-
-                while (j != packbufleng)
                 {
-                    syncval[other][syncvalhead[other]&(MOVEFIFOSIZ-1)] = packbuf[j++];
-                    syncvalhead[other]++;
-                }
+                    int required_len;
+                    j = 2; k = packbuf[1];
 
-                for(i=1;i<movesperpacket;i++)
-                {
-                    copybufbyte(&nsyn[other],&inputfifo[movefifoend[other]&(MOVEFIFOSIZ-1)][other],sizeof(input));
+                    /* Validate sufficient data for declared fields */
+                    required_len = 2;  /* header + bitmask */
+                    if (k&1)   required_len += 2;  /* fvel (2 bytes) */
+                    if (k&2)   required_len += 2;  /* svel (2 bytes) */
+                    if (k&4)   required_len += 1;  /* avel (1 byte) */
+                    if (k&8)   required_len += 1;  /* bits byte 0 */
+                    if (k&16)  required_len += 1;  /* bits byte 1 */
+                    if (k&32)  required_len += 1;  /* bits byte 2 */
+                    if (k&64)  required_len += 1;  /* bits byte 3 */
+                    if (k&128) required_len += 1;  /* horz (1 byte) */
+
+                    if (packbufleng < required_len)
+                    {
+                        printf("NET: SECURITY: Packet type 1 truncated (%d < %d). Dropping.\n",
+                            packbufleng, required_len);
+                        break;
+                    }
+
+                    osyn = (input *)&inputfifo[(movefifoend[other]-1)&(MOVEFIFOSIZ-1)][0];
+                    nsyn = (input *)&inputfifo[(movefifoend[other])&(MOVEFIFOSIZ-1)][0];
+
+                    copybufbyte(&osyn[other],&nsyn[other],sizeof(input));
+                    if (k&1)   nsyn[other].fvel = packbuf[j]+((short)packbuf[j+1]<<8), j += 2;
+                    if (k&2)   nsyn[other].svel = packbuf[j]+((short)packbuf[j+1]<<8), j += 2;
+                    if (k&4)   nsyn[other].avel = (signed char)packbuf[j++];
+                    if (k&8)   nsyn[other].bits = ((nsyn[other].bits&0xffffff00)|((long)packbuf[j++]));
+                    if (k&16)  nsyn[other].bits = ((nsyn[other].bits&0xffff00ff)|((long)packbuf[j++])<<8);
+                    if (k&32)  nsyn[other].bits = ((nsyn[other].bits&0xff00ffff)|((long)packbuf[j++])<<16);
+                    if (k&64)  nsyn[other].bits = ((nsyn[other].bits&0x00ffffff)|((long)packbuf[j++])<<24);
+                    if (k&128) nsyn[other].horz = (signed char)packbuf[j++];
                     movefifoend[other]++;
+
+                    while (j != packbufleng)
+                    {
+                        syncval[other][syncvalhead[other]&(MOVEFIFOSIZ-1)] = packbuf[j++];
+                        syncvalhead[other]++;
+                    }
+
+                    for(i=1;i<movesperpacket;i++)
+                    {
+                        copybufbyte(&nsyn[other],&inputfifo[movefifoend[other]&(MOVEFIFOSIZ-1)][other],sizeof(input));
+                        movefifoend[other]++;
+                    }
                 }
 
                 break;
@@ -541,6 +608,12 @@ void getpackets(void)
                 ud.user_name[other][i-2] = 0;
                 break;
             case 9:
+                if (packbufleng - 1 > MAX_WEAPONS)
+                {
+                    printf("NET: SECURITY: Packet type 9 payload too large (%d > %d). Dropping.\n",
+                        packbufleng - 1, MAX_WEAPONS);
+                    break;
+                }
                 for (i=1;i<packbufleng;i++)
                     ud.wchoice[other][i-1] = packbuf[i];
                 break;
