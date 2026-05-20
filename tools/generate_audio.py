@@ -10,6 +10,7 @@ import os
 import struct
 import sys
 import time
+from datetime import datetime, timezone
 
 import aiohttp
 import requests
@@ -59,190 +60,7 @@ VOICE_LINES = [
 # Sound ID manifest: bridges AI-generated WAVs to engine sound table.
 # Each entry maps a WAV file to its corresponding engine sound ID (if any).
 # Engine sound IDs sourced from source/SOUNDEFS.H.
-SOUND_MANIFEST = [
-    {
-        "wav": "TAUNT01.WAV",
-        "engine_sound_id": None,
-        "engine_sound_id_int": None,
-        "voice": "alloy",
-        "category": "taunt",
-        "prompt_summary": "gruff merc one-liner: 'Welcome to the machine, punk.'",
-        "notes": "AI-generated taunt. Engine has no taunt-trigger hook; runtime will inject these on player taunt events."
-    },
-    {
-        "wav": "TAUNT02.WAV",
-        "engine_sound_id": None,
-        "engine_sound_id_int": None,
-        "voice": "alloy",
-        "category": "taunt",
-        "prompt_summary": "gruff merc one-liner: 'Lights out, chrome-head.'",
-        "notes": "AI-generated taunt. Engine has no taunt-trigger hook; runtime will inject these on player taunt events."
-    },
-    {
-        "wav": "TAUNT03.WAV",
-        "engine_sound_id": None,
-        "engine_sound_id_int": None,
-        "voice": "alloy",
-        "category": "taunt",
-        "prompt_summary": "gruff merc one-liner: 'Another day, another megacorp to burn.'",
-        "notes": "AI-generated taunt. Engine has no taunt-trigger hook; runtime will inject these on player taunt events."
-    },
-    {
-        "wav": "TAUNT04.WAV",
-        "engine_sound_id": None,
-        "engine_sound_id_int": None,
-        "voice": "alloy",
-        "category": "taunt",
-        "prompt_summary": "gruff merc one-liner: 'Is that all you got?'",
-        "notes": "AI-generated taunt. Engine has no taunt-trigger hook; runtime will inject these on player taunt events."
-    },
-    {
-        "wav": "TAUNT05.WAV",
-        "engine_sound_id": None,
-        "engine_sound_id_int": None,
-        "voice": "alloy",
-        "category": "taunt",
-        "prompt_summary": "gruff merc one-liner: 'Time to take out the trash.'",
-        "notes": "AI-generated taunt. Engine has no taunt-trigger hook; runtime will inject these on player taunt events."
-    },
-    {
-        "wav": "PAIN01.WAV",
-        "engine_sound_id": "DUKE_GRUNT",
-        "engine_sound_id_int": 38,
-        "voice": "onyx",
-        "category": "pain",
-        "prompt_summary": "short grunt of pain"
-    },
-    {
-        "wav": "PAIN02.WAV",
-        "engine_sound_id": "DUKE_LONGTERM_PAIN",
-        "engine_sound_id_int": 211,
-        "voice": "onyx",
-        "category": "pain",
-        "prompt_summary": "sharp grunt from shot"
-    },
-    {
-        "wav": "PAIN03.WAV",
-        "engine_sound_id": "DUKE_LONGTERM_PAIN2",
-        "engine_sound_id_int": 274,
-        "voice": "onyx",
-        "category": "pain",
-        "prompt_summary": "heavy damage groan"
-    },
-    {
-        "wav": "DEATH01.WAV",
-        "engine_sound_id": "DUKE_SCREAM",
-        "engine_sound_id_int": 245,
-        "voice": "onyx",
-        "category": "death",
-        "prompt_summary": "death scream"
-    },
-    {
-        "wav": "DEATH02.WAV",
-        "engine_sound_id": "DUKE_DEAD",
-        "engine_sound_id_int": 41,
-        "voice": "alloy",
-        "category": "death",
-        "prompt_summary": "dying gasp: 'System... failure...'"
-    },
-    {
-        "wav": "PICKUP01.WAV",
-        "engine_sound_id": None,
-        "engine_sound_id_int": None,
-        "voice": "echo",
-        "category": "pickup",
-        "prompt_summary": "HUD notification: 'Stim acquired.'",
-        "notes": "AI-generated HUD notification. Engine has no direct equivalent; runtime will inject these dynamically."
-    },
-    {
-        "wav": "PICKUP02.WAV",
-        "engine_sound_id": None,
-        "engine_sound_id_int": None,
-        "voice": "echo",
-        "category": "pickup",
-        "prompt_summary": "HUD notification: 'Ammo loaded.'",
-        "notes": "AI-generated HUD notification. Engine has no direct equivalent; runtime will inject these dynamically."
-    },
-    {
-        "wav": "PICKUP03.WAV",
-        "engine_sound_id": None,
-        "engine_sound_id_int": None,
-        "voice": "echo",
-        "category": "pickup",
-        "prompt_summary": "HUD notification: 'Shield online.'",
-        "notes": "AI-generated HUD notification. Engine has no direct equivalent; runtime will inject these dynamically."
-    },
-    {
-        "wav": "PICKUP04.WAV",
-        "engine_sound_id": None,
-        "engine_sound_id_int": None,
-        "voice": "echo",
-        "category": "pickup",
-        "prompt_summary": "HUD notification: 'Access granted.'",
-        "notes": "AI-generated HUD notification. Engine has no direct equivalent; runtime will inject these dynamically."
-    },
-    {
-        "wav": "WEAPON01.WAV",
-        "engine_sound_id": None,
-        "engine_sound_id_int": None,
-        "voice": "echo",
-        "category": "weapon",
-        "prompt_summary": "weapon announcement: 'Pulse pistol ready.'",
-        "notes": "AI-generated weapon system notification. Engine has weapon pickup sounds (DUKE_GETWEAPON*) but not weapon-ready announcements; runtime will inject these."
-    },
-    {
-        "wav": "WEAPON02.WAV",
-        "engine_sound_id": None,
-        "engine_sound_id_int": None,
-        "voice": "echo",
-        "category": "weapon",
-        "prompt_summary": "weapon announcement: 'Scatter cannon armed.'",
-        "notes": "AI-generated weapon system notification. Engine has weapon pickup sounds (DUKE_GETWEAPON*) but not weapon-ready announcements; runtime will inject these."
-    },
-    {
-        "wav": "WEAPON03.WAV",
-        "engine_sound_id": None,
-        "engine_sound_id_int": None,
-        "voice": "echo",
-        "category": "weapon",
-        "prompt_summary": "weapon announcement: 'Plasma launcher online.'",
-        "notes": "AI-generated weapon system notification. Engine has weapon pickup sounds (DUKE_GETWEAPON*) but not weapon-ready announcements; runtime will inject these."
-    },
-    {
-        "wav": "LEVEL01.WAV",
-        "engine_sound_id": None,
-        "engine_sound_id_int": None,
-        "voice": "alloy",
-        "category": "level_start",
-        "prompt_summary": "level start: 'Let's get to work.'",
-        "notes": "AI-generated level start announcement. Engine has no level-start sound hook in original code; runtime will inject these."
-    },
-    {
-        "wav": "LEVEL02.WAV",
-        "engine_sound_id": None,
-        "engine_sound_id_int": None,
-        "voice": "alloy",
-        "category": "level_start",
-        "prompt_summary": "level start: 'Another sector, another pile of scrap.'",
-        "notes": "AI-generated level start announcement. Engine has no level-start sound hook in original code; runtime will inject these."
-    },
-    {
-        "wav": "ALARM01.WAV",
-        "engine_sound_id": "ALARM",
-        "engine_sound_id_int": 357,
-        "voice": "echo",
-        "category": "alarm",
-        "prompt_summary": "robotic alarm: intruder detected"
-    },
-    {
-        "wav": "COMP01.WAV",
-        "engine_sound_id": "COMPUTER_AMBIENCE",
-        "engine_sound_id_int": 86,
-        "voice": "echo",
-        "category": "ambient",
-        "prompt_summary": "computer voice announcement"
-    }
-]
+SOUND_MANIFEST = [{'wav': 'TAUNT01.WAV', 'engine_sound_id': None, 'engine_sound_id_int': None, 'voice': 'alloy', 'category': 'taunt', 'prompt_summary': "gruff merc one-liner: 'Welcome to the machine, punk.'", 'notes': 'AI-generated taunt. Engine has no taunt-trigger hook; runtime will inject these on player taunt events.', 'status': 'generated', 'generated_at': '1970-01-01T00:00:00Z'}, {'wav': 'TAUNT02.WAV', 'engine_sound_id': None, 'engine_sound_id_int': None, 'voice': 'alloy', 'category': 'taunt', 'prompt_summary': "gruff merc one-liner: 'Lights out, chrome-head.'", 'notes': 'AI-generated taunt. Engine has no taunt-trigger hook; runtime will inject these on player taunt events.', 'status': 'generated', 'generated_at': '1970-01-01T00:00:00Z'}, {'wav': 'TAUNT03.WAV', 'engine_sound_id': None, 'engine_sound_id_int': None, 'voice': 'alloy', 'category': 'taunt', 'prompt_summary': "gruff merc one-liner: 'Another day, another megacorp to burn.'", 'notes': 'AI-generated taunt. Engine has no taunt-trigger hook; runtime will inject these on player taunt events.', 'status': 'generated', 'generated_at': '1970-01-01T00:00:00Z'}, {'wav': 'TAUNT04.WAV', 'engine_sound_id': None, 'engine_sound_id_int': None, 'voice': 'alloy', 'category': 'taunt', 'prompt_summary': "gruff merc one-liner: 'Is that all you got?'", 'notes': 'AI-generated taunt. Engine has no taunt-trigger hook; runtime will inject these on player taunt events.', 'status': 'generated', 'generated_at': '1970-01-01T00:00:00Z'}, {'wav': 'TAUNT05.WAV', 'engine_sound_id': None, 'engine_sound_id_int': None, 'voice': 'alloy', 'category': 'taunt', 'prompt_summary': "gruff merc one-liner: 'Time to take out the trash.'", 'notes': 'AI-generated taunt. Engine has no taunt-trigger hook; runtime will inject these on player taunt events.', 'status': 'generated', 'generated_at': '1970-01-01T00:00:00Z'}, {'wav': 'PAIN01.WAV', 'engine_sound_id': 'DUKE_GRUNT', 'engine_sound_id_int': 38, 'voice': 'onyx', 'category': 'pain', 'prompt_summary': 'short grunt of pain', 'status': 'generated', 'generated_at': '1970-01-01T00:00:00Z'}, {'wav': 'PAIN02.WAV', 'engine_sound_id': 'DUKE_LONGTERM_PAIN', 'engine_sound_id_int': 211, 'voice': 'onyx', 'category': 'pain', 'prompt_summary': 'sharp grunt from shot', 'status': 'generated', 'generated_at': '1970-01-01T00:00:00Z'}, {'wav': 'PAIN03.WAV', 'engine_sound_id': 'DUKE_LONGTERM_PAIN2', 'engine_sound_id_int': 274, 'voice': 'onyx', 'category': 'pain', 'prompt_summary': 'heavy damage groan', 'status': 'generated', 'generated_at': '1970-01-01T00:00:00Z'}, {'wav': 'DEATH01.WAV', 'engine_sound_id': 'DUKE_SCREAM', 'engine_sound_id_int': 245, 'voice': 'onyx', 'category': 'death', 'prompt_summary': 'death scream', 'status': 'generated', 'generated_at': '1970-01-01T00:00:00Z'}, {'wav': 'DEATH02.WAV', 'engine_sound_id': 'DUKE_DEAD', 'engine_sound_id_int': 41, 'voice': 'alloy', 'category': 'death', 'prompt_summary': "dying gasp: 'System... failure...'", 'status': 'generated', 'generated_at': '1970-01-01T00:00:00Z'}, {'wav': 'PICKUP01.WAV', 'engine_sound_id': None, 'engine_sound_id_int': None, 'voice': 'echo', 'category': 'pickup', 'prompt_summary': "HUD notification: 'Stim acquired.'", 'notes': 'AI-generated HUD notification. Engine has no direct equivalent; runtime will inject these dynamically.', 'status': 'generated', 'generated_at': '1970-01-01T00:00:00Z'}, {'wav': 'PICKUP02.WAV', 'engine_sound_id': None, 'engine_sound_id_int': None, 'voice': 'echo', 'category': 'pickup', 'prompt_summary': "HUD notification: 'Ammo loaded.'", 'notes': 'AI-generated HUD notification. Engine has no direct equivalent; runtime will inject these dynamically.', 'status': 'generated', 'generated_at': '1970-01-01T00:00:00Z'}, {'wav': 'PICKUP03.WAV', 'engine_sound_id': None, 'engine_sound_id_int': None, 'voice': 'echo', 'category': 'pickup', 'prompt_summary': "HUD notification: 'Shield online.'", 'notes': 'AI-generated HUD notification. Engine has no direct equivalent; runtime will inject these dynamically.', 'status': 'generated', 'generated_at': '1970-01-01T00:00:00Z'}, {'wav': 'PICKUP04.WAV', 'engine_sound_id': None, 'engine_sound_id_int': None, 'voice': 'echo', 'category': 'pickup', 'prompt_summary': "HUD notification: 'Access granted.'", 'notes': 'AI-generated HUD notification. Engine has no direct equivalent; runtime will inject these dynamically.', 'status': 'generated', 'generated_at': '1970-01-01T00:00:00Z'}, {'wav': 'WEAPON01.WAV', 'engine_sound_id': None, 'engine_sound_id_int': None, 'voice': 'echo', 'category': 'weapon', 'prompt_summary': "weapon announcement: 'Pulse pistol ready.'", 'notes': 'AI-generated weapon system notification. Engine has weapon pickup sounds (DUKE_GETWEAPON*) but not weapon-ready announcements; runtime will inject these.', 'status': 'generated', 'generated_at': '1970-01-01T00:00:00Z'}, {'wav': 'WEAPON02.WAV', 'engine_sound_id': None, 'engine_sound_id_int': None, 'voice': 'echo', 'category': 'weapon', 'prompt_summary': "weapon announcement: 'Scatter cannon armed.'", 'notes': 'AI-generated weapon system notification. Engine has weapon pickup sounds (DUKE_GETWEAPON*) but not weapon-ready announcements; runtime will inject these.', 'status': 'generated', 'generated_at': '1970-01-01T00:00:00Z'}, {'wav': 'WEAPON03.WAV', 'engine_sound_id': None, 'engine_sound_id_int': None, 'voice': 'echo', 'category': 'weapon', 'prompt_summary': "weapon announcement: 'Plasma launcher online.'", 'notes': 'AI-generated weapon system notification. Engine has weapon pickup sounds (DUKE_GETWEAPON*) but not weapon-ready announcements; runtime will inject these.', 'status': 'generated', 'generated_at': '1970-01-01T00:00:00Z'}, {'wav': 'LEVEL01.WAV', 'engine_sound_id': None, 'engine_sound_id_int': None, 'voice': 'alloy', 'category': 'level_start', 'prompt_summary': "level start: 'Let's get to work.'", 'notes': 'AI-generated level start announcement. Engine has no level-start sound hook in original code; runtime will inject these.', 'status': 'generated', 'generated_at': '1970-01-01T00:00:00Z'}, {'wav': 'LEVEL02.WAV', 'engine_sound_id': None, 'engine_sound_id_int': None, 'voice': 'alloy', 'category': 'level_start', 'prompt_summary': "level start: 'Another sector, another pile of scrap.'", 'notes': 'AI-generated level start announcement. Engine has no level-start sound hook in original code; runtime will inject these.', 'status': 'generated', 'generated_at': '1970-01-01T00:00:00Z'}, {'wav': 'ALARM01.WAV', 'engine_sound_id': 'ALARM', 'engine_sound_id_int': 357, 'voice': 'echo', 'category': 'alarm', 'prompt_summary': 'robotic alarm: intruder detected', 'status': 'generated', 'generated_at': '1970-01-01T00:00:00Z'}, {'wav': 'COMP01.WAV', 'engine_sound_id': 'COMPUTER_AMBIENCE', 'engine_sound_id_int': 86, 'voice': 'echo', 'category': 'ambient', 'prompt_summary': 'computer voice announcement', 'status': 'generated', 'generated_at': '1970-01-01T00:00:00Z'}]
 
 
 def load_env(path):
@@ -367,6 +185,12 @@ def main():
         default=4,
         help="Max concurrent API requests for async mode (default: 4, Azure limit ~8)",
     )
+    parser.add_argument(
+        "--acquire-timeout-sec",
+        type=float,
+        default=30.0,
+        help="Timeout in seconds for semaphore acquire in async mode (default: 30.0)",
+    )
     args = parser.parse_args()
 
     env = load_env(ENV_FILE)
@@ -391,11 +215,11 @@ def main():
     if use_ai:
         # API path: use async with semaphore for rate limiting
         generated = _generate_audio_parallel_api(
-            args.concurrency, endpoint, api_key, model
+            args.concurrency, endpoint, api_key, model, args.acquire_timeout_sec, args.no_ai
         )
     else:
         # Local WAV synthesis path: use ThreadPoolExecutor
-        generated = _generate_audio_parallel_local(args.workers)
+        generated = _generate_audio_parallel_local(args.workers, args.no_ai)
 
     elapsed = time.time() - start_time
 
@@ -410,9 +234,15 @@ def main():
     return 0
 
 
-def _generate_audio_parallel_local(workers):
+def _generate_audio_parallel_local(workers, use_deterministic):
     """Generate silence WAVs using ThreadPoolExecutor (GIL-releasing struct packing)."""
     generated = []
+    
+    # Determine timestamp based on determinism flag
+    if use_deterministic:
+        timestamp = "1970-01-01T00:00:00Z"
+    else:
+        timestamp = datetime.now(timezone.utc).isoformat()
 
     def process_voice_line(item):
         idx, (filename, prompt, voice) = item
@@ -420,21 +250,33 @@ def _generate_audio_parallel_local(workers):
         return idx, filename, wav_data
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:
-        futures = []
+        future_to_idx = {}
         for idx, (filename, prompt, voice) in enumerate(VOICE_LINES):
             print(f"  {filename}: {prompt[:60]}...")
             future = executor.submit(process_voice_line, (idx, (filename, prompt, voice)))
-            futures.append(future)
+            future_to_idx[future] = idx
 
         # Collect results in order
         results = [None] * len(VOICE_LINES)
-        for future in concurrent.futures.as_completed(futures):
-            idx, filename, wav_data = future.result()
-            out_path = os.path.join(OUTPUT_DIR, filename)
-            with open(out_path, "wb") as f:
-                f.write(wav_data)
-            results[idx] = filename
-            print(f"    [Silence placeholder] OK")
+        for future in concurrent.futures.as_completed(future_to_idx.keys()):
+            idx = future_to_idx[future]
+            try:
+                result_idx, filename, wav_data = future.result()
+                out_path = os.path.join(OUTPUT_DIR, filename)
+                with open(out_path, "wb") as f:
+                    f.write(wav_data)
+                results[idx] = filename
+                # Update manifest entry with successful generation
+                SOUND_MANIFEST[idx]["status"] = "generated"
+                SOUND_MANIFEST[idx]["generated_at"] = timestamp
+                print(f"    [Silence placeholder] OK")
+            except Exception as e:
+                # Handle worker failure - mark manifest entry as failed
+                error_msg = f"{type(e).__name__}: {str(e)}"
+                SOUND_MANIFEST[idx]["status"] = "failed"
+                SOUND_MANIFEST[idx]["error"] = error_msg
+                SOUND_MANIFEST[idx]["generated_at"] = timestamp
+                print(f"    [ERROR] {SOUND_MANIFEST[idx]['wav']}: {error_msg}")
 
         generated = [f for f in results if f is not None]
 

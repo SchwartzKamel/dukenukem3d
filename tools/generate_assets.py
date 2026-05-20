@@ -1707,6 +1707,47 @@ def generate_audio_assets(user_con_path):
     return audio
 
 
+def _validate_texture_dimensions():
+    """Validate that TEXTURE_DEFS and SPRITE_DEFS have valid dimensions.
+    
+    Checks:
+    - Width and height are positive integers
+    - Dimensions are within reasonable bounds (max 256x256)
+    - Raises ValueError at config-load time if invalid
+    """
+    # Validate TEXTURE_DEFS
+    for tile_num, width, height, desc, prompt in TEXTURE_DEFS:
+        if not isinstance(width, int) or not isinstance(height, int):
+            raise ValueError(
+                f"Tile {tile_num} ({desc}): width and height must be integers, "
+                f"got {type(width).__name__} and {type(height).__name__}"
+            )
+        if width <= 0 or height <= 0:
+            raise ValueError(
+                f"Tile {tile_num} ({desc}): dimensions must be positive, got {width}x{height}"
+            )
+        if width > 256 or height > 256:
+            raise ValueError(
+                f"Tile {tile_num} ({desc}): dimensions exceed max bounds (256x256), got {width}x{height}"
+            )
+    
+    # Validate SPRITE_DEFS
+    for tile_num, width, height, desc in SPRITE_DEFS:
+        if not isinstance(width, int) or not isinstance(height, int):
+            raise ValueError(
+                f"Tile {tile_num} ({desc}): width and height must be integers, "
+                f"got {type(width).__name__} and {type(height).__name__}"
+            )
+        if width <= 0 or height <= 0:
+            raise ValueError(
+                f"Tile {tile_num} ({desc}): dimensions must be positive, got {width}x{height}"
+            )
+        if width > 256 or height > 256:
+            raise ValueError(
+                f"Tile {tile_num} ({desc}): dimensions exceed max bounds (256x256), got {width}x{height}"
+            )
+
+
 # ---------------------------------------------------------------------------
 # Main pipeline
 # ---------------------------------------------------------------------------
@@ -1718,6 +1759,9 @@ def main():
     parser.add_argument("--output", type=str, default=None,
                         help="Output directory for generated assets (default: PROJECT_ROOT/generated_assets)")
     args = parser.parse_args()
+
+    # Validate texture dimensions early (config-load time, not deep in generation)
+    _validate_texture_dimensions()
 
     env = load_env(ENV_FILE)
     flux_endpoint = env.get("FLUX_ENDPOINT", "")

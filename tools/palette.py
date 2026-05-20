@@ -37,8 +37,6 @@ def build_palette():
         pal[1 + i] = (v, v, v)
 
     # 32-47: red ramp
-    for c in _ramp((32, 0, 0), (255, 64, 64), 16):
-        pal[32 + _ramp((32, 0, 0), (255, 64, 64), 16).index(c)] = c
     ramp = _ramp((32, 0, 0), (255, 64, 64), 16)
     for i, c in enumerate(ramp):
         pal[32 + i] = c
@@ -175,7 +173,23 @@ def create_palette_dat(palette_rgb=None):
 
 
 def _nearest_color(r, g, b, palette):
-    """Find the nearest palette index for an RGB colour (0-255 range)."""
+    """Find the nearest palette index for an RGB colour (0-255 range).
+    
+    Args:
+        r: Red component (0-255)
+        g: Green component (0-255)
+        b: Blue component (0-255)
+        palette: List of 256 (r,g,b) tuples
+    
+    Returns:
+        Nearest palette index (0-255)
+    
+    Raises:
+        ValueError: If any RGB component is out of range [0, 255]
+    """
+    if not (0 <= r <= 255 and 0 <= g <= 255 and 0 <= b <= 255):
+        raise ValueError(f"RGB values must be in range [0, 255], got R={r}, G={g}, B={b}")
+    
     best = 0
     best_dist = float("inf")
     for idx in range(256):
