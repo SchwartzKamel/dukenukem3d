@@ -387,7 +387,8 @@ class TestSoundManifestValidation:
     def test_voice_lines_have_manifest_entries(self, generated_audio_artifacts):
         """Every VOICE_LINES entry must have a corresponding MANIFEST entry with valid WAV."""
         manifest = generated_audio_artifacts["manifest"]
-        manifest_filenames = {entry.get("wav") for entry in manifest}
+        entries = manifest.get("entries", []) if isinstance(manifest, dict) else manifest
+        manifest_filenames = {entry.get("wav") for entry in entries}
         
         for i, (filename, prompt, voice) in enumerate(generate_audio.VOICE_LINES):
             assert filename in manifest_filenames, \
@@ -395,7 +396,7 @@ class TestSoundManifestValidation:
             
             # Find the manifest entry for this file
             manifest_entry = next(
-                (entry for entry in manifest if entry.get("wav") == filename),
+                (entry for entry in entries if entry.get("wav") == filename),
                 None
             )
             assert manifest_entry is not None, f"Could not find manifest entry for {filename}"
@@ -407,9 +408,10 @@ class TestSoundManifestValidation:
         import wave
         
         manifest = generated_audio_artifacts["manifest"]
+        entries = manifest.get("entries", []) if isinstance(manifest, dict) else manifest
         sounds_dir = generated_audio_artifacts["sounds_dir"]
         
-        for i, entry in enumerate(manifest):
+        for i, entry in enumerate(entries):
             wav_filename = entry.get("wav")
             wav_path = sounds_dir / wav_filename
             
@@ -593,8 +595,9 @@ class TestAsyncTimeoutRegression:
     def test_manifest_fields_in_generated_artifacts(self, generated_audio_artifacts):
         """Verify manifest has status and generated_at fields."""
         manifest = generated_audio_artifacts["manifest"]
+        entries = manifest.get("entries", []) if isinstance(manifest, dict) else manifest
         
-        for i, entry in enumerate(manifest):
+        for i, entry in enumerate(entries):
             assert "status" in entry, f"Entry {i}: missing 'status' field"
             assert entry["status"] in ["generated", "fallback", "failed"]
             assert "generated_at" in entry, f"Entry {i}: missing 'generated_at' field"
@@ -616,6 +619,7 @@ class TestAsyncTimeoutRegression:
         with open(manifest_path) as f:
             manifest = json.load(f)
         
-        for entry in manifest:
+        entries = manifest.get("entries", []) if isinstance(manifest, dict) else manifest
+        for entry in entries:
             assert "status" in entry, f"Missing status in {entry.get('wav')}"
             assert "generated_at" in entry, f"Missing generated_at in {entry.get('wav')}"

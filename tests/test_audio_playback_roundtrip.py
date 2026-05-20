@@ -383,11 +383,21 @@ class TestAssetPipelineIntegration:
         with open(manifest_path) as f:
             file_manifest = json.load(f)
         
-        assert len(file_manifest) == len(generate_audio.SOUND_MANIFEST), \
-            f"File manifest ({len(file_manifest)}) != constant manifest ({len(generate_audio.SOUND_MANIFEST)})"
+        # Manifest is now a dict with schema_version and entries
+        assert isinstance(file_manifest, dict), \
+            f"File manifest should be a dict, got {type(file_manifest).__name__}"
+        
+        assert "schema_version" in file_manifest, \
+            "File manifest missing 'schema_version' key"
+        assert file_manifest["schema_version"] == "1.0", \
+            f"Expected schema_version '1.0', got '{file_manifest['schema_version']}'"
+        
+        entries = file_manifest.get("entries", [])
+        assert len(entries) == len(generate_audio.SOUND_MANIFEST), \
+            f"File manifest entries ({len(entries)}) != constant manifest ({len(generate_audio.SOUND_MANIFEST)})"
         
         # Check a few entries match
-        for entry, file_entry in zip(generate_audio.SOUND_MANIFEST, file_manifest):
+        for entry, file_entry in zip(generate_audio.SOUND_MANIFEST, entries):
             assert entry["wav"] == file_entry["wav"], \
                 f"WAV mismatch: {entry['wav']} != {file_entry['wav']}"
             assert entry["voice"] == file_entry["voice"], \

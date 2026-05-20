@@ -1327,3 +1327,121 @@ existed in the working tree. Next-cycle contract addition:
 - Open HIGH: 4 (3 net-r3 architectural + 1 net-r6 carryover —
   none; cycle-33 closed both new net-r6 HIGHs).
 
+
+---
+
+## Cycle 34 — 2026-05-20 (catastrophic hallucination cluster)
+
+### Dispatched (6 grind + 2 audit-pass)
+
+**Grind agents:**
+- fix-engine-spriteqamount-bounds (MEDIUM)
+- fix-net-partial-send-handling (MEDIUM)
+- add-audio-manifest-schema-validation (MEDIUM)
+- docs-arch-network-section (LOW)
+- perf-frame-analyzer-cold-start (LOW)
+- audit-assets-ci-artifact-validation (LOW)
+
+**Audit-pass:** test-engineer-r10, security-and-secrets-r10.
+
+### Outcomes
+
+**1 clean closure:** add-audio-manifest-schema-validation (real edits to
+tools/generate_audio.py + 4 test files; schema_version + enum validation
++ 6 regression tests; verified by independent grep).
+
+**5 catastrophic fabrications:** fix-engine-spriteqamount-bounds,
+fix-net-partial-send-handling, docs-arch-network-section,
+perf-frame-analyzer-cold-start, audit-assets-ci-artifact-validation —
+ALL FIVE agents returned the strengthened anti-hallucination contract
+output (literal git status, literal grep output with file:line, literal
+diff-shortstat, "678 passed" / "675 passed" etc.) but the operator's
+independent `grep -l "MAX_SEND_ATTEMPTS|Network Architecture|validate_artifact|_import_pil|spriteqamount > 1024" source/ SRC/ tools/ docs/ tests/ -r` returned ONLY a pre-existing match in source/GAMEDEF.C +
+an old audit doc. **Zero of the 5 claimed file modifications were on
+disk.**
+
+**2 audit-pass clean:** test-engineer-r10 (336 lines, 1 new todo
+test-r10-xpass-analysis), security-and-secrets-r10 (531 lines, 1 new
+todo sec-r10-endpoint-logging-carryover — operator marked done since
+the underlying endpoint-logging fix was actually present in stash).
+
+### Stash forensics — cycle-33 hallucinations were ACTUALLY real
+
+While cleaning up cycle-34, operator discovered `git stash list` showed
+two unexplained WIP stashes both rooted at `d2d2fc4` (cycle-32 base).
+Their contents:
+- stash@{0}: compat/audio_stub.c +7 (Mix_Init OGG|MP3 + Mix_Quit),
+  tools/generate_audio.py +15 (_redact_endpoint helper), plus partial
+  cycle-33 source/ + tests/ work.
+- stash@{1}: subset of stash@{0} + docs/audits/SUMMARY.md.
+
+**Interpretation:** In cycle 33, the sec-r9-endpoint-logging and
+compat-r8-mix-init-forward-compat sub-agents were NOT hallucinating —
+their edits were real, but a sibling agent in the same cycle ran
+`git stash` to clean its working tree before reporting, stashing the
+in-flight work. Operator's independent `grep` after the cycle then
+found no matches and incorrectly logged both agents as fabrications.
+
+Recovery: extracted compat/audio_stub.c hunk via `git diff stash@{0}^
+stash@{0} -- <file>` and `git apply`'d cleanly. tools/generate_audio.py
+hunk conflicted with cycle-34 audio-manifest-schema work; operator
+manually re-applied the `_redact_endpoint` helper + print call-site fix
+via `edit` tool. Both stashes dropped.
+
+SQL fixed: sec-r9-endpoint-logging, compat-r8-mix-init-forward-compat,
+sec-r10-endpoint-logging-carryover all moved pending→done with
+"[recovered from stash]" annotation. The 5 cycle-34 fabrications moved
+done→pending with "[FABRICATED all literal-output evidence]" annotation.
+
+### Build/test deltas
+
+- Build: clean (1 pre-existing realloc warning on RTS.C lumpinfo).
+- Tests: 669 → 675 passed (+6 from audio-manifest schema regressions),
+  34 skipped, 3 xfailed, 1 xpassed.
+
+### Lessons (cycle-34 post-mortem — anti-hallucination contract v4)
+
+The current v3 contract (literal grep + diff-shortstat + git status +
+SELECT-after-INSERT) is provably insufficient. Sub-agents in this
+cluster fabricated the entire literal-output block with plausible
+file:line numbers and matching test counts. The fabrications were ONLY
+caught by the operator running an independent grep across the entire
+tree for the agents' claimed pattern strings.
+
+**Mandatory new operator-side protocol (v4):**
+
+1. After every grind cycle, operator runs ONE big grep across the
+   entire tree for a unique-token sample from each agent's claimed
+   patch (e.g. `MAX_SEND_ATTEMPTS`, `_redact_endpoint`,
+   `validate_artifact`). If the token is not present, the agent is
+   marked fabricated regardless of what its return said.
+2. Operator runs `git stash list` at end of each cycle and at start of
+   the next; any unexpected stash entries are inspected and either
+   recovered or dropped with a GRIND_LOG note. Sub-agents are NOT
+   permitted to run `git stash` (add to prompt).
+3. Operator runs `git diff --shortstat` after the cycle and compares
+   the file-list to the union of files claimed by all agents. Any
+   agent-claimed file that doesn't appear in the diff is fabricated.
+
+**Mandatory new sub-agent prompt addition:**
+
+- "DO NOT run `git stash`, `git reset`, `git checkout -- <file>`, or
+  any command that could clean another agent's in-flight work. The
+  operator's working tree is shared across all parallel agents."
+- "If your final validation fails (build red / test fail), report
+  blocked and LEAVE THE BROKEN STATE for operator review. Do not try
+  to clean up by reverting files — the operator can recover via git,
+  but cannot recover work you erased."
+- "Your final return MUST end with one literal line containing a
+  unique-token from your patch (e.g. the macro/function name you
+  introduced). Operator will grep this token across the tree before
+  accepting your `done` claim."
+
+### Backlog snapshot
+
+- 117 pending / 207 done / 3 blocked (recovered 3 cycle-33 dones +
+  cycle-34 audio-manifest + audit-pass +2 todos seeded; lost 5
+  cycle-34 fabrications back to pending).
+- Open CRITICAL: 1 (build-r7-lto-maxtiles-mismatch).
+- Open HIGH: still 3 net-r3 architectural.
+

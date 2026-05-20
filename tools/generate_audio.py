@@ -21,6 +21,19 @@ OUTPUT_DIR = os.path.join(PROJECT_ROOT, "generated_assets", "sounds")
 ENV_FILE = os.path.join(PROJECT_ROOT, ".env")
 
 
+def _redact_endpoint(url: str) -> str:
+    """Redact sensitive endpoint URL for logging.
+
+    Returns a redacted form showing only first 20 and last 10 characters
+    to avoid exposing the full endpoint in logs/error messages.
+    """
+    if not url:
+        return "<redacted>"
+    if len(url) <= 30:
+        return "<redacted>"
+    return f"{url[:20]}...{url[-10:]}"
+
+
 def _atomic_write_bytes(path: str, data: bytes) -> None:
     """Write bytes to a file atomically using tmp+rename pattern.
     
@@ -100,6 +113,82 @@ def load_env(path):
                 key, val = line.split("=", 1)
                 env[key.strip()] = val.strip()
     return env
+
+
+def validate_manifest(manifest_data, source_path):
+    """Validate manifest structure, schema version, and enum fields.
+    
+    Args:
+        manifest_data: Dict with schema_version and entries keys
+        source_path: Path to manifest file (for error messages)
+    
+    Raises:
+        ValueError: If schema_version doesn't match or validation fails
+    """
+    if not isinstance(manifest_data, dict):
+        raise ValueError(f"{source_path}: Manifest must be a dict, got {type(manifest_data).__name__}")
+    
+    schema_version = manifest_data.get("schema_version")
+    if schema_version != "1.0":
+        raise ValueError(
+            f"{source_path}: Unsupported schema_version '{schema_version}' "
+            f"(expected '1.0')"
+        )
+    
+    entries = manifest_data.get("entries")
+    if not isinstance(entries, list):
+        raise ValueError(
+            f"{source_path}: 'entries' must be a list, got {type(entries).__name__}"
+        )
+    
+    valid_voices = {"alloy", "echo", "onyx"}
+    valid_categories = {"taunt", "pain", "death", "pickup", "weapon", "level_start", "alarm", "ambient"}
+    valid_statuses = {"generated", "failed", "fallback"}
+    
+    for i, entry in enumerate(entries):
+        if not isinstance(entry, dict):
+            raise ValueError(f"{source_path}: entries[{i}] must be a dict, got {type(entry).__name__}")
+        
+        voice = entry.get("voice")
+        if voice not in valid_voices:
+            raise ValueError(
+                f"{source_path}: entries[{i}] voice '{voice}' not in {valid_voices}"
+            )
+        
+        category = entry.get("category")
+        if category not in valid_categories:
+            raise ValueError(
+                f"{source_path}: entries[{i}] category '{category}' not in {valid_categories}"
+            )
+        
+        status = entry.get("status")
+        if status not in valid_statuses:
+            raise ValueError(
+                f"{source_path}: entries[{i}] status '{status}' not in {valid_statuses}"
+            )
+
+
+def load_manifest(manifest_path):
+    """Load and validate a manifest file.
+    
+    Args:
+        manifest_path: Path to manifest JSON file
+    
+    Returns:
+        Validated manifest dict
+    
+    Raises:
+        ValueError: If validation fails
+        IOError: If file cannot be read
+    """
+    if not os.path.exists(manifest_path):
+        raise IOError(f"Manifest file not found: {manifest_path}")
+    
+    with open(manifest_path) as f:
+        data = json.load(f)
+    
+    validate_manifest(data, manifest_path)
+    return data
 
 
 def generate_silence_wav(duration_sec, sample_rate=22050, bits=16):
@@ -226,7 +315,7 @@ def main():
 
     print("=== Generating Audio Assets ===")
     if use_ai:
-        print(f"  Using: {model} at {endpoint[:50]}...")
+        print(f"  Using: {model} at {_redact_endpoint(endpoint)}")
         print(f"  Max concurrent requests: {args.concurrency}")
     else:
         print(f"  Mode: placeholder silence (set AUDIO_* in .env for AI generation)")
@@ -247,13 +336,19 @@ def main():
     elapsed = time.time() - start_time
 
     # Write manifest (sorted for determinism)
+    # Wrap SOUND_MANIFEST with schema_version for validation
+    manifest_to_write = {
+        "schema_version": "1.0",
+        "entries": SOUND_MANIFEST
+    }
+    
     manifest_path = os.path.join(OUTPUT_DIR, "MANIFEST.json")
     try:
         # Write to a temp file first then rename so a partial write never
         # corrupts an existing manifest (audit-audio-manifest-write-error).
         tmp_path = manifest_path + ".tmp"
         with open(tmp_path, "w") as f:
-            json.dump(SOUND_MANIFEST, f, indent=2, sort_keys=True)
+            json.dump(manifest_to_write, f, indent=2, sort_keys=True)
         os.replace(tmp_path, manifest_path)
         print(f"\n=== Manifest written to {manifest_path} ===")
     except OSError as exc:

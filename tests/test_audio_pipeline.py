@@ -3,6 +3,7 @@
 Covers VOICE_LINES schema, voice-mapping conventions, WAV generation without API,
 and secret leak prevention.
 """
+import json
 import os
 import re
 import struct
@@ -381,3 +382,171 @@ class TestAudioStubRWopsResourceLeaks:
             # Verify SDL_FreeRW appears in the function (indicating error handling)
             assert "SDL_FreeRW" in func_code, \
                 f"Line {line_num}: SDL_RWFromConstMem found but no SDL_FreeRW in function context"
+
+
+class TestManifestSchemaValidation:
+    """Test manifest schema versioning and enum validation."""
+    
+    def test_manifest_schema_version_present_in_file(self):
+        """Manifest file must have schema_version: '1.0' at top level."""
+        manifest_path = os.path.join(PROJECT_ROOT, "generated_assets", "sounds", "MANIFEST.json")
+        
+        if not os.path.exists(manifest_path):
+            pytest.skip("MANIFEST.json not generated (run with --no-ai to generate)")
+        
+        with open(manifest_path) as f:
+            data = json.load(f)
+        
+        assert isinstance(data, dict), \
+            f"Expected manifest to be dict, got {type(data).__name__}"
+        assert "schema_version" in data, \
+            "Manifest missing schema_version field"
+        assert data["schema_version"] == "1.0", \
+            f"Expected schema_version '1.0', got '{data.get('schema_version')}'"
+    
+    def test_manifest_loader_rejects_unknown_schema_version(self):
+        """load_manifest() must reject unknown schema_version values."""
+        import tempfile
+        
+        bad_manifest = {
+            "schema_version": "2.0",
+            "entries": [{"wav": "TEST01.WAV", "voice": "alloy", "category": "taunt", "status": "generated", "generated_at": "2025-01-01T00:00:00Z"}]
+        }
+        
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+            json.dump(bad_manifest, f)
+            temp_path = f.name
+        
+        try:
+            with pytest.raises(ValueError) as exc_info:
+                generate_audio.load_manifest(temp_path)
+            
+            assert "schema_version" in str(exc_info.value).lower(), \
+                f"Error message should mention schema_version: {exc_info.value}"
+            assert "1.0" in str(exc_info.value), \
+                f"Error message should mention expected version 1.0: {exc_info.value}"
+        finally:
+            os.remove(temp_path)
+    
+    def test_manifest_loader_validates_enum_fields(self):
+        """load_manifest() must validate categorical fields (voice, category, status)."""
+        import tempfile
+        
+        bad_manifest = {
+            "schema_version": "1.0",
+            "entries": [
+                {
+                    "wav": "INVALID.WAV",
+                    "voice": "invalid_voice",
+                    "category": "taunt",
+                    "status": "generated",
+                    "generated_at": "2025-01-01T00:00:00Z"
+                }
+            ]
+        }
+        
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+            json.dump(bad_manifest, f)
+            temp_path = f.name
+        
+        try:
+            with pytest.raises(ValueError) as exc_info:
+                generate_audio.load_manifest(temp_path)
+            
+            assert "voice" in str(exc_info.value).lower(), \
+                f"Error should mention voice validation: {exc_info.value}"
+        finally:
+            os.remove(temp_path)
+    
+    def test_manifest_loader_validates_category_enum(self):
+        """load_manifest() must validate category field against allowed values."""
+        import tempfile
+        
+        bad_manifest = {
+            "schema_version": "1.0",
+            "entries": [
+                {
+                    "wav": "INVALID.WAV",
+                    "voice": "alloy",
+                    "category": "invalid_category",
+                    "status": "generated",
+                    "generated_at": "2025-01-01T00:00:00Z"
+                }
+            ]
+        }
+        
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+            json.dump(bad_manifest, f)
+            temp_path = f.name
+        
+        try:
+            with pytest.raises(ValueError) as exc_info:
+                generate_audio.load_manifest(temp_path)
+            
+            assert "category" in str(exc_info.value).lower(), \
+                f"Error should mention category validation: {exc_info.value}"
+        finally:
+            os.remove(temp_path)
+    
+    def test_manifest_loader_validates_status_enum(self):
+        """load_manifest() must validate status field against allowed values."""
+        import tempfile
+        
+        bad_manifest = {
+            "schema_version": "1.0",
+            "entries": [
+                {
+                    "wav": "INVALID.WAV",
+                    "voice": "alloy",
+                    "category": "taunt",
+                    "status": "invalid_status",
+                    "generated_at": "2025-01-01T00:00:00Z"
+                }
+            ]
+        }
+        
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+            json.dump(bad_manifest, f)
+            temp_path = f.name
+        
+        try:
+            with pytest.raises(ValueError) as exc_info:
+                generate_audio.load_manifest(temp_path)
+            
+            assert "status" in str(exc_info.value).lower(), \
+                f"Error should mention status validation: {exc_info.value}"
+        finally:
+            os.remove(temp_path)
+    
+    def test_manifest_loader_accepts_valid_manifest(self):
+        """load_manifest() must accept valid manifests with correct schema_version and enums."""
+        import tempfile
+        
+        valid_manifest = {
+            "schema_version": "1.0",
+            "entries": [
+                {
+                    "wav": "TAUNT01.WAV",
+                    "voice": "alloy",
+                    "category": "taunt",
+                    "status": "generated",
+                    "generated_at": "2025-01-01T00:00:00Z",
+                    "engine_sound_id": None,
+                    "engine_sound_id_int": None,
+                    "prompt_summary": "test taunt",
+                    "notes": "test notes"
+                }
+            ]
+        }
+        
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+            json.dump(valid_manifest, f)
+            temp_path = f.name
+        
+        try:
+            loaded = generate_audio.load_manifest(temp_path)
+            assert loaded["schema_version"] == "1.0"
+            assert len(loaded["entries"]) == 1
+            assert loaded["entries"][0]["wav"] == "TAUNT01.WAV"
+        finally:
+            os.remove(temp_path)

@@ -188,13 +188,17 @@ class TestManifestFileGeneration:
             f"MANIFEST.json not found at {manifest_path}. Run: python3 tools/generate_audio.py --no-ai"
 
     def test_manifest_file_valid_json(self):
-        """MANIFEST.json must be valid JSON."""
+        """MANIFEST.json must be valid JSON with schema_version."""
         manifest_path = os.path.join(PROJECT_ROOT, "generated_assets", "sounds", "MANIFEST.json")
         try:
             with open(manifest_path) as f:
                 data = json.load(f)
-            assert isinstance(data, list), f"MANIFEST.json root must be an array, got {type(data)}"
-            assert len(data) == 21, f"MANIFEST.json array must have 21 entries, got {len(data)}"
+            assert isinstance(data, dict), f"MANIFEST.json root must be a dict, got {type(data)}"
+            assert "schema_version" in data, "MANIFEST.json missing schema_version field"
+            assert data["schema_version"] == "1.0", f"Expected schema_version 1.0, got {data['schema_version']}"
+            assert "entries" in data, "MANIFEST.json missing entries field"
+            assert isinstance(data["entries"], list), f"entries must be a list, got {type(data['entries'])}"
+            assert len(data["entries"]) == 21, f"MANIFEST.json entries must have 21 items, got {len(data['entries'])}"
         except json.JSONDecodeError as e:
             pytest.fail(f"MANIFEST.json is not valid JSON: {e}")
 
@@ -204,9 +208,12 @@ class TestManifestFileGeneration:
         with open(manifest_path) as f:
             file_manifest = json.load(f)
         
-        # Compare as JSON strings to avoid comparison issues with null/None
-        assert json.dumps(file_manifest, sort_keys=True) == json.dumps(generate_audio.SOUND_MANIFEST, sort_keys=True), \
-            "MANIFEST.json file does not match SOUND_MANIFEST constant in generate_audio.py"
+        # New manifest has entries field
+        entries = file_manifest.get("entries", [])
+        
+        # Compare entries as JSON strings to avoid comparison issues with null/None
+        assert json.dumps(entries, sort_keys=True) == json.dumps(generate_audio.SOUND_MANIFEST, sort_keys=True), \
+            "MANIFEST.json entries do not match SOUND_MANIFEST constant in generate_audio.py"
 
 
 class TestManifestMapping:
@@ -509,9 +516,12 @@ class TestManifestJsonRoundtrip:
         with open(manifest_path, "r") as f:
             original_manifest = json.load(f)
         
+        # Extract entries from the new manifest structure
+        entries = original_manifest.get("entries", [])
+        
         # Extract voice-to-category mapping from original
         original_voice_categories = {}
-        for entry in original_manifest:
+        for entry in entries:
             key = f"{entry['wav']}::{entry['voice']}"
             original_voice_categories[key] = entry["category"]
         
@@ -519,9 +529,12 @@ class TestManifestJsonRoundtrip:
         json_string = json.dumps(original_manifest)
         reloaded_manifest = json.loads(json_string)
         
+        # Extract entries from the reloaded manifest
+        reloaded_entries = reloaded_manifest.get("entries", [])
+        
         # Extract voice-to-category mapping from reloaded
         reloaded_voice_categories = {}
-        for entry in reloaded_manifest:
+        for entry in reloaded_entries:
             key = f"{entry['wav']}::{entry['voice']}"
             reloaded_voice_categories[key] = entry["category"]
         
@@ -540,10 +553,13 @@ class TestManifestSchemaPydantic:
         with open(manifest_path, "r") as f:
             manifest = json.load(f)
         
+        # Extract entries from the new manifest structure
+        entries = manifest.get("entries", [])
+        
         validated_entries = []
         validation_errors = []
         
-        for i, entry_data in enumerate(manifest):
+        for i, entry_data in enumerate(entries):
             try:
                 entry = SoundManifestEntry(**entry_data)
                 validated_entries.append(entry)
@@ -551,5 +567,5 @@ class TestManifestSchemaPydantic:
                 validation_errors.append(f"Entry {i} ({entry_data.get('wav', '?')}): {str(e)}")
         
         assert not validation_errors, f"Pydantic validation errors:\n" + "\n".join(validation_errors)
-        assert len(validated_entries) == len(manifest), \
-            f"Expected {len(manifest)} validated entries, got {len(validated_entries)}"
+        assert len(validated_entries) == len(entries), \
+            f"Expected {len(entries)} validated entries, got {len(validated_entries)}"

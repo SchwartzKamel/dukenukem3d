@@ -358,6 +358,12 @@ int FX_Init(int SoundCard, int numvoices, int numchannels,
         FX_ErrorCode = FX_Error;
         return FX_Error;
     }
+    // Initialize SDL2_mixer format loaders (required for SDL2_mixer 3.0+)
+    int init_flags = Mix_Init(MIX_INIT_OGG | MIX_INIT_MP3);
+    if (!init_flags) {
+        // Mix_Init can fail in minimal builds, but Mix_OpenAudio still works for WAV
+        fprintf(stderr, "Warning: Mix_Init(OGG|MP3) failed, some formats may be unavailable\n");
+    }
     if (Mix_OpenAudio(mixrate ? (int)mixrate : 44100,
                       MIX_DEFAULT_FORMAT,
                       numchannels > 1 ? 2 : 1,
@@ -391,6 +397,7 @@ int FX_Shutdown(void)
             }
         }
         Mix_CloseAudio();
+        Mix_Quit();  // Cleanup format loaders initialized in FX_Init
         mixer_initialized = 0;
     }
 #endif
