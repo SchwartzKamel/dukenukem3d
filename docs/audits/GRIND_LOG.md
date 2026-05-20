@@ -1030,3 +1030,55 @@ return-format contract.
 - The asset-r8 agents successfully coordinated on
   tests/test_generate_assets_validation.py without collision
   (append-only protocol from the prompt held).
+
+## Cycle 29 — 2026-05-20T14:14 UTC (audit-only)
+
+### Audit-pass (2 in parallel, stale-rotation)
+
+- **engine-porter-r9** (last r8 cycle 25, 3 cycles stale): 5 NEW
+  findings on previously under-audited paths.
+  - HIGH `engine-r9-actor-tile-metadata-bounds`
+    (picanm/tilesizx unchecked by sprite.picnum at script-driven
+    sites).
+  - HIGH `engine-r9-sector-switch-chain-depth`
+    (operatesectors() recursion uncapped; CON-script lotag chain
+    can stack-overflow).
+  - HIGH `engine-r9-config-parser-buffer-safety`
+    (strcpy/sprintf on setupfilename[128]/temp[80] with .cfg
+    user input).
+  - HIGH `engine-r9-player-weapon-ammo-bounds`
+    (curr_weapon/ammo/inventory writes from input lack explicit
+    range checks).
+  - MEDIUM `engine-r9-config-key-length-limit` (key parser is
+    unbounded).
+  - **Hallucination caught and corrected:** r9 doc initially
+    claimed allocache + animateoffs fixes were "VERIFIED OPEN"
+    despite landing in cycle 26 commit c1b8dc8. Manually verified
+    via grep (SRC/CACHE1D.C:73 has INT_MAX-15 guard; ENGINE.C has
+    animateoffs clamp), patched the r9 doc to reflect actual
+    state, then seeded the 5 net-new findings manually because
+    the agent skipped its closing INSERT SQL.
+- **audio-engineer-r8** (last r7 cycle 25): 3 new findings
+  (audio-r8-mix-init-forward-compat,
+  audio-r8-manifest-generation-method,
+  audio-r8-async-retry-backoff). All MEDIUM/LOW.
+
+### Backlog snapshot
+
+- 92 pending / 199 done / 3 blocked (was 84 / 199 / 3 at cycle
+  28 close).
+- Open CRITICAL: 1 (`build-r7-lto-maxtiles-mismatch`).
+- 4 new HIGHs from engine-r9 to prioritize in the next grind
+  cycle.
+
+### Lessons
+
+- Anti-hallucination hygiene now extends to **audit-pass
+  agents**, not just grind agents. When an audit agent claims a
+  prior-cycle fix is "still open", operator MUST grep the current
+  source before accepting the claim. The r9 agent appears to have
+  been working from stale context; the underlying findings (new
+  HIGHs) are real but the verification table was wrong.
+- Always run a SQL `SELECT id FROM todos WHERE id LIKE '<prefix>-%'`
+  check after each audit-pass; if zero rows came back but the doc
+  describes N findings, manually INSERT them.
