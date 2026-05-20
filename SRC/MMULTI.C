@@ -195,6 +195,16 @@ static void net_poll_sockets(void)
 			int payload_len = mm_unpack_u16_le(recv_bufs[i].buf + 2);
 			int total_len;
 
+			/* Validate from_player bounds (CRITICAL: from_player is wire-supplied, attacker-controlled) */
+			if (from_player < 0 || from_player >= MAXPLAYERS) {
+				printf("NET: SECURITY: Invalid from_player=%d (out of bounds [0,%d)). Dropping packet.\n",
+					from_player, MAXPLAYERS);
+				recv_bufs[i].len -= NET_HEADER_SIZE;
+				if (recv_bufs[i].len > 0)
+					memmove(recv_bufs[i].buf, recv_bufs[i].buf + NET_HEADER_SIZE, recv_bufs[i].len);
+				continue;
+			}
+
 			/* Validate bounds before relay-forwarding */
 			if (payload_len <= 0 || payload_len > MAXPACKETSIZE - NET_HEADER_SIZE) {
 				recv_bufs[i].len = 0;
@@ -588,6 +598,13 @@ sendpacket(int32_t other, char *bufptr, int32_t messleng)
 	if (numplayers < 2 || !net_initialized) return;
 	if (other == myconnectindex) return;
 	if (messleng <= 0 || messleng > MAXPACKETSIZE) return;
+
+	/* Validate other is in bounds (CRITICAL: other used as array index for player_sockets) */
+	if (other < 0 || other >= MAXPLAYERS) {
+		printf("NET: SECURITY: Invalid other=%d (out of bounds [0,%d)). Dropping packet.\n",
+			other, MAXPLAYERS);
+		return;
+	}
 
 	header[0] = (unsigned char)(myconnectindex & 0xFF);
 	header[1] = (unsigned char)(other & 0xFF);
