@@ -109,6 +109,7 @@ $(BUILD_DIR):
 $(TARGET): $(BUILD_DIR) $(ALL_OBJS)
 	$(CC) $(LTO_FLAGS) $(ALL_OBJS) -o $@ $(LIBS)
 	@chmod +x $@
+	@if [ "$(BUILD_TYPE)" = "release" ]; then strip -s $@; fi
 	@echo "Build complete: $(TARGET) ($(BUILD_TYPE))"
 
 # Engine objects - compile with ENGINE defined, force C mode
@@ -139,6 +140,7 @@ $(WIN_BUILD_DIR):
 
 $(WIN_TARGET): $(WIN_BUILD_DIR) $(WIN_ALL_OBJS)
 	$(WIN_CC) $(LTO_FLAGS) $(WIN_ALL_OBJS) -o $@ $(WIN_LIBS)
+	@if [ "$(BUILD_TYPE)" = "release" ]; then i686-w64-mingw32-strip -s $@ 2>/dev/null || true; fi
 	@echo "Build complete: $(WIN_TARGET) ($(BUILD_TYPE))"
 
 $(WIN_BUILD_DIR)/engine_ENGINE.o: SRC/ENGINE.C | $(WIN_BUILD_DIR)

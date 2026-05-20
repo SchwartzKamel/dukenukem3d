@@ -82,6 +82,10 @@ else()
     # Fast math for engine rendering (fixed-point safe)
     set_source_files_properties(SRC/ENGINE.C
         PROPERTIES COMPILE_FLAGS "-std=gnu89 -w -x c -ffast-math")
+    # Strip symbols in release builds (Unix/Linux)
+    if(CMAKE_BUILD_TYPE STREQUAL "Release")
+        target_link_options(duke3d PRIVATE -s)
+    endif()
 endif()
 
 # ENGINE.C needs the ENGINE define
@@ -109,4 +113,22 @@ elseif(UNIX)
 endif()
 
 # Install
-install(TARGETS duke3d RUNTIME DESTINATION bin)
+include(GNUInstallDirs)
+install(TARGETS duke3d RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+
+# Install DUKE3D.GRP if it exists
+if(EXISTS "${CMAKE_SOURCE_DIR}/DUKE3D.GRP")
+    install(FILES "${CMAKE_SOURCE_DIR}/DUKE3D.GRP"
+            DESTINATION ${CMAKE_INSTALL_DATADIR}/duke3d)
+endif()
+
+# Install generated_assets/ if it exists
+if(EXISTS "${CMAKE_SOURCE_DIR}/generated_assets")
+    install(DIRECTORY "${CMAKE_SOURCE_DIR}/generated_assets"
+            DESTINATION ${CMAKE_INSTALL_DATADIR}/duke3d
+            FILES_MATCHING
+            PATTERN "*.VOC"
+            PATTERN "*.WAV"
+            PATTERN "*.ART"
+            PATTERN "*.MAP")
+endif()

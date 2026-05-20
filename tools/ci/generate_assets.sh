@@ -2,7 +2,8 @@
 # Shared asset generation script for CI workflows (Linux and Windows targets)
 # Usage: bash tools/ci/generate_assets.sh [--ai]
 
-set -e
+set -euo pipefail
+trap 'echo "Error on line $LINENO"; exit 1' ERR
 
 FLUX_ENDPOINT="${FLUX_ENDPOINT:-}"
 FLUX_API_KEY="${FLUX_API_KEY:-}"
@@ -35,4 +36,10 @@ else
   python3 tools/generate_assets.py --no-ai
 fi
 
-echo "📦 GRP size: $(stat -c%s DUKE3D.GRP) bytes"
+# Get GRP file size using portable method (works on Linux and macOS)
+if [ -f DUKE3D.GRP ]; then
+  GRP_SIZE=$(wc -c < DUKE3D.GRP)
+  echo "📦 GRP size: $GRP_SIZE bytes"
+else
+  echo "⚠️  DUKE3D.GRP not found"
+fi
