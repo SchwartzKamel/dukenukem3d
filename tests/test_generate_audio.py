@@ -556,3 +556,66 @@ class TestNoSecretLeak:
         unsafe_pattern = r'os\.environ\s*\[\s*["\'](?:AUDIO_API_KEY|AUDIO_ENDPOINT)'
         assert not re.search(unsafe_pattern, content), \
             "Found unsafe os.environ[\"KEY\"] access without .get()"
+
+
+class TestAsyncTimeoutRegression:
+    """Regression tests for audio-engineer-r3 findings (semaphore timeout + manifest sync)."""
+
+    @pytest.mark.slow
+    def test_async_main_accepts_timeout_parameter(self):
+        """Verify that _generate_audio_async_main accepts acquire_timeout_sec parameter.
+        
+        Regression test for Issue #1 in audio-engineer-r3:
+        The --acquire-timeout-sec parameter was parsed but not wired to the async function.
+        """
+        import inspect
+        
+        sys.path.insert(0, os.path.join(PROJECT_ROOT, "tools"))
+        import generate_audio
+        
+        sig = inspect.signature(generate_audio._generate_audio_async_main)
+        assert "acquire_timeout_sec" in sig.parameters, \
+            "_generate_audio_async_main must accept acquire_timeout_sec parameter"
+        assert sig.parameters["acquire_timeout_sec"].default == 30.0
+
+    @pytest.mark.slow
+    def test_async_parallel_api_passes_timeout(self):
+        """Verify that _generate_audio_parallel_api passes timeout to async main."""
+        import inspect
+        
+        sys.path.insert(0, os.path.join(PROJECT_ROOT, "tools"))
+        import generate_audio
+        
+        sig = inspect.signature(generate_audio._generate_audio_parallel_api)
+        assert "acquire_timeout_sec" in sig.parameters, \
+            "_generate_audio_parallel_api must accept acquire_timeout_sec parameter"
+
+    def test_manifest_fields_in_generated_artifacts(self, generated_audio_artifacts):
+        """Verify manifest has status and generated_at fields."""
+        manifest = generated_audio_artifacts["manifest"]
+        
+        for i, entry in enumerate(manifest):
+            assert "status" in entry, f"Entry {i}: missing 'status' field"
+            assert entry["status"] in ["generated", "fallback", "failed"]
+            assert "generated_at" in entry, f"Entry {i}: missing 'generated_at' field"
+
+    @pytest.mark.slow
+    def test_no_ai_manifest_consistency(self):
+        """Verify --no-ai path properly updates manifest."""
+        result = subprocess.run(
+            [sys.executable, os.path.join(PROJECT_ROOT, "tools", "generate_audio.py"), "--no-ai"],
+            cwd=PROJECT_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+        
+        assert result.returncode == 0, f"--no-ai failed: {result.stderr}"
+        
+        manifest_path = os.path.join(PROJECT_ROOT, "generated_assets", "sounds", "MANIFEST.json")
+        with open(manifest_path) as f:
+            manifest = json.load(f)
+        
+        for entry in manifest:
+            assert "status" in entry, f"Missing status in {entry.get('wav')}"
+            assert "generated_at" in entry, f"Missing generated_at in {entry.get('wav')}"
