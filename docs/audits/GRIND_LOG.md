@@ -774,3 +774,73 @@ re-dispatch returned both correctly and the work landed.
   validation; left as pending todo for operator decision.
 - `build-r7-makefile-race-condition` and `build-r7-windows-arch-mismatch`
   similarly held back — Makefile/CI changes warrant operator review.
+
+## Cycle 23 + 24 — 2026-05-20T12:50 UTC and 13:10 UTC
+
+### Cycle 23 audit-pass (2 sub-agents, lean rotation)
+
+- test-engineer-r7 — 92 new tests verified across cycles 17-22.
+  Coverage gap identified: 5 cycle 19-22 engine fixes had no
+  regression tests. 3 todos seeded
+  (`test-r7-engine-bounds-regressions` HIGH,
+  `test-r7-build-h-constant-consistency` MEDIUM,
+  `test-r7-palette-test-slow-marking` LOW).
+- documentation-curator-r7 — refreshed CHANGELOG counts
+  (602 -> 610), extended ARCHITECTURE 'Recent Hardening' through
+  cycle 22 (+134 lines), codified the cycle-22 anti-hallucination
+  return-format rule in CONTRIBUTING. 0 new todos. **Direct
+  edits**, no human handoff required.
+
+### Cycle 24 audit-pass (1 sub-agent, lean)
+
+- performance-profiler-r7 — verified cycle 18/20/22 perf wins
+  still intact. 2 todos seeded
+  (`perf-r7-inline-animateoffs` MEDIUM,
+  `perf-r7-procedural-numpy-vectorization` LOW).
+
+### Cycle 24 grind (6 sub-agents, all closed cleanly)
+
+All on disjoint files; zero collisions, zero hallucinations.
+
+- `net-r4-sound-id-bounds` (MEDIUM) — source/GAME.C case 7
+  validates `packbuf[1]` against new MAX_RTS_SOUNDS (256)
+  defined in source/RTS.H.
+- `compat-r6-size-cast` (MEDIUM) + `audio-r6-midi-header-validation`
+  (MEDIUM) — batched into one agent because both touch
+  compat/audio_stub.c. Added 3 explicit (size_t) casts and
+  validated SMF header_len + num_tracks before track enumeration.
+- `asset-r7-audio-atomic-writes` (MEDIUM) — tools/generate_audio.py
+  mirrors generate_assets.py's _atomic_write_bytes pattern;
+  2 WAV write sites converted.
+- `test-r7-engine-bounds-regressions` (HIGH) — +14 static-analysis
+  tests across 5 classes locking in cycles 19-22 fixes.
+- `test-r7-build-h-constant-consistency` (MEDIUM) — new
+  test_build_h_consistency.py. MAXSECTORS/MAXWALLS/MAXSPRITES
+  match across both headers; MAXTILES `@xfail(strict=False)` until
+  `build-r7-lto-maxtiles-mismatch` is unified.
+- `test-r7-palette-test-slow-marking` (LOW) — added
+  @pytest.mark.slow to the 3.67s palette test.
+
+### Validation
+
+- Build: clean (duke3d 654 KB release; the 0-byte/race regressions
+  from cycle 20 didn't recur — wider non-overlap discipline + the
+  `make -j$(nproc)` retry pattern held).
+- Tests: 610 -> 626 default + 1 xfailed (build-h MAXTILES); 657
+  with --runslow.
+- Persistence-regression streak: **44+ consecutive parallel
+  sub-agents** since the absolute-rule prompt landed.
+
+### Lessons from cycle 24
+
+- The anti-hallucination return-format rule (grep + diff-stat in
+  the agent's return summary) is paying off: 0 hallucinated
+  completions in this 6-agent batch.
+- Batching two same-file todos into one agent
+  (compat-r6-size-cast + audio-r6-midi-header-validation -> single
+  compat-audio-stub-hardening agent) avoids the cross-agent file
+  conflict risk and saves an agent slot.
+- xfail(strict=False) is the right primitive for "we know this
+  fails today and we want CI to record the fact": the
+  build-r7-lto-maxtiles-mismatch test will flip to xpass once the
+  CRITICAL is unified, signaling the cleanup.
