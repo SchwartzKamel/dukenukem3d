@@ -1750,3 +1750,36 @@ Keep v5 as the standing dispatch contract.
   in flight (was the long-open CRITICAL).
 - Open HIGH: ~10 (3 net-r3 architectural + net-r9 type-8/17 + engine-r12
   sprite-sectnum-chain + projectile-sectnum + sec-r12 fta_quotes overflow).
+
+---
+
+## 2026-05-20 — Cycles 40+41
+
+### Cycle 40 audit-pass (committed b77317c)
+- compat-layer-r11, asset-pipeline-r12, build-system-r13, engine-porter-r13
+- +21 pending todos; build-system-r13 locked MAXTILES Stage 2 to 6144
+
+### Cycle 41 audit-pass (this batch)
+- documentation-curator-r12 (SUMMARY refresh, archival strategy)
+- test-engineer-r13 (Stage 2/3 test plan, pytest-xdist opportunity)
+- network-multiplayer-r10 (IPv6 / replay / packet-loss design)
+- asset-pipeline-r13 (5 new todos; HIGH bare-except in generate_assets.py)
+- performance-profiler-r12 (render loop + CI perf sweep)
+- +~22 pending todos
+
+### Cycle 41 grind (this batch)
+- ✅ build-r13-maxtiles-unify-headers-to-6144 (CRITICAL — closes build-r7-lto-maxtiles-mismatch open since cycle 7)
+- ✅ engine-r12-actors-sprite-sectnum-chain (HIGH — 3 cascade guards in ACTORS.C)
+- ✅ sec-r12-strcat-fta-quotes-overflow (HIGH — strncpy + null-term in GAME.C music UI)
+- ✅ net-r9-recv-eagain-distinguish (HIGH — EAGAIN/EWOULDBLOCK/EINTR vs fatal in MMULTI.C)
+- ✅ compat-r11-mix-init-retry-backoff (MEDIUM — 3-attempt exp backoff in audio_stub.c)
+- ✅ docs-r8-architecture-r7-open-items-refresh (LOW — new "Known Open Issues" section)
+
+### Build/test deltas
+- 732 passing → **743 passing** (+11 across cycle 40 → 41; xfail→pass on MAXTILES headers match)
+- make clean && make -j: green
+- pytest -q: green (743 passed, 34 skipped, 2 xfailed, 2 xpassed)
+
+### Notes
+- v5 contract drift: build-r13 agent over-applied "stop on unexpected state" — sibling-file edits are EXPECTED concurrent, not a stop condition. Document v6 clarification next cycle.
+- Sub-agent SQL session quirk persists: verify INSERTed todos exist in operator SQL before dispatching grind on them.
