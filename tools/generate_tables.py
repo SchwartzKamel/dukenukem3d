@@ -15,6 +15,7 @@ import sys
 from datetime import datetime, timezone
 
 from tables import create_tables_dat
+from manifest_verification import load_and_verify_tables_manifest
 
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 OUTPUT_DIR = os.path.join(PROJECT_ROOT, "generated_assets")
@@ -104,6 +105,27 @@ def create_manifest(generated_at=None, tables_path=None):
     
     validate_manifest(manifest)
     return manifest
+
+
+def load_tables_manifest(manifest_path):
+    """Load and verify TABLES manifest with SHA256 checksum validation.
+    
+    # manifest-checksum-verify-on-load: Verify at load time
+    Performs SHA256 verification of both manifest integrity and tables_checksum.
+    
+    Args:
+        manifest_path: Path to TABLES_MANIFEST.json file
+    
+    Returns:
+        Validated manifest dict
+    
+    Raises:
+        IOError: If file not found
+        ValueError: If validation fails
+        RuntimeError: If checksum verification fails (sentinel: manifest-checksum-verify-on-load)
+    """
+    # manifest-checksum-verify-on-load: Use shared verification function
+    return load_and_verify_tables_manifest(manifest_path)
 
 
 def main():

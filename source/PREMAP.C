@@ -1,4 +1,5 @@
-//-------------------------------------------------------------------------
+/*-------------------------------------------------------------------------*/
+/* engine-r15-krn-premap-cpp-comments-clean */
 /*
 Copyright (C) 1996, 2003 - 3D Realms Entertainment
 
@@ -22,7 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 Original Source: 1996 - Todd Replogle
 Prepared for public release: 03/21/2003 - Charlie Wiederhold, 3D Realms
 */
-//-------------------------------------------------------------------------
+/*-------------------------------------------------------------------------*/
 
 #include "compat.h"
 #include "pragmas_gcc.h"
@@ -437,7 +438,7 @@ void resetplayerstats(short snum)
     p->loogcnt          = 0;
     p->angvel           = 0;
     p->weapon_sway      = 0;
-//    p->select_dir       = 0;
+/*    p->select_dir       = 0;*/
     p->extra_extra8     = 0;
     p->show_empty_weapon= 0;
     p->dummyplayersprite=-1;
@@ -638,7 +639,7 @@ void setupbackdrop(short sky)
         case MOONSKY1 :
             pskyoff[6]=1; pskyoff[1]=2; pskyoff[4]=2; pskyoff[2]=3;
             break;
-        case BIGORBIT1: // orbit
+        case BIGORBIT1: /* orbit */
             pskyoff[5]=1; pskyoff[6]=2; pskyoff[7]=3; pskyoff[2]=4;
             break;
         case LA:
@@ -695,7 +696,7 @@ void prelevel(char g)
                 ps[0].one_parallax_sectnum = i;
         }
 
-        if(sector[i].lotag == 32767) //Found a secret room
+        if(sector[i].lotag == 32767) /* Found a secret room */
         {
             ps[0].max_secret_rooms++;
             continue;
@@ -900,7 +901,7 @@ void prelevel(char g)
             case W_TECHWALL3:
             case W_TECHWALL4:
                 animwall[numanimwalls].wallnum = i;
-//                animwall[numanimwalls].tag = -1;
+/*                animwall[numanimwalls].tag = -1;*/
                 numanimwalls++;
                 break;
             case SCREENBREAK6:
@@ -957,7 +958,7 @@ void prelevel(char g)
         }
     }
 
-    //Invalidate textures in sector behind mirror
+    /* Invalidate textures in sector behind mirror */
     for(i=0;i<mirrorcnt;i++)
     {
         startwall = sector[mirrorsector[i]].wallptr;
@@ -999,8 +1000,8 @@ void newgame(char vn,char ln,char sk)
         clearview(0L);
         nextpage();
         playanm("vol42a.anm",7);
-//        clearview(0L);
-  //      nextpage();
+/*        clearview(0L);*/
+  /*      nextpage();*/
         playanm("vol43a.anm",9);
         clearview(0L);
         nextpage();
@@ -1329,7 +1330,7 @@ void clearfifo(void)
     clearbuf(syncvalhead,MAXPLAYERS,0L);
     clearbuf(myminlag,MAXPLAYERS,0L);
 
-//    clearbufbyte(playerquitflag,MAXPLAYERS,0x01);
+/*    clearbufbyte(playerquitflag,MAXPLAYERS,0x01);*/
 }
 
 void resetmys(void)
@@ -1480,7 +1481,7 @@ void enterlevel(char g)
                 break;
         }
 
-      //PREMAP.C - replace near the my's at the end of the file
+      /* PREMAP.C - replace near the my's at the end of the file */
 
      resetmys();
 
@@ -1516,7 +1517,7 @@ void enterlevel(char g)
      clearfrags();
 
      startup_log("  enterlevel: resettimevars - level ready");
-     resettimevars();  // Here we go
+     resettimevars();  /* Here we go */
      startup_log("  enterlevel: complete");
 
 
@@ -1583,7 +1584,7 @@ Programming:
 
      struct imagetype
         {
-            int *itable; // AngX,AngY,AngZ,Xoff,Yoff,Zoff;
+            int *itable;     AngX,AngY,AngZ,Xoff,Yoff,Zoff;
             int *idata;
             struct imagetype *prev, *next;
         }

@@ -2426,23 +2426,28 @@ class TestActorsSpriteSectnumChain:
 
 
 class TestType8BoardfilenameUnderflow:
-    """Verify net-r9-type-8-boardfilename-underflow fix in GAME.C."""
+    """Verify net-r9-type-8-boardfilename-underflow fix in GAME.C (updated for r13 refactoring)."""
 
     def test_type8_boardfilename_underflow_sentinel_present(self, repo_root):
-        """source/GAME.C must have sentinel 'net-r9-type-8-boardfilename-underflow' comment."""
+        """source/GAME.C must have 'packbufleng < 11' check for type-8 (net-r9 or net-r13 sentinel)."""
         game_c = repo_root / "source" / "GAME.C"
         if not game_c.exists():
             pytest.skip(f"{game_c} not found")
 
         content = game_c.read_text(errors="replace")
 
-        assert "net-r9-type-8-boardfilename-underflow" in content, (
-            "source/GAME.C must contain sentinel comment 'net-r9-type-8-boardfilename-underflow' "
+        # Accept either old sentinel or new r13 sentinel (which moved the check to case entry)
+        has_old_sentinel = "net-r9-type-8-boardfilename-underflow" in content
+        has_r13_sentinel = "net-r13-type-8-prevalidate" in content
+        
+        assert has_old_sentinel or has_r13_sentinel, (
+            "source/GAME.C must contain either 'net-r9-type-8-boardfilename-underflow' "
+            "(legacy location) or 'net-r13-type-8-prevalidate' (r13 refactored location) "
             "to mark the fix for the unsigned integer underflow on packbufleng-11."
         )
 
     def test_type8_boardfilename_precondition_guard(self, repo_root):
-        """source/GAME.C must have 'packbufleng < 11' check before copybufbyte boardfilename call."""
+        """source/GAME.C must have 'packbufleng < 11' check protecting case 8."""
         game_c = repo_root / "source" / "GAME.C"
         if not game_c.exists():
             pytest.skip(f"{game_c} not found")
@@ -2450,34 +2455,25 @@ class TestType8BoardfilenameUnderflow:
         content = game_c.read_text(errors="replace")
         lines = content.split('\n')
 
-        # Find the line with 'net-r9-type-8-boardfilename-underflow' sentinel
-        sentinel_line_idx = None
+        # Find case 8 entry
+        case_8_idx = None
         for i, line in enumerate(lines):
-            if "net-r9-type-8-boardfilename-underflow" in line:
-                sentinel_line_idx = i
+            if "case 8:" in line:
+                case_8_idx = i
                 break
 
-        assert sentinel_line_idx is not None, (
-            "Could not find sentinel comment 'net-r9-type-8-boardfilename-underflow' in source/GAME.C"
-        )
+        assert case_8_idx is not None, "Could not find 'case 8:' in source/GAME.C"
 
-        # Check that the sentinel line contains the precondition check
-        sentinel_line = lines[sentinel_line_idx]
-        assert "packbufleng < 11" in sentinel_line, (
-            f"Sentinel line {sentinel_line_idx + 1} must contain 'packbufleng < 11' precondition check. "
-            f"Found: {sentinel_line}"
-        )
-
-        # Verify copybufbyte call with boardfilename is within 5 lines after sentinel
-        found_copybufbyte = False
-        for j in range(sentinel_line_idx + 1, min(sentinel_line_idx + 6, len(lines))):
-            if "copybufbyte" in lines[j] and "boardfilename" in lines[j]:
-                found_copybufbyte = True
+        # Look for 'packbufleng < 11' check within the case 8 block (within first 10 lines)
+        found_check = False
+        for j in range(case_8_idx + 1, min(case_8_idx + 10, len(lines))):
+            if "packbufleng < 11" in lines[j] and "break" in lines[j]:
+                found_check = True
                 break
 
-        assert found_copybufbyte, (
-            f"source/GAME.C must have 'copybufbyte' call with 'boardfilename' "
-            f"within 5 lines after the sentinel at line {sentinel_line_idx + 1}"
+        assert found_check, (
+            f"source/GAME.C case 8 (line {case_8_idx + 1}) must have "
+            f"'packbufleng < 11' check that breaks early to prevent OOB reads"
         )
 
 
@@ -3261,4 +3257,220 @@ class TestEngineR15VolumeLevelBounds:
         )
         assert "ud.level_number >= 11" in content or "level_number >= 11" in content, (
             "source/MENUES.C must have bounds check for ud.level_number >= 11"
+        )
+
+
+class TestEngineR15PremapNoCppComments:
+    """Test that source/PREMAP.C contains no C++ style comments."""
+
+    def test_no_cpp_comments_in_premap(self, repo_root):
+        """source/PREMAP.C must use K&R /* */ style comments, not // comments."""
+        premap_c = repo_root / "source" / "PREMAP.C"
+        if not premap_c.exists():
+            pytest.skip(f"{premap_c} not found")
+
+        content = premap_c.read_text(errors="replace")
+        lines = content.split('\n')
+
+        in_multiline_comment = False
+        for i, line in enumerate(lines, start=1):
+            # Track entry/exit from multiline comments
+            if '/*' in line:
+                in_multiline_comment = True
+            if '*/' in line:
+                in_multiline_comment = False
+                continue  # Skip rest of line with closing */
+
+            # Skip lines inside multiline comments
+            if in_multiline_comment:
+                continue
+
+            # Skip string literals naively by splitting on quotes
+            parts = line.split('"')
+            for j, part in enumerate(parts):
+                # Only check even-indexed parts (outside strings)
+                if j % 2 == 0:
+                    # Reject // outside of include directives
+                    if '//' in part and '#include' not in part:
+                        pytest.fail(
+                            f"Line {i} contains C++ style comment (//): {line.rstrip()}\n"
+                            f"Must use /* */ style per K&R C (gnu89 standard)"
+                        )
+
+    def test_premap_sentinel_present(self, repo_root):
+        """source/PREMAP.C must have the closure sentinel at the top."""
+        premap_c = repo_root / "source" / "PREMAP.C"
+        if not premap_c.exists():
+            pytest.skip(f"{premap_c} not found")
+
+        content = premap_c.read_text(errors="replace")
+        
+        assert "engine-r15-krn-premap-cpp-comments-clean" in content, (
+            "source/PREMAP.C must include the sentinel "
+            "/* engine-r15-krn-premap-cpp-comments-clean */ near the top"
+        )
+
+
+class TestNetR13PacketBoundsTrio:
+    """Test net-r13 packet bounds check trio: type-5, type-7, type-8."""
+
+    def test_type_5_sentinel_present(self, repo_root):
+        """Type-5 case must have net-r13-type-5-prevalidate sentinel."""
+        game_c = repo_root / "source" / "GAME.C"
+        if not game_c.exists():
+            pytest.skip(f"{game_c} not found")
+
+        content = game_c.read_text(errors="replace")
+
+        assert "net-r13-type-5-prevalidate" in content, (
+            "source/GAME.C case 5 must have sentinel comment 'net-r13-type-5-prevalidate'"
+        )
+
+    def test_type_7_sentinel_present(self, repo_root):
+        """Type-7 case must have net-r13-type-7-prevalidate sentinel."""
+        game_c = repo_root / "source" / "GAME.C"
+        if not game_c.exists():
+            pytest.skip(f"{game_c} not found")
+
+        content = game_c.read_text(errors="replace")
+
+        assert "net-r13-type-7-prevalidate" in content, (
+            "source/GAME.C case 7 must have sentinel comment 'net-r13-type-7-prevalidate'"
+        )
+
+    def test_type_8_sentinel_present(self, repo_root):
+        """Type-8 case must have net-r13-type-8-prevalidate sentinel."""
+        game_c = repo_root / "source" / "GAME.C"
+        if not game_c.exists():
+            pytest.skip(f"{game_c} not found")
+
+        content = game_c.read_text(errors="replace")
+
+        assert "net-r13-type-8-prevalidate" in content, (
+            "source/GAME.C case 8 must have sentinel comment 'net-r13-type-8-prevalidate'"
+        )
+
+    def test_type_5_precheck_before_field_access(self, repo_root):
+        """Type-5 pre-check must appear BEFORE first packbuf[i] field read in case 5."""
+        game_c = repo_root / "source" / "GAME.C"
+        if not game_c.exists():
+            pytest.skip(f"{game_c} not found")
+
+        lines = game_c.read_text(errors="replace").split("\n")
+        
+        in_case_5 = False
+        precheck_line = -1
+        first_field_read = -1
+        
+        for i, line in enumerate(lines):
+            if "case 5:" in line:
+                in_case_5 = True
+                continue
+            
+            if in_case_5:
+                if "case " in line and "case 5:" not in line:
+                    break  # entered next case
+                
+                if "net-r13-type-5-prevalidate" in line and precheck_line == -1:
+                    precheck_line = i
+                
+                # Look for field read on packbuf[1..10]
+                if first_field_read == -1:
+                    if any(f"packbuf[{j}]" in line for j in range(1, 11)):
+                        # Skip the precheck line itself
+                        if "packbufleng" not in line:
+                            first_field_read = i
+        
+        assert precheck_line != -1, (
+            "Type-5 case must have 'net-r13-type-5-prevalidate' sentinel"
+        )
+        assert first_field_read != -1, (
+            "Type-5 case must access packbuf[1..10]"
+        )
+        assert precheck_line < first_field_read, (
+            f"Type-5 pre-check sentinel at line {precheck_line+1} must appear BEFORE "
+            f"first packbuf field read at line {first_field_read+1}"
+        )
+
+    def test_type_7_precheck_before_field_access(self, repo_root):
+        """Type-7 pre-check must appear BEFORE first packbuf[1] field read in case 7."""
+        game_c = repo_root / "source" / "GAME.C"
+        if not game_c.exists():
+            pytest.skip(f"{game_c} not found")
+
+        lines = game_c.read_text(errors="replace").split("\n")
+        
+        in_case_7 = False
+        precheck_line = -1
+        first_field_read = -1
+        
+        for i, line in enumerate(lines):
+            if "case 7:" in line:
+                in_case_7 = True
+                continue
+            
+            if in_case_7:
+                if "case " in line and "case 7:" not in line:
+                    break  # entered next case
+                
+                if "net-r13-type-7-prevalidate" in line and precheck_line == -1:
+                    precheck_line = i
+                
+                # Look for packbuf[1] field read
+                if first_field_read == -1 and "packbuf[1]" in line:
+                    # Skip the precheck line itself
+                    if "packbufleng" not in line:
+                        first_field_read = i
+        
+        assert precheck_line != -1, (
+            "Type-7 case must have 'net-r13-type-7-prevalidate' sentinel"
+        )
+        assert first_field_read != -1, (
+            "Type-7 case must access packbuf[1]"
+        )
+        assert precheck_line < first_field_read, (
+            f"Type-7 pre-check sentinel at line {precheck_line+1} must appear BEFORE "
+            f"first packbuf[1] field read at line {first_field_read+1}"
+        )
+
+    def test_type_8_precheck_before_field_access(self, repo_root):
+        """Type-8 pre-check must appear BEFORE first packbuf[i] field read in case 8."""
+        game_c = repo_root / "source" / "GAME.C"
+        if not game_c.exists():
+            pytest.skip(f"{game_c} not found")
+
+        lines = game_c.read_text(errors="replace").split("\n")
+        
+        in_case_8 = False
+        precheck_line = -1
+        first_field_read = -1
+        
+        for i, line in enumerate(lines):
+            if "case 8:" in line:
+                in_case_8 = True
+                continue
+            
+            if in_case_8:
+                if "case " in line and "case 8:" not in line:
+                    break  # entered next case
+                
+                if "net-r13-type-8-prevalidate" in line and precheck_line == -1:
+                    precheck_line = i
+                
+                # Look for field read on packbuf[1..10]
+                if first_field_read == -1:
+                    if any(f"packbuf[{j}]" in line for j in range(1, 11)):
+                        # Skip the precheck line itself
+                        if "packbufleng" not in line:
+                            first_field_read = i
+        
+        assert precheck_line != -1, (
+            "Type-8 case must have 'net-r13-type-8-prevalidate' sentinel"
+        )
+        assert first_field_read != -1, (
+            "Type-8 case must access packbuf[1..10]"
+        )
+        assert precheck_line < first_field_read, (
+            f"Type-8 pre-check sentinel at line {precheck_line+1} must appear BEFORE "
+            f"first packbuf field read at line {first_field_read+1}"
         )

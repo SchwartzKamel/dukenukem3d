@@ -17,6 +17,8 @@ from datetime import datetime, timezone
 import aiohttp
 import requests
 
+from manifest_verification import load_and_verify_audio_manifest
+
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 OUTPUT_DIR = os.path.join(PROJECT_ROOT, "generated_assets", "sounds")
 ENV_FILE = os.path.join(PROJECT_ROOT, ".env")
@@ -229,7 +231,10 @@ def validate_manifest(manifest_data, source_path):
 
 
 def load_manifest(manifest_path):
-    """Load and validate a manifest file.
+    """Load and verify a manifest file with SHA256 checksum validation.
+    
+    # manifest-checksum-verify-on-load: Verify at load time
+    Performs SHA256 verification of both manifest integrity and per-file audio checksums.
     
     Args:
         manifest_path: Path to manifest JSON file
@@ -240,6 +245,7 @@ def load_manifest(manifest_path):
     Raises:
         ValueError: If validation fails
         IOError: If file cannot be read
+        RuntimeError: If checksum verification fails (sentinel: manifest-checksum-verify-on-load)
     """
     if not os.path.exists(manifest_path):
         raise IOError(f"Manifest file not found: {manifest_path}")
@@ -248,6 +254,11 @@ def load_manifest(manifest_path):
         data = json.load(f)
     
     validate_manifest(data, manifest_path)
+    
+    # manifest-checksum-verify-on-load: Verify manifest and all file checksums
+    base_dir = os.path.dirname(manifest_path)
+    load_and_verify_audio_manifest(manifest_path, base_dir)
+    
     return data
 
 

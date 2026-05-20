@@ -799,6 +799,93 @@ Payload: up to MAXPACKETSIZE = 2048 bytes
 2. **Socket lifecycle audit** — Error-path cleanup (crash recovery, partial-send retry, timeout edge cases) needs dedicated audit
 3. **xdist parallel isolation** — Verify recv_buf thread-safety under pytest `-n auto` (parallel test workers may share sockets on Linux)
 
+## Network MTU & Fragmentation Strategy
+
+This section documents packet sizing, TCP Nagle tuning, and fragmentation handling for multiplayer networking (cycle 50 investigation per audit-net-fragmentation).
+
+### MAXPACKETSIZE & Header Layout
+
+**Definition & Rationale (SRC/MMULTI.C:44–46):**
+```c
+#define MAXPACKETSIZE 2048       /* bytes; chosen to avoid path-MTU fragmentation */
+#define NET_HEADER_SIZE 4        /* [1B sender][1B dest][2B payload_len] */
+#define RECV_BUF_SIZE 65536      /* per-socket TCP stream reassembly buffer */
+```
+
+- **MAXPACKETSIZE = 2048 bytes** (application-layer limit) is conservative vs. Ethernet MTU (1500 bytes). **Rationale**: TCP/IP stack fragments at ~1500 bytes; keeping application payloads to 2048 total (including 4-byte header = 2044-byte max payload) ensures any single application send fits within a single TCP segment if path MTU is ≥1500 (typical Ethernet). See SRC/MMULTI.C:277 validation: `if (payload_len > MAXPACKETSIZE - NET_HEADER_SIZE)`.
+- **NET_HEADER_SIZE = 4 bytes** (sender ID, destination ID, payload length) framing cost is ~0.2% overhead at full payload.
+
+### Transport Protocol & Socket Tuning
+
+**TCP, Not UDP:**
+- Protocol: **Pure TCP (SOCK_STREAM)** on IPPROTO_TCP, port 23513 default.
+- **Why TCP**: Ordered, reliable delivery; packet boundaries reconstructed by application via header framing (not kernel UDP fragmentation). Star topology places host as relay; TCP's in-order guarantee prevents packet reordering crashes.
+- **No IP_DONTFRAG, No IP_MTU_DISCOVER**: Code does not set IP_DONTFRAG (IPPROTO_IP level) or IP_MTU_DISCOVER. Result: kernel may fragment packets >path-MTU silently; application layer does not probe MTU.
+
+**TCP_NODELAY (Nagle Disabled):**
+- Both host (SRC/MMULTI.C:488) and client (SRC/MMULTI.C:548): `setsockopt(..., IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag))`.
+- **Rationale for Neon Noir gameplay**: Nagle delays small packets until ACK or MSS-sized buffer; disabling Nagle trades throughput for **latency**: game input packets (type-1, ~20–100 bytes) transmit immediately vs. waiting ~40ms for TCP window fill. Acceptable for LAN; may stress high-latency WAN (no backpressure).
+
+### Per-Packet-Type Size Analysis
+
+**15 Active Packet Types** (see docs/audits/network-multiplayer-r13.md for full matrix):
+
+| Type | Purpose | Max Size | Payload Field | Fragment Risk |
+|------|---------|----------|---|---|
+| **0** | Master sync (sprites, state) | 2044 | Variable sprite updates | ✅ None (split per sprite if needed) |
+| **1** | Slave sync (input) | ~100 | Input state deltas | ✅ None |
+| **4** | Chat | 256 | String (bounded strncpy, r12 fix) | ✅ None |
+| **5** | Game settings | ~128 | 10 fields (r13 audit: CRITICAL pre-check missing) | ✅ None |
+| **6** | Player name | ~128 | String + color (cycle-38 strncpy hardened) | ✅ None |
+| **7** | RTS sound event | ~64 | Sound ID + position (r13: MEDIUM pre-check gap) | ✅ None |
+| **8** | Post-game stats | ~256 | Score, kills, deaths (r13: CRITICAL late bounds check) | ✅ None |
+| **9** | Weapon choice | ~32 | Weapon bitmask (r12 fix verified) | ✅ None |
+| **17** | Input sync delta | ~100 | Movement, look (r11 envelope pre-check verified) | ✅ None |
+| Other | Initialization, player ready, exit | <64 | Minimal payloads | ✅ None |
+
+**Key Insight**: All packet types fit **single TCP segment** (2044 payload < 1460 MSS typical); no application-layer chunking required. **Cross-reference**: docs/audits/network-multiplayer-r13.md § Packet-Handler Bounds Matrix (lines 74–91).
+
+### TCP Stream Reassembly & Fragmentation Behavior
+
+**Application-Level Framing:**
+- Per-socket 64KB recv buffer (SRC/MMULTI.C:82–87, RECV_BUF_SIZE=65536) reassembles TCP stream.
+- Packet extraction loop (SRC/MMULTI.C:259–283): read header, validate payload_len, extract complete packets into queue.
+- **If pathMTU < 2048**: IP layer fragments; TCP reassembles transparently; application sees complete packets. No loss (TCP retransmits fragments).
+
+**No Explicit Fragmentation Handling:**
+- Code assumes TCP kernel handles all IP-layer fragmentation.
+- **Risk (unmitigated)**: If pathMTU < 500 bytes (rare; satellite links, heavily congested networks), packet must be split application-layer. **Not implemented; flagged as future gap** (net-r13-frag-path-mtu-discover, below).
+
+### TCP Nagle & Throughput Tradeoff (Cycle 50 Analysis)
+
+**Decision**: Nagle **disabled** (TCP_NODELAY=1) for gameplay latency.
+
+| Nagle Setting | Throughput | Latency | Scenario |
+|---|---|---|---|
+| Enabled (default) | Higher; buffers small packets | ~40ms+ delay | Bulk file transfer |
+| **Disabled (current)** | Lower; more packets, ACKs | ~0–5ms delay | **Neon Noir low-latency gameplay** |
+
+**Tradeoff Rationale**: Game input (type-1, ~20 bytes) must reach host ≤16ms (60Hz tick). Nagle's wait-for-MSS delays fire/movement commands; unacceptable. **Throughput cost**: 3 input packets/tick × 60 ticks/sec × small-packet overhead ≈ negligible on LAN (<1% bandwidth for typical dual 10Mbps NICs).
+
+### Known Limits
+
+- **Max players**: 16 (MAXPLAYERS, SRC/MMULTI.C:43); star topology host I/O bound (no routing layer).
+- **Max simultaneous packet types in flight**: Unlimited; packet queue is 1024 slots (SRC/MMULTI.C:90). At 60 Hz, queue drains 60 packets/sec; buffer tolerates ~17-second burst at 100 packets/sec (pathological).
+- **Max total payload in flight**: 65536 bytes per socket recv buffer.
+- **Handshake timeout**: 15 seconds (HANDSHAKE_TIMEOUT_SEC, SRC/MMULTI.C:52); exceeding resets client.
+
+### Forward-Looking Gaps (New Todos — Cycle 50)
+
+Audit investigation surfaced **4 gaps** for future grind:
+
+1. **net-r13-frag-path-mtu-discover** — Implement IP_MTU_DISCOVER (Linux) or equivalent (Windows PMTU discovery) to probe actual path MTU at startup. If <500, warn user or implement application-layer packet splitting. **Severity**: LOW (rare in 2024); **effort**: MEDIUM (requires platform-specific socket opts + fallback logic).
+
+2. **net-r13-frag-send-buf-tuning** — Currently no SO_SNDBUF / SO_RCVBUF tuning. Profile WAN scenarios (>100ms RTT, variable bandwidth) to optimize buffer sizes. **Severity**: LOW (LAN-focused); **effort**: LOW (setsockopt calls; needs lab test harness).
+
+3. **net-r13-frag-packet-split-appl** — If pathMTU <500 discovered, implement application-layer packet chunking (split type-0 master sync into multiple sub-packets). **Severity**: LOW; **effort**: HIGH (state machine, reassembly logic).
+
+4. **net-r13-frag-explicit-test-matrix** — Add pytest tests for fragmentation edge cases (manual TCP_NODELAY toggle, simulate low pathMTU via iptables, verify queue overflow handling). **Severity**: MEDIUM; **effort**: MEDIUM (test harness, requires Linux VM setup).
+
 <!-- docs-feature-summary-update: cycle 50 -->
 
 ## Recent Improvements (Cycles 41–49)

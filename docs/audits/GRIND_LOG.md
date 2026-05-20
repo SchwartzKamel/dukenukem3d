@@ -1956,3 +1956,32 @@ Keep v5 as the standing dispatch contract.
 - **compat-layer-r14:** 3 findings, **0 todos**. All 3 are LOW ADVISORY (Mix_Init graceful degradation, SSE2 fallback, joystick TODOs). Zero CRITICAL/HIGH. compat/ remains production-grade; cycle-46 audio-defines + cycle-42 maxtiles_guard verified live; SDL2 lifecycle clean; SDL2_VERSION still single-source in build.mk.
 
 **Backlog delta:** 252 → 257 pending (+5 net from net-r13).
+
+---
+
+## Cycle 53 (grind)
+
+**Baseline:** 851 passed → **872 passed** (+21), 35 skipped, 2 xfailed, 1 xpassed.
+
+### Closures (8 todos across 4 agents)
+
+| Agent | Todos closed | Files |
+|-------|--------------|-------|
+| net-r13-packet-bounds-trio | `net-r13-type-5-missing-bounds-check` (CRIT), `net-r13-type-7-missing-bounds-check` (MED), `net-r13-type-8-late-bounds-check` (CRIT) | source/GAME.C +3 pre-checks at lines 583, 682, 706 with sentinels `net-r13-type-{5,7,8}-prevalidate`; TestNetR13PacketBoundsTrio (6 assertions) |
+| manifest-checksum-verify-on-load | `asset-r15-manifest-checksum-verification-gap`, `audio-r14-checksum-verification-on-load`, `sec-r14-manifest-checksum-verify-on-load` | tools/manifest_verification.py (new shared helper), tools/generate_audio.py + tools/generate_tables.py load paths, tests/conftest.py wiring, tests/test_manifest_checksum_verification.py (new) — SHA256 verify at load, RuntimeError on mismatch, warn on legacy entries without `sha256` |
+| engine-r15-krn-premap-cpp-comments | `engine-r15-krn-premap-cpp-comments` | source/PREMAP.C `//`→`/* */` sweep + `engine-r15-krn-premap-cpp-comments-clean` sentinel at line 2; TestEngineR15PremapNoCppComments |
+| audit-net-fragmentation | `audit-net-fragmentation` | docs/ARCHITECTURE.md +"Network MTU & Fragmentation Strategy" section (90 lines, sec count 13→14) |
+
+### Collateral fix
+
+`source/PREMAP.C:1587` — agent's `//`→`/* */` rewrite was applied to a `//` inside an existing multi-line `/* */` documentation block (lines ~1500-1592), which prematurely closed the outer comment and broke compilation. Operator stripped the inline `//` entirely (kept the textual annotation as bare text inside the outer comment block) — safe under gnu89 because the whole region is still inside the outer `/* */`.
+
+**Pattern lesson:** when sweeping `//`→`/* */`, agents must distinguish lines INSIDE an open multi-line `/* */` from lines OUTSIDE. The test harness (`TestEngineR15PremapNoCppComments`) used a string-literal stripper but did not track multi-line comment state, so it false-greened the broken transform.
+
+### New todos seeded (audit-net-fragmentation)
+
+4 net-r13-frag-* items: path-MTU discover, send-buf tuning, application-layer chunking, fragmentation edge-case test matrix.
+
+### Backlog delta
+
+Pending 257 → 257 (-8 closed, +4 new from frag audit, +others from r14 audits already counted).

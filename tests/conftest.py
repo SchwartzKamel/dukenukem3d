@@ -12,6 +12,8 @@ from pydantic import BaseModel, field_validator
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, os.path.join(PROJECT_ROOT, "tools"))
 
+from manifest_verification import load_and_verify_audio_manifest, load_and_verify_tables_manifest
+
 
 # ============================================================================
 # Pydantic Model for Sound Manifest Entry Validation
@@ -132,8 +134,8 @@ def generated_audio_artifacts(worker_id, tmp_path_factory):
         manifest_path = sounds_dir / "MANIFEST.json"
         assert manifest_path.exists(), f"MANIFEST.json not created: {manifest_path}"
         
-        with open(manifest_path, "r") as f:
-            manifest = json.load(f)
+        # manifest-checksum-verify-on-load: Load and verify manifest with checksums
+        manifest = load_and_verify_audio_manifest(str(manifest_path), str(sounds_dir))
         
         return {
             "sounds_dir": sounds_dir,
@@ -163,8 +165,8 @@ def generated_audio_artifacts(worker_id, tmp_path_factory):
     wav_files = sorted([f for f in sounds_dir.iterdir() if f.suffix == ".WAV"])
     manifest_path = sounds_dir / "MANIFEST.json"
     
-    with open(manifest_path, "r") as f:
-        manifest = json.load(f)
+    # manifest-checksum-verify-on-load: Load and verify manifest with checksums
+    manifest = load_and_verify_audio_manifest(str(manifest_path), str(sounds_dir))
     
     artifacts = {
         "sounds_dir": sounds_dir,

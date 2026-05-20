@@ -580,6 +580,7 @@ void getpackets(void)
                 break;
 
             case 5:
+                if (packbufleng < 11) break;  /* net-r13-type-5-prevalidate */
                 /* Range-check game settings from untrusted packet */
                 if (packbuf[1] >= 11) {
                     printf("NET: SECURITY: Packet type 5 invalid level number (%d >= 11). Clamping to 0.\n", packbuf[1]);
@@ -678,6 +679,7 @@ void getpackets(void)
                 break;
             case 7:
 
+                if (packbufleng < 2) break;  /* net-r13-type-7-prevalidate */
                 if(numlumps == 0) break;
 
                 if (SoundToggle == 0 || ud.lockout == 1 || FXDevice == NumSoundCards)
@@ -701,6 +703,7 @@ void getpackets(void)
                 rtsplaying = 7;
                 break;
             case 8:
+                if (packbufleng < 11) break;  /* net-r13-type-8-prevalidate */
                 /* Range-check game settings from untrusted packet */
                 if (packbuf[1] >= 11) {
                     printf("NET: SECURITY: Packet type 8 invalid level number (%d >= 11). Clamping to 0.\n", packbuf[1]);
@@ -750,7 +753,6 @@ void getpackets(void)
                 ud.m_marker = ud.marker = packbuf[9];
                 ud.m_ffire = ud.ffire = packbuf[10];
 
-                if (packbufleng < 11) break;  /* net-r9-type-8-boardfilename-underflow: prevent unsigned wrap on packbufleng-11 */
                 copybufbyte(packbuf+10,boardfilename,packbufleng-11);
                 boardfilename[packbufleng-11] = 0;
 
