@@ -55,7 +55,7 @@ class TestLoadFrame:
         loaded = load_frame(str(bmp_path))
         assert loaded.mode == "RGB"
         assert loaded.size == (16, 16)
-        assert list(loaded.getdata()) == list(original.getdata())
+        assert loaded.tobytes() == original.tobytes()
         bmp_path.unlink()
 
     def test_load_frame_converts_to_rgb(self):
@@ -310,13 +310,13 @@ class TestRegionCrop:
         img = _make_colorful_image((32, 32))
         cropped = region_crop(img, 5, 5, 10, 10)
         original_crop = img.crop((5, 5, 15, 15))
-        assert list(cropped.getdata()) == list(original_crop.getdata())
+        assert cropped.tobytes() == original_crop.tobytes()
 
     def test_crop_full_image(self):
         img = _make_colorful_image((16, 16))
         cropped = region_crop(img, 0, 0, 16, 16)
         assert cropped.size == img.size
-        assert list(cropped.getdata()) == list(img.getdata())
+        assert cropped.tobytes() == img.tobytes()
 
 
 class TestDetectTextRegion:

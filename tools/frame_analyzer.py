@@ -26,7 +26,9 @@ def is_black_screen(img: Image.Image, threshold: float = 0.95, black_cutoff: int
     Returns:
         True if the screen is effectively all black (rendering failure)
     """
-    pixels = list(img.getdata())
+    pixels_bytes = img.tobytes()
+    # Reconstruct RGB tuples from bytes (3 bytes per pixel for RGB mode)
+    pixels = [tuple(pixels_bytes[i:i+3]) for i in range(0, len(pixels_bytes), 3)]
     total = len(pixels)
     if total == 0:
         return True
@@ -36,14 +38,19 @@ def is_black_screen(img: Image.Image, threshold: float = 0.95, black_cutoff: int
 
 def unique_color_count(img: Image.Image) -> int:
     """Count the number of distinct colors in the image."""
-    return len(set(img.getdata()))
+    pixels_bytes = img.tobytes()
+    # Reconstruct RGB tuples from bytes (3 bytes per pixel for RGB mode)
+    pixels = [tuple(pixels_bytes[i:i+3]) for i in range(0, len(pixels_bytes), 3)]
+    return len(set(pixels))
 
 
 def color_histogram(img: Image.Image) -> Dict[Tuple[int, int, int], int]:
     """Return a dict mapping (R,G,B) tuples to pixel counts."""
     hist: Dict[Tuple[int, int, int], int] = {}
-    for pixel in img.getdata():
-        rgb = (pixel[0], pixel[1], pixel[2])
+    pixels_bytes = img.tobytes()
+    # Reconstruct RGB tuples from bytes (3 bytes per pixel for RGB mode)
+    pixels = [tuple(pixels_bytes[i:i+3]) for i in range(0, len(pixels_bytes), 3)]
+    for rgb in pixels:
         hist[rgb] = hist.get(rgb, 0) + 1
     return hist
 
@@ -51,7 +58,8 @@ def color_histogram(img: Image.Image) -> Dict[Tuple[int, int, int], int]:
 def brightness_stats(img: Image.Image) -> Dict[str, float]:
     """Return min, max, mean, median brightness (0-255 grayscale equivalent)."""
     gray = img.convert("L")
-    values = list(gray.getdata())
+    # For grayscale mode, tobytes() returns raw byte values which are the pixel values
+    values = list(gray.tobytes())
     if not values:
         return {"min": 0.0, "max": 0.0, "mean": 0.0, "median": 0.0}
     return {
@@ -85,8 +93,11 @@ def frame_difference(img1: Image.Image, img2: Image.Image) -> float:
     if img1.size != img2.size:
         img2 = img2.resize(img1.size)
 
-    pixels1 = list(img1.getdata())
-    pixels2 = list(img2.getdata())
+    pixels1_bytes = img1.tobytes()
+    pixels2_bytes = img2.tobytes()
+    # Reconstruct RGB tuples from bytes (3 bytes per pixel for RGB mode)
+    pixels1 = [tuple(pixels1_bytes[i:i+3]) for i in range(0, len(pixels1_bytes), 3)]
+    pixels2 = [tuple(pixels2_bytes[i:i+3]) for i in range(0, len(pixels2_bytes), 3)]
     total = len(pixels1)
     if total == 0:
         return 0.0
@@ -106,7 +117,8 @@ def detect_text_region(img: Image.Image, y_start: int, y_end: int) -> bool:
     """
     band = img.crop((0, y_start, img.width, y_end))
     gray = band.convert("L")
-    pixels = list(gray.getdata())
+    # For grayscale mode, tobytes() returns raw byte values which are the pixel values
+    pixels = list(gray.tobytes())
     if not pixels:
         return False
 
