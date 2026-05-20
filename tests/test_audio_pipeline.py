@@ -129,6 +129,7 @@ class TestSilencePlaceholderGeneration:
     """Test WAV generation in --no-ai mode via subprocess."""
 
     @pytest.mark.slow
+    @pytest.mark.serial
     def test_no_ai_flag_generates_wav_files(self):
         """Invoking generate_audio.py --no-ai should produce 21 WAV files."""
         # Note: generate_audio.py uses PROJECT_ROOT internally to determine output path,
@@ -153,6 +154,7 @@ class TestSilencePlaceholderGeneration:
             f"Expected 21 WAV files, got {len(wav_files)}: {wav_files}"
 
     @pytest.mark.slow
+    @pytest.mark.serial
     def test_wav_files_have_valid_riff_header(self):
         """Each generated WAV file must have valid RIFF/WAVE headers."""
         # First ensure WAV files are generated
@@ -190,6 +192,7 @@ class TestSilencePlaceholderGeneration:
                     f"{os.path.basename(wav_file)}: RIFF size is 0"
 
     @pytest.mark.slow
+    @pytest.mark.serial
     def test_wav_files_are_valid_wave_format(self):
         """Each WAV file must be readable by Python wave module with sane parameters."""
         # First ensure WAV files are generated
@@ -758,6 +761,7 @@ class TestParallelManifestRace:
     and asyncio tasks must not mutate SOUND_MANIFEST directly. Instead, results are
     collected and manifest updates are applied sequentially after all tasks complete.
     """
+    pytestmark = pytest.mark.serial
 
     def test_sentinel_comment_in_parallel_local(self):
         """Verify sentinel comment is present in _generate_audio_parallel_local."""

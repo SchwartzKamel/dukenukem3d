@@ -767,6 +767,7 @@ void getpackets(void)
                 movefifoend[other] = movefifoplc = movefifosendplc = fakemovefifoplc = 0;
                 syncvalhead[other] = syncvaltottail = 0L;
             case 17:
+                if (packbufleng < 20) break;  /* net-r11-type-17-envelope-prevalidate: bounds check before multi-byte reads */
                 j = 1;
 
                 if ((movefifoend[other]&(TIMERUPDATESIZ-1)) == 0)

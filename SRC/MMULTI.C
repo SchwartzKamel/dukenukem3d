@@ -617,6 +617,8 @@ uninitmultiplayers()
 
 	for (i = 0; i < MAXPLAYERS; i++) {
 		if (player_sockets[i] != INVALID_SOCKET) {
+			/* net-r11-player-disconnect-memset: zero sensitive per-player state on disconnect */
+			memset(&recv_bufs[i], 0, sizeof(recv_bufs[i]));
 			net_close(player_sockets[i]);
 			player_sockets[i] = INVALID_SOCKET;
 		}

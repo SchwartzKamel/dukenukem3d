@@ -1785,7 +1785,7 @@ void menus(void)
 
             gametext(160,90,"LOAD last game:",0,2+8+16);
 
-            sprintf(tempbuf,"\"%s\"",ud.savegame[lastsavedpos]);
+            snprintf(tempbuf, sizeof(tempbuf), "\"%s\"",ud.savegame[lastsavedpos]);  /* sec-r13-sprintf-bounds-audit: bounded format */
             gametext(160,99,tempbuf,0,2+8+16);
 
             gametext(160,99+9,"(Y/N)",0,2+8+16);
@@ -1948,14 +1948,14 @@ void menus(void)
 
             dispnames();
 
-            sprintf(tempbuf,"PLAYERS: %-2d                      ",numplr);
+            snprintf(tempbuf, sizeof(tempbuf), "PLAYERS: %-2d                      ",numplr);  /* sec-r13-sprintf-bounds-audit: bounded format */
             gametext(160,158,tempbuf,0,2+8+16);
 
-            sprintf(tempbuf,"EPISODE: %-2d / LEVEL: %-2d / SKILL: %-2d",1+volnum,1+levnum,plrskl);
+            snprintf(tempbuf, sizeof(tempbuf), "EPISODE: %-2d / LEVEL: %-2d / SKILL: %-2d",1+volnum,1+levnum,plrskl);  /* sec-r13-sprintf-bounds-audit: bounded format */
             gametext(160,170,tempbuf,0,2+8+16);
 
             gametext(160,90,"LOAD game:",0,2+8+16);
-            sprintf(tempbuf,"\"%s\"",ud.savegame[current_menu-1000]);
+            snprintf(tempbuf, sizeof(tempbuf), "\"%s\"",ud.savegame[current_menu-1000]);  /* sec-r13-sprintf-bounds-audit: bounded format */
             gametext(160,99,tempbuf,0,2+8+16);
             gametext(160,99+9,"(Y/N)",0,2+8+16);
 
@@ -2064,10 +2064,10 @@ void menus(void)
             menutext(160,24,0,0,"SAVE GAME");
 
             rotatesprite(101<<16,97<<16,65536L,512,MAXTILES-3,-32,0,4+10+64,0,0,xdim-1,ydim-1);
-            sprintf(tempbuf,"PLAYERS: %-2d                      ",ud.multimode);
+            snprintf(tempbuf, sizeof(tempbuf), "PLAYERS: %-2d                      ",ud.multimode);  /* sec-r13-sprintf-bounds-audit: bounded format */
             gametext(160,158,tempbuf,0,2+8+16);
 
-            sprintf(tempbuf,"EPISODE: %-2d / LEVEL: %-2d / SKILL: %-2d",1+ud.volume_number,1+ud.level_number,ud.player_skill);
+            snprintf(tempbuf, sizeof(tempbuf), "EPISODE: %-2d / LEVEL: %-2d / SKILL: %-2d",1+ud.volume_number,1+ud.level_number,ud.player_skill);  /* sec-r13-sprintf-bounds-audit: bounded format */
             gametext(160,170,tempbuf,0,2+8+16);
 
             dispnames();
@@ -2789,9 +2789,9 @@ void menus(void)
 
             if(current_menu >= 360 && current_menu <= 369 )
             {
-                sprintf(tempbuf,"PLAYERS: %-2d                      ",ud.multimode);
+                snprintf(tempbuf, sizeof(tempbuf), "PLAYERS: %-2d                      ",ud.multimode);  /* sec-r13-sprintf-bounds-audit: bounded format */
                 gametext(160,158,tempbuf,0,2+8+16);
-                sprintf(tempbuf,"EPISODE: %-2d / LEVEL: %-2d / SKILL: %-2d",1+ud.volume_number,1+ud.level_number,ud.player_skill);
+                snprintf(tempbuf, sizeof(tempbuf), "EPISODE: %-2d / LEVEL: %-2d / SKILL: %-2d",1+ud.volume_number,1+ud.level_number,ud.player_skill);  /* sec-r13-sprintf-bounds-audit: bounded format */
                 gametext(160,170,tempbuf,0,2+8+16);
 
                 x = strget((320>>1),184,&ud.savegame[current_menu-360][0],19, 999 );
@@ -2854,9 +2854,9 @@ void menus(void)
                   }
 
                   rotatesprite(101<<16,97<<16,65536L,512,MAXTILES-3,-32,0,4+10+64,0,0,xdim-1,ydim-1);
-                  sprintf(tempbuf,"PLAYERS: %-2d                      ",numplr);
+                  snprintf(tempbuf, sizeof(tempbuf), "PLAYERS: %-2d                      ",numplr);  /* sec-r13-sprintf-bounds-audit: bounded format */
                   gametext(160,158,tempbuf,0,2+8+16);
-                  sprintf(tempbuf,"EPISODE: %-2d / LEVEL: %-2d / SKILL: %-2d",1+volnum,1+levnum,plrskl);
+                  snprintf(tempbuf, sizeof(tempbuf), "EPISODE: %-2d / LEVEL: %-2d / SKILL: %-2d",1+volnum,1+levnum,plrskl);  /* sec-r13-sprintf-bounds-audit: bounded format */
                   gametext(160,170,tempbuf,0,2+8+16);
               }
               else menutext(69,70,0,0,"EMPTY");
@@ -2871,9 +2871,9 @@ void menus(void)
                   rotatesprite(101<<16,97<<16,65536L,512,MAXTILES-3,-32,0,4+10+64,0,0,xdim-1,ydim-1);
               }
               else menutext(69,70,0,0,"EMPTY");
-              sprintf(tempbuf,"PLAYERS: %-2d                      ",ud.multimode);
+              snprintf(tempbuf, sizeof(tempbuf), "PLAYERS: %-2d                      ",ud.multimode);  /* sec-r13-sprintf-bounds-audit: bounded format */
               gametext(160,158,tempbuf,0,2+8+16);
-              sprintf(tempbuf,"EPISODE: %-2d / LEVEL: %-2d / SKILL: %-2d",1+ud.volume_number,1+ud.level_number,ud.player_skill);
+              snprintf(tempbuf, sizeof(tempbuf), "EPISODE: %-2d / LEVEL: %-2d / SKILL: %-2d",1+ud.volume_number,1+ud.level_number,ud.player_skill);  /* sec-r13-sprintf-bounds-audit: bounded format */
               gametext(160,170,tempbuf,0,2+8+16);
           }
 
@@ -3146,7 +3146,7 @@ void menus(void)
             rotatesprite(160<<16,29<<16,65536L,0,MENUBAR,16,0,10,0,0,xdim-1,ydim-1);
             menutext(320>>1,34,0,0,&ud.user_name[myconnectindex][0]);
 
-            sprintf(tempbuf,"Waiting for master");
+            snprintf(tempbuf, sizeof(tempbuf), "Waiting for master");  /* sec-r13-sprintf-bounds-audit: bounded format */
             gametext(160,50,tempbuf,0,2+8+16);
             gametext(160,59,"to select level",0,2+8+16);
 
@@ -3430,18 +3430,18 @@ void menus(void)
             menutext(c,57-9,SHX(-2),PHX(-2),"GAME TYPE");
 
 #ifdef VOLUMEONE
-            sprintf(tempbuf,"EPISODE %ld",ud.m_volume_number+1);
+            snprintf(tempbuf, sizeof(tempbuf), "EPISODE %ld",ud.m_volume_number+1);  /* sec-r13-sprintf-bounds-audit: bounded format */
             menutext(c,57+16-9,SHX(-3),1,tempbuf);
 #else
-            sprintf(tempbuf,"EPISODE %ld",ud.m_volume_number+1);
+            snprintf(tempbuf, sizeof(tempbuf), "EPISODE %ld",ud.m_volume_number+1);  /* sec-r13-sprintf-bounds-audit: bounded format */
             menutext(c,57+16-9,SHX(-3),PHX(-3),tempbuf);
 #endif
 
 #ifndef ONELEVELDEMO
-            sprintf(tempbuf,"LEVEL %ld",ud.m_level_number+1);
+            snprintf(tempbuf, sizeof(tempbuf), "LEVEL %ld",ud.m_level_number+1);  /* sec-r13-sprintf-bounds-audit: bounded format */
             menutext(c,57+16+16-9,SHX(-4),PHX(-4),tempbuf);
 #else
-            sprintf(tempbuf,"LEVEL %ld",ud.m_level_number+1);
+            snprintf(tempbuf, sizeof(tempbuf), "LEVEL %ld",ud.m_level_number+1);  /* sec-r13-sprintf-bounds-audit: bounded format */
             menutext(c,57+16+16-9,SHX(-4),1,tempbuf);
 #endif
             menutext(c,57+16+16+16-9,SHX(-5),PHX(-5),"MONSTERS");

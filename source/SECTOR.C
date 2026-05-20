@@ -284,6 +284,7 @@ void doanimations(void)
 		a = *animateptr[i];
 		v = animatevel[i]*TICSPERFRAME;
 		dasect = animatesect[i];
+		if ((unsigned)dasect >= (unsigned)MAXSECTORS) continue;  /* engine-r13-sector-animatesect-bounds: skip corrupt entry */
 
         if (a == animategoal[i])
         {
@@ -561,6 +562,8 @@ void operatesectors(short sn,short ii)
         return;
     }
     operatesectors_depth++;
+
+    if ((unsigned)sn >= (unsigned)MAXSECTORS) return;  /* engine-r13-sector-operatesectors-bounds: entry guard */
 
     sect_error = 0;
     sptr = &sector[sn];

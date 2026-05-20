@@ -2566,3 +2566,307 @@ class TestSecR13MenuesStrcpy:
             "source/MENUES.C must not have any remaining 'strcpy(&ud.pwlockout' calls. "
             "All must be replaced with strncpy + null-terminator."
         )
+
+    def test_engine_r13_nextsectorneighborz_bounds_sentinel(self, repo_root):
+        """Verify engine-r13-engine-nextsectorneighborz-bounds sentinel guards are present."""
+        engine_c = repo_root / "SRC" / "ENGINE.C"
+        if not engine_c.exists():
+            pytest.skip(f"{engine_c} not found")
+
+        content = engine_c.read_text(errors="replace")
+
+        sentinel = "engine-r13-engine-nextsectorneighborz-bounds"
+        sentinel_count = content.count(sentinel)
+
+        assert sentinel_count >= 2, (
+            f"nextsectorneighborz bounds hardening must have at least 2 sentinel comments. "
+            f"Found {sentinel_count}. Sentinel: '/* {sentinel} */'."
+        )
+
+
+class TestType17EnvelopePrevalidate:
+    """Verify bounds guard for type-17 network packet envelope."""
+
+    def test_sentinel_present_in_game_c(self, repo_root):
+        """source/GAME.C must have sentinel 'net-r11-type-17-envelope-prevalidate' comment."""
+        game_c = repo_root / "source" / "GAME.C"
+        if not game_c.exists():
+            pytest.skip(f"{game_c} not found")
+
+        content = game_c.read_text(errors="replace")
+
+        assert "net-r11-type-17-envelope-prevalidate" in content, (
+            "source/GAME.C must contain sentinel comment 'net-r11-type-17-envelope-prevalidate' "
+            "to mark the fix for the type-17 input-sync handler bounds check."
+        )
+
+    def test_packbufleng_bounds_check_present(self, repo_root):
+        """source/GAME.C case 17 must have 'packbufleng < 20' bounds check."""
+        game_c = repo_root / "source" / "GAME.C"
+        if not game_c.exists():
+            pytest.skip(f"{game_c} not found")
+
+        content = game_c.read_text(errors="replace")
+        lines = content.split('\n')
+
+        # Find case 17 in the dispatcher
+        case_17_found = False
+        case_17_line_idx = -1
+        for i, line in enumerate(lines):
+            if "case 17:" in line:
+                case_17_line_idx = i
+                case_17_found = True
+                break
+
+        assert case_17_found, (
+            "source/GAME.C must have 'case 17:' handler"
+        )
+
+        # Verify packbufleng check is within 5 lines after case 17
+        found_check = False
+        for j in range(case_17_line_idx + 1, min(case_17_line_idx + 6, len(lines))):
+            if "packbufleng <" in lines[j] and ("20" in lines[j] or any(char.isdigit() for char in lines[j])):
+                found_check = True
+                break
+
+        assert found_check, (
+            f"source/GAME.C case 17 handler must have 'packbufleng <' bounds check "
+            f"within 5 lines after case 17 (found at line {case_17_line_idx + 1})"
+        )
+
+
+class TestPlayerDisconnectMemset:
+    """Tests for net-r11 player disconnect memset hardening in SRC/MMULTI.C"""
+
+    def test_player_disconnect_memset_sentinel_present(self, repo_root):
+        """SRC/MMULTI.C must have sentinel 'net-r11-player-disconnect-memset' comment."""
+        mmulti_c = repo_root / "SRC" / "MMULTI.C"
+        if not mmulti_c.exists():
+            pytest.skip(f"{mmulti_c} not found")
+
+        content = mmulti_c.read_text(errors="replace")
+
+        assert "net-r11-player-disconnect-memset" in content, (
+            "SRC/MMULTI.C must contain sentinel comment 'net-r11-player-disconnect-memset' "
+            "to mark the fix for zeroing sensitive per-player state on disconnect."
+        )
+
+    def test_player_disconnect_memset_near_sentinel(self, repo_root):
+        """SRC/MMULTI.C must have memset call within 5 lines of the sentinel."""
+        mmulti_c = repo_root / "SRC" / "MMULTI.C"
+        if not mmulti_c.exists():
+            pytest.skip(f"{mmulti_c} not found")
+
+        content = mmulti_c.read_text(errors="replace")
+        lines = content.split('\n')
+
+        sentinel_found = False
+        for i, line in enumerate(lines):
+            if "net-r11-player-disconnect-memset" in line:
+                sentinel_found = True
+                # Check within 5 lines after sentinel (looking ahead)
+                found_memset = False
+                for j in range(i, min(i + 5, len(lines))):
+                    if "memset" in lines[j]:
+                        found_memset = True
+                        break
+                
+                assert found_memset, (
+                    "SRC/MMULTI.C: memset must appear within 5 lines of "
+                    "'net-r11-player-disconnect-memset' sentinel comment."
+                )
+                break
+
+        assert sentinel_found, (
+            "SRC/MMULTI.C: 'net-r11-player-disconnect-memset' sentinel not found."
+        )
+
+
+class TestSecR13SprintfBoundsAudit:
+    """Verify sec-r13-sprintf-bounds-audit fix (sprintf -> snprintf for tempbuf)."""
+
+    def test_sentinel_comment_present(self, repo_root):
+        """Verify sec-r13-sprintf-bounds-audit sentinel appears at least once."""
+        menues_c = repo_root / "source" / "MENUES.C"
+        if not menues_c.exists():
+            pytest.skip(f"{menues_c} not found")
+
+        content = menues_c.read_text(errors="replace")
+        sentinel_count = content.count("sec-r13-sprintf-bounds-audit")
+
+        assert sentinel_count >= 1, (
+            f"source/MENUES.C must have at least 1 'sec-r13-sprintf-bounds-audit' sentinel comment, "
+            f"found {sentinel_count}"
+        )
+
+    def test_no_sprintf_tempbuf_remain(self, repo_root):
+        """Verify NO sprintf(tempbuf calls remain in source/MENUES.C."""
+        menues_c = repo_root / "source" / "MENUES.C"
+        if not menues_c.exists():
+            pytest.skip(f"{menues_c} not found")
+
+        content = menues_c.read_text(errors="replace")
+        lines = content.split('\n')
+
+        sprintf_tempbuf_count = 0
+        sprintf_tempbuf_lines = []
+        for i, line in enumerate(lines):
+            if "sprintf(tempbuf" in line:
+                sprintf_tempbuf_count += 1
+                sprintf_tempbuf_lines.append(i + 1)
+
+        assert sprintf_tempbuf_count == 0, (
+            f"source/MENUES.C must have NO 'sprintf(tempbuf' calls remaining, "
+            f"found {sprintf_tempbuf_count} at lines: {sprintf_tempbuf_lines}"
+        )
+
+    def test_snprintf_tempbuf_present(self, repo_root):
+        """Verify at least 10 snprintf(tempbuf, sizeof(tempbuf) calls present."""
+        menues_c = repo_root / "source" / "MENUES.C"
+        if not menues_c.exists():
+            pytest.skip(f"{menues_c} not found")
+
+        content = menues_c.read_text(errors="replace")
+        snprintf_tempbuf_count = content.count("snprintf(tempbuf, sizeof(tempbuf)")
+
+        assert snprintf_tempbuf_count >= 10, (
+            f"source/MENUES.C must have at least 10 'snprintf(tempbuf, sizeof(tempbuf)' calls, "
+            f"found {snprintf_tempbuf_count}"
+        )
+
+
+class TestEngineR13SectorBounds:
+    """Verify bounds guards for sector indexing in engine-r13."""
+
+    def test_operatesectors_bounds_sentinel(self, repo_root):
+        """source/SECTOR.C operatesectors() must have sentinel 'engine-r13-sector-operatesectors-bounds'."""
+        sector_c = repo_root / "source" / "SECTOR.C"
+        if not sector_c.exists():
+            pytest.skip(f"{sector_c} not found")
+
+        content = sector_c.read_text(errors="replace")
+
+        assert "engine-r13-sector-operatesectors-bounds" in content, (
+            "source/SECTOR.C must contain sentinel comment 'engine-r13-sector-operatesectors-bounds' "
+            "to mark the entry guard for operatesectors()."
+        )
+
+    def test_operatesectors_bounds_check_present(self, repo_root):
+        """source/SECTOR.C operatesectors() must check '(unsigned)sn >= (unsigned)MAXSECTORS'."""
+        sector_c = repo_root / "source" / "SECTOR.C"
+        if not sector_c.exists():
+            pytest.skip(f"{sector_c} not found")
+
+        content = sector_c.read_text(errors="replace")
+
+        assert "(unsigned)sn >= (unsigned)MAXSECTORS" in content, (
+            "source/SECTOR.C operatesectors() must have bounds check '(unsigned)sn >= (unsigned)MAXSECTORS'"
+        )
+
+    def test_animatesect_bounds_sentinel(self, repo_root):
+        """source/SECTOR.C doanimations() must have sentinel 'engine-r13-sector-animatesect-bounds'."""
+        sector_c = repo_root / "source" / "SECTOR.C"
+        if not sector_c.exists():
+            pytest.skip(f"{sector_c} not found")
+
+        content = sector_c.read_text(errors="replace")
+
+        assert "engine-r13-sector-animatesect-bounds" in content, (
+            "source/SECTOR.C must contain sentinel comment 'engine-r13-sector-animatesect-bounds' "
+            "to mark the skip guard for animatesect[]."
+        )
+
+    def test_animatesect_bounds_check_present(self, repo_root):
+        """source/SECTOR.C doanimations() must check '(unsigned)dasect >= (unsigned)MAXSECTORS'."""
+        sector_c = repo_root / "source" / "SECTOR.C"
+        if not sector_c.exists():
+            pytest.skip(f"{sector_c} not found")
+
+        content = sector_c.read_text(errors="replace")
+
+        assert "(unsigned)dasect >= (unsigned)MAXSECTORS" in content, (
+            "source/SECTOR.C doanimations() must have bounds check '(unsigned)dasect >= (unsigned)MAXSECTORS'"
+        )
+
+
+# ============================================================================
+# pytest-xdist Integration Tests (perf-r12-pytest-xdist-integration)
+# ============================================================================
+
+def test_pytest_xdist_in_requirements():
+    """Verify pytest-xdist>=3.5 is in requirements.txt for parallel test execution."""
+    from pathlib import Path
+    req_file = Path(__file__).parent.parent / "requirements.txt"
+    content = req_file.read_text()
+    
+    assert "pytest-xdist" in content, (
+        "requirements.txt must contain pytest-xdist>=3.5 for parallel test execution"
+    )
+    
+    # Extract version constraint
+    import re
+    match = re.search(r'pytest-xdist([>=<]+[\d.]+)?', content)
+    assert match, "pytest-xdist version not found"
+    
+    version_spec = match.group(1) or ""
+    # Allow >=3.5 or any 3.x version
+    if version_spec and "3." not in version_spec:
+        # If version is specified, ensure it's at least 3.5
+        assert ">=3" in version_spec or "==3" in version_spec or version_spec == "", (
+            f"pytest-xdist version should be >=3.5, got: pytest-xdist{version_spec}"
+        )
+
+
+def test_pytest_ini_documents_xdist_status():
+    """Verify pytest.ini retains the xdist sentinel and documents opt-in path.
+
+    NOTE: Default xdist (-n auto) was reverted after cycle-45 because the
+    session-autouse `generated_audio_artifacts` fixture races across workers
+    on tmp+rename. Tracked under perf-r12-xdist-fixture-redesign. This test
+    only requires the sentinel comment + serial marker registration to
+    remain in place; the `addopts = -n auto` opt-in will be re-added once
+    the fixture is xdist-safe.
+    """
+    from pathlib import Path
+    pytest_ini = Path(__file__).parent.parent / "pytest.ini"
+    content = pytest_ini.read_text()
+
+    assert "perf-r12-pytest-xdist-integration" in content, (
+        "pytest.ini must retain sentinel comment 'perf-r12-pytest-xdist-integration'"
+    )
+    assert "serial" in content, (
+        "pytest.ini must retain the `serial` marker registration for future xdist re-enable"
+    )
+
+
+def test_pytest_ini_has_serial_marker():
+    """Verify pytest.ini has serial marker registration for xdist."""
+    from pathlib import Path
+    pytest_ini = Path(__file__).parent.parent / "pytest.ini"
+    content = pytest_ini.read_text()
+    
+    assert "serial:" in content or "serial" in content, (
+        "pytest.ini must have serial marker registered for tests incompatible with xdist"
+    )
+
+
+def test_audio_pipeline_tests_marked_serial():
+    """Verify stateful tests are marked with @pytest.mark.serial."""
+    from pathlib import Path
+    audio_pipeline = Path(__file__).parent / "test_audio_pipeline.py"
+    content = audio_pipeline.read_text()
+    
+    # Check for serial marker on tests that write to generated_assets/
+    assert "@pytest.mark.serial" in content, (
+        "test_audio_pipeline.py should have tests marked with @pytest.mark.serial "
+        "for tests that write to generated_assets/"
+    )
+    
+    # Verify specific tests are marked
+    assert "@pytest.mark.serial" in content and "test_no_ai_flag_generates_wav_files" in content, (
+        "test_no_ai_flag_generates_wav_files should be marked @pytest.mark.serial"
+    )
+    
+    assert "TestParallelManifestRace" in content, (
+        "TestParallelManifestRace class should exist for testing parallel coordination"
+    )

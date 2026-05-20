@@ -10,5 +10,6 @@ Pillow==12.1.1
 requests==2.33.1
 aiohttp==3.13.5
 pytest==9.0.2
+pytest-xdist>=3.5
 pydantic==2.12.5
 hypothesis==6.152.9

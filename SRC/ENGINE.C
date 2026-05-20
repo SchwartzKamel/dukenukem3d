@@ -4938,6 +4938,8 @@ nextsectorneighborz(short sectnum, long thez, short topbottom, short direction)
 	long i, testz, nextz;
 	short sectortouse;
 
+	if ((unsigned)sectnum >= (unsigned)MAXSECTORS) return -1;  /* engine-r13-engine-nextsectorneighborz-bounds: entry guard */
+
 	if (direction == 1) nextz = 0x7fffffff; else nextz = 0x80000000;
 
 	sectortouse = -1;
@@ -4950,6 +4952,7 @@ nextsectorneighborz(short sectnum, long thez, short topbottom, short direction)
 		{
 			if (topbottom == 1)
 			{
+				if ((unsigned)wal->nextsector >= (unsigned)MAXSECTORS) continue;  /* engine-r13-engine-nextsectorneighborz-bounds: nextsector guard */
 				testz = sector[wal->nextsector].floorz;
 				if (direction == 1)
 				{
@@ -4970,6 +4973,7 @@ nextsectorneighborz(short sectnum, long thez, short topbottom, short direction)
 			}
 			else
 			{
+				if ((unsigned)wal->nextsector >= (unsigned)MAXSECTORS) continue;  /* engine-r13-engine-nextsectorneighborz-bounds: nextsector guard */
 				testz = sector[wal->nextsector].ceilingz;
 				if (direction == 1)
 				{

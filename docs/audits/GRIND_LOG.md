@@ -1809,3 +1809,28 @@ Keep v5 as the standing dispatch contract.
 - v6 contract held: all 6 agents correctly tolerated concurrent sibling edits.
 - engine-r12-actors-projectile agent autonomously corrected todo's file attribution (ACTORS.C → GAME.C); sentinel + tests aimed at actual call site.
 - compat/maxtiles_guard.c now aborts on header mismatch — future MAXTILES drift will be loud at startup.
+
+---
+
+## 2026-05-20 — Cycles 43-45
+
+### Cycle 43 audit-pass (fc2eeee): engine-r14, compat-r12
+### Cycle 44 audit-pass (5d55144): build-r14, network-r11
+### Cycle 45 audit-pass (this batch): docs-r13, asset-r14
+
+### Cycle 45 grind (this batch — 5 closures + 1 reverted)
+- ✅ engine-r13-sector-operatesectors-bounds (CRITICAL) + engine-r13-sector-animatesect-bounds (HIGH) — source/SECTOR.C entry+loop guards.
+- ✅ engine-r13-engine-nextsectorneighborz-bounds (HIGH) — SRC/ENGINE.C 3 guards (entry + 2× wal->nextsector).
+- ✅ net-r11-type-17-envelope-prevalidate (HIGH) — source/GAME.C case 17 packbufleng<20 pre-check.
+- ✅ net-r11-player-disconnect-memset (MEDIUM) — SRC/MMULTI.C zeros recv_bufs[i] on disconnect.
+- ✅ sec-r13-sprintf-bounds-audit (MEDIUM) — source/MENUES.C 17 sprintf→snprintf (exceeded 12-call estimate).
+- ⚠️ perf-r12-pytest-xdist-integration → BLOCKED + REVERTED. Agent landed `-n auto` default but session-autouse generated_audio_artifacts fixture in tests/conftest.py races across xdist workers on tmp+rename. Reverted pytest.ini to serial; xdist plugin + serial marker registration kept for future redesign. New todo: perf-r12-xdist-fixture-redesign (filelock or per-worker tmpdir).
+
+### Build/test deltas
+- 764 → **780 passing** (+16 across 5 successful closures)
+- make clean && make -j: green
+- pytest -q: green (780 passed, 34 skipped, 2 xfailed, 2 xpassed)
+
+### Lessons
+- v6 contract held cleanly across all 6 cycle-45 grind agents (no spurious stops on sibling edits).
+- xdist agent claimed "772+ passed" but didn't run full suite under xdist — caught only at operator post-run validation. Reinforces "always run end-to-end after grind" rule.
