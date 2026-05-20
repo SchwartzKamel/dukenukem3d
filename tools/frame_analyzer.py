@@ -26,33 +26,48 @@ def is_black_screen(img: Image.Image, threshold: float = 0.95, black_cutoff: int
     Returns:
         True if the screen is effectively all black (rendering failure)
     """
-    pixels_bytes = img.tobytes()
-    # Reconstruct RGB tuples from bytes (3 bytes per pixel for RGB mode)
-    pixels = [tuple(pixels_bytes[i:i+3]) for i in range(0, len(pixels_bytes), 3)]
-    total = len(pixels)
+    colors = img.getcolors(maxcolors=2**24)
+    if colors is None:
+        # Fallback for images with more unique colors than maxcolors
+        pixels_bytes = img.tobytes()
+        pixels = [tuple(pixels_bytes[i:i+3]) for i in range(0, len(pixels_bytes), 3)]
+        total = len(pixels)
+        if total == 0:
+            return True
+        black_count = sum(1 for r, g, b in pixels if r < black_cutoff and g < black_cutoff and b < black_cutoff)
+        return (black_count / total) >= threshold
+    
+    total = sum(count for count, _ in colors)
     if total == 0:
         return True
-    black_count = sum(1 for r, g, b in pixels if r < black_cutoff and g < black_cutoff and b < black_cutoff)
+    black_count = sum(count for count, (r, g, b) in colors if r < black_cutoff and g < black_cutoff and b < black_cutoff)
     return (black_count / total) >= threshold
 
 
 def unique_color_count(img: Image.Image) -> int:
     """Count the number of distinct colors in the image."""
-    pixels_bytes = img.tobytes()
-    # Reconstruct RGB tuples from bytes (3 bytes per pixel for RGB mode)
-    pixels = [tuple(pixels_bytes[i:i+3]) for i in range(0, len(pixels_bytes), 3)]
-    return len(set(pixels))
+    colors = img.getcolors(maxcolors=2**24)
+    if colors is None:
+        # Fallback for images with more unique colors than maxcolors
+        pixels_bytes = img.tobytes()
+        pixels = [tuple(pixels_bytes[i:i+3]) for i in range(0, len(pixels_bytes), 3)]
+        return len(set(pixels))
+    return len(colors)
 
 
 def color_histogram(img: Image.Image) -> Dict[Tuple[int, int, int], int]:
     """Return a dict mapping (R,G,B) tuples to pixel counts."""
-    hist: Dict[Tuple[int, int, int], int] = {}
-    pixels_bytes = img.tobytes()
-    # Reconstruct RGB tuples from bytes (3 bytes per pixel for RGB mode)
-    pixels = [tuple(pixels_bytes[i:i+3]) for i in range(0, len(pixels_bytes), 3)]
-    for rgb in pixels:
-        hist[rgb] = hist.get(rgb, 0) + 1
-    return hist
+    colors = img.getcolors(maxcolors=2**24)
+    if colors is None:
+        # Fallback for images with more unique colors than maxcolors
+        hist: Dict[Tuple[int, int, int], int] = {}
+        pixels_bytes = img.tobytes()
+        pixels = [tuple(pixels_bytes[i:i+3]) for i in range(0, len(pixels_bytes), 3)]
+        for rgb in pixels:
+            hist[rgb] = hist.get(rgb, 0) + 1
+        return hist
+    # colors is [(count, (r, g, b)), ...]
+    return {color: count for count, color in colors}
 
 
 def brightness_stats(img: Image.Image) -> Dict[str, float]:

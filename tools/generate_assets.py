@@ -1661,6 +1661,8 @@ def main():
     parser = argparse.ArgumentParser(description="Duke3D asset generator")
     parser.add_argument("--no-ai", action="store_true",
                         help="Skip FLUX API calls; use only procedural textures")
+    parser.add_argument("--output", type=str, default=None,
+                        help="Output directory for generated assets (default: PROJECT_ROOT/generated_assets)")
     args = parser.parse_args()
 
     env = load_env(ENV_FILE)
@@ -1669,7 +1671,9 @@ def main():
     flux_model = env.get("FLUX_MODEL", "FLUX.2-pro")
     use_ai = not args.no_ai and flux_endpoint and flux_api_key
 
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    # Use custom output directory if specified
+    output_dir = args.output if args.output else OUTPUT_DIR
+    os.makedirs(output_dir, exist_ok=True)
 
     palette = build_palette()
 
@@ -1829,7 +1833,7 @@ def main():
     grp_contents["D3DTIMBR.TMB"] = timbre
 
     # -- Include pre-generated audio files if they exist
-    sounds_dir = os.path.join(OUTPUT_DIR, "sounds")
+    sounds_dir = os.path.join(output_dir, "sounds")
     if os.path.isdir(sounds_dir):
         for snd_file in sorted(os.listdir(sounds_dir)):
             if snd_file.upper().endswith(".WAV"):
@@ -1846,28 +1850,32 @@ def main():
 
     # Write individual files to generated_assets/
     for fname, data in grp_contents.items():
-        out_path = os.path.join(OUTPUT_DIR, fname)
+        out_path = os.path.join(output_dir, fname)
         with open(out_path, "wb") as f:
             f.write(data)
         print(f"  {out_path}")
 
     # Write GRP to generated_assets/ and project root
-    grp_out = os.path.join(OUTPUT_DIR, "DUKE3D.GRP")
+    grp_out = os.path.join(output_dir, "DUKE3D.GRP")
     with open(grp_out, "wb") as f:
         f.write(grp_data)
     print(f"  {grp_out}")
 
-    grp_root = os.path.join(PROJECT_ROOT, "DUKE3D.GRP")
-    with open(grp_root, "wb") as f:
-        f.write(grp_data)
-    print(f"  {grp_root}")
+    # Only write to project root if not using custom output directory
+    if not args.output:
+        grp_root = os.path.join(PROJECT_ROOT, "DUKE3D.GRP")
+        with open(grp_root, "wb") as f:
+            f.write(grp_data)
+        print(f"  {grp_root}")
 
     # -- Summary --------------------------------------------------------------
     print("\n=== Done! ===")
     print(f"  Total tiles: {len(tiles)}")
     print(f"  GRP size:    {len(grp_data):,} bytes")
-    print(f"  Output:      {OUTPUT_DIR}/")
-    print(f"  GRP copy:    {grp_root}")
+    print(f"  Output:      {output_dir}/")
+    if not args.output:
+        grp_root = os.path.join(PROJECT_ROOT, "DUKE3D.GRP")
+        print(f"  GRP copy:    {grp_root}")
     return 0
 
 
