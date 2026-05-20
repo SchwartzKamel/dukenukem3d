@@ -6,6 +6,8 @@ runtime integration.
 import json
 import os
 import re
+import struct
+import subprocess
 import sys
 
 import pytest
@@ -247,3 +249,214 @@ class TestWAVFilesExist:
                     invalid.append(f"{entry['wav']} ({size} bytes, too small)")
         
         assert not invalid, f"Invalid WAV files: {invalid}"
+
+
+def read_wav_properties(wav_path):
+    """Extract WAV file properties (sample_rate, duration, num_channels, bits_per_sample).
+    
+    Returns a dict with keys: sample_rate, duration, num_channels, bits_per_sample, data_size
+    Raises ValueError if the WAV header is invalid.
+    """
+    with open(wav_path, "rb") as f:
+        # Read RIFF header
+        riff_header = f.read(12)
+        if len(riff_header) < 12:
+            raise ValueError("WAV file too small to contain RIFF header")
+        
+        if riff_header[0:4] != b"RIFF":
+            raise ValueError(f"Invalid RIFF signature: {riff_header[0:4]}")
+        if riff_header[8:12] != b"WAVE":
+            raise ValueError(f"Invalid WAVE signature: {riff_header[8:12]}")
+        
+        # Read fmt chunk
+        fmt_header = f.read(8)
+        if len(fmt_header) < 8:
+            raise ValueError("WAV file too small to contain fmt chunk header")
+        
+        if fmt_header[0:4] != b"fmt ":
+            raise ValueError(f"Expected 'fmt ' chunk, got {fmt_header[0:4]}")
+        
+        fmt_size = struct.unpack("<I", fmt_header[4:8])[0]
+        if fmt_size < 16:
+            raise ValueError(f"fmt chunk size too small: {fmt_size}")
+        
+        # Read fmt data
+        fmt_data = f.read(fmt_size)
+        if len(fmt_data) < 16:
+            raise ValueError("fmt chunk data too small")
+        
+        # Parse fmt chunk (at least 16 bytes for PCM)
+        audio_format = struct.unpack_from("<H", fmt_data, 0)[0]
+        num_channels = struct.unpack_from("<H", fmt_data, 2)[0]
+        sample_rate = struct.unpack_from("<I", fmt_data, 4)[0]
+        byte_rate = struct.unpack_from("<I", fmt_data, 8)[0]
+        block_align = struct.unpack_from("<H", fmt_data, 12)[0]
+        bits_per_sample = struct.unpack_from("<H", fmt_data, 14)[0]
+        
+        if audio_format != 1:
+            raise ValueError(f"Not PCM format: {audio_format}")
+        
+        # Find data chunk
+        while True:
+            chunk_header = f.read(8)
+            if len(chunk_header) < 8:
+                raise ValueError("No data chunk found in WAV file")
+            
+            chunk_id = chunk_header[0:4]
+            chunk_size = struct.unpack("<I", chunk_header[4:8])[0]
+            
+            if chunk_id == b"data":
+                # Calculate duration from data chunk size
+                bytes_per_sample = bits_per_sample // 8
+                if bytes_per_sample == 0:
+                    raise ValueError(f"Invalid bits_per_sample: {bits_per_sample}")
+                total_samples = chunk_size // (num_channels * bytes_per_sample)
+                duration = total_samples / sample_rate if sample_rate > 0 else 0.0
+                
+                return {
+                    "sample_rate": sample_rate,
+                    "duration": duration,
+                    "num_channels": num_channels,
+                    "bits_per_sample": bits_per_sample,
+                    "data_size": chunk_size,
+                    "audio_format": audio_format,
+                }
+            else:
+                # Skip non-data chunks
+                f.seek(chunk_size, 1)
+
+
+@pytest.fixture
+def sounds_dir():
+    """Fixture to get the sounds directory. Skip if it doesn't exist or is empty."""
+    sounds_path = os.path.join(PROJECT_ROOT, "generated_assets", "sounds")
+    if not os.path.isdir(sounds_path) or not os.listdir(sounds_path):
+        pytest.skip("generated_assets/sounds/ not populated. Run: python3 tools/generate_audio.py --no-ai")
+    return sounds_path
+
+
+class TestManifestWavConsistency:
+    """Validate WAV file properties and consistency with manifest entries."""
+    
+    def test_wav_riff_header_valid(self, sounds_dir):
+        """Every WAV file must have a valid RIFF header with PCM fmt chunk."""
+        invalid_wavs = []
+        for entry in generate_audio.SOUND_MANIFEST:
+            wav_file = os.path.join(sounds_dir, entry["wav"])
+            if not os.path.exists(wav_file):
+                continue
+            
+            try:
+                read_wav_properties(wav_file)
+            except (ValueError, struct.error) as e:
+                invalid_wavs.append(f"{entry['wav']}: {str(e)}")
+        
+        assert not invalid_wavs, f"Invalid WAV files: {', '.join(invalid_wavs)}"
+    
+    def test_wav_riff_header_size_minimum(self, sounds_dir):
+        """RIFF header must be at least 44 bytes (RIFF + fmt + minimal data chunk)."""
+        invalid_wavs = []
+        for entry in generate_audio.SOUND_MANIFEST:
+            wav_file = os.path.join(sounds_dir, entry["wav"])
+            if not os.path.exists(wav_file):
+                continue
+            
+            size = os.path.getsize(wav_file)
+            if size < 44:
+                invalid_wavs.append(f"{entry['wav']} ({size} bytes)")
+        
+        assert not invalid_wavs, f"WAV files smaller than 44 bytes: {invalid_wavs}"
+    
+    def test_wav_sample_rate_standard(self, sounds_dir):
+        """Sample rate in WAV must be 22050 or 44100 Hz."""
+        invalid_wavs = []
+        for entry in generate_audio.SOUND_MANIFEST:
+            wav_file = os.path.join(sounds_dir, entry["wav"])
+            if not os.path.exists(wav_file):
+                continue
+            
+            try:
+                props = read_wav_properties(wav_file)
+                sample_rate = props["sample_rate"]
+                if sample_rate not in (22050, 44100):
+                    invalid_wavs.append(f"{entry['wav']}: sample_rate={sample_rate} (expected 22050 or 44100)")
+            except (ValueError, struct.error) as e:
+                invalid_wavs.append(f"{entry['wav']}: {str(e)}")
+        
+        assert not invalid_wavs, f"Non-standard sample rates: {', '.join(invalid_wavs)}"
+    
+    def test_wav_duration_reasonable(self, sounds_dir):
+        """Duration extracted from WAV file must be reasonable (0.1s to 10s)."""
+        invalid_wavs = []
+        for entry in generate_audio.SOUND_MANIFEST:
+            wav_file = os.path.join(sounds_dir, entry["wav"])
+            if not os.path.exists(wav_file):
+                continue
+            
+            try:
+                props = read_wav_properties(wav_file)
+                duration = props["duration"]
+                if duration < 0.1 or duration > 10.0:
+                    invalid_wavs.append(f"{entry['wav']}: duration={duration:.2f}s (expected 0.1-10.0s)")
+            except (ValueError, struct.error) as e:
+                invalid_wavs.append(f"{entry['wav']}: {str(e)}")
+        
+        assert not invalid_wavs, f"Unreasonable durations: {', '.join(invalid_wavs)}"
+    
+    def test_wav_channels_mono_or_stereo(self, sounds_dir):
+        """Channels in WAV must be 1 (mono) or 2 (stereo)."""
+        invalid_wavs = []
+        for entry in generate_audio.SOUND_MANIFEST:
+            wav_file = os.path.join(sounds_dir, entry["wav"])
+            if not os.path.exists(wav_file):
+                continue
+            
+            try:
+                props = read_wav_properties(wav_file)
+                channels = props["num_channels"]
+                if channels not in (1, 2):
+                    invalid_wavs.append(f"{entry['wav']}: channels={channels} (expected 1 or 2)")
+            except (ValueError, struct.error) as e:
+                invalid_wavs.append(f"{entry['wav']}: {str(e)}")
+        
+        assert not invalid_wavs, f"Invalid channel count: {', '.join(invalid_wavs)}"
+    
+    def test_wav_bits_per_sample_16bit(self, sounds_dir):
+        """Bits per sample in WAV must be 16."""
+        invalid_wavs = []
+        for entry in generate_audio.SOUND_MANIFEST:
+            wav_file = os.path.join(sounds_dir, entry["wav"])
+            if not os.path.exists(wav_file):
+                continue
+            
+            try:
+                props = read_wav_properties(wav_file)
+                bits = props["bits_per_sample"]
+                if bits != 16:
+                    invalid_wavs.append(f"{entry['wav']}: bits={bits} (expected 16)")
+            except (ValueError, struct.error) as e:
+                invalid_wavs.append(f"{entry['wav']}: {str(e)}")
+        
+        assert not invalid_wavs, f"Non-16-bit WAV files: {', '.join(invalid_wavs)}"
+    
+    def test_engine_sound_id_int_range(self):
+        """engine_sound_id_int must be either None or in range [0, 999]."""
+        invalid_entries = []
+        for i, entry in enumerate(generate_audio.SOUND_MANIFEST):
+            id_int = entry["engine_sound_id_int"]
+            if id_int is not None and (not isinstance(id_int, int) or id_int < 0 or id_int > 999):
+                invalid_entries.append(f"{entry['wav']}: engine_sound_id_int={id_int} (expected None or 0-999)")
+        
+        assert not invalid_entries, f"Invalid engine_sound_id_int range: {', '.join(invalid_entries)}"
+    
+    def test_voice_field_valid_values(self):
+        """Voice field must be one of {alloy, echo, onyx}."""
+        valid_voices = {"alloy", "echo", "onyx"}
+        invalid_entries = []
+        for i, entry in enumerate(generate_audio.SOUND_MANIFEST):
+            voice = entry.get("voice")
+            if voice not in valid_voices:
+                invalid_entries.append(f"{entry['wav']}: voice='{voice}' (expected one of {valid_voices})")
+        
+        assert not invalid_entries, f"Invalid voice values: {', '.join(invalid_entries)}"
+

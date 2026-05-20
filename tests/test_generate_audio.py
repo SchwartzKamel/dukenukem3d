@@ -380,6 +380,54 @@ class TestSoundManifestValidation:
             assert wav and wav.endswith(".WAV"), \
                 f"Entry {i}: invalid WAV filename '{wav}'"
 
+    def test_voice_lines_have_manifest_entries(self, generated_audio_artifacts):
+        """Every VOICE_LINES entry must have a corresponding MANIFEST entry with valid WAV."""
+        manifest = generated_audio_artifacts["manifest"]
+        manifest_filenames = {entry.get("wav") for entry in manifest}
+        
+        for i, (filename, prompt, voice) in enumerate(generate_audio.VOICE_LINES):
+            assert filename in manifest_filenames, \
+                f"VOICE_LINES entry {i} ({filename}) has no corresponding MANIFEST entry"
+            
+            # Find the manifest entry for this file
+            manifest_entry = next(
+                (entry for entry in manifest if entry.get("wav") == filename),
+                None
+            )
+            assert manifest_entry is not None, f"Could not find manifest entry for {filename}"
+            assert manifest_entry.get("voice") == voice, \
+                f"{filename}: manifest voice '{manifest_entry.get('voice')}' != VOICE_LINES voice '{voice}'"
+
+    def test_manifest_wav_files_exist_and_valid(self, generated_audio_artifacts):
+        """Every MANIFEST entry must reference an existing WAV file with valid format."""
+        import wave
+        
+        manifest = generated_audio_artifacts["manifest"]
+        sounds_dir = generated_audio_artifacts["sounds_dir"]
+        
+        for i, entry in enumerate(manifest):
+            wav_filename = entry.get("wav")
+            wav_path = sounds_dir / wav_filename
+            
+            assert wav_path.exists(), \
+                f"Manifest entry {i}: WAV file not found: {wav_path}"
+            
+            # Verify WAV is readable and has valid properties
+            with wave.open(str(wav_path), "rb") as wav:
+                channels = wav.getnchannels()
+                sample_width = wav.getsampwidth()
+                framerate = wav.getframerate()
+                nframes = wav.getnframes()
+                
+                assert channels > 0, \
+                    f"{wav_filename}: invalid channel count {channels}"
+                assert sample_width > 0, \
+                    f"{wav_filename}: invalid sample width {sample_width}"
+                assert framerate > 0, \
+                    f"{wav_filename}: invalid sample rate {framerate}"
+                assert nframes > 0, \
+                    f"{wav_filename}: no audio frames (duration = 0)"
+
 
 class TestLoadEnv:
     """Test load_env() function for .env file handling."""
