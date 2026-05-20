@@ -182,7 +182,10 @@ static int mixer_play(const char *ptr, int loops, int vol,
     if (!rw) return -1;
 
     chunk = Mix_LoadWAV_RW(rw, 1);
-    if (!chunk) return -1;
+    if (!chunk) {
+        SDL_FreeRW(rw);
+        return -1;
+    }
 
     Mix_VolumeChunk(chunk,
         vol > 255 ? MIX_MAX_VOLUME : (vol * MIX_MAX_VOLUME) / 255);
@@ -238,7 +241,10 @@ static int mixer_play_3d(const char *ptr, int angle, int distance,
     if (!rw) return -1;
 
     chunk = Mix_LoadWAV_RW(rw, 1);
-    if (!chunk) return -1;
+    if (!chunk) {
+        SDL_FreeRW(rw);
+        return -1;
+    }
 
     channel = Mix_PlayChannel(-1, chunk, 0);
     if (channel < 0) {
@@ -878,8 +884,12 @@ int MUSIC_PlaySong(unsigned char *song, int loopflag)
         current_music_rw = SDL_RWFromConstMem(song, (size_t)size);
         if (current_music_rw) {
             current_music = Mix_LoadMUS_RW(current_music_rw, 0);
-            if (current_music)
+            if (!current_music) {
+                SDL_FreeRW(current_music_rw);
+                current_music_rw = NULL;
+            } else {
                 Mix_PlayMusic(current_music, loopflag ? -1 : 0);
+            }
         }
     }
 #else

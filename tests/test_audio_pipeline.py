@@ -291,3 +291,93 @@ class TestNoSecretLeak:
         unsafe_pattern = r'os\.environ\s*\[\s*["\']AUDIO_API_KEY'
         assert not re.search(unsafe_pattern, content), \
             "Found unsafe os.environ[\"AUDIO_API_KEY\"] access (use .get() for defaults)"
+
+
+class TestAudioStubRWopsResourceLeaks:
+    """Static analysis: verify SDL_RWops are properly freed on error paths."""
+
+    def test_mixer_play_frees_rwops_on_load_failure(self):
+        """mixer_play must free SDL_RWops if Mix_LoadWAV_RW fails (audio-r7-sdl-rwops-mixer-play)."""
+        audio_stub = os.path.join(PROJECT_ROOT, "compat", "audio_stub.c")
+        with open(audio_stub, "r") as f:
+            content = f.read()
+        
+        # Pattern: In mixer_play, after Mix_LoadWAV_RW(rw, 1),
+        # if (!chunk) must have SDL_FreeRW(rw) before return
+        # Search for the function and verify the pattern
+        mixer_play_match = re.search(
+            r'static int mixer_play\(.*?\)\s*\{.*?'
+            r'chunk\s*=\s*Mix_LoadWAV_RW\(rw,\s*1\)\s*;'
+            r'.*?'
+            r'if\s*\(\s*!chunk\s*\)\s*\{.*?SDL_FreeRW\s*\(\s*rw\s*\)\s*;',
+            content,
+            re.DOTALL
+        )
+        assert mixer_play_match, \
+            "mixer_play: Mix_LoadWAV_RW failure path does not free SDL_RWops with SDL_FreeRW(rw)"
+
+    def test_mixer_play_3d_frees_rwops_on_load_failure(self):
+        """mixer_play_3d must free SDL_RWops if Mix_LoadWAV_RW fails (audio-r7-sdl-rwops-mixer-play-3d)."""
+        audio_stub = os.path.join(PROJECT_ROOT, "compat", "audio_stub.c")
+        with open(audio_stub, "r") as f:
+            content = f.read()
+        
+        # Pattern: In mixer_play_3d, after Mix_LoadWAV_RW(rw, 1),
+        # if (!chunk) must have SDL_FreeRW(rw) before return
+        mixer_play_3d_match = re.search(
+            r'static int mixer_play_3d\(.*?\)\s*\{.*?'
+            r'chunk\s*=\s*Mix_LoadWAV_RW\(rw,\s*1\)\s*;'
+            r'.*?'
+            r'if\s*\(\s*!chunk\s*\)\s*\{.*?SDL_FreeRW\s*\(\s*rw\s*\)\s*;',
+            content,
+            re.DOTALL
+        )
+        assert mixer_play_3d_match, \
+            "mixer_play_3d: Mix_LoadWAV_RW failure path does not free SDL_RWops with SDL_FreeRW(rw)"
+
+    def test_music_playsong_frees_rwops_on_load_failure(self):
+        """MUSIC_PlaySong must free SDL_RWops if Mix_LoadMUS_RW fails (audio-r7-sdl-rwops-music-playsong)."""
+        audio_stub = os.path.join(PROJECT_ROOT, "compat", "audio_stub.c")
+        with open(audio_stub, "r") as f:
+            content = f.read()
+        
+        # Pattern: In MUSIC_PlaySong, after Mix_LoadMUS_RW(current_music_rw, 0),
+        # if (!current_music) must have SDL_FreeRW(current_music_rw) before returning/continuing
+        music_playsong_match = re.search(
+            r'current_music\s*=\s*Mix_LoadMUS_RW\(current_music_rw,\s*0\)\s*;'
+            r'.*?'
+            r'if\s*\(\s*!current_music\s*\)\s*\{.*?SDL_FreeRW\s*\(\s*current_music_rw\s*\)\s*;',
+            content,
+            re.DOTALL
+        )
+        assert music_playsong_match, \
+            "MUSIC_PlaySong: Mix_LoadMUS_RW failure path does not free SDL_RWops with SDL_FreeRW(current_music_rw)"
+
+    def test_no_unmatched_sdl_rwfrommem_without_freedrw(self):
+        """All SDL_RWFromConstMem calls in mixer functions should have matching SDL_FreeRW on error."""
+        audio_stub = os.path.join(PROJECT_ROOT, "compat", "audio_stub.c")
+        with open(audio_stub, "r") as f:
+            lines = f.readlines()
+        
+        # Collect all SDL_RWFromConstMem calls with their line numbers
+        rwfrommem_lines = []
+        for i, line in enumerate(lines):
+            if "SDL_RWFromConstMem" in line:
+                rwfrommem_lines.append((i + 1, line.strip()))
+        
+        # For each SDL_RWFromConstMem, verify the error path has SDL_FreeRW
+        for line_num, line_content in rwfrommem_lines:
+            # Find the function context (search backwards)
+            func_start = line_num - 1
+            while func_start > 0 and "{" not in lines[func_start]:
+                func_start -= 1
+            
+            func_end = line_num - 1
+            while func_end < len(lines) and "}" not in lines[func_end]:
+                func_end += 1
+            
+            func_code = "".join(lines[func_start:func_end])
+            
+            # Verify SDL_FreeRW appears in the function (indicating error handling)
+            assert "SDL_FreeRW" in func_code, \
+                f"Line {line_num}: SDL_RWFromConstMem found but no SDL_FreeRW in function context"
