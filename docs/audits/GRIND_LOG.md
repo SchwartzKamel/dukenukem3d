@@ -2033,3 +2033,14 @@ Pending 257 → 257 (-8 closed, +4 new from frag audit, +others from r14 audits 
 ### Backlog delta
 
 271 → ~268 pending (-6 closed cycle 56, +various small intake from sibling commits; net -3).
+
+---
+
+## Cycle 57 (audit-pass tick)
+
+**Stalest rotation:** build-system (last r15 @ cycle 50) + documentation-curator (last r14 @ cycle 50). Both 7 cycles old.
+
+- **build-system-r16:** 5 findings, **5 todos** (3 new build-r16-* + 2 r15 carryovers elevated). 0 CRIT/HIGH. **MEDIUM:** `build-r16-lto-type-mismatch` (17 LTO type-mismatch warnings; low ABI risk on x86_64-linux-gnu LP64 but worth audit). **LOW/INFO:** make-clean-doc (GRP_MANIFEST.json persistence is intentional but undocumented), lto-flags-doc. Verified: SDL2_VERSION single-source still tight, no /Tc on .C in CMake, .gitignore post-cycle-56 clean, dep-file emission (12 .d files, 7% growth from r15 → minimal rebuild impact).
+- **documentation-curator-r15:** 15 findings, **2 new todos, 8 archived**. README/ARCHITECTURE drift report: clean (cycle 50 feature summary + cycle 53 MTU section still accurate). SUMMARY.md integrity: all r-levels indexed, 0 orphans. New: `docs-r15-contributing-testing-section` (add xdist testing docs), `docs-r15-readme-multiplayer-clarification`. **Archived 8 stale/subsumed todos** (r4-era perf/network/test items + r5-era aspirational infra) — all marked blocked with `[archived cycle 57: ...]` rationale.
+
+**Backlog delta:** 265 → ~264 pending (+5 build-r16 +2 docs-r15 = +7 intake, -8 archived = -1 net).
