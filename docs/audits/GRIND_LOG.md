@@ -223,3 +223,46 @@ Round 2 audit of 3 primary documentation files for consistency with recent commi
 - Documentation status: **ACCURATE AS OF CYCLE 3**.
 
 ---
+
+## 2026-05-20T06:18:58Z — Cycle 5 (scheduled `/audit-grind`)
+
+**Trigger:** Scheduled prompt #1 (every 30 min).
+**Operator AFK:** Yes — autonomous dispatch.
+
+### Baseline
+- Build: green (incremental no-op).
+- Tests: 510 passed, 0 failed, 0 skipped.
+- Backlog: 49 done / 59 pending (post-cycle-4 audit harvest).
+
+### Todos picked up & completed (13 closed in this cycle)
+| persona | todos closed |
+|---|---|
+| security-and-secrets | `sec-azure-patterns`, `sec-azure-connection-strings`, `sec-hook-aws-akia`, `sec-hook-github-pat`, `sec-hook-ssh-keys`, `sec-stripe-twilio` (combined: expand `tools/check_secrets.sh` to detect 7 new pattern families) |
+| test-engineer | `test-sdl-driver-unit` (new `tests/test_sdl_driver.py`, 4 tests), `test-manifest-wav-consistency` (8 new tests on RIFF headers + manifest integrity), `test-audio-gen-fixture` + `test-exception-specificity` + `test-generate-audio-behavior` (combined: session-scoped audio fixture in `tests/conftest.py`, narrowed `wave.Error` catches, replaced tautology tests with behavior assertions) |
+| asset-pipeline + performance-profiler | `perf-parallel-assets` (multiprocessing pool in `tools/generate_assets.py`) — also DRY'd `tools/grp_format.py` for deterministic ordering as a collateral |
+| audio-engineer + performance-profiler | `perf-parallel-audio` (ThreadPoolExecutor for `--no-ai`, asyncio+aiohttp for API path; added `--workers`/`--concurrency` CLI flags; `aiohttp` added to `requirements.txt`) |
+
+### Audit pass (parallel scheduled prompt #2)
+| persona | new findings | new todos |
+|---|---|---|
+| network-multiplayer-r2 | 6 | 5 (`audit-net-fragmentation`, `fix-net-sequence-numbers`, `create-net-socket-compat`, `fix-net-coop-dm-validation`, `fix-net-connect-timeout-sec`) |
+| performance-profiler-r2 | 7 | 5 (`perf-struct-alignment-sprites`, `perf-sectortype-field-order`, `perf-frame-analyzer-bytes`, `perf-frame-analyzer-edges`, `perf-tsprite-array-padding`) |
+
+### Backlog delta
+- Before: 49 done / 59 pending = 108 total.
+- After:  62 done / 56 pending = 118 total (+10 from audits, +13 closed).
+- Net pending change: 59 → 56.
+
+### Build/test delta
+- Tests: **510 passed → 523 passed, 1 skipped** (+13 tests; skip is `test_sdl_driver` symbol-presence, requires `make` first).
+- Build: green (release).
+
+### Notable findings surfaced
+- `compat/network_stub.c` does NOT yet exist — `create-net-socket-compat` todo is the on-ramp for the BSD socket / SDL_net port that replaces MMULTI.
+- `spritetype` (44 B) is 12 B above a 32-byte cache line; reordering fields could win 3-5% frame time.
+- GRP packer was non-deterministic on Python <3.7 dict ordering; now sorted.
+
+### Human-attention items
+- None — all sub-agents respected the no-commit constraint. Orchestrator (me) is committing on user's standing authorization.
+
+---
