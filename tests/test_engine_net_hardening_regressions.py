@@ -1,5 +1,5 @@
 """
-Regression tests for hardening fixes from cycle 11-15, 19-20, 22.
+Regression tests for hardening fixes from cycle 11-15, 19-20, 22, and r8.
 
 These tests use static analysis (grep-style source inspection) to verify
 that critical guard patterns remain in place. They do NOT execute the engine.
@@ -19,9 +19,10 @@ Test coverage:
   8. FX_SetVolume thread safety (cycle 15): SDL_LockAudio in FX_SetVolume
   9. sprite-yvel bounds (cycle 20): player_from_yvel macro and usage
   10. savegame loader bounds (cycle 20): ferror checks after kdfread
-  11. cache1d_free_bytes counter (cycle 22): static variable + references
-  12. NET_CONNECT_TIMEOUT define (cycle 22): timeout value <= 30
-  13. spriteqamount bounds (cycle 19): array bounds checking
+  11. savegame wall/sector partial-reads (cycle r8): partial read + memset cleanup
+  12. cache1d_free_bytes counter (cycle 22): static variable + references
+  13. NET_CONNECT_TIMEOUT define (cycle 22): timeout value <= 30
+  14. spriteqamount bounds (cycle 19): array bounds checking
 """
 
 import re
@@ -307,6 +308,34 @@ class TestSavegameLoaderBounds:
             "Cycle-20 fix may have been reverted."
         )
 
+    def test_menues_c_wall_sector_partial_reads(self, repo_root):
+        """Verify cycle-r8 fix: wall/sector arrays read actual counts then memset remainder."""
+        menues_c = repo_root / "source" / "MENUES.C"
+        if not menues_c.exists():
+            pytest.skip(f"{menues_c} not found")
+
+        content = menues_c.read_text(errors="replace")
+
+        # Check for partial-read pattern: kdfread with numwalls/numsectors + memset cleanup
+        has_numwalls_partial_read = (
+            "kdfread(&wall[0],sizeof(walltype),numwalls,fil)" in content
+        )
+        has_numwalls_memset = "memset(wall + numwalls, 0" in content
+
+        has_numsectors_partial_read = (
+            "kdfread(&sector[0],sizeof(sectortype),numsectors,fil)" in content
+        )
+        has_numsectors_memset = "memset(sector + numsectors, 0" in content
+
+        assert has_numwalls_partial_read and has_numwalls_memset, (
+            "MENUES.C savegame loader must read numwalls worth of walls, then memset "
+            "the remainder. Cycle-r8 fix may have been reverted."
+        )
+        assert has_numsectors_partial_read and has_numsectors_memset, (
+            "MENUES.C savegame loader must read numsectors worth of sectors, then memset "
+            "the remainder. Cycle-r8 fix may have been reverted."
+        )
+
 
 class TestCache1dFreeBytes:
     """Verify cycle-22 cache1d_free_bytes counter management in CACHE1D.C."""
@@ -376,6 +405,58 @@ class TestNETConnectTimeout:
             )
 
 
+class TestAllocacheOverflowGuard:
+    """Verify cycle-25/r8 allocache alignment overflow guard in CACHE1D.C."""
+
+    def test_cache1d_c_allocache_overflow_guard(self, repo_root):
+        """CACHE1D.C allocache() must check for overflow before alignment.
+        
+        This test verifies that the overflow guard pattern is present:
+        - Check if newbytes > LONG_MAX - 15 (0x7fffffffL - 15)
+        - Guard must come BEFORE the alignment operation
+        - Should call reportandexit or similar on overflow
+        """
+        cache1d_c = repo_root / "SRC" / "CACHE1D.C"
+        if not cache1d_c.exists():
+            pytest.skip(f"{cache1d_c} not found")
+
+        content = cache1d_c.read_text(errors="replace")
+
+        # Look for overflow guard pattern:
+        # The guard should check newbytes > 0x7fffffffL - 15 or similar
+        guard_pattern = r"newbytes\s*>\s*0x7fffffffL?\s*-\s*15"
+        has_guard = re.search(guard_pattern, content)
+
+        assert has_guard, (
+            "CACHE1D.C allocache() must include overflow guard: "
+            "check 'if (newbytes > 0x7fffffffL - 15)' or similar before "
+            "alignment operation. Cycle-25/r8 allocache-overflow fix may have "
+            "been reverted."
+        )
+
+        # Verify the guard comes before the alignment operation
+        guard_match = re.search(r"if\s*\(\s*newbytes\s*>\s*0x7fffffffL?\s*-\s*15\s*\)", content)
+        align_match = re.search(r"newbytes\s*=\s*\(\s*\(\s*newbytes\s*\+\s*15\s*\)\s*&\s*~\s*\(\s*long\s*\)\s*15\s*\)", content)
+        
+        assert guard_match and align_match, (
+            "Could not find guard or alignment patterns in CACHE1D.C"
+        )
+        
+        assert guard_match.start() < align_match.start(), (
+            "Overflow guard must appear before alignment operation in CACHE1D.C. "
+            "Guard at position {}, alignment at position {}".format(
+                guard_match.start(), align_match.start()
+            )
+        )
+
+        # Verify reportandexit is called in the guard branch
+        guard_section = content[guard_match.start():align_match.start()]
+        assert "reportandexit" in guard_section, (
+            "Overflow guard in CACHE1D.C must call reportandexit() to fail gracefully. "
+            "The guard condition was found but exit path may be missing."
+        )
+
+
 class TestSpriteqamountBounds:
     """Verify cycle-19 spriteqamount array bounds checking in MENUES.C."""
 
@@ -432,4 +513,206 @@ class TestAllHardeningFixesSummary:
         assert pattern in content, (
             f"Hardening fix '{fix_name}' pattern '{pattern}' not found in "
             f"{file_path}. A recent refactor may have reverted this fix."
+        )
+
+
+class TestHlineasmShiftBounds:
+    """Verify cycle-r8 finding #3: sethlinesizes shift-bounds validation."""
+
+    def test_sethlinesizes_logx_logy_bounds_check(self, repo_root):
+        """sethlinesizes must validate logx and logy to [0, 31] range."""
+        engine_c = repo_root / "SRC" / "ENGINE.C"
+        if not engine_c.exists():
+            pytest.skip(f"{engine_c} not found")
+
+        content = engine_c.read_text(errors="replace")
+
+        # Check for bounds clamping in sethlinesizes:
+        # Should have pattern like "if (logx < 0)" and "if (logx > 31)"
+        has_logx_clamp = "if (logx < 0)" in content and "if (logx > 31)" in content
+        assert has_logx_clamp, (
+            "sethlinesizes must clamp logx to [0, 31] range. "
+            "Check for 'if (logx < 0)' and 'if (logx > 31)' patterns."
+        )
+
+        # Same for logy
+        has_logy_clamp = "if (logy < 0)" in content and "if (logy > 31)" in content
+        assert has_logy_clamp, (
+            "sethlinesizes must clamp logy to [0, 31] range. "
+            "Check for 'if (logy < 0)' and 'if (logy > 31)' patterns."
+        )
+
+
+class TestAnimateoffsClamp:
+    """Verify cycle-r8 finding #4: animateoffs bounds clamping."""
+
+    def test_animateoffs_result_clamped(self, repo_root):
+        """animateoffs result must be clamped to [0, MAXTILES) on sprite rendering."""
+        engine_c = repo_root / "SRC" / "ENGINE.C"
+        if not engine_c.exists():
+            pytest.skip(f"{engine_c} not found")
+
+        content = engine_c.read_text(errors="replace")
+
+        # Check for pattern that validates animateoffs result:
+        # Should have pattern like "newtile + animateoffs" or similar that checks bounds
+        # and falls back to original tilenum if out of range
+        has_clamp_pattern = (
+            "newtile = tilenum + animateoffs" in content and
+            "(unsigned)newtile >= (unsigned)MAXTILES" in content and
+            "newtile = tilenum" in content
+        )
+        assert has_clamp_pattern, (
+            "animateoffs result must be bounds-checked before assignment. "
+            "Expect pattern: newtile = tilenum + animateoffs; "
+            "if ((unsigned)newtile >= (unsigned)MAXTILES) newtile = tilenum;"
+        )
+
+
+class TestHlineasmShiftBounds:
+    """Verify cycle-r8 finding #3: sethlinesizes shift-bounds validation."""
+
+    def test_sethlinesizes_logx_logy_bounds_check(self, repo_root):
+        """sethlinesizes must validate logx and logy to [0, 31] range."""
+        engine_c = repo_root / "SRC" / "ENGINE.C"
+        if not engine_c.exists():
+            pytest.skip(f"{engine_c} not found")
+
+        content = engine_c.read_text(errors="replace")
+
+        # Check for bounds clamping in sethlinesizes:
+        # Should have pattern like "if (logx < 0)" and "if (logx > 31)"
+        has_logx_clamp = "if (logx < 0)" in content and "if (logx > 31)" in content
+        assert has_logx_clamp, (
+            "sethlinesizes must clamp logx to [0, 31] range. "
+            "Check for 'if (logx < 0)' and 'if (logx > 31)' patterns."
+        )
+
+        # Same for logy
+        has_logy_clamp = "if (logy < 0)" in content and "if (logy > 31)" in content
+        assert has_logy_clamp, (
+            "sethlinesizes must clamp logy to [0, 31] range. "
+            "Check for 'if (logy < 0)' and 'if (logy > 31)' patterns."
+        )
+
+
+class TestAnimateoffsClamp:
+    """Verify cycle-r8 finding #4: animateoffs bounds clamping."""
+
+    def test_animateoffs_result_clamped(self, repo_root):
+        """animateoffs result must be clamped to [0, MAXTILES) on sprite rendering."""
+        engine_c = repo_root / "SRC" / "ENGINE.C"
+        if not engine_c.exists():
+            pytest.skip(f"{engine_c} not found")
+
+        content = engine_c.read_text(errors="replace")
+
+        # Check for pattern that validates animateoffs result:
+        # Should have pattern like "newtile + animateoffs" or similar that checks bounds
+        # and falls back to original tilenum if out of range
+        has_clamp_pattern = (
+            "newtile = tilenum + animateoffs" in content and
+            "(unsigned)newtile >= (unsigned)MAXTILES" in content and
+            "newtile = tilenum" in content
+        )
+        assert has_clamp_pattern, (
+            "animateoffs result must be bounds-checked before assignment. "
+            "Expect pattern: newtile = tilenum + animateoffs; "
+            "if ((unsigned)newtile >= (unsigned)MAXTILES) newtile = tilenum;"
+        )
+
+
+class TestPacketType9BufferOverflow:
+    """Verify r5 finding #1: Packet type 9 (wchoice) buffer overflow guard."""
+
+    def test_packet_type_9_bounds_check(self, repo_root):
+        """Packet type 9 must validate packbufleng before writing to wchoice array."""
+        game_c = repo_root / "source" / "GAME.C"
+        if not game_c.exists():
+            pytest.skip(f"{game_c} not found")
+
+        content = game_c.read_text(errors="replace")
+
+        # Check for the bounds guard pattern: packbufleng check against MAX_WEAPONS
+        # Pattern: if (packbufleng - 1 > MAX_WEAPONS) { ... break; }
+        has_bounds_guard = (
+            "packbufleng - 1 > MAX_WEAPONS" in content
+        )
+        assert has_bounds_guard, (
+            "Packet type 9 must validate packbufleng against MAX_WEAPONS. "
+            "Expect pattern: if (packbufleng - 1 > MAX_WEAPONS) { ... break; }"
+        )
+
+        # Also verify that the security logging message appears
+        has_security_msg = "Packet type 9 payload too large" in content
+        assert has_security_msg, (
+            "Packet type 9 bounds check must include security log message"
+        )
+
+
+class TestPacketTypes01OOBRead:
+    """Verify r5 finding #2: Packet types 0 and 1 (sync) OOB read guards."""
+
+    def test_packet_type_1_length_validation(self, repo_root):
+        """Packet type 1 must validate packet length before parsing fields."""
+        game_c = repo_root / "source" / "GAME.C"
+        if not game_c.exists():
+            pytest.skip(f"{game_c} not found")
+
+        content = game_c.read_text(errors="replace")
+
+        # Check for length validation pattern in packet type 1
+        # Pattern: required_len = 2; if (k&1) required_len += 2; ... if (packbufleng < required_len)
+        has_required_len_decl = "required_len" in content
+        has_required_len_check = "if (packbufleng < required_len)" in content
+
+        assert has_required_len_decl, (
+            "Packet type 1 must declare required_len variable"
+        )
+        assert has_required_len_check, (
+            "Packet type 1 must check: if (packbufleng < required_len) { ... break; }"
+        )
+
+        # Verify security message appears
+        has_security_msg = "Packet type 1 truncated" in content
+        assert has_security_msg, (
+            "Packet type 1 length validation must include security log message"
+        )
+
+    def test_packet_type_0_bounds_checks(self, repo_root):
+        """Packet type 0 must validate buffer bounds before field reads."""
+        game_c = repo_root / "source" / "GAME.C"
+        if not game_c.exists():
+            pytest.skip(f"{game_c} not found")
+
+        content = game_c.read_text(errors="replace")
+
+        # Check for defensive bounds checks in packet type 0
+        # Pattern: checks like "if (k >= packbufleng)" and "if (j >= packbufleng)"
+        has_bitmask_check = "k >= packbufleng" in content
+        has_field_checks = (
+            "if (j >= packbufleng)" in content or
+            "if (j+1 >= packbufleng)" in content
+        )
+
+        assert has_bitmask_check, (
+            "Packet type 0 must validate bitmask read with: if (k >= packbufleng) { ... break; }"
+        )
+        assert has_field_checks, (
+            "Packet type 0 must validate field reads with: if (j >= packbufleng) or if (j+1 >= packbufleng) { ... break; }"
+        )
+
+        # Verify security messages appear
+        has_lag_read_msg = "Packet type 0 truncated at lag read" in content
+        has_bitmask_msg = "Packet type 0 truncated at bitmask read" in content
+        has_field_msg = "Packet type 0 truncated (fvel)" in content or "Packet type 0 truncated (avel)" in content
+
+        assert has_lag_read_msg, (
+            "Packet type 0 lag read validation must include security log message"
+        )
+        assert has_bitmask_msg, (
+            "Packet type 0 bitmask read validation must include security log message"
+        )
+        assert has_field_msg, (
+            "Packet type 0 field read validation must include security log messages"
         )

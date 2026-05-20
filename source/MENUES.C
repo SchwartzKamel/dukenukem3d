@@ -326,7 +326,8 @@ loadplayer(signed char spot)
         ready2send = 1;
         return 1;
      }
-     kdfread(&wall[0],sizeof(walltype),MAXWALLS,fil);
+     kdfread(&wall[0],sizeof(walltype),numwalls,fil);
+     memset(wall + numwalls, 0, (MAXWALLS - numwalls) * sizeof(walltype));
          kdfread(&numsectors,2,1,fil);
      if(numsectors < 0 || numsectors > MAXSECTORS)
      {
@@ -335,7 +336,8 @@ loadplayer(signed char spot)
         ready2send = 1;
         return 1;
      }
-     kdfread(&sector[0],sizeof(sectortype),MAXSECTORS,fil);
+     kdfread(&sector[0],sizeof(sectortype),numsectors,fil);
+     memset(sector + numsectors, 0, (MAXSECTORS - numsectors) * sizeof(sectortype));
          kdfread(&sprite[0],sizeof(spritetype),MAXSPRITES,fil);
          kdfread(&headspritesect[0],2,MAXSECTORS+1,fil);
          kdfread(&prevspritesect[0],2,MAXSPRITES,fil);

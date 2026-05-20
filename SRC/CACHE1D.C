@@ -68,6 +68,13 @@ allocache (long *newhandle, long newbytes, char *newlockptr)
 {
 	long i, j, z, zz, bestz, daval, bestval, besto, o1, o2, sucklen, suckz;
 
+	/* Guard against signed integer overflow in alignment: if newbytes > LONG_MAX - 15,
+	   the addition (newbytes + 15) would overflow. */
+	if (newbytes > 0x7fffffffL - 15)
+	{
+		reportandexit("BUFFER TOO BIG TO FIT IN CACHE!");
+	}
+
 	newbytes = ((newbytes+15)&~(long)15);
 
 	if ((unsigned)newbytes > (unsigned)cachesize)

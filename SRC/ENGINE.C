@@ -332,6 +332,11 @@ static long rasm_svbuf, rasm_svsiz;
 long mmxoverlay(void) { return 0; }
 
 long sethlinesizes(long logx, long logy, long bufplc_arg) {
+	/* Clamp logx and logy to [0, 31] to prevent undefined shift behavior */
+	if (logx < 0) logx = 0;
+	if (logx > 31) logx = 31;
+	if (logy < 0) logy = 0;
+	if (logy > 31) logy = 31;
 	rasm_logx = logx; rasm_logy = logy;
 	asm3 = bufplc_arg;
 	return 0;
@@ -3591,8 +3596,12 @@ drawsprite (long snum)
 
 	if ((cstat&48) != 48)
 	{
-		if (picanm[tilenum]&192) tilenum += animateoffs(tilenum,spritenum+32768);
-		if ((unsigned)tilenum >= (unsigned)MAXTILES) tilenum = 0;
+		if (picanm[tilenum]&192) {
+			long newtile = tilenum + animateoffs(tilenum,spritenum+32768);
+			/* Clamp to valid tile range; if out of bounds, keep original */
+			if ((unsigned)newtile >= (unsigned)MAXTILES) newtile = tilenum;
+			tilenum = newtile;
+		}
 		if ((tilesizx[tilenum] <= 0) || (tilesizy[tilenum] <= 0) || (spritenum < 0))
 			return;
 	}
