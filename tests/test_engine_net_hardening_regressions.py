@@ -1303,15 +1303,15 @@ class TestPacketType4ChatStrncpy:
     """
 
     def test_type4_strncpy_bounds(self, repo_root):
-        """Verify type 4 (chat) uses strncpy instead of strcpy."""
+        """Verify type 4 (chat) uses strncpy instead of strcpy with r12 pre-check pattern."""
         game_c = repo_root / "source" / "GAME.C"
         content = game_c.read_text(errors="replace")
         
-        # Find the case 4: block in getpackets()
+        # Find the case 4: block with r12 pre-check pattern
         case_4_match = re.search(
             r'case\s+4\s*:\s*'
-            r'/\*.*?Type 4.*?bounds-check.*?\*/'
-            r'.*?if\s*\(\s*packbufleng\s*>\s*1\s*&&\s*packbufleng\s*<=\s*sizeof\(recbuf\)\s*\)'
+            r'if\s*\(\s*packbufleng\s*<\s*2\s*\)\s*break'
+            r'.*?if\s*\(\s*packbufleng\s*<=\s*sizeof\(recbuf\)\s*\)'
             r'.*?strncpy\s*\(\s*recbuf\s*,\s*packbuf\s*\+\s*1\s*,\s*packbufleng\s*-\s*1\s*\)',
             content,
             re.MULTILINE | re.DOTALL
@@ -1319,8 +1319,8 @@ class TestPacketType4ChatStrncpy:
         
         assert case_4_match, (
             "Case 4 (chat packet) must use strncpy with bounds-check:\n"
-            "1. Comment explaining Type 4 bounds-check\n"
-            "2. if (packbufleng > 1 && packbufleng <= sizeof(recbuf))\n"
+            "1. Pre-check: if (packbufleng < 2) break; (r12 pattern)\n"
+            "2. if (packbufleng <= sizeof(recbuf))\n"
             "3. strncpy(recbuf, packbuf+1, packbufleng-1)"
         )
 
@@ -2953,4 +2953,170 @@ class TestSecR13GameStrcatTempbufHarden:
         
         assert len(strncat_matches) >= 1, (
             "At least 1 strncat(tempbuf, ...) must be present in GAME.C after hardening"
+        )
+
+
+class TestFixEngineCloudArraySizing:
+    """Verify fix-engine-cloud-array-sizing: opaque sizeof(short)<<7 replaced with explicit MAXCLOUDS constant."""
+    
+    def test_maxclouds_define_exists(self, repo_root):
+        """Assert MAXCLOUDS define exists in source/MENUES.C."""
+        menues_c = repo_root / "source" / "MENUES.C"
+        if not menues_c.exists():
+            pytest.skip(f"{menues_c} not found")
+        
+        content = menues_c.read_text(errors="replace")
+        
+        """Check for #define MAXCLOUDS 128"""
+        maxclouds_pattern = r"#define\s+MAXCLOUDS\s+128"
+        assert re.search(maxclouds_pattern, content), (
+            "MAXCLOUDS define (= 128) must exist in source/MENUES.C"
+        )
+    
+    def test_no_old_sizeof_short_shift7_pattern(self, repo_root):
+        """Assert NO remaining sizeof(short)<<7 patterns in actual code (OK in comments/sentinel)."""
+        menues_c = repo_root / "source" / "MENUES.C"
+        if not menues_c.exists():
+            pytest.skip(f"{menues_c} not found")
+        
+        content = menues_c.read_text(errors="replace")
+        
+        """Find lines with sizeof(short)<<7"""
+        lines_with_pattern = []
+        for i, line in enumerate(content.split('\n'), 1):
+            """Skip if it's only in a comment"""
+            if 'sizeof(short)<<7' in line:
+                """Check if this is NOT just in the #define comment"""
+                stripped = line.split('/*')[0]  
+                if 'sizeof(short)<<7' in stripped:
+                    lines_with_pattern.append(f"line {i}: {line}")
+        
+        assert len(lines_with_pattern) == 0, (
+            f"No sizeof(short)<<7 patterns should remain in code. Found {len(lines_with_pattern)}: {lines_with_pattern}"
+        )
+    
+    def test_sizeof_short_maxclouds_pattern_exists(self, repo_root):
+        """Assert (sizeof(short) * MAXCLOUDS) pattern exists in source/MENUES.C."""
+        menues_c = repo_root / "source" / "MENUES.C"
+        if not menues_c.exists():
+            pytest.skip(f"{menues_c} not found")
+        
+        content = menues_c.read_text(errors="replace")
+        
+        """Count occurrences of the replacement pattern"""
+        replacement_matches = re.findall(r"\(sizeof\(short\)\s*\*\s*MAXCLOUDS\)", content)
+        
+        assert len(replacement_matches) >= 6, (
+            f"Expected at least 6 occurrences of (sizeof(short) * MAXCLOUDS), found {len(replacement_matches)}"
+        )
+    
+    def test_sentinel_comment_present(self, repo_root):
+        """Assert sentinel comment 'fix-engine-cloud-array-sizing' appears in MAXCLOUDS define."""
+        menues_c = repo_root / "source" / "MENUES.C"
+        if not menues_c.exists():
+            pytest.skip(f"{menues_c} not found")
+        
+        content = menues_c.read_text(errors="replace")
+        sentinel = "fix-engine-cloud-array-sizing"
+        
+        assert sentinel in content, (
+            f"Sentinel comment '{sentinel}' must appear in source/MENUES.C (in MAXCLOUDS define)"
+        )
+
+
+class TestNetR12PacketBoundsType4And9:
+    """Verify net-r12 type-4 (chat) and type-9 (weapon) packet bounds checks."""
+
+    def test_type4_sentinel_present(self, repo_root):
+        """source/GAME.C must have sentinel 'net-r12-type-4-chat-prevalidate' comment."""
+        game_c = repo_root / "source" / "GAME.C"
+        if not game_c.exists():
+            pytest.skip(f"{game_c} not found")
+
+        content = game_c.read_text(errors="replace")
+
+        assert "net-r12-type-4-chat-prevalidate" in content, (
+            "source/GAME.C must contain sentinel comment 'net-r12-type-4-chat-prevalidate' "
+            "to mark the fix for the type-4 chat message OOB read vulnerability."
+        )
+
+    def test_type4_packbufleng_guard(self, repo_root):
+        """source/GAME.C case 4 must have 'packbufleng < 2' pre-check."""
+        game_c = repo_root / "source" / "GAME.C"
+        if not game_c.exists():
+            pytest.skip(f"{game_c} not found")
+
+        content = game_c.read_text(errors="replace")
+        lines = content.split('\n')
+
+        # Find case 4 in the dispatcher
+        case_4_found = False
+        case_4_line_idx = -1
+        for i, line in enumerate(lines):
+            if "case 4:" in line:
+                case_4_line_idx = i
+                case_4_found = True
+                break
+
+        assert case_4_found, (
+            "source/GAME.C must have 'case 4:' handler"
+        )
+
+        # Verify packbufleng < 2 check is within 2 lines after case 4
+        found_check = False
+        for j in range(case_4_line_idx + 1, min(case_4_line_idx + 3, len(lines))):
+            if "packbufleng < 2" in lines[j] and "break" in lines[j]:
+                found_check = True
+                break
+
+        assert found_check, (
+            f"source/GAME.C case 4 handler must have 'packbufleng < 2' guard "
+            f"within 2 lines after case 4 (found at line {case_4_line_idx + 1})"
+        )
+
+    def test_type9_sentinel_present(self, repo_root):
+        """source/GAME.C must have sentinel 'net-r12-type-9-weapon-prevalidate' comment."""
+        game_c = repo_root / "source" / "GAME.C"
+        if not game_c.exists():
+            pytest.skip(f"{game_c} not found")
+
+        content = game_c.read_text(errors="replace")
+
+        assert "net-r12-type-9-weapon-prevalidate" in content, (
+            "source/GAME.C must contain sentinel comment 'net-r12-type-9-weapon-prevalidate' "
+            "to mark the fix for the type-9 weapon choice OOB read vulnerability."
+        )
+
+    def test_type9_packbufleng_guard(self, repo_root):
+        """source/GAME.C case 9 must have 'packbufleng < 2' pre-check."""
+        game_c = repo_root / "source" / "GAME.C"
+        if not game_c.exists():
+            pytest.skip(f"{game_c} not found")
+
+        content = game_c.read_text(errors="replace")
+        lines = content.split('\n')
+
+        # Find case 9 in the dispatcher
+        case_9_found = False
+        case_9_line_idx = -1
+        for i, line in enumerate(lines):
+            if "case 9:" in line:
+                case_9_line_idx = i
+                case_9_found = True
+                break
+
+        assert case_9_found, (
+            "source/GAME.C must have 'case 9:' handler"
+        )
+
+        # Verify packbufleng < 2 check is within 2 lines after case 9
+        found_check = False
+        for j in range(case_9_line_idx + 1, min(case_9_line_idx + 3, len(lines))):
+            if "packbufleng < 2" in lines[j] and "break" in lines[j]:
+                found_check = True
+                break
+
+        assert found_check, (
+            f"source/GAME.C case 9 handler must have 'packbufleng < 2' guard "
+            f"within 2 lines after case 9 (found at line {case_9_line_idx + 1})"
         )

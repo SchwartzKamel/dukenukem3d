@@ -567,8 +567,8 @@ void getpackets(void)
                 break;
 
             case 4:
-                /* Type 4 (chat): bounds-check before strcpy */
-                if (packbufleng > 1 && packbufleng <= sizeof(recbuf)) {
+                if (packbufleng < 2) break;  /* net-r12-type-4-chat-prevalidate: drop malformed packet */
+                if (packbufleng <= sizeof(recbuf)) {
                     strncpy(recbuf, packbuf+1, packbufleng-1);
                     recbuf[packbufleng-1] = 0;
                     adduserquote(recbuf);
@@ -666,6 +666,7 @@ void getpackets(void)
                 }
                 break;
             case 9:
+                if (packbufleng < 2) break;  /* net-r12-type-9-weapon-prevalidate: drop malformed packet */
                 if (packbufleng - 1 > MAX_WEAPONS)
                 {
                     printf("NET: SECURITY: Packet type 9 payload too large (%d > %d). Dropping.\n",

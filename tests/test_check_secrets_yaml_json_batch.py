@@ -409,3 +409,146 @@ class TestSecretsAllowListedPatterns:
             f"Expected exit 0 for clean .bat, got {result.returncode}\n"
             f"stdout: {result.stdout}"
         )
+
+class TestSecretsDetectionOpenAI:
+    """Test detection of OpenAI and Anthropic API key patterns (sec-r14-secret-scan-openai-pattern)."""
+    
+    def test_openai_sk_proj_detected(self, git_repo):
+        """Verify that OpenAI sk-proj- keys are detected."""
+        env_file = git_repo / "config.env"
+        env_file.write_text(
+            "OPENAI_KEY=sk-proj-AAAAAAAAAAAAAAAAAAAAAAAA\n"
+        )
+        
+        subprocess.run(
+            ["git", "add", "config.env"],
+            cwd=git_repo,
+            capture_output=True,
+            check=True
+        )
+        
+        result = run_check_secrets(git_repo)
+        assert result.returncode != 0, (
+            f"Expected non-zero exit for OpenAI sk-proj- key, got {result.returncode}\n"
+            f"stdout: {result.stdout}"
+        )
+        assert "OpenAI" in result.stdout or "sk-proj-" in result.stdout, (
+            f"Expected OpenAI detection in output:\n{result.stdout}"
+        )
+    
+    def test_anthropic_sk_ant_detected(self, git_repo):
+        """Verify that Anthropic sk-ant- keys are detected."""
+        yaml_file = git_repo / "api-config.yaml"
+        yaml_file.write_text(
+            "anthropic:\n"
+            "  api_key: sk-ant-AAAAAAAAAAAAAAAAAAAAAAAA\n"
+        )
+        
+        subprocess.run(
+            ["git", "add", "api-config.yaml"],
+            cwd=git_repo,
+            capture_output=True,
+            check=True
+        )
+        
+        result = run_check_secrets(git_repo)
+        assert result.returncode != 0, (
+            f"Expected non-zero exit for Anthropic sk-ant- key, got {result.returncode}\n"
+            f"stdout: {result.stdout}"
+        )
+        assert "Anthropic" in result.stdout or "sk-ant-" in result.stdout, (
+            f"Expected Anthropic detection in output:\n{result.stdout}"
+        )
+    
+    def test_clean_openai_placeholder(self, git_repo):
+        """Verify that OpenAI placeholder keys do not trigger false positives."""
+        env_file = git_repo / ".env.example"
+        env_file.write_text(
+            "OPENAI_KEY=sk-proj-your-key-here\n"
+        )
+        
+        subprocess.run(
+            ["git", "add", ".env.example"],
+            cwd=git_repo,
+            capture_output=True,
+            check=True
+        )
+        
+        result = run_check_secrets(git_repo)
+        assert result.returncode == 0, (
+            f"Expected exit 0 for placeholder in .env.example, got {result.returncode}\n"
+            f"stdout: {result.stdout}"
+        )
+
+
+class TestSecretsDetectionAWSSessionToken:
+    """Test detection of AWS session tokens and secret access keys (sec-r14-secret-scan-aws-session-token)."""
+    
+    def test_aws_session_token_detected(self, git_repo):
+        """Verify that AWS session tokens are detected."""
+        json_file = git_repo / "credentials.json"
+        json_file.write_text(
+            '{\n'
+            '  "aws_session_token": "AQoEXAMPLEH4aoRH0gNCAPyJxz4BlCFFxWNE1OPTgk5TthT+FvwqnKwRcOIfrRh3c/LTo6UDdyJwOOSf3IcqZeKE61VPreJw1jFvlS8/2prWutC/0alwendQQoros+7EXAMPLETOKEN="\n'
+            '}\n'
+        )
+        
+        subprocess.run(
+            ["git", "add", "credentials.json"],
+            cwd=git_repo,
+            capture_output=True,
+            check=True
+        )
+        
+        result = run_check_secrets(git_repo)
+        assert result.returncode != 0, (
+            f"Expected non-zero exit for AWS session token, got {result.returncode}\n"
+            f"stdout: {result.stdout}"
+        )
+        assert "AWS" in result.stdout or "aws_session_token" in result.stdout, (
+            f"Expected AWS session token detection in output:\n{result.stdout}"
+        )
+    
+    def test_aws_secret_access_key_detected(self, git_repo):
+        """Verify that AWS secret access keys are detected."""
+        env_file = git_repo / "aws.env"
+        env_file.write_text(
+            "AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY\n"
+        )
+        
+        subprocess.run(
+            ["git", "add", "aws.env"],
+            cwd=git_repo,
+            capture_output=True,
+            check=True
+        )
+        
+        result = run_check_secrets(git_repo)
+        assert result.returncode != 0, (
+            f"Expected non-zero exit for AWS secret access key, got {result.returncode}\n"
+            f"stdout: {result.stdout}"
+        )
+        assert "AWS" in result.stdout or "aws_secret_access_key" in result.stdout, (
+            f"Expected AWS key detection in output:\n{result.stdout}"
+        )
+    
+    def test_clean_aws_placeholder(self, git_repo):
+        """Verify that AWS placeholder keys do not trigger false positives."""
+        env_file = git_repo / ".env.example"
+        env_file.write_text(
+            "AWS_SESSION_TOKEN=your_session_token_here\n"
+            "AWS_SECRET_ACCESS_KEY=your_secret_key_here\n"
+        )
+        
+        subprocess.run(
+            ["git", "add", ".env.example"],
+            cwd=git_repo,
+            capture_output=True,
+            check=True
+        )
+        
+        result = run_check_secrets(git_repo)
+        assert result.returncode == 0, (
+            f"Expected exit 0 for placeholder in .env.example, got {result.returncode}\n"
+            f"stdout: {result.stdout}"
+        )

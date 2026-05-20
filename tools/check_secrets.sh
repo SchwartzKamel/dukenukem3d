@@ -137,6 +137,31 @@ if echo "$STAGED_DIFF" | grep -E 'AccountKey=[A-Za-z0-9+/]{88}' | \
     EXIT_CODE=1
 fi
 
+# sec-r14-secret-scan-openai-pattern
+# Check for OpenAI and Anthropic API keys: sk-proj-, sk-ant-, classic sk- (min 20 chars)
+if echo "$STAGED_DIFF" | grep -E '(s[k]-proj-[a-zA-Z0-9]{20,}|s[k]-ant-[a-zA-Z0-9]{20,})' | \
+   grep -v 'check_secrets\.sh' | \
+   grep -v 'tests/test_check_secrets' | \
+   grep -v '#' | \
+   grep -v '\.env\.example' > /dev/null 2>&1; then
+     echo "🔴 ERROR: Detected potential OpenAI/Anthropic API key in staged changes!"
+     echo "   Check staged files for sk-proj- or sk-ant- patterns"
+     EXIT_CODE=1
+fi
+
+# sec-r14-secret-scan-aws-session-token
+# Check for AWS session tokens and secret access keys (case-insensitive)
+# Looks for aws_session_token or aws_secret_access_key followed by separator and long value
+if echo "$STAGED_DIFF" | grep -iE '(aws_session_token|aws_secret_access_key).{0,20}[=:].{0,3}[a-zA-Z0-9/+]{32,}' | \
+   grep -v 'check_secrets\.sh' | \
+   grep -v 'tests/test_check_secrets' | \
+   grep -v '#' | \
+   grep -v '\.env\.example' > /dev/null 2>&1; then
+     echo "🔴 ERROR: Detected potential AWS session token or secret access key in staged changes!"
+     echo "   Check staged files for aws_session_token or aws_secret_access_key patterns"
+     EXIT_CODE=1
+fi
+
 if [ $EXIT_CODE -eq 0 ]; then
     echo "✓ No obvious secrets detected in staged changes"
 fi

@@ -708,7 +708,124 @@ This section documents the major architectural changes introduced from cycles 28
 
 ---
 
-## Known Open Issues
+<!-- docs-arch-network-section: cycle 48 -->
+
+## Network Architecture
+
+The multiplayer networking layer (cycles 26–48) implements **star topology TCP/IP multiplayer** via `SRC/MMULTI.C`, replacing DOS-era IPX with modern BSD sockets (POSIX on Linux, Winsock on Windows). This section documents the wire protocol, packet types, lifecycle, and known gaps as of cycle 48 (r12 audit).
+
+### Wire Protocol & Transport
+
+**Packet Header Format:**
+```
+NET_HEADER_SIZE = 4 bytes:
+  [1B: sender ID] [1B: dest ID] [2B: payload length (net byte order)]
+  
+Payload: up to MAXPACKETSIZE = 2048 bytes
+  (MTU-safe; avoids fragmentation on standard Ethernet 1500 byte MTU)
+```
+
+**Transport:**
+- **Protocol**: TCP (stream-based) on `IPPROTO_TCP` with `TCP_NODELAY` enabled (disable Nagle's algorithm for low-latency gameplay)
+- **Port**: Default 23513 (configurable via `--port` CLI flag)
+- **Topology**: Star (1 host server relays all state to up to MAXPLAYERS-1 clients)
+- **Buffers**: Per-socket 64KB recv buffer (`RECV_BUF_SIZE`, SRC/MMULTI.C:46) for TCP stream reassembly; packet queue (1024 slots) buffers complete packets for game loop consumption
+
+**Non-Blocking I/O & Error Handling (Cycle 41):**
+- Recv path (`net_poll_sockets()`, SRC/MMULTI.C:244–253) distinguishes **transient errors** (EAGAIN, EWOULDBLOCK, EINTR on POSIX; WSAEWOULDBLOCK, WSAEINTR on Windows) from **fatal errors** (connection drop)
+- Transient errors are retried; fatal errors close the socket and remove the player
+- **Rationale**: WiFi and congested LANs experience frequent transient stalls; aborting on EAGAIN breaks multiplayer
+
+### Packet Types & Bounds Matrix
+
+**15 Active Packet Types** (comprehensive inventory from cycle 48 r12 audit):
+
+| Type | Purpose | Location | Guard Status | Cycle Closed | Findings |
+|------|---------|----------|--------------|--------------|----------|
+| **0** | Master sync (host→clients) | source/GAME.C:409–517 | ✅ PASS | r8+ | Multi-stage per-field bounds; SAFE |
+| **1** | Slave sync (client→host) | source/GAME.C:517–568 | ✅ PASS | r8+ | Field-by-field validation; SAFE |
+| **4** | Chat message | source/GAME.C:569–580 | ⚠️ **HIGH** | OPEN (cycle 48) | **MISSING pre-check**: packbuf[1] read without pre-validation packbufleng ≥ 2 → OOB read risk |
+| **5** | Game settings | source/GAME.C:582–642 | ✅ PASS | r8+ | 10 fields validated; SAFE |
+| **6** | Player name exchange | source/GAME.C:644–666 | ✅ PASS | 38 | Cycle-38 strncpy hardening; bounded copy; SAFE |
+| **7** | RTS sound event | source/GAME.C:678–700 | ✅ PASS | r8+ | Sound ID range-checked; SAFE |
+| **8** | Host game settings | source/GAME.C:702–763 | ✅ PASS | 42 | Cycle-42 pre-check `packbufleng < 11`; SAFE |
+| **9** | Weapon choice | source/GAME.C:668–676 | ⚠️ **MEDIUM** | OPEN (cycle 48) | **MINIMAL validation**: packbuf[1] read, implicit assume packbufleng ≥ 2, no explicit pre-check → OOB read risk |
+| **16** | Input sync init | source/GAME.C:766–768 | ✅ PASS | r9+ | Initialization only (no payload reads); SAFE |
+| **17** | Input sync (delta update) | source/GAME.C:769–810 | ✅ PASS | 45 | **Cycle-45 envelope pre-validate** (r11 closure verified): pre-check `packbufleng < 20` at line 770 protects multi-byte field reads at 786–794 |
+| **125** | Reserved/Debug | source/GAME.C:397–399 | ✅ N/A | — | No-op; no payload processing |
+| **126** | Load player / Ready | source/GAME.C:401–407 | ✅ PASS | r8+ | Single field; no overflow risk |
+| **127** | No-op | source/GAME.C:813–814 | ✅ N/A | — | No-op; no payload processing |
+| **250** | Player ready | source/GAME.C:816–818 | ✅ PASS | r8+ | Counter increment only; no payload read |
+| **255** | Exit game | source/GAME.C:819–821 | ✅ N/A | — | Terminate; no payload processing |
+| **Unhandled** | Types 2–3, 10–15, 18–124, 128–249, 251–254 | — | ✅ PASS | r8+ | Safe fallthrough; no dispatcher crash risk |
+
+**Status Summary (Cycle 48):**
+- **13 types PASS / N/A** (all prior cycles), **2 types OPEN** (type-4, type-9 HIGH/MEDIUM gaps identified in r12)
+- **Type-17 cycle-45 closure verified INTACT**: envelope pre-validation `packbufleng < 20` at line 770 gates field reads
+
+### Connection Lifecycle
+
+**Host Startup:**
+1. Bind TCP socket on port 23513 (or CLI-specified port)
+2. Enter `listen()` with backlog = 4
+3. Accept client connections; assign player slot (0–MAXPLAYERS-1)
+4. Initiate handshake: exchange protocol version, player name, color, player bitmap
+
+**Client Join:**
+1. Resolve host address (IPv4 only; IPv6 pending per r10 design spec)
+2. Connect TCP socket to host:port
+3. Complete handshake: verify protocol version, transmit player name/color, receive other players' rosters
+4. Handshake timeout = 15s (cycle-39 hardening); client drops if handshake incomplete
+
+**Game State Sync (Active):**
+- Host broadcasts **Type-0 Master Sync** ~16ms per cycle (60 Hz game loop): sprite positions, player state, projectiles, world changes
+- Clients transmit **Type-1 Slave Sync** with input: movement, weapon fire, look direction
+- All packets append CRC-16 checksum (CRC mismatch → client drops with diagnostic)
+
+**Disconnect & Cleanup (Cycle 45):**
+- Client closes socket → host detects recv() EOF, removes player slot
+- Host closes → clients recv() EOF, drop to single-player
+- **Cleanup**: `memset(&recv_bufs[i], 0, sizeof(recv_bufs[i]))` clears per-player recv buffer (prevents stale data leak on reconnect)
+
+### Known Gaps & Design Pending (Cycle 48 r12)
+
+**HIGH Priority:**
+1. **Type-4 chat bounds** — Fix in flight (5-minute patch: add `if (packbufleng < 2) break;` at case 4 entry)
+2. **IPv6 dual-stack** — Design ready; refactor `inet_addr()` → `getaddrinfo()` + socket creation loop (large scope; stage for cycle 49+)
+3. **Replay sequence tracking** — Acceptance criteria underdefined; coordinate with test-engineer on packet sequence numbering for deterministic replay
+
+**MEDIUM Priority:**
+1. **Type-9 weapon bounds** — Add `if (packbufleng < 2) break;` pre-check (implicit MAXPLAYERS loop may OOB if malformed)
+2. **Socket lifecycle audit** — Error-path cleanup (crash recovery, partial-send retry, timeout edge cases) needs dedicated audit
+3. **xdist parallel isolation** — Verify recv_buf thread-safety under pytest `-n auto` (parallel test workers may share sockets on Linux)
+
+**See Also:**
+- [docs/audits/network-multiplayer-r12.md](docs/audits/network-multiplayer-r12.md) — Full packet-handler bounds matrix, cycle-41/44/45 closure verification, and r12 gap analysis
+- [docs/audits/network-multiplayer-r11.md](docs/audits/network-multiplayer-r11.md) — Cycle-41 EAGAIN distinction closure, cycle-44 landing verification
+
+### Multiplayer Regression Test Harness
+
+**Static Analysis Tests** (catch regressions without running engine):
+- `tests/test_engine_net_hardening_regressions.py` — Regex-based inspection of `SRC/MMULTI.C` and `source/GAME.C`
+  - Verifies type-0/1 bounds checks remain in place
+  - Verifies type-17 envelope pre-check `packbufleng < 20` at line 770
+  - Verifies type-8 pre-check `packbufleng < 11` at line 752
+  - Verifies EAGAIN distinction at lines 244–253
+  - Verifies disconnect memset at line 621
+
+**Integration Tests** (full protocol):
+- `tests/test_multiplayer_protocol.py` — Socket-level protocol validation (if available; see `tests/` directory)
+  - Host bind + accept handshake
+  - Packet encoding/decoding (NET_HEADER_SIZE, payload assembly)
+  - CRC validation
+
+**Run regression tests:**
+```bash
+pytest tests/test_engine_net_hardening_regressions.py -v
+pytest tests/ -k multiplayer -v --timeout=30
+```
+
+---
 
 This section documents **CRITICAL, HIGH, and selected MEDIUM-priority** issues identified in audit rounds r7+ that remain open in the current release cycle. These items are actively tracked in the audit backlog and are prioritized for future development cycles.
 

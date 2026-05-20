@@ -31,6 +31,8 @@ Prepared for public release: 03/21/2003 - Charlie Wiederhold, 3D Realms
 #include "MOUSE.H"
 #include "ANIMLIB.H"
 
+#define MAXCLOUDS 128  /* fix-engine-cloud-array-sizing: explicit constant. Original: sizeof(short)<<7 = 256 bytes = 2*128 shorts */
+
 extern char inputloc;
 extern int recfilep;
 extern char vgacompatible;
@@ -454,9 +456,9 @@ loadplayer(signed char spot)
      kdfread(&boardfilename[0],sizeof(boardfilename),1,fil);
 
      kdfread(&numclouds,sizeof(numclouds),1,fil);
-     kdfread(&clouds[0],sizeof(short)<<7,1,fil);
-     kdfread(&cloudx[0],sizeof(short)<<7,1,fil);
-     kdfread(&cloudy[0],sizeof(short)<<7,1,fil);
+     kdfread(&clouds[0],(sizeof(short) * MAXCLOUDS),1,fil);
+     kdfread(&cloudx[0],(sizeof(short) * MAXCLOUDS),1,fil);
+     kdfread(&cloudy[0],(sizeof(short) * MAXCLOUDS),1,fil);
 
      kdfread(&scriptptrs[0],1,MAXSCRIPTSIZE,fil);
      kdfread(&script[0],4,MAXSCRIPTSIZE,fil);
@@ -869,19 +871,19 @@ saveplayer(signed char spot)
          fclose(fil);
          return(-1);
      }
-     dfwrite(&clouds[0],sizeof(short)<<7,1,fil);
+     dfwrite(&clouds[0],(sizeof(short) * MAXCLOUDS),1,fil);
      if(ferror(fil))
      {
          fclose(fil);
          return(-1);
      }
-     dfwrite(&cloudx[0],sizeof(short)<<7,1,fil);
+     dfwrite(&cloudx[0],(sizeof(short) * MAXCLOUDS),1,fil);
      if(ferror(fil))
      {
          fclose(fil);
          return(-1);
      }
-     dfwrite(&cloudy[0],sizeof(short)<<7,1,fil);
+     dfwrite(&cloudy[0],(sizeof(short) * MAXCLOUDS),1,fil);
      if(ferror(fil))
      {
          fclose(fil);

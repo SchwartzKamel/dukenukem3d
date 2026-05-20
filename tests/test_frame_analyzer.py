@@ -321,7 +321,7 @@ class TestAnalyzeFrameSequence:
         for p in paths:
             Path(p).unlink()
 
-    @pytest.mark.parametrize("num_frames", [5])
+    @pytest.mark.parametrize("num_frames", [1, 3, 5])
     def test_analyze_frame_sequence_deterministic(self, num_frames):
         """Regression test: analyze_frame_sequence() returns identical results
         regardless of execution order (ThreadPoolExecutor parallelization).
@@ -329,6 +329,8 @@ class TestAnalyzeFrameSequence:
         Creates a fixture of N frames and verifies that multiple analyses
         produce bitwise-identical outputs, confirming no race conditions or
         non-determinism introduced by parallel loading.
+        
+        # perf-r13-frame-analyzer-parametrization: shard across xdist workers
         """
         # Create fixture of N frames (colorful, so they have variation)
         fixture_paths = []
@@ -340,7 +342,7 @@ class TestAnalyzeFrameSequence:
                 for x in range(24):
                     r, g, b = pixels[x, y]
                     pixels[x, y] = ((r + i * 10) % 256, (g + i * 5) % 256, b)
-            p = TESTDATA_DIR / f"determ_frame_{i}.bmp"
+            p = TESTDATA_DIR / f"determ_frame_n{num_frames}_{i}.bmp"
             img.save(str(p), format="BMP")
             fixture_paths.append(str(p))
         
