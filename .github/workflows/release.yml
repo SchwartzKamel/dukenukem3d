@@ -55,7 +55,7 @@ jobs:
           path: SDL2-${{ env.SDL2_VERSION }}
           key: sdl2-mingw-${{ env.SDL2_VERSION }}
           restore-keys: |
-            sdl2-mingw-
+            sdl2-mingw-${{ env.SDL2_VERSION | split('.')[0] }}.${{ env.SDL2_VERSION | split('.')[1] }}.
       
       - name: Install SDL2 MinGW (Windows only)
         if: matrix.target == 'windows'
