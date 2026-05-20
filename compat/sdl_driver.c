@@ -13,6 +13,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <signal.h>
 #include <sys/types.h>
 #ifdef _WIN32
 #include <direct.h>
@@ -43,7 +44,7 @@ static int capture_interval  = 0;  /* 0 = no auto-capture */
 static unsigned char keystatus_array[256];
 static int mouse_dx = 0, mouse_dy = 0, mouse_buttons = 0;
 static int mouse_grabbed = 0;
-int sdl_quit_requested = 0;
+static volatile sig_atomic_t sdl_quit_requested = 0;
 
 /* ── SDL scancode → DOS scancode mapping ────────────────────────── */
 static int sdl_to_dos_scancode(SDL_Scancode sc)
@@ -436,9 +437,9 @@ char *sdl_getscreen(void)
     return (char *)screenbuf;
 }
 
-long sdl_getbytesperline(void)
+int32_t sdl_getbytesperline(void)
 {
-    return (long)screen_pitch;
+    return (int32_t)screen_pitch;
 }
 
 /* ── Input ──────────────────────────────────────────────────────── */
@@ -450,10 +451,6 @@ void sdl_pollevents(void)
         switch (ev.type) {
         case SDL_QUIT:
             sdl_quit_requested = 1;
-            /* Terminate immediately — many game loops never check the flag,
-               so the process would hang as a zombie.  atexit handlers
-               (including ShutDown) still run via exit(). */
-            exit(0);
             break;
 
         case SDL_KEYDOWN:
@@ -541,6 +538,11 @@ int sdl_checkquit(void)
     return sdl_quit_requested || frame_limit_hit;
 }
 
+int sdl_quit_requested_get(void)
+{
+    return sdl_quit_requested;
+}
+
 /* ── Timer ──────────────────────────────────────────────────────── */
 
 void sdl_inittimer(void)
@@ -548,9 +550,9 @@ void sdl_inittimer(void)
     /* SDL timer is already initialised by SDL_Init(SDL_INIT_TIMER) */
 }
 
-long sdl_getticks(void)
+int32_t sdl_getticks(void)
 {
-    return (long)SDL_GetTicks();
+    return (int32_t)SDL_GetTicks();
 }
 
 void sdl_delay(int ms)

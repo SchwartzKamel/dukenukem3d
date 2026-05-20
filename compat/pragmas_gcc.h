@@ -23,6 +23,9 @@
   #define inline __inline
 #endif
 
+/* Validate int32_t size (compat layer convention) */
+_Static_assert(sizeof(int32_t) == 4, "int32_t must be exactly 4 bytes");
+
 /* ======================================================================
  * Global used by divmod / moddiv
  * ====================================================================== */
@@ -291,7 +294,7 @@ static inline void copybufreverse(void *src, void *dst, long n)
     char *d = (char *)dst;
     long i;
     for (i = 0; i < n; i++)
-        d[i] = s[-i];
+        d[i] = s[n-1-i];
 }
 
 static inline void clearbuf(void *dst, long n, long val)
@@ -479,9 +482,9 @@ static inline void vlin16first(long addr, int cnt)
 
 extern void inittimer1mhz(void);
 extern void uninittimer1mhz(void);
-extern long gettime1mhz(void);
-extern long deltatime1mhz(void);
-extern long readtimer(void);
+extern int32_t gettime1mhz(void);
+extern int32_t deltatime1mhz(void);
+extern int32_t readtimer(void);
 
 /* ======================================================================
  * Mouse functions (will be implemented by SDL input driver)

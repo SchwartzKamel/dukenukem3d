@@ -360,9 +360,9 @@ long MOUSE_GetButtons(void) {
 /* Timer stubs if not already defined */
 void inittimer1mhz(void) { }
 void uninittimer1mhz(void) { }
-long gettime1mhz(void) { return sdl_getticks() * 1000; }
-long deltatime1mhz(void) { return 0; }
-long readtimer(void) { return sdl_getticks(); }
+int32_t gettime1mhz(void) { return sdl_getticks() * 1000; }
+int32_t deltatime1mhz(void) { return 0; }
+int32_t readtimer(void) { return sdl_getticks(); }
 
 /* Callback stub */
 void testcallback(unsigned long val) { (void)val; }
