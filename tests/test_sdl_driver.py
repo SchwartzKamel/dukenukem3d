@@ -132,6 +132,7 @@ def get_sdl2_lib_path():
 # Test: Initial state of sdl_quit_requested_get()
 # ---------------------------------------------------------------------------
 
+@pytest.mark.slow
 def test_sdl_quit_requested_initial_state():
     """Test that sdl_quit_requested_get() returns 0 before any events.
     
@@ -178,6 +179,7 @@ int main() {
 # Test: Symbol export and type signature
 # ---------------------------------------------------------------------------
 
+@pytest.mark.slow
 def test_sdl_quit_requested_symbol_export():
     """Test that sdl_quit_requested_get is exported and callable.
     
@@ -207,6 +209,7 @@ int main() {
 # Test: SDL_QUIT event injection (if available)
 # ---------------------------------------------------------------------------
 
+@pytest.mark.slow
 def test_sdl_quit_requested_with_event_injection():
     """Test that sdl_quit_requested_get() can detect SDL_QUIT events.
     

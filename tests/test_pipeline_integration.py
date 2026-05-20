@@ -4,9 +4,12 @@ import struct
 import subprocess
 import sys
 
+import pytest
+
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
 
+@pytest.mark.slow
 def test_full_pipeline_no_ai(tmp_path, monkeypatch):
     """Run the full asset pipeline with --no-ai and verify outputs."""
     # Use absolute path to generate_assets.py script
@@ -41,6 +44,7 @@ def test_full_pipeline_no_ai(tmp_path, monkeypatch):
         assert fpath.stat().st_size > 0, f"Empty: {fpath}"
 
 
+@pytest.mark.slow
 def test_generated_art_is_valid(tmp_path, monkeypatch):
     """The generated TILES000.ART has valid header."""
     generate_script = os.path.join(PROJECT_ROOT, "tools", "generate_assets.py")
@@ -64,6 +68,7 @@ def test_generated_art_is_valid(tmp_path, monkeypatch):
     assert end == tile_count - 1
 
 
+@pytest.mark.slow
 def test_generated_palette_is_valid(tmp_path, monkeypatch):
     """The generated PALETTE.DAT has valid VGA palette."""
     generate_script = os.path.join(PROJECT_ROOT, "tools", "generate_assets.py")
@@ -82,6 +87,7 @@ def test_generated_palette_is_valid(tmp_path, monkeypatch):
         assert 0 <= b <= 63, f"Palette byte {i} = {b} exceeds VGA range"
 
 
+@pytest.mark.slow
 def test_generated_map_is_valid(tmp_path, monkeypatch):
     """The generated E1L1.MAP has correct version."""
     generate_script = os.path.join(PROJECT_ROOT, "tools", "generate_assets.py")

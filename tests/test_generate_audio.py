@@ -251,6 +251,7 @@ class TestSilenceWavGeneration:
 class TestNoAiCodePath:
     """Test the --no-ai code path end-to-end via subprocess."""
 
+    @pytest.mark.slow
     def test_no_ai_flag_generates_wav_files(self):
         """Invoking generate_audio.py --no-ai should produce 21 WAV files."""
         result = subprocess.run(
@@ -271,6 +272,7 @@ class TestNoAiCodePath:
         assert len(wav_files) == 21, \
             f"Expected 21 WAV files, got {len(wav_files)}"
 
+    @pytest.mark.slow
     def test_no_ai_generates_valid_wav_files(self):
         """All generated WAV files must be valid and readable."""
         result = subprocess.run(
@@ -303,6 +305,7 @@ class TestNoAiCodePath:
             except wave.Error as e:
                 pytest.fail(f"{os.path.basename(wav_file)}: invalid WAV: {e}")
 
+    @pytest.mark.slow
     def test_no_ai_generates_manifest_json(self):
         """--no-ai must generate MANIFEST.json with SOUND_MANIFEST data."""
         result = subprocess.run(
@@ -324,6 +327,7 @@ class TestNoAiCodePath:
         assert isinstance(manifest, list), "MANIFEST must be a JSON list"
         assert len(manifest) > 0, "MANIFEST must not be empty"
 
+    @pytest.mark.slow
     def test_no_ai_mode_no_api_calls(self):
         """--no-ai mode must not attempt API calls (no network required)."""
         result = subprocess.run(
@@ -472,6 +476,7 @@ class TestLoadEnv:
 class TestCliArgparse:
     """Test CLI argument parsing via subprocess."""
 
+    @pytest.mark.slow
     def test_no_ai_flag_parsed(self):
         """--no-ai flag must be recognized and work."""
         result = subprocess.run(
@@ -485,6 +490,7 @@ class TestCliArgparse:
         assert result.returncode == 0, \
             f"--no-ai flag failed: {result.stderr}"
 
+    @pytest.mark.slow
     def test_help_flag_works(self):
         """--help flag must work."""
         result = subprocess.run(
@@ -500,6 +506,7 @@ class TestCliArgparse:
         assert "help" in result.stdout.lower(), \
             "--help output must contain help text"
 
+    @pytest.mark.slow
     def test_unknown_flag_fails(self):
         """Unknown flags must cause argparse to fail."""
         result = subprocess.run(

@@ -10,6 +10,8 @@ import subprocess
 import os
 import tempfile
 
+import pytest
+
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
 
@@ -31,6 +33,7 @@ def can_execute_binary(binary_path):
         return False
 
 
+@pytest.mark.slow
 def test_struct_sizes():
     """Compile and run a C program to verify struct sizes."""
     c_code = r"""
@@ -81,6 +84,7 @@ int main() {
             os.unlink(out_file)
 
 
+@pytest.mark.slow
 def test_weaponhit_struct_size():
     """Compile and run a C program to verify weaponhit (hittype) struct size.
     

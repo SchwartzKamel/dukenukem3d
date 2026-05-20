@@ -60,3 +60,25 @@ def generated_audio_artifacts():
     }
     
     yield artifacts
+
+def pytest_addoption(parser):
+    """Add --runslow option to pytest CLI."""
+    parser.addoption(
+        "--runslow",
+        action="store_true",
+        default=False,
+        help="run slow tests (subprocess-heavy, C compilation); default: skip"
+    )
+
+
+def pytest_collection_modifyitems(config, items):
+    """Skip slow tests unless --runslow is passed."""
+    if config.getoption("--runslow"):
+        # Run all tests
+        return
+    
+    # Skip all tests marked as slow
+    skip_slow = pytest.mark.skip(reason="need --runslow option to run")
+    for item in items:
+        if "slow" in item.keywords:
+            item.add_marker(skip_slow)
