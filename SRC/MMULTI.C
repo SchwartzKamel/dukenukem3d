@@ -44,7 +44,10 @@ typedef int SOCKET;
 #define NET_HEADER_SIZE 4   /* [1B sender][1B dest][2B payload length] */
 #define RECV_BUF_SIZE 65536
 #define DEFAULT_PORT 23513
-#define CONNECT_TIMEOUT_SEC 60
+/* TCP connection timeout (seconds).
+   Reduced from 60s to 30s to balance LAN responsiveness against
+   misconfigured client scenarios. Handshake has separate 15s timeout. */
+#define NET_CONNECT_TIMEOUT 30
 #define HANDSHAKE_TIMEOUT_SEC 15
 #define NET_PROTOCOL_VERSION 0x0001
 
@@ -398,7 +401,7 @@ initmultiplayers(char damultioption, char dacomrateoption, char dapriority)
 			socklen_t client_len = sizeof(client_addr);
 			SOCKET client;
 
-			if (time(NULL) - start > CONNECT_TIMEOUT_SEC) {
+			if (time(NULL) - start > NET_CONNECT_TIMEOUT) {
 				printf("NET: Timeout waiting for players (%d connected)\n",
 				       numplayers);
 				if (numplayers < 2) {
