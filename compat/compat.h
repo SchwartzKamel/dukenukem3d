@@ -725,7 +725,7 @@ static inline void startup_log_close(void)
  * Fatal error reporting — shows MessageBox on Windows, stderr on Linux
  * ====================================================================== */
 
-static inline void error_fatal(const char *title, const char *msg)
+static inline _Noreturn void error_fatal(const char *title, const char *msg)
 {
     startup_log("error_fatal: %s: %s", title, msg);
 #ifdef _WIN32

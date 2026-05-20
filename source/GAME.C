@@ -642,11 +642,28 @@ void getpackets(void)
 
                 break;
             case 6:
+                /* net-r8-type-6-bounds: packet field validation */
+                if ((unsigned)other >= MAXPLAYERS)
+                {
+                    printf("NET: SECURITY: Packet type 6 invalid player index (%u >= %d). Dropping.\n",
+                        (unsigned)other, MAXPLAYERS);
+                    break;
+                }
                 if (packbuf[1] != BYTEVERSION)
                     gameexit("\nYou cannot play Duke with different versions.");
-                for (i=2;packbuf[i];i++)
+                for (i=2; i < packbufleng && i - 2 < MAXPLAYERNAMELENGTH; i++)
+                {
+                    if (packbuf[i] == 0) break;
                     ud.user_name[other][i-2] = packbuf[i];
-                ud.user_name[other][i-2] = 0;
+                }
+                if (i - 2 < MAXPLAYERNAMELENGTH)
+                    ud.user_name[other][i-2] = 0;
+                else
+                {
+                    printf("NET: SECURITY: Packet type 6 player name too long (>= %d). Truncating.\n",
+                        MAXPLAYERNAMELENGTH);
+                    ud.user_name[other][MAXPLAYERNAMELENGTH-1] = 0;
+                }
                 break;
             case 9:
                 if (packbufleng - 1 > MAX_WEAPONS)

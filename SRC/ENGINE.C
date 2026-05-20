@@ -832,6 +832,7 @@ drawrooms(long daposx, long daposy, long daposz,
 	long i, j, z, cz, fz, closest;
 	short *shortptr1, *shortptr2;
 
+	if((unsigned)dacursectnum >= MAXSECTORS) return;
 	beforedrawrooms = 0;
 	totalarea += (windowx2+1-windowx1)*(windowy2+1-windowy1);
 
@@ -3607,7 +3608,10 @@ drawsprite (long snum)
 	}
 	if ((tspr->xrepeat <= 0) || (tspr->yrepeat <= 0)) return;
 
-	sectnum = tspr->sectnum; sec = &sector[sectnum];
+	sectnum = tspr->sectnum;
+	/* engine-r11-drawsprite-sectnum: bound check before sector[] deref */
+	if ((unsigned)sectnum >= (unsigned)MAXSECTORS) return;
+	sec = &sector[sectnum];
 	globalpal = tspr->pal;
 	globalshade = tspr->shade;
 	if (cstat&2)

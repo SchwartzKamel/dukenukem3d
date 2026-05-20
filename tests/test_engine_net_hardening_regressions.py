@@ -1367,6 +1367,104 @@ class TestPacketType4ChatStrncpy:
 
 
 
+class TestPacketType6FieldBounds:
+    """Verify net-r8-type-6-bounds: Packet type 6 (player name) field validation.
+    
+    Bug: Packet type 6 handler read packbuf[i] in a loop until null terminator
+    without checking:
+    1. if 'other' (player index) is < MAXPLAYERS
+    2. if i < packbufleng before reading packbuf[i]
+    3. if name length exceeds MAXPLAYERNAMELENGTH before writing
+    
+    This allowed:
+    - OOB write to ud.user_name[invalid_player] with high player index
+    - OOB read from packbuf if attacker sends packet without null terminator
+    - Buffer overflow in ud.user_name[player][i] if name too long
+    
+    Fix: Add all three bounds checks before processing the name field.
+    """
+    
+    def test_packet_type_6_player_index_bounds(self, repo_root):
+        """Verify packet type 6 validates player index against MAXPLAYERS."""
+        game_c = repo_root / "source" / "GAME.C"
+        if not game_c.exists():
+            pytest.skip(f"{game_c} not found")
+        
+        content = game_c.read_text(errors="replace")
+        
+        # Check for player index bounds check pattern
+        # Pattern: if ((unsigned)other >= MAXPLAYERS)
+        has_index_check = re.search(
+            r'case\s+6\s*:.*?'
+            r'if\s*\(\s*\(\s*unsigned\s*\)\s*other\s*>=\s*MAXPLAYERS\s*\)',
+            content,
+            re.MULTILINE | re.DOTALL
+        )
+        
+        assert has_index_check, (
+            "Packet type 6 must validate player index with pattern: "
+            "if ((unsigned)other >= MAXPLAYERS)"
+        )
+    
+    def test_packet_type_6_sentinel_comment(self, repo_root):
+        """Verify the net-r8-type-6-bounds sentinel comment is present."""
+        game_c = repo_root / "source" / "GAME.C"
+        if not game_c.exists():
+            pytest.skip(f"{game_c} not found")
+        
+        content = game_c.read_text(errors="replace")
+        
+        # Check for the sentinel comment that marks this hardening
+        has_sentinel = "net-r8-type-6-bounds" in content
+        
+        assert has_sentinel, (
+            "Packet type 6 bounds check must include sentinel comment: "
+            "/* net-r8-type-6-bounds: packet field validation */"
+        )
+    
+    def test_packet_type_6_buffer_length_bounds(self, repo_root):
+        """Verify packet type 6 loop checks packbufleng before reading."""
+        game_c = repo_root / "source" / "GAME.C"
+        if not game_c.exists():
+            pytest.skip(f"{game_c} not found")
+        
+        content = game_c.read_text(errors="replace")
+        
+        # Find the case 6 block and check for packbufleng bounds check in the loop
+        case_6_match = re.search(
+            r'case\s+6\s*:.*?'
+            r'for\s*\(\s*i\s*=\s*2\s*;.*?i\s*<\s*packbufleng.*?\)',
+            content,
+            re.MULTILINE | re.DOTALL
+        )
+        
+        assert case_6_match, (
+            "Packet type 6 loop must check packbufleng before reading: "
+            "for (i=2; i < packbufleng && ...)"
+        )
+    
+    def test_packet_type_6_name_length_bounds(self, repo_root):
+        """Verify packet type 6 prevents name overflow beyond MAXPLAYERNAMELENGTH."""
+        game_c = repo_root / "source" / "GAME.C"
+        if not game_c.exists():
+            pytest.skip(f"{game_c} not found")
+        
+        content = game_c.read_text(errors="replace")
+        
+        # Check for MAXPLAYERNAMELENGTH check in the loop condition
+        has_name_length_check = re.search(
+            r'case\s+6\s*:.*?'
+            r'for\s*\(\s*i\s*=\s*2\s*;.*?i\s*-\s*2\s*<\s*MAXPLAYERNAMELENGTH.*?\)',
+            content,
+            re.MULTILINE | re.DOTALL
+        )
+        
+        assert has_name_length_check, (
+            "Packet type 6 loop must check MAXPLAYERNAMELENGTH: "
+            "for (i=2; ... && i - 2 < MAXPLAYERNAMELENGTH)"
+        )
+
+
 class TestRTSNumlumpsOverflow:
     """Verify cycle-35 RTS.C integer overflow fix (engine-r10-rts-overflow).
     
@@ -1767,3 +1865,132 @@ class TestGameUnsafeStringReplacements:
                 assert unsafe_func not in lines[line_num], (
                     f"Line {line_num+1}: {description} should be removed (found in: {lines[line_num][:80]})"
                 )
+
+
+class TestDrawspriteSectnumBounds:
+    """Verify r11 drawsprite sectnum bounds check (engine-r11-drawsprite-sectnum)."""
+
+    def test_drawsprite_sectnum_bounds_check(self, repo_root):
+        """ENGINE.C drawsprite() must bounds-check sectnum before sector[] deref."""
+        engine_c = repo_root / "SRC" / "ENGINE.C"
+        if not engine_c.exists():
+            pytest.skip(f"{engine_c} not found")
+
+        content = engine_c.read_text(errors="replace")
+
+        # Find the drawsprite function
+        if "drawsprite" not in content:
+            pytest.skip("drawsprite function not found in ENGINE.C")
+
+        # Check for the bounds check pattern around sectnum assignment
+        # Pattern: if ((unsigned)sectnum >= (unsigned)MAXSECTORS) return;
+        # Or: /* engine-r11-drawsprite-sectnum: bound check before sector[] deref */
+        has_sectnum_check = (
+            "engine-r11-drawsprite-sectnum" in content and
+            "if ((unsigned)sectnum >= (unsigned)MAXSECTORS)" in content
+        )
+
+        assert has_sectnum_check, (
+            "ENGINE.C drawsprite() must have bounds check for sectnum before "
+            "sector[sectnum] dereference. Expected pattern: "
+            "'if ((unsigned)sectnum >= (unsigned)MAXSECTORS) return;' with "
+            "comment 'engine-r11-drawsprite-sectnum'"
+        )
+
+
+class TestDrawroomsCursectnumBounds:
+    """Verify r11 drawrooms cursectnum bounds check (engine-r11-drawrooms-cursectnum)."""
+
+    def test_drawrooms_cursectnum_bounds_check(self, repo_root):
+        """ENGINE.C drawrooms() must bounds-check cursectnum before sector[] deref."""
+        engine_c = repo_root / "SRC" / "ENGINE.C"
+        if not engine_c.exists():
+            pytest.skip(f"{engine_c} not found")
+
+        content = engine_c.read_text(errors="replace")
+
+        # Find the drawrooms function
+        if "drawrooms" not in content:
+            pytest.skip("drawrooms function not found in ENGINE.C")
+
+        # Check for the bounds check pattern in drawrooms
+        # Pattern: if((unsigned)dacursectnum >= MAXSECTORS) return;
+        has_cursectnum_check = (
+            "if((unsigned)dacursectnum >= MAXSECTORS)" in content
+        )
+
+        assert has_cursectnum_check, (
+            "ENGINE.C drawrooms() must have bounds check for cursectnum parameter "
+            "before sector[cursectnum] dereference. Expected pattern: "
+            "'if((unsigned)dacursectnum >= MAXSECTORS) return;'"
+        )
+
+
+class TestMusicPlaySongStateConsistency:
+    """Verify MUSIC_PlaySong state machine bug fix (audio-r10-music-state-consistency)."""
+
+    def test_music_playing_only_on_success(self, repo_root):
+        """
+        audio_stub.c MUSIC_PlaySong() must only set music_playing=1 when
+        Mix_LoadMUS_RW succeeds, not unconditionally.
+        Regression: Previously, music_playing was set even when Mix_LoadMUS_RW failed,
+        leading to inconsistent state where the music_playing flag didn't reflect
+        actual playback status.
+        """
+        audio_stub = repo_root / "compat" / "audio_stub.c"
+        if not audio_stub.exists():
+            pytest.skip(f"{audio_stub} not found")
+
+        content = audio_stub.read_text(errors="replace")
+
+        # Find the MUSIC_PlaySong function
+        if "MUSIC_PlaySong" not in content:
+            pytest.skip("MUSIC_PlaySong function not found in audio_stub.c")
+
+        # Pattern 1: Check that music_playing = 1 is inside the success path,
+        # not at the end of the function unconditionally
+        # The fix should have the sentinel comment: audio-r10-music-state-consistency
+        has_sentinel = "audio-r10-music-state-consistency" in content
+
+        # Pattern 2: Check for the fix structure:
+        # - MUSIC_Error is returned when Mix_LoadMUS_RW fails
+        # - music_playing = 1 is only set after successful Mix_PlayMusic call
+        has_error_return = (
+            "if (!current_music)" in content and
+            "return MUSIC_Error" in content and
+            "audio-r10-music-state-consistency" in content
+        )
+
+        # Pattern 3: Ensure music_playing assignment is not unconditional at function end
+        # Find the function and check its structure
+        func_pattern = r"int\s+MUSIC_PlaySong\s*\([^)]*\)\s*\{(.*?)^\}"
+        func_match = re.search(func_pattern, content, re.MULTILINE | re.DOTALL)
+
+        if func_match:
+            func_body = func_match.group(1)
+            # The corrected version should have:
+            # 1. music_playing = 1 preceded by Mix_PlayMusic (success path)
+            # 2. Sentinel comment about the state machine fix
+            lines = func_body.split('\n')
+            
+            music_playing_line = None
+            mix_playmusic_line = None
+            
+            for i, line in enumerate(lines):
+                if "music_playing" in line and "=" in line and "1" in line:
+                    music_playing_line = i
+                if "Mix_PlayMusic" in line:
+                    mix_playmusic_line = i
+            
+            # Verify that music_playing assignment comes after Mix_PlayMusic
+            if music_playing_line is not None and mix_playmusic_line is not None:
+                assert music_playing_line > mix_playmusic_line, (
+                    "music_playing = 1 must be set after Mix_PlayMusic call (success path)"
+                )
+
+        assert has_sentinel and has_error_return, (
+            "compat/audio_stub.c MUSIC_PlaySong() must:\n"
+            "1. Return MUSIC_Error when Mix_LoadMUS_RW fails\n"
+            "2. Only set music_playing = 1 after successful Mix_PlayMusic call\n"
+            "3. Include sentinel comment 'audio-r10-music-state-consistency'"
+        )

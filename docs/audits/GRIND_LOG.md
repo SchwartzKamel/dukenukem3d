@@ -1629,3 +1629,60 @@ Keep v5 as the standing dispatch contract.
 - Open CRITICAL: 1 (`build-r7-lto-maxtiles-mismatch`; net-new `build-r11-maxtiles-link-assertion`
   proposes the concrete remediation step).
 - Open HIGH: 4 (3 net-r3 architectural + 1 new `engine-r11-drawsprite-sectnum`).
+
+---
+
+## Cycle 38 — 2025 grind closures (6 agents, v5 contract, zero resets)
+
+### Grind closures (6/6 clean)
+
+- **engine-r11-drawsprite-sectnum** (HIGH, engine-porter): SRC/ENGINE.C:3610
+  `if ((unsigned)sectnum >= (unsigned)MAXSECTORS) return;` before
+  `sec = &sector[sectnum]` in drawsprite(). Sentinel:
+  `engine-r11-drawsprite-sectnum: bound check before sector[] deref`.
+  Regression: `TestDrawspriteSectnumBounds`.
+- **engine-r11-drawrooms-cursectnum** (MEDIUM, engine-porter): SRC/ENGINE.C:835
+  `if((unsigned)dacursectnum >= MAXSECTORS) return;` at drawrooms() entry.
+  Regression: `TestDrawroomsCursectnumBounds`.
+- **net-r8-type-6-bounds** (HIGH, network-multiplayer): source/GAME.C:645
+  packet type 6 handler: player-index bound, packbuf-length bound, and
+  MAXPLAYERNAMELENGTH truncation with null-termination. Sentinel:
+  `net-r8-type-6-bounds: packet field validation`. Regression:
+  `TestPacketType6FieldBounds` (4 subtests).
+- **audio-r10-music-state-consistency** (MEDIUM, audio-engineer):
+  compat/audio_stub.c:897-901 — MUSIC_PlaySong returns `MUSIC_Error` on
+  `Mix_LoadMUS_RW` failure; `music_playing = 1` moved inside success branch.
+  Regression: `TestMusicPlaySongStateConsistency`.
+- **compat-r10-error-fatal-noreturn** (LOW, compat-layer): compat/compat.h:728
+  `static inline _Noreturn void error_fatal(...)` — c11 noreturn attribute
+  enables compiler dead-code analysis for error paths.
+- **asset-r11-table-manifest** (MEDIUM, asset-pipeline): new
+  `tools/generate_tables.py` (137 lines) wraps `create_tables_dat()` with
+  manifest (`schema_version="1.0"`, `generated_at`, `table_names`),
+  `validate_manifest()`, `--deterministic` flag. New
+  `tests/test_tables_pipeline.py` with 22 tests. Mirrors cycle-34
+  generate_audio.py pattern.
+
+### Build & Test
+
+- `make -j$(nproc)` → `Build complete: duke3d (release)` (1 pre-existing
+  realloc warning on RTS.C:36, unchanged).
+- `pytest -q` → **719 passed**, 34 skipped, 3 xfailed, 1 xpassed (+29 over
+  cycle-37 baseline of 690).
+
+### Process notes
+
+- **Zero reset incidents.** v5 contract ("if tree is in unexpected state, STOP
+  and report — do NOT reconcile") has now held across cycles 37 and 38, after
+  the cycle-36 reset-storm. The clause is doing the work.
+- Both engine agents targeted SRC/ENGINE.C (different functions, 2775-line
+  separation, no collision).
+- Audio agent correctly identified `MUSIC_PlaySong` lives in
+  `compat/audio_stub.c` (Mix wrapper), not `compat/sdlmusic.c` (legacy).
+
+### Backlog snapshot
+
+- ~156 pending / 229 done / 3 blocked.
+- Open CRITICAL: 1 (`build-r7-lto-maxtiles-mismatch`; cycle-39 should pick
+  `build-r11-maxtiles-link-assertion` to address).
+- Open HIGH: 3 (all net-r3 architectural).

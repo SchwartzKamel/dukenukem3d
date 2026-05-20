@@ -1,0 +1,132 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-2.0-or-later
+"""Generate TABLES.DAT and manifest for Duke3D: Neon Noir.
+
+Wraps the tables output (sine, radar, brightness, fonts) in a manifest
+dict with schema_version, generated_at timestamp, and table_names list.
+Mirrors the pattern established by tools/generate_audio.py (cycle 34).
+"""
+
+import argparse
+import json
+import os
+import sys
+from datetime import datetime, timezone
+
+from tables import create_tables_dat
+
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+OUTPUT_DIR = os.path.join(PROJECT_ROOT, "generated_assets")
+
+# Table names in the manifest (deterministic order)
+TABLE_NAMES = ["sine", "radar", "brightness", "fonts"]
+
+
+def validate_manifest(manifest):
+    """Validate manifest structure and content.
+    
+    Args:
+        manifest: Dictionary containing schema_version, generated_at, table_names.
+    
+    Raises:
+        ValueError: If manifest is invalid.
+    """
+    if not isinstance(manifest, dict):
+        raise ValueError("Manifest must be a dictionary")
+    
+    if "schema_version" not in manifest:
+        raise ValueError("Manifest must include schema_version")
+    
+    if manifest["schema_version"] != "1.0":
+        raise ValueError(f"Unsupported schema_version: {manifest['schema_version']}")
+    
+    if "generated_at" not in manifest:
+        raise ValueError("Manifest must include generated_at timestamp")
+    
+    if "table_names" not in manifest:
+        raise ValueError("Manifest must include table_names list")
+    
+    expected_tables = set(TABLE_NAMES)
+    actual_tables = set(manifest["table_names"])
+    if expected_tables != actual_tables:
+        raise ValueError(
+            f"table_names mismatch. Expected {expected_tables}, got {actual_tables}"
+        )
+
+
+def create_manifest(generated_at=None):
+    """Create the manifest dict wrapping TABLES.DAT metadata.
+    
+    Args:
+        generated_at: ISO 8601 timestamp string. If None, uses current UTC time.
+                      For determinism (e.g., CI), pass "1970-01-01T00:00:00Z".
+    
+    Returns:
+        Dictionary with schema_version, generated_at, and table_names.
+    """
+    if generated_at is None:
+        generated_at = datetime.now(timezone.utc).isoformat()
+    
+    manifest = {
+        "schema_version": "1.0",
+        "generated_at": generated_at,
+        "table_names": TABLE_NAMES,
+    }
+    
+    validate_manifest(manifest)
+    return manifest
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Generate TABLES.DAT and manifest")
+    parser.add_argument(
+        "--deterministic",
+        action="store_true",
+        help="Use deterministic timestamp (1970-01-01T00:00:00Z) for CI",
+    )
+    args = parser.parse_args()
+
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+    print("=== Generating TABLES.DAT ===")
+    
+    # Generate the binary tables
+    tables_dat = create_tables_dat()
+    print(f"  TABLES.DAT: {len(tables_dat)} bytes")
+    
+    # Write TABLES.DAT
+    tables_path = os.path.join(OUTPUT_DIR, "TABLES.DAT")
+    try:
+        tmp_path = tables_path + ".tmp"
+        with open(tmp_path, "wb") as f:
+            f.write(tables_dat)
+        os.replace(tmp_path, tables_path)
+        print(f"  Written to {tables_path}")
+    except OSError as exc:
+        print(f"[ERROR] Failed to write TABLES.DAT: {exc}", file=sys.stderr)
+        return 1
+
+    # Create and write manifest
+    generated_at = "1970-01-01T00:00:00Z" if args.deterministic else None
+    manifest = create_manifest(generated_at)
+    
+    manifest_path = os.path.join(OUTPUT_DIR, "TABLES_MANIFEST.json")
+    try:
+        tmp_path = manifest_path + ".tmp"
+        with open(tmp_path, "w") as f:
+            json.dump(manifest, f, indent=2, sort_keys=True)
+        os.replace(tmp_path, manifest_path)
+        print(f"\n=== Manifest written to {manifest_path} ===")
+        print(f"  schema_version: {manifest['schema_version']}")
+        print(f"  generated_at: {manifest['generated_at']}")
+        print(f"  table_names: {', '.join(manifest['table_names'])}")
+    except OSError as exc:
+        print(f"[ERROR] Failed to write manifest: {exc}", file=sys.stderr)
+        return 1
+
+    print("\n=== Done! ===")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

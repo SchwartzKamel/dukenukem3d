@@ -894,16 +894,16 @@ int MUSIC_PlaySong(unsigned char *song, int loopflag)
             if (!current_music) {
                 SDL_FreeRW(current_music_rw);
                 current_music_rw = NULL;
-            } else {
-                Mix_PlayMusic(current_music, loopflag ? -1 : 0);
+                return MUSIC_Error;  /* audio-r10-music-state-consistency */
             }
+            Mix_PlayMusic(current_music, loopflag ? -1 : 0);
+            music_loop    = loopflag;
+            music_playing = 1;  /* audio-r10-music-state-consistency: only set on success */
         }
     }
 #else
     (void)song;
 #endif
-    music_loop    = loopflag;
-    music_playing = 1;
     return MUSIC_Ok;
 }
 
