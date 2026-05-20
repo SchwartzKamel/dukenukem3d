@@ -340,3 +340,42 @@ working tree. SQL marks were rolled back for re-dispatch next cycle:
   write to disk. Worth investigating whether the task tool's filesystem is
   isolated or whether agents bailed out silently. For now, validate working
   tree after every cycle and revert SQL for unlanded work.
+
+## Cycle 8 — 2026-05-20T08:17Z
+
+**Dispatched:** 6 sub-agents (haiku, parallel) targeting 13 todos.
+
+**Todos completed (7):**
+- `perf-wallscan-modulo`, `perf-ceilflor-scan` (perf-wallscan-cluster) —
+  SRC/ENGINE.C pow2-mask optimization in wallscan/ceilscan/florscan.
+- `fix-assets-worker-error-recovery` (assets-worker-recovery) — per-worker
+  try/except + partial-output preservation in tools/generate_assets.py.
+- `test-conftest-shared-fixtures`, `test-wav-roundtrip-json`,
+  `test-manifest-schema-pydantic` (test-infra-cluster) — pydantic schema,
+  shared fixtures, JSON roundtrip test.
+
+**Todos reverted to pending (8) — persistence regression v2:**
+Three sub-agents (`engine-tempsectorz`, `compat-stub-docs-v2`,
+`docs-drift-v2`) reported success WITH `git diff --stat` output but
+their edits did not persist in our working tree. Pattern: smaller
+single-file edits (1-16 lines) appear to be the most affected. SQL
+rolled back for re-dispatch next cycle:
+- engine-tempsectorz: `fix-engine-tempsectorz-type-mismatch`
+- compat-stub-docs-v2: `audit-compat-voc-bounds-check`,
+  `audit-compat-joystick-stub`
+- docs-drift-v2: 5 docs todos (homebrew, audio manifest, parallel
+  perf, sdl detection, ci caching)
+
+**Build/test deltas:**
+- Build: green.
+- Tests --runslow: 530 → **533 passed**, 1 skipped.
+- Tests default (no --runslow): 511 passed, 20 skipped (parity).
+
+**Human-attention items:**
+- Persistence regression now confirmed across two cycles (7 & 8).
+  Mandatory `git diff --stat` requirement in agent prompt did NOT
+  prevent it — agents return valid-looking diffs but the changes
+  don't reach our tree. Hypothesis: parallel agents share a
+  filesystem snapshot but only some agents' writes get reconciled
+  back. Workaround for next cycle: dispatch smaller-file todos
+  SOLO (sequential) instead of in the parallel batch.
