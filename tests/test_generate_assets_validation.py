@@ -91,7 +91,7 @@ def test_schema_rejects_empty_description():
 
 @pytest.mark.skipif(not _HAS_PYDANTIC, reason="pydantic not installed")
 def test_schema_rejects_tile_num_out_of_range():
-    """Schema rejects tile_num > 4943."""
+    """Schema rejects tile_num > 6143."""
     with pytest.raises(Exception):
         TextureDef(tile_num=99999, width=64, height=64, description="x", flux_prompt="x")
 
@@ -102,3 +102,27 @@ def test_schema_rejects_extra_fields():
     with pytest.raises(Exception):
         TextureDef(tile_num=0, width=64, height=64, description="x",
                    flux_prompt="x", bogus_field="nope")
+
+
+@pytest.mark.skipif(not _HAS_PYDANTIC, reason="pydantic not installed")
+def test_schema_accepts_tile_num_6143_boundary():
+    """Schema accepts tile_num=6143 (MAXTILES-1 from source/BUILD.H)."""
+    # TextureDef should accept 6143
+    tex = TextureDef(tile_num=6143, width=64, height=64, description="x", flux_prompt="x")
+    assert tex.tile_num == 6143
+    
+    # SpriteDef should also accept 6143
+    spr = SpriteDef(tile_num=6143, width=64, height=64, description="x")
+    assert spr.tile_num == 6143
+
+
+@pytest.mark.skipif(not _HAS_PYDANTIC, reason="pydantic not installed")
+def test_schema_rejects_tile_num_6144_boundary():
+    """Schema rejects tile_num=6144 (exceeds MAXTILES-1)."""
+    # TextureDef should reject 6144
+    with pytest.raises(Exception):
+        TextureDef(tile_num=6144, width=64, height=64, description="x", flux_prompt="x")
+    
+    # SpriteDef should also reject 6144
+    with pytest.raises(Exception):
+        SpriteDef(tile_num=6144, width=64, height=64, description="x")

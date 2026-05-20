@@ -12,14 +12,15 @@ class TextureDef(BaseModel):
     """Validates texture definition tuples (tile_num, width, height, desc, prompt).
     
     Fields:
-    - tile_num: Tile index in the asset table (0-4943 for 64k tiles)
+    - tile_num: Tile index in the asset table (0-6143 for MAXTILES)
     - width: Texture width in pixels (1-256)
     - height: Texture height in pixels (1-256)
     - description: Human-readable description of the texture
     - flux_prompt: FLUX.2 AI prompt for generation
     """
     
-    tile_num: int = Field(..., ge=0, le=4943, description="Tile index (0-4943)")
+    # tile_num max = MAXTILES - 1 = 6143 (from source/BUILD.H; LTO mismatch tracked in build-r7-lto-maxtiles-mismatch)
+    tile_num: int = Field(..., ge=0, le=6143, description="Tile index (0-6143)")
     width: int = Field(..., ge=1, le=256, description="Texture width pixels (1-256)")
     height: int = Field(..., ge=1, le=256, description="Texture height pixels (1-256)")
     description: str = Field(..., min_length=1, max_length=256, description="Texture description")
@@ -50,13 +51,14 @@ class SpriteDef(BaseModel):
     Sprites are small item/actor placeholder tiles used in the engine.
     
     Fields:
-    - tile_num: Tile index in the asset table
+    - tile_num: Tile index in the asset table (0-6143 for MAXTILES)
     - width: Sprite width in pixels (1-256)
     - height: Sprite height in pixels (1-256)
     - description: Human-readable description of the sprite (item name, etc.)
     """
     
-    tile_num: int = Field(..., ge=0, le=4943, description="Tile index (0-4943)")
+    # tile_num max = MAXTILES - 1 = 6143 (from source/BUILD.H; LTO mismatch tracked in build-r7-lto-maxtiles-mismatch)
+    tile_num: int = Field(..., ge=0, le=6143, description="Tile index (0-6143)")
     width: int = Field(..., ge=1, le=256, description="Sprite width pixels (1-256)")
     height: int = Field(..., ge=1, le=256, description="Sprite height pixels (1-256)")
     description: str = Field(..., min_length=1, max_length=256, description="Sprite description")
