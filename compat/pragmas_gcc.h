@@ -505,4 +505,16 @@ static inline void redblueblit(char *src1, char *src2, long cnt) {
 }
 static inline void int5(void) { }
 
+/* ======================================================================
+ * Branch prediction hints for hot-path optimization
+ * ====================================================================== */
+
+#ifndef likely
+#define likely(x)   __builtin_expect(!!(x), 1)
+#endif
+
+#ifndef unlikely
+#define unlikely(x) __builtin_expect(!!(x), 0)
+#endif
+
 #endif /* PRAGMAS_GCC_H_ */

@@ -2023,7 +2023,7 @@ wallscan(long x1, long x2, short *uwal, short *dwal, long *swal, long *lwal)
 	{
 		y1ve[0] = max(uwal[x],umost[x]);
 		y2ve[0] = min(dwal[x],dmost[x]);
-		if (y2ve[0] <= y1ve[0]) continue;
+		if (unlikely(y2ve[0] <= y1ve[0])) continue;
 
 		palookupoffse[0] = fpalookup+(getpalookup((long)mulscale16(swal[x],globvis),globalshade)<<8);
 
@@ -2043,7 +2043,7 @@ wallscan(long x1, long x2, short *uwal, short *dwal, long *swal, long *lwal)
 		{
 			y1ve[z] = max(uwal[x+z],umost[x+z]);
 			y2ve[z] = min(dwal[x+z],dmost[x+z])-1;
-			if (y2ve[z] < y1ve[z]) { bad += pow2char[z]; continue; }
+			if (unlikely(y2ve[z] < y1ve[z])) { bad += pow2char[z]; continue; }
 
 			i = lwal[x+z] + globalxpanning;
 			if (i >= tsizx) { if (x_mask == -1) i %= tsizx; else i &= x_mask; }
@@ -2053,12 +2053,12 @@ wallscan(long x1, long x2, short *uwal, short *dwal, long *swal, long *lwal)
 			vince[z] = swal[x+z]*globalyscale;
 			vplce[z] = globalzd + vince[z]*(y1ve[z]-globalhoriz+1);
 		}
-		if (bad == 15) continue;
+		if (unlikely(bad == 15)) continue;
 
 		palookupoffse[0] = fpalookup+(getpalookup((long)mulscale16(swal[x],globvis),globalshade)<<8);
 		palookupoffse[3] = fpalookup+(getpalookup((long)mulscale16(swal[x+3],globvis),globalshade)<<8);
 
-		if ((palookupoffse[0] == palookupoffse[3]) && ((bad&0x9) == 0))
+		if (likely((palookupoffse[0] == palookupoffse[3]) && ((bad&0x9) == 0)))
 		{
 			palookupoffse[1] = palookupoffse[0];
 			palookupoffse[2] = palookupoffse[0];
@@ -2072,33 +2072,33 @@ wallscan(long x1, long x2, short *uwal, short *dwal, long *swal, long *lwal)
 		u4 = max(max(y1ve[0],y1ve[1]),max(y1ve[2],y1ve[3]));
 		d4 = min(min(y2ve[0],y2ve[1]),min(y2ve[2],y2ve[3]));
 
-		if ((bad != 0) || (u4 >= d4))
+		if (unlikely((bad != 0) || (u4 >= d4)))
 		{
-			if (!(bad&1)) prevlineasm1(vince[0],palookupoffse[0],y2ve[0]-y1ve[0],vplce[0],bufplce[0],ylookup[y1ve[0]]+x+frameoffset+0);
-			if (!(bad&2)) prevlineasm1(vince[1],palookupoffse[1],y2ve[1]-y1ve[1],vplce[1],bufplce[1],ylookup[y1ve[1]]+x+frameoffset+1);
-			if (!(bad&4)) prevlineasm1(vince[2],palookupoffse[2],y2ve[2]-y1ve[2],vplce[2],bufplce[2],ylookup[y1ve[2]]+x+frameoffset+2);
-			if (!(bad&8)) prevlineasm1(vince[3],palookupoffse[3],y2ve[3]-y1ve[3],vplce[3],bufplce[3],ylookup[y1ve[3]]+x+frameoffset+3);
+			if (unlikely(!(bad&1))) prevlineasm1(vince[0],palookupoffse[0],y2ve[0]-y1ve[0],vplce[0],bufplce[0],ylookup[y1ve[0]]+x+frameoffset+0);
+			if (unlikely(!(bad&2))) prevlineasm1(vince[1],palookupoffse[1],y2ve[1]-y1ve[1],vplce[1],bufplce[1],ylookup[y1ve[1]]+x+frameoffset+1);
+			if (unlikely(!(bad&4))) prevlineasm1(vince[2],palookupoffse[2],y2ve[2]-y1ve[2],vplce[2],bufplce[2],ylookup[y1ve[2]]+x+frameoffset+2);
+			if (unlikely(!(bad&8))) prevlineasm1(vince[3],palookupoffse[3],y2ve[3]-y1ve[3],vplce[3],bufplce[3],ylookup[y1ve[3]]+x+frameoffset+3);
 			continue;
 		}
 
-		if (u4 > y1ve[0]) vplce[0] = prevlineasm1(vince[0],palookupoffse[0],u4-y1ve[0]-1,vplce[0],bufplce[0],ylookup[y1ve[0]]+x+frameoffset+0);
-		if (u4 > y1ve[1]) vplce[1] = prevlineasm1(vince[1],palookupoffse[1],u4-y1ve[1]-1,vplce[1],bufplce[1],ylookup[y1ve[1]]+x+frameoffset+1);
-		if (u4 > y1ve[2]) vplce[2] = prevlineasm1(vince[2],palookupoffse[2],u4-y1ve[2]-1,vplce[2],bufplce[2],ylookup[y1ve[2]]+x+frameoffset+2);
-		if (u4 > y1ve[3]) vplce[3] = prevlineasm1(vince[3],palookupoffse[3],u4-y1ve[3]-1,vplce[3],bufplce[3],ylookup[y1ve[3]]+x+frameoffset+3);
+		if (likely(u4 > y1ve[0])) vplce[0] = prevlineasm1(vince[0],palookupoffse[0],u4-y1ve[0]-1,vplce[0],bufplce[0],ylookup[y1ve[0]]+x+frameoffset+0);
+		if (likely(u4 > y1ve[1])) vplce[1] = prevlineasm1(vince[1],palookupoffse[1],u4-y1ve[1]-1,vplce[1],bufplce[1],ylookup[y1ve[1]]+x+frameoffset+1);
+		if (likely(u4 > y1ve[2])) vplce[2] = prevlineasm1(vince[2],palookupoffse[2],u4-y1ve[2]-1,vplce[2],bufplce[2],ylookup[y1ve[2]]+x+frameoffset+2);
+		if (likely(u4 > y1ve[3])) vplce[3] = prevlineasm1(vince[3],palookupoffse[3],u4-y1ve[3]-1,vplce[3],bufplce[3],ylookup[y1ve[3]]+x+frameoffset+3);
 
-		if (d4 >= u4) vlineasm4(d4-u4+1,ylookup[u4]+x+frameoffset);
+		if (likely(d4 >= u4)) vlineasm4(d4-u4+1,ylookup[u4]+x+frameoffset);
 
 		i = x+frameoffset+ylookup[d4+1];
-		if (y2ve[0] > d4) prevlineasm1(vince[0],palookupoffse[0],y2ve[0]-d4-1,vplce[0],bufplce[0],i+0);
-		if (y2ve[1] > d4) prevlineasm1(vince[1],palookupoffse[1],y2ve[1]-d4-1,vplce[1],bufplce[1],i+1);
-		if (y2ve[2] > d4) prevlineasm1(vince[2],palookupoffse[2],y2ve[2]-d4-1,vplce[2],bufplce[2],i+2);
-		if (y2ve[3] > d4) prevlineasm1(vince[3],palookupoffse[3],y2ve[3]-d4-1,vplce[3],bufplce[3],i+3);
+		if (unlikely(y2ve[0] > d4)) prevlineasm1(vince[0],palookupoffse[0],y2ve[0]-d4-1,vplce[0],bufplce[0],i+0);
+		if (unlikely(y2ve[1] > d4)) prevlineasm1(vince[1],palookupoffse[1],y2ve[1]-d4-1,vplce[1],bufplce[1],i+1);
+		if (unlikely(y2ve[2] > d4)) prevlineasm1(vince[2],palookupoffse[2],y2ve[2]-d4-1,vplce[2],bufplce[2],i+2);
+		if (unlikely(y2ve[3] > d4)) prevlineasm1(vince[3],palookupoffse[3],y2ve[3]-d4-1,vplce[3],bufplce[3],i+3);
 	}
 	for(;x<=x2;x++)
 	{
 		y1ve[0] = max(uwal[x],umost[x]);
 		y2ve[0] = min(dwal[x],dmost[x]);
-		if (y2ve[0] <= y1ve[0]) continue;
+		if (unlikely(y2ve[0] <= y1ve[0])) continue;
 
 		palookupoffse[0] = fpalookup+(getpalookup((long)mulscale16(swal[x],globvis),globalshade)<<8);
 
