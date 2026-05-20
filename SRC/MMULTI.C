@@ -14,6 +14,7 @@
 #include <string.h>
 #include <stdarg.h>
 #include <time.h>
+#include <stdint.h>
 #include "pragmas_gcc.h"
 
 /* Platform-specific networking */
@@ -44,13 +45,16 @@ typedef int SOCKET;
 #define RECV_BUF_SIZE 65536
 #define DEFAULT_PORT 23513
 #define CONNECT_TIMEOUT_SEC 60
+#define HANDSHAKE_TIMEOUT_SEC 15
+#define NET_PROTOCOL_VERSION 0x0001
 
 #define updatecrc16(crc,dat) crc = (((crc<<8)&65535)^crctable[((((unsigned short)crc)>>8)&65535)^dat])
 
-long crctable[256];
+uint16_t crctable[256];
 
-extern long totalclock;
-static long timeoutcount = 60, resendagaincount = 4, lastsendtime[MAXPLAYERS];
+extern int32_t totalclock;
+static int32_t timeoutcount = 60, resendagaincount = 4;
+static int32_t lastsendtime[MAXPLAYERS];
 
 short myconnectindex, numplayers;
 short connecthead, connectpoint2[MAXPLAYERS];
@@ -125,7 +129,7 @@ static int net_recv_all(SOCKET sock, unsigned char *buf, int len)
 			if (errno != EAGAIN && errno != EWOULDBLOCK) return -1;
 #endif
 		}
-		if (time(NULL) - start > 10) return -1;
+		if (time(NULL) - start > HANDSHAKE_TIMEOUT_SEC) return -1;
 		if (total < len) net_sleep(10);
 	}
 	return total;
@@ -160,6 +164,7 @@ static void net_poll_sockets(void)
 			int payload_len = recv_bufs[i].buf[2] | (recv_bufs[i].buf[3] << 8);
 			int total_len, pq_next;
 
+			/* Validate bounds before relay-forwarding */
 			if (payload_len <= 0 || payload_len > MAXPACKETSIZE) {
 				recv_bufs[i].len = 0;
 				break;
@@ -168,7 +173,7 @@ static void net_poll_sockets(void)
 			total_len = NET_HEADER_SIZE + payload_len;
 			if (recv_bufs[i].len < total_len) break;
 
-			/* Host: relay to destination client */
+			/* Host: relay to destination client (after bounds check) */
 			if (is_host && dest != 0 && dest > 0 && dest < numplayers) {
 				if (player_sockets[dest] != INVALID_SOCKET)
 					net_send_raw(player_sockets[dest], recv_bufs[i].buf, total_len);
@@ -199,7 +204,7 @@ static void net_poll_sockets(void)
 
 initcrc()
 {
-	long i, j, k, a;
+	int32_t i, j, k, a;
 	for(j=0;j<256;j++)
 	{
 		k = (j<<8); a = 0;
@@ -211,21 +216,22 @@ initcrc()
 				a = ((a<<1)&65535);
 			k = ((k<<1)&65535);
 		}
-		crctable[j] = (a&65535);
+		crctable[j] = (uint16_t)(a&65535);
 	}
 }
 
-getcrc(char *buffer, short bufleng)
+uint16_t getcrc(char *buffer, short bufleng)
 {
-	long i, j;
+	int32_t i;
+	uint16_t j;
 	j = 0;
 	for(i=bufleng-1;i>=0;i--) updatecrc16(j,buffer[i]);
 	return(j&65535);
 }
 
-setpackettimeout(long datimeoutcount, long daresendagaincount)
+setpackettimeout(int32_t datimeoutcount, int32_t daresendagaincount)
 {
-	long i;
+	int32_t i;
 	timeoutcount = datimeoutcount;
 	resendagaincount = daresendagaincount;
 	for(i=0;i<numplayers;i++) lastsendtime[i] = totalclock;
@@ -235,7 +241,7 @@ setpackettimeout(long datimeoutcount, long daresendagaincount)
 
 initmultiplayers(char damultioption, char dacomrateoption, char dapriority)
 {
-	long i;
+	int32_t i;
 	int host_port = 0;
 	int expected_players = 2;
 	char *join_addr = NULL;
@@ -361,13 +367,13 @@ initmultiplayers(char damultioption, char dacomrateoption, char dapriority)
 
 		printf("NET: Starting game with %d players\n", numplayers);
 
-		/* Send handshake to each client: [player_index, numplayers, 0, 0] */
+		/* Send handshake to each client: [player_index, numplayers, version_lo, version_hi] */
 		for (i = 1; i < numplayers; i++) {
 			unsigned char msg[4];
 			msg[0] = (unsigned char)i;
 			msg[1] = (unsigned char)numplayers;
-			msg[2] = 0;
-			msg[3] = 0;
+			msg[2] = (unsigned char)(NET_PROTOCOL_VERSION & 0xFF);
+			msg[3] = (unsigned char)((NET_PROTOCOL_VERSION >> 8) & 0xFF);
 			net_send_raw(player_sockets[i], msg, 4);
 			net_set_nonblocking(player_sockets[i]);
 		}
@@ -412,9 +418,18 @@ initmultiplayers(char damultioption, char dacomrateoption, char dapriority)
 		setsockopt(sock, IPPROTO_TCP, TCP_NODELAY,
 		           (const char *)&flag, sizeof(flag));
 
-		/* Receive handshake: [player_index, numplayers, 0, 0] */
+		/* Receive handshake: [player_index, numplayers, version_lo, version_hi] */
 		if (net_recv_all(sock, msg, 4) != 4) {
-			printf("NET: Handshake failed\n");
+			printf("NET: Handshake failed (timeout or connection closed)\n");
+			net_close(sock);
+			goto singleplayer;
+		}
+
+		/* Verify protocol version */
+		uint16_t peer_version = (uint16_t)(msg[2] | (msg[3] << 8));
+		if (peer_version != NET_PROTOCOL_VERSION) {
+			printf("NET: Protocol version mismatch (expected 0x%04x, got 0x%04x)\n",
+			       NET_PROTOCOL_VERSION, peer_version);
 			net_close(sock);
 			goto singleplayer;
 		}
@@ -450,7 +465,7 @@ singleplayer:
 
 uninitmultiplayers()
 {
-	long i;
+	int32_t i;
 
 	if (!net_initialized) return;
 
@@ -478,7 +493,7 @@ sendlogon()
 
 sendlogoff()
 {
-	long i;
+	int32_t i;
 	char tempbuf[2];
 
 	tempbuf[0] = (char)255;
@@ -498,7 +513,7 @@ setsocket(short newsocket)
 	(void)newsocket;
 }
 
-sendpacket(long other, char *bufptr, long messleng)
+sendpacket(int32_t other, char *bufptr, int32_t messleng)
 {
 	SOCKET sock;
 	unsigned char header[NET_HEADER_SIZE];
@@ -546,7 +561,7 @@ short getpacket(short *other, char *bufptr)
 
 flushpackets()
 {
-	long i;
+	int32_t i;
 
 	if (numplayers < 2 || !net_initialized) return;
 
