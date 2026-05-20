@@ -106,11 +106,14 @@ echo Build complete: duke3d.exe
 goto :done
 
 :build_mingw
-echo --- Building with MinGW ---
+REM MinGW 32-bit (i686) build target: Windows PE32 executable, matching Makefile and CI
+REM Requires: gcc-mingw-w64-i686 toolchain with SDL2-devel mingw i686 libraries
+echo --- Building with MinGW (32-bit) ---
+REM Note: Expects 32-bit MinGW toolchain on PATH (i686-w64-mingw32-gcc or gcc from MinGW32)
 set CC=gcc
 set CFLAGS=-std=gnu89 -O2 -w -DSUPERBUILD -DPLATFORM_WIN32
-set SDL_INC=-I"%SDL2_DIR%\x86_64-w64-mingw32\include\SDL2"
-set SDL_LIB=-L"%SDL2_DIR%\x86_64-w64-mingw32\lib"
+set SDL_INC=-I"%SDL2_DIR%\i686-w64-mingw32\include\SDL2"
+set SDL_LIB=-L"%SDL2_DIR%\i686-w64-mingw32\lib"
 set INCLUDES=-Icompat -ISRC -Isource
 set LIBS=%SDL_LIB% -lmingw32 -lSDL2main -lSDL2 -lm -lws2_32 -mwindows
 

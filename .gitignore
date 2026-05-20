@@ -26,3 +26,21 @@ captures/
 DUKE3D.CFG
 duke3d_startup.log
 duke3d.tmp
+
+# Security: credential & sensitive-file safelist
+*.key
+*.pem
+*.crt
+*.p12
+*.pfx
+*.ssh
+id_rsa
+id_ed25519
+*.bak
+*.backup
+*.swp
+.aws/
+.azure/
+.ssh/
+.docker/config.json
+.vscode/settings.json

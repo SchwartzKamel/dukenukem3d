@@ -71,9 +71,8 @@ endif()
 # Compiler-specific flags
 if(MSVC)
     target_compile_options(duke3d PRIVATE /W0)
-    # Force .C files to be treated as C
-    set_source_files_properties(${ENGINE_SRCS} ${GAME_SRCS}
-        PROPERTIES COMPILE_FLAGS "/Tc")
+    # Note: LANGUAGE C property (line 54) handles .C → C compilation for MSVC.
+    # Do NOT add /Tc flag here: it consumes the next token, triggering D8036 error.
 else()
     # GCC/Clang: legacy code uses gnu89, compat uses gnu11
     set_source_files_properties(${ENGINE_SRCS} ${GAME_SRCS}
