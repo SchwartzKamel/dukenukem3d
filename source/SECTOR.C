@@ -31,6 +31,8 @@ Prepared for public release: 03/21/2003 - Charlie Wiederhold, 3D Realms
 
 // PRIMITIVE
 
+static int operatesectors_depth = 0;
+#define OPERATESECTORS_MAX_DEPTH 64
 
 char haltsoundhack;
 short callsound(short sn,short whatsprite)
@@ -553,6 +555,13 @@ void operatesectors(short sn,short ii)
     char sect_error;
     sectortype *sptr;
 
+    if (operatesectors_depth >= OPERATESECTORS_MAX_DEPTH) {
+        printf("SECURITY: operatesectors depth cap (%d) hit; aborting chain at sector %d\n",
+               OPERATESECTORS_MAX_DEPTH, sn);
+        return;
+    }
+    operatesectors_depth++;
+
     sect_error = 0;
     sptr = &sector[sn];
 
@@ -592,7 +601,7 @@ void operatesectors(short sn,short ii)
                 sptr->lotag &= 0xff00;
                 sptr->lotag |= 26;
             }
-            return;
+            goto cleanup_operatesectors;
 
         case 9:
         {
@@ -677,7 +686,7 @@ void operatesectors(short sn,short ii)
             }
 
         }
-        return;
+        goto cleanup_operatesectors;
 
         case 15://Warping elevators
 
@@ -697,7 +706,7 @@ void operatesectors(short sn,short ii)
                     activatewarpelevators(i,1);
                 else if( activatewarpelevators(i,1) )
                     activatewarpelevators(i,-1);
-                return;
+                goto cleanup_operatesectors;
             }
             else
             {
@@ -707,7 +716,7 @@ void operatesectors(short sn,short ii)
                     activatewarpelevators(i,1);
             }
 
-            return;
+            goto cleanup_operatesectors;
 
         case 16:
         case 17:
@@ -732,7 +741,7 @@ void operatesectors(short sn,short ii)
                 callsound(sn,ii);
             }
 
-            return;
+            goto cleanup_operatesectors;
 
         case 18:
         case 19:
@@ -751,7 +760,7 @@ void operatesectors(short sn,short ii)
                 setanimation(sn,&sptr->ceilingz,j+l,q);
                 callsound(sn,ii);
             }
-            return;
+            goto cleanup_operatesectors;
 
         case 29:
 
@@ -780,7 +789,7 @@ void operatesectors(short sn,short ii)
 
             callsound(sn,ii);
 
-            return;
+            goto cleanup_operatesectors;
 
         case 20:
 
@@ -818,7 +827,7 @@ void operatesectors(short sn,short ii)
             setanimation(sn,&sptr->ceilingz,j,sptr->extra);
             callsound(sn,ii);
 
-            return;
+            goto cleanup_operatesectors;
 
         case 21:
             i = getanimationgoal(&sptr->floorz);
@@ -840,7 +849,7 @@ void operatesectors(short sn,short ii)
                 if(setanimation(sn,&sptr->floorz,j,sptr->extra) >= 0)
                     callsound(sn,ii);
             }
-            return;
+            goto cleanup_operatesectors;
 
         case 22:
 
@@ -864,7 +873,7 @@ void operatesectors(short sn,short ii)
 
             callsound(sn,ii);
 
-            return;
+            goto cleanup_operatesectors;
 
         case 23: //Swingdoor
 
@@ -904,7 +913,7 @@ void operatesectors(short sn,short ii)
                     i = nextspritestat[i];
                 }
             }
-            return;
+            goto cleanup_operatesectors;
 
         case 25: //Subway type sliding doors
 
@@ -917,7 +926,7 @@ void operatesectors(short sn,short ii)
             }
 
             if(j < 0)
-                return;
+                goto cleanup_operatesectors;
 
             i = headspritestat[3];
             while(i >= 0)
@@ -936,7 +945,7 @@ void operatesectors(short sn,short ii)
                 }
                 i = nextspritestat[i];
             }
-            return;
+            goto cleanup_operatesectors;
 
         case 27:  //Extended bridge
 
@@ -955,7 +964,7 @@ void operatesectors(short sn,short ii)
                 }
                 j = nextspritestat[j];
             }
-            return;
+            goto cleanup_operatesectors;
 
 
         case 28:
@@ -981,8 +990,11 @@ void operatesectors(short sn,short ii)
             }
             callsound(sn,ii);
 
-            return;
+            goto cleanup_operatesectors;
     }
+
+cleanup_operatesectors:
+    operatesectors_depth--;
 }
 
 
