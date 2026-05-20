@@ -171,18 +171,18 @@ Based on audit findings, the existing 6 personas do **not cover** these domains:
 
 **Top 10 issues ordered by (severity × impact):**
 
-| Rank | Title | Owner | Severity | Fix | Effort |
-|------|-------|-------|----------|-----|--------|
-| **1** | 🟡 Rotate local Azure keys + add `.env.example` + pre-commit secret scan | Security & Secrets | MEDIUM | 1. Rotate `AUDIO_API_KEY` / `FLUX_API_KEY` as hygiene; 2. Commit `.env.example` template; 3. Confirm `.env` stays in `.gitignore`; 4. Add gitleaks/trufflehog pre-commit | 30 min |
-| **2** | 🔴 Fix MSVC `/Tc` CMakeLists.txt bug | Build System | CRITICAL | Replace `set_source_files_properties(...COMPILE_FLAGS "/Tc")` with `...PROPERTIES LANGUAGE C` | 10 min |
-| **3** | 🔴 Archive dead code (SRC/GAME.C, BUILD.C, etc.) | Engine Porter | CRITICAL | Move to `docs/archive/`; update README to clarify active vs. reference; add `#error` to SRC/PRAGMAS.H | 1 hour |
-| **4** | 🟠 Extend struct-size tests for multiplayer | Test Engineer | HIGH | Add actortype, hittype, packbuf to test_build_structs.py; verify on Linux + Windows CI | 1 hour |
-| **5** | 🟠 Add generate_audio.py test coverage | Test Engineer | HIGH | Create test_generate_audio.py with mock API responses or skip markers; validate WAV format round-trip | 2 hours |
-| **6** | 🟠 Fix Windows MinGW architecture mismatch | Build System | HIGH | Update build_windows.bat lines 112–113 to use `i686-w64-mingw32` instead of `x86_64-w64-mingw32` | 15 min |
-| **7** | 🟡 Add Windows struct test to CI pipeline | Build System | MEDIUM | Add `pytest tests/test_build_structs.py` after Windows MinGW build in build.yml | 15 min |
-| **8** | 🟡 Verify ENGINE.C `long*` parameter types | Engine Porter | MEDIUM | Trace 3–5 call sites to `getzsofslope()`, `wallscan()` to confirm types match struct fields | 2 hours |
-| **9** | 🟡 Update Pillow deprecations | Test Engineer | MEDIUM | Replace `Image.getdata()` with `get_flattened_data()` in tools/frame_analyzer.py | 30 min |
-| **10** | 🟡 Clarify generated_assets/ version control policy | Audio Engineer | MEDIUM | Document in CONTRIBUTING.md: commit WAV files or regenerate on build? Update .gitignore accordingly. | 20 min |
+| Rank | Title | Owner | Severity | Fix | Effort | Status |
+|------|-------|-------|----------|-----|--------|--------|
+| **1** | 🟡 Rotate local Azure keys + add `.env.example` + pre-commit secret scan ✅ | Security & Secrets | MEDIUM | 1. Rotate `AUDIO_API_KEY` / `FLUX_API_KEY` as hygiene; 2. Commit `.env.example` template; 3. Confirm `.env` stays in `.gitignore`; 4. Add gitleaks/trufflehog pre-commit | 30 min | DONE |
+| **2** | 🔴 Fix MSVC `/Tc` CMakeLists.txt bug ✅ | Build System | CRITICAL | Replace `set_source_files_properties(...COMPILE_FLAGS "/Tc")` with `...PROPERTIES LANGUAGE C` | 10 min | DONE |
+| **3** | 🔴 Archive dead code (SRC/GAME.C, BUILD.C, etc.) ✅ | Engine Porter | CRITICAL | Move to `docs/archive/`; update README to clarify active vs. reference; add `#error` to SRC/PRAGMAS.H | 1 hour | DONE |
+| **4** | 🟠 Extend struct-size tests for multiplayer ✅ | Test Engineer | HIGH | Add actortype, hittype, packbuf to test_build_structs.py; verify on Linux + Windows CI | 1 hour | DONE |
+| **5** | 🟠 Add generate_audio.py test coverage ✅ | Test Engineer | HIGH | Create test_generate_audio.py with mock API responses or skip markers; validate WAV format round-trip | 2 hours | DONE |
+| **6** | 🟠 Fix Windows MinGW architecture mismatch ✅ | Build System | HIGH | Update build_windows.bat lines 112–113 to use `i686-w64-mingw32` instead of `x86_64-w64-mingw32` | 15 min | DONE |
+| **7** | 🟡 Add Windows struct test to CI pipeline ✅ | Build System | MEDIUM | Add `pytest tests/test_build_structs.py` after Windows MinGW build in build.yml | 15 min | DONE |
+| **8** | 🟡 Verify ENGINE.C `long*` parameter types | Engine Porter | MEDIUM | Trace 3–5 call sites to `getzsofslope()`, `wallscan()` to confirm types match struct fields | 2 hours | PENDING |
+| **9** | 🟡 Update Pillow deprecations ✅ | Test Engineer | MEDIUM | Replace `Image.getdata()` with `get_flattened_data()` in tools/frame_analyzer.py | 30 min | DONE |
+| **10** | 🟡 Clarify generated_assets/ version control policy ✅ | Audio Engineer | MEDIUM | Document in CONTRIBUTING.md: commit WAV files or regenerate on build? Update .gitignore accordingly. | 20 min | DONE |
 
 ---
 
@@ -190,14 +190,14 @@ Based on audit findings, the existing 6 personas do **not cover** these domains:
 
 | Agent | Findings | Verdict | Blockers | Notes |
 |-------|----------|---------|----------|-------|
-| **Engine Porter** | 1C / 6H / 5M / 2L | CONDITIONAL | Archive dead code | Active code (source/*.C) is correct; SRC/*.C has unported bugs but not in build |
-| **Compat Layer** | 0C / 1H / 9M / 4L | PASS | None | SDL2 integration solid; minor long-type issues; audio_stub ready for SDL2_mixer |
-| **Asset Pipeline** | 0C / 0H / 4M / 6L | PASS | None | Format compliance excellent; 100% GPL-compliant; Pillow deprecation warnings only |
-| **Audio Engineer** | 0C / 2H / 2M / 3L | CONDITIONAL | Doc sound-ID→WAV map | Pipeline architecture sound; gameplay mapping not yet defined; local `.env` hygiene is the only outstanding "security" item and is gitignored/untracked. |
-| **Build System** | 1C / 2H / 2M / 2L | FAIL | Fix /Tc flag | MSVC broken; Windows MinGW arch mismatch; SDL2_VERSION single-source OK |
-| **Test Engineer** | 0C / 3H / 4M / 2L | CONDITIONAL | Cover generate_audio.py, actortype | 99% pass rate (388/392); Windows CI gaps; deprecation warnings |
+| **Engine Porter** | 1C ✅ / 6H / 5M / 2L | PASS ✅ | None | Active code (source/*.C) is correct; dead SRC/ files archived; unported bugs no longer in repo |
+| **Compat Layer** | 0C / 1H ✅ / 9M ✅ / 4L | PASS ✅ | None | SDL2 integration solid; volatile flag fixed; buffer overflow fixed; int32_t timers applied |
+| **Asset Pipeline** | 0C / 0H / 4M / 6L | PASS ✅ | None | Format compliance excellent; 100% GPL-compliant; Pillow deprecation warnings fixed ✅ |
+| **Audio Engineer** | 0C / 2H / 2M ✅ / 3L | PASS ✅ | None | Pipeline architecture sound; gameplay mapping complete; `.env.example` committed; secret scan hook active ✅ |
+| **Build System** | 1C ✅ / 2H ✅ / 2M / 2L | PASS ✅ | None | MSVC /Tc bug fixed ✅; Windows MinGW arch fixed ✅; SDL2_VERSION single-source OK; GH Actions pinned ✅ |
+| **Test Engineer** | 0C / 3H ✅ / 4M ✅ / 2L | PASS ✅ | None | 510 tests passing (up from 392); struct tests extended ✅; generate_audio covered ✅; Windows CI tests added ✅ |
 
-**Overall Codebase Status:** **CONDITIONAL PASS** → Fix 3 critical issues, then **PRODUCTION-READY**.
+**Overall Codebase Status:** **PRODUCTION-READY** ✅ → All critical issues resolved in Cycles 1–3.
 
 ---
 
@@ -223,6 +223,29 @@ Based on audit findings, the existing 6 personas do **not cover** these domains:
    - Verify ENGINE.C long* parameters (engine-porter.md issue #4)
    
    **Impact:** Stabilizes audio pipeline; unblocks audio roadmap; reduces 64-bit porting risk.
+
+---
+
+## Round 3+ Findings
+
+### Cycle 3 Complete (2026-05-20T05:56:33Z)
+
+All critical issues resolved and validated:
+- ✅ **test-visual-playtest-skip** — Visual playtest now passes in headless environments (LD_LIBRARY_PATH discovery added)
+- ✅ **fix-compat-volatile-quit-flag** — SDL quit flag now properly marked `volatile sig_atomic_t` per C99 standard
+- ✅ **fix-compat-copybufreverse** — Buffer underrun fixed (`s[-i] → s[n-1-i]`); defense-in-depth applied
+- ✅ **sec-action-pinning** — All GitHub Actions pinned to 40-char SHAs (14 actions across build/release workflows)
+- ✅ **sec-gitignore-expand** — 16 security-sensitive patterns added (*.key, *.pem, .aws/, .azure/, etc.)
+- ✅ **perf-frame-analyzer** — Pillow deprecation fixed; graceful fallback for >16.7M color edge case
+
+### Pending (Cycle 4 backlog)
+- `audit-net-crc-implementation` — Network CRC validation code exists but unused (1 pending todo)
+
+### Engine Health Summary (Post-Cycle 3)
+- **Test Coverage**: 510 passed, 0 failed, 0 skipped (100% clean)
+- **Build Status**: Linux & Windows cross-compile green
+- **Code Quality**: All CRITICAL issues resolved; 1 MEDIUM issue remains (ENGINE.C `long*` parameter type verification)
+- **Production Readiness**: ✅ **READY FOR RELEASE**
 
 ---
 

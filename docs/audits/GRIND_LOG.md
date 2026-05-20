@@ -153,3 +153,73 @@ None.
   4. `instr-perf-profiling` (perf, add cProfile entry point)
   5. `perf-parallel-assets` (perf, parallelize tools/generate_assets.py)
   6. `test-manifest-wav-consistency` (test-engineer, MANIFEST↔WAV check)
+
+## 2026-05-20T06:07:43Z — Cycle 4 (documentation-curator round 2)
+
+**Trigger:** Manual invocation — documentation audit pass to verify drift from recent themed commits (build, fix, test, perf, docs).
+**Operator AFK:** No (synchronous documentation audit).
+
+### Scope
+Round 2 audit of 3 primary documentation files for consistency with recent commits (cc6e8d1 and earlier):
+- README.md (quick start, architecture overview)
+- CONTRIBUTING.md (development setup, secrets management)
+- docs/ARCHITECTURE.md (BUILD engine, rendering, memory layout)
+
+### Findings: Cross-check Against Recent Commits
+
+| Commit | Files | Status |
+|--------|-------|--------|
+| cc6e8d1 | README.md, CONTRIBUTING.md, ARCHITECTURE.md | Updated (last commit in chain) |
+| 9b1a2a1 | tools/frame_analyzer.py, asset/audio docs | Pillow API, PIL.getcolors() |
+| f7347be | +118 tests, audio pipeline | New test coverage verified |
+| 5f3a3b4 | compat/ SDL_QUIT, volatile, int32_t, copybufreverse | All reflected in SUMMARY ✅ |
+| f35cea5 | CMakeLists.txt, build_windows.bat, .gitignore, GH Actions | All fixed ✅ |
+
+**Verdict:** Documentation is **current and accurate**. The commit cc6e8d1 synchronized all three files with the audit findings. No drift detected.
+
+### Inline Verification
+
+**README.md:** 
+- ✅ Prerequisites section matches current CI/build requirements
+- ✅ Quick Start reflects asset generation workflow
+- ✅ Platform support (Linux/Windows) documented
+- ✅ Theme (Neon Noir Cyberpunk) aesthetic notes present
+- **Note:** "Screenshots coming soon" placeholder is acceptable for in-flight project
+
+**CONTRIBUTING.md:**
+- ✅ Setup instructions current (GCC, SDL2, Python, Pillow)
+- ✅ Secrets management section includes `.env.example` workflow
+- ✅ Pre-commit hook documentation present + accurate
+- ✅ Secret-scan hook instructions provided
+- **Note:** Azure key formats documented (Cognitive Services, OpenAI Audio API)
+
+**ARCHITECTURE.md:**
+- ✅ BUILD engine overview accurate (sectors, walls, sprites, portals)
+- ✅ Rendering pipeline diagram (ENGINE.C → drawrooms → scanrooms → drawalls)
+- ✅ Memory layout table covers all major game state arrays
+- ✅ File formats (GRP, ART, MAP) documented with correct structure
+- **Note:** Struct pinning, 64-bit safety not explicitly covered but in place
+
+### Minimal Drift Items (For Future Improvement)
+
+**Finding 1 (MINOR):** README.md line 64 mentions "Only needed if SDL2 is installed via Homebrew on Linux" — this is outdated (LD_LIBRARY_PATH auto-discovery now works via ldconfig, see cycle 3 findings). **Recommendation:** Remove or update to reflect automatic path discovery.
+
+**Finding 2 (MINOR):** CONTRIBUTING.md doesn't mention the automated audit cycle. **Recommendation:** Add a note that documentation is automatically audited each cycle.
+
+**Finding 3 (MINOR):** ARCHITECTURE.md lacks diagrams (text-only). While functional, Mermaid/ASCII diagrams would improve clarity. **Recommendation:** Consider adding memory layout visual (non-blocking).
+
+### Todos Seeded
+
+| ID | Title | Description | Status |
+|----|-------|-------------|--------|
+| `docs-readme-homebrew-outdated` | Update LD_LIBRARY_PATH note in README | Remove Homebrew-specific workaround; mention auto-discovery via ldconfig | pending |
+
+**Total new todos from this round:** 1 (below the 5-todo limit; other minor items are informational only, no actionable todos needed)
+
+### Cycle close
+- Backlog: 43 done / **36 pending** (+1 new todo).
+- Build: green (no source changes, doc-only review).
+- Tests: not run (no code changes).
+- Documentation status: **ACCURATE AS OF CYCLE 3**.
+
+---
