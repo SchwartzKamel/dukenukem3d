@@ -12,6 +12,7 @@ Usage:
 import argparse
 import base64
 import datetime
+import hashlib
 import io
 import json
 import logging
@@ -198,6 +199,83 @@ def _atomic_write_bytes(path: str, data: bytes) -> None:
         except OSError:
             pass
         raise
+
+def _sha256_of_data(data: bytes) -> str:  # asset-r16-grp-manifest-emit: SHA256 integrity
+    """Compute SHA256 checksum of bytes data."""
+    return hashlib.sha256(data).hexdigest()
+
+def _sha256_of_manifest(manifest_dict):  # asset-r16-grp-manifest-emit: top-level checksum
+    """Compute SHA256 checksum of manifest, excluding the manifest_checksum field itself."""
+    canonical = json.dumps(
+        {k: v for k, v in sorted(manifest_dict.items()) if k != "manifest_checksum"},
+        sort_keys=True,
+        separators=(",", ":")
+    )
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+def _emit_grp_manifest(grp_path: str, grp_contents: dict, manifest_path: str, generated_at: str = None) -> None:  # asset-r16-grp-manifest-emit: emit GRP manifest
+    """Emit GRP_MANIFEST.json alongside DUKE3D.GRP with SHA256 checksums.
+    
+    Creates a manifest with schema_version, generated_at, GRP file checksum,
+    and per-member SHA256 checksums. Follows the same pattern as
+    generate_audio.py and generate_tables.py for consistency.
+    
+    Args:
+        grp_path: Path to DUKE3D.GRP file (must exist)
+        grp_contents: Dict mapping filenames to bytes (member data)
+        manifest_path: Path where GRP_MANIFEST.json should be written
+        generated_at: ISO 8601 timestamp. If None, uses current UTC time.
+    
+    Raises:
+        IOError: If GRP file cannot be read or manifest cannot be written
+        ValueError: If manifest validation fails
+    """
+    from datetime import datetime, timezone
+    
+    if generated_at is None:
+        generated_at = datetime.now(timezone.utc).isoformat()
+    
+    # Compute GRP file checksum
+    with open(grp_path, "rb") as f:
+        grp_data = f.read()
+    grp_checksum = _sha256_of_data(grp_data)
+    
+    # Build member listing with per-file checksums
+    members = []
+    for filename in sorted(grp_contents.keys()):
+        data = grp_contents[filename]
+        members.append({
+            "name": filename,
+            "size": len(data),
+            "sha256": _sha256_of_data(data)
+        })
+    
+    # Create manifest dict
+    manifest = {
+        "schema_version": "1.0",
+        "generated_at": generated_at,
+        "grp_path": os.path.basename(grp_path),
+        "grp_checksum": grp_checksum,
+        "member_count": len(members),
+        "members": members
+    }
+    
+    # Add top-level manifest checksum
+    manifest["manifest_checksum"] = _sha256_of_manifest(manifest)
+    
+    # Write manifest atomically
+    try:
+        tmp_path = manifest_path + ".tmp"
+        with open(tmp_path, "w") as f:
+            json.dump(manifest, f, indent=2, sort_keys=True)
+        os.replace(tmp_path, manifest_path)
+    except OSError as exc:
+        # Clean up temp file on error
+        try:
+            os.remove(tmp_path)
+        except OSError:
+            pass
+        raise IOError(f"Failed to write GRP manifest: {exc}")
 
 # ---------------------------------------------------------------------------
 # FLUX AI texture generation
@@ -2220,6 +2298,27 @@ def main():
     grp_out = os.path.join(output_dir, "DUKE3D.GRP")
     _atomic_write_bytes(grp_out, grp_data)
     print(f"  {grp_out}")
+
+
+    # -- 12. Emit GRP manifest ------------------------------------------------
+    print("\n=== Emitting GRP manifest ===")
+    manifest_out = os.path.join(output_dir, "GRP_MANIFEST.json")
+    try:
+        _emit_grp_manifest(grp_out, grp_contents, manifest_out)
+        print(f"  GRP_MANIFEST.json: {manifest_out}")
+    except (IOError, ValueError) as e:
+        print(f"[ERROR] Failed to emit GRP manifest: {e}", file=sys.stderr)
+        return 1
+
+    # Also emit to project root if not using custom output directory
+    if not args.output:
+        grp_root = os.path.join(PROJECT_ROOT, "DUKE3D.GRP")
+        manifest_root = os.path.join(PROJECT_ROOT, "GRP_MANIFEST.json")
+        try:
+            _emit_grp_manifest(grp_root, grp_contents, manifest_root)
+            print(f"  {manifest_root}")
+        except (IOError, ValueError) as e:
+            print(f"[WARNING] Could not emit manifest to project root: {e}", file=sys.stderr)
 
 
     # Only write to project root if not using custom output directory

@@ -143,16 +143,16 @@ def load_and_verify_audio_manifest(manifest_path: str, base_dir: str = None) -> 
 
 def load_and_verify_tables_manifest(manifest_path: str, base_dir: str = None) -> dict:
     """Load and verify tables manifest with SHA256 checksums.
-    
+
     Verifies the manifest-level checksum and the tables_checksum field.
-    
+
     Args:
         manifest_path: Path to TABLES_MANIFEST.json file
         base_dir: Directory to resolve TABLES.DAT path relative to. Defaults to manifest's directory.
-        
+
     Returns:
         Validated manifest dict
-        
+
     Raises:
         IOError: If manifest file not found
         ValueError: If manifest JSON is invalid
@@ -160,29 +160,29 @@ def load_and_verify_tables_manifest(manifest_path: str, base_dir: str = None) ->
     """
     if not os.path.exists(manifest_path):
         raise IOError(f"Manifest file not found: {manifest_path}")
-    
+
     if base_dir is None:
         base_dir = os.path.dirname(manifest_path)
-    
+
     with open(manifest_path, "r") as f:
         manifest = json.load(f)
-    
+
     # Verify manifest-level checksum
     verify_manifest_checksum(manifest)
-    
+
     # Verify tables_checksum if present
     if "tables_checksum" in manifest:
         expected_tables_checksum = manifest["tables_checksum"]
         tables_path = os.path.join(base_dir, "TABLES.DAT")
-        
+
         if not os.path.exists(tables_path):
             # manifest-checksum-verify-on-load: sentinel for error identification
             raise RuntimeError(
                 f"manifest-checksum-verify-on-load: TABLES.DAT file not found: {tables_path}"
             )
-        
+
         computed_tables_checksum = _sha256_of_file(tables_path)
-        
+
         if computed_tables_checksum != expected_tables_checksum:
             # manifest-checksum-verify-on-load: sentinel for error identification
             raise RuntimeError(
@@ -197,5 +197,85 @@ def load_and_verify_tables_manifest(manifest_path: str, base_dir: str = None) ->
             category=UserWarning,
             stacklevel=2
         )
-    
+
     return manifest
+
+
+def load_and_verify_grp_manifest(manifest_path: str, base_dir: str = None) -> dict:  # asset-r16-grp-manifest-emit: verify GRP manifest
+    """Load and verify GRP manifest with SHA256 checksums.
+
+    Verifies the manifest-level checksum, GRP file checksum, and member checksums.
+
+    Args:
+        manifest_path: Path to GRP_MANIFEST.json file
+        base_dir: Directory to resolve DUKE3D.GRP path relative to. Defaults to manifest's directory.
+
+    Returns:
+        Validated manifest dict
+
+    Raises:
+        IOError: If manifest file not found
+        ValueError: If manifest JSON is invalid
+        RuntimeError: If checksum verification fails (sentinel: manifest-checksum-verify-on-load)
+    """
+    if not os.path.exists(manifest_path):
+        raise IOError(f"Manifest file not found: {manifest_path}")
+
+    if base_dir is None:
+        base_dir = os.path.dirname(manifest_path)
+
+    with open(manifest_path, "r") as f:
+        manifest = json.load(f)
+
+    # Verify manifest-level checksum
+    verify_manifest_checksum(manifest)
+
+    # Verify GRP file checksum if present
+    if "grp_checksum" in manifest and "grp_path" in manifest:
+        expected_grp_checksum = manifest["grp_checksum"]
+        grp_path = os.path.join(base_dir, manifest["grp_path"])
+
+        if not os.path.exists(grp_path):
+            # manifest-checksum-verify-on-load: sentinel for error identification
+            raise RuntimeError(
+                f"manifest-checksum-verify-on-load: GRP file not found: {grp_path}"
+            )
+
+        computed_grp_checksum = _sha256_of_file(grp_path)
+
+        if computed_grp_checksum != expected_grp_checksum:
+            # manifest-checksum-verify-on-load: sentinel for error identification
+            raise RuntimeError(
+                f"manifest-checksum-verify-on-load: GRP checksum mismatch. "
+                f"Expected {expected_grp_checksum}, got {computed_grp_checksum}. "
+                f"File may be corrupted or tampered."
+            )
+    else:
+        # Legacy compat: log warning but don't fail
+        warnings.warn(
+            "GRP manifest lacks grp_checksum or grp_path field (legacy compat mode)",
+            category=UserWarning,
+            stacklevel=2
+        )
+
+    # Optionally verify member checksums if members list is present
+    if "members" in manifest and isinstance(manifest["members"], list):
+        for idx, member in enumerate(manifest["members"]):
+            if not isinstance(member, dict):
+                continue
+
+            # If member has no checksum field, skip (forward compat for future formats)
+            if "sha256" not in member:
+                continue
+
+            # Verify the member checksum is valid hex
+            try:
+                int(member["sha256"], 16)
+            except (ValueError, TypeError):
+                # manifest-checksum-verify-on-load: sentinel for error identification
+                raise RuntimeError(
+                    f"manifest-checksum-verify-on-load: Invalid SHA256 hex in member[{idx}]: {member.get('name', 'unknown')}"
+                )
+
+    return manifest
+

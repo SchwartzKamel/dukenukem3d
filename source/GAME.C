@@ -6930,7 +6930,9 @@ void checkcommandline(int argc,char **argv)
                         c++;
                         if(*c)
                         {
-                            strcpy(confilename,c);
+                            strncpy(confilename,c,sizeof(confilename)-1);
+                            confilename[sizeof(confilename)-1] = '\0';
+                            /* engine-r16-game-argv-bounds: bound + null-term */
                             if(SafeFileExists(c) == 0)
                             {
                                 printf("Could not find con file '%s'.\n",confilename );
@@ -6944,16 +6946,21 @@ void checkcommandline(int argc,char **argv)
                         c++;
                         if(*c)
                         {
-                            if( strchr(c,'.') == 0)
-                               strcat(c,".grp");
+                            char temp[256];
+                            strncpy(temp,c,sizeof(temp)-1);
+                            temp[sizeof(temp)-1] = '\0';
+                            /* engine-r16-game-argv-bounds: bound + null-term */
+                            if( strchr(temp,'.') == 0)
+                                strncat(temp,".grp",sizeof(temp)-strlen(temp)-1);
+                            /* engine-r16-game-argv-bounds: bound + null-term */
 
-                            j = initgroupfile(c);
+                            j = initgroupfile(temp);
                             if( j == -1 )
-                                printf("Could not find group file %s.\n",c);
+                                printf("Could not find group file %s.\n",temp);
                             else
                             {
                                 groupfile = j;
-                                printf("Using group file %s.\n",c);
+                                printf("Using group file %s.\n",temp);
                             }
                         }
 
@@ -7074,10 +7081,23 @@ void checkcommandline(int argc,char **argv)
                     case 'd':
                     case 'D':
                         c++;
-                        if( strchr(c,'.') == 0)
-                            strcat(c,".dmo");
-                        printf("Play demo %s.\n",c);
-                        strcpy(firstdemofile,c);
+                        if( strchr(c,'.') == 0) {
+                            char temp[256];
+                            strncpy(temp,c,sizeof(temp)-1);
+                            temp[sizeof(temp)-1] = '\0';
+                            /* engine-r16-game-argv-bounds: bound + null-term */
+                            strncat(temp,".dmo",sizeof(temp)-strlen(temp)-1);
+                            /* engine-r16-game-argv-bounds: bound + null-term */
+                            printf("Play demo %s.\n",temp);
+                            strncpy(firstdemofile,temp,sizeof(firstdemofile)-1);
+                            firstdemofile[sizeof(firstdemofile)-1] = '\0';
+                            /* engine-r16-game-argv-bounds: bound + null-term */
+                        } else {
+                            printf("Play demo %s.\n",c);
+                            strncpy(firstdemofile,c,sizeof(firstdemofile)-1);
+                            firstdemofile[sizeof(firstdemofile)-1] = '\0';
+                            /* engine-r16-game-argv-bounds: bound + null-term */
+                        }
                         break;
                     case 'l':
                     case 'L':
@@ -7602,7 +7622,9 @@ void copyprotect(void)
     fscanf(fp,"%s",idfile);
     fclose(fp);
 
-    strcat(idfile,IDFILENAME);
+    if(strlen(idfile) + strlen(IDFILENAME) < sizeof(idfile))
+        strcat(idfile,IDFILENAME);
+    /* engine-r16-game-argv-bounds: bound + null-term */
 
     if( testcd(idfile) )
     {

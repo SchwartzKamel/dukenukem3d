@@ -411,6 +411,8 @@ class TestManifestSchemaValidation:
         """load_manifest() must reject unknown schema_version values."""
         import tempfile
         
+        # sec-r15-manifest-loader-adoption: intentional test bypass
+        # Test fixtures intentionally omit checksums to test schema validation in isolation
         bad_manifest = {
             "schema_version": "2.0",
             "entries": [{"wav": "TEST01.WAV", "voice": "alloy", "category": "taunt", "status": "generated", "generated_at": "2025-01-01T00:00:00Z"}]
@@ -435,6 +437,8 @@ class TestManifestSchemaValidation:
         """load_manifest() must validate categorical fields (voice, category, status)."""
         import tempfile
         
+        # sec-r15-manifest-loader-adoption: intentional test bypass
+        # Test fixtures intentionally omit checksums to test schema validation in isolation
         bad_manifest = {
             "schema_version": "1.0",
             "entries": [
@@ -465,6 +469,8 @@ class TestManifestSchemaValidation:
         """load_manifest() must validate category field against allowed values."""
         import tempfile
         
+        # sec-r15-manifest-loader-adoption: intentional test bypass
+        # Test fixtures intentionally omit checksums to test schema validation in isolation
         bad_manifest = {
             "schema_version": "1.0",
             "entries": [
@@ -495,6 +501,8 @@ class TestManifestSchemaValidation:
         """load_manifest() must validate status field against allowed values."""
         import tempfile
         
+        # sec-r15-manifest-loader-adoption: intentional test bypass
+        # Test fixtures intentionally omit checksums to test schema validation in isolation
         bad_manifest = {
             "schema_version": "1.0",
             "entries": [
@@ -525,6 +533,8 @@ class TestManifestSchemaValidation:
         """load_manifest() must accept valid manifests with correct schema_version and enums."""
         import tempfile
         
+        # sec-r15-manifest-loader-adoption: intentional test bypass
+        # Test fixtures intentionally omit checksums to test schema validation in isolation
         valid_manifest = {
             "schema_version": "1.0",
             "entries": [

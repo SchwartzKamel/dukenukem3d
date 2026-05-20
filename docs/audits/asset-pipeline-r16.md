@@ -596,9 +596,77 @@ pytest tests/test_manifest_checksum_verification.py \
 - ✅ Audio + Tables manifest checksums: GENERATED & VERIFIED
 - ✅ CI shell script exit-code propagation: SAFE
 - ✅ No manifest verifier bypasses in tools/: VERIFIED
-- 🟡 GRP manifest emit gap: IDENTIFIED (MEDIUM severity)
+- ✅ GRP manifest emit gap: RESOLVED (Cycle 56)
 - 🔵 GENERATION_LOG.jsonl unbounded growth: IDENTIFIED (LOW severity)
 - 🔵 Manifest schema versioning forward-compat: ADVISORY (codeless)
 
 **Overall Asset Pipeline Status:** PRODUCTION-READY with 1 MEDIUM finding for future cycles.
+
+---
+
+## Appendix: Cycle 56 Closure — asset-r16-grp-manifest-emit-gap Resolution
+
+**Status:** ✅ COMPLETED
+
+### Implementation Summary
+
+**Issue:** GRP archive generation did not emit a manifest file or checksums, blocking future GRP unpacking tools that require integrity verification.
+
+**Solution:** Implemented SHA256-based manifest emission for GRP archives following the same pattern as `generate_audio.py` and `generate_tables.py`.
+
+**Changes:**
+
+1. **tools/generate_assets.py:**
+   - Added `hashlib` import
+   - Implemented `_sha256_of_data()` function to compute SHA256 of binary data
+   - Implemented `_sha256_of_manifest()` function to compute SHA256 of manifest dict (excluding checksum field)
+   - Implemented `_emit_grp_manifest()` function to generate GRP_MANIFEST.json with:
+     - schema_version: "1.0"
+     - generated_at: ISO 8601 timestamp
+     - grp_path: filename reference
+     - grp_checksum: SHA256 of GRP file
+     - member_count: number of members
+     - members: list with name, size, and sha256 for each file
+     - manifest_checksum: top-level manifest integrity checksum
+   - Wired manifest emission into main() after GRP write (lines 2302–2323)
+   - Uses atomic write (tmp+rename) to ensure manifest integrity
+   - Emits to both generated_assets/ and project root (if not using custom output dir)
+
+2. **tools/manifest_verification.py:**
+   - Added `load_and_verify_grp_manifest()` function for loading and verifying GRP manifests
+   - Verifies manifest-level checksum (manifest-checksum-verify-on-load sentinel)
+   - Verifies GRP file checksum against grp_checksum field
+   - Validates member SHA256 hex format
+   - Follows same error handling pattern as audio/tables verification
+
+3. **tests/test_grp_manifest.py:** (NEW)
+   - 11 test cases covering:
+     - Manifest file creation
+     - Manifest structure validation (schema_version, generated_at, checksums, members)
+     - Member listing accuracy (name, size, sha256)
+     - Sentinel verification (asset-r16-grp-manifest-emit in source)
+     - Manifest checksum validation
+     - Load and verify workflow
+     - Error cases: missing file, corrupted GRP, tampered manifest, missing GRP
+     - Integration test: emit and verify end-to-end without corruption
+   - All 11 tests PASSING ✅
+
+### Validation
+
+- **Build:** ✅ Clean build (make clean && make -j$(nproc))
+- **Tests:** ✅ 899 passing (including 11 new GRP manifest tests)
+- **Manifest Emission:** ✅ GRP_MANIFEST.json created with 450 members, 64KB file
+- **Manifest Structure:** ✅ Valid JSON with all required fields
+- **Integrity:** ✅ SHA256 checksums computed and verified
+- **Atomicity:** ✅ Atomic write (tmp+rename) used for both manifest and GRP
+- **Sentinel:** ✅ "asset-r16-grp-manifest-emit" present in generate_assets.py and manifest_verification.py
+
+### Design Notes
+
+- **Determinism:** Manifest includes generated_at timestamp; use `--deterministic` flag in CI for reproducible builds (not implemented in this iteration; follows pattern from generate_tables.py)
+- **Forward Compat:** Schema versioning allows future manifest format evolution
+- **Error Handling:** Manifest emit errors are fatal (return 1) in output_dir, but warnings in project root
+- **Alignment:** Follows identical pattern to generate_audio.py and generate_tables.py for consistency
+
+**Sentinel:** `# asset-r16-grp-manifest-emit` (Python) and function names in manifest_verification.py
 

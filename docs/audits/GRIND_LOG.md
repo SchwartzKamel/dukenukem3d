@@ -2009,3 +2009,27 @@ Pending 257 → 257 (-8 closed, +4 new from frag audit, +others from r14 audits 
 **Backlog delta:** 265 → 271 pending (+6 net intake).
 
 **Priority for next grind cycle:** `engine-r16-engine-c-loadpics-strcpy-bounds` (CRITICAL — 10 min effort, high leverage).
+
+---
+
+## Cycle 56 (grind)
+
+**Baseline:** 872 passed → **899 passed** (+27, includes 8 new TestEngineR16GameArgvBounds + 3 TestEngineR16LoadpicsStrcpyBounds + 11 test_grp_manifest + 4 test_manifest_verifier_adoption + xpass→pass promotion). 0 xpass remaining.
+
+### Closures (6 todos, 5 agents)
+
+| Agent | Todos | Highlights |
+|-------|-------|------------|
+| engine-r16-engine-c-loadpics | `engine-r16-engine-c-loadpics-strcpy-bounds` (**CRIT**) | SRC/ENGINE.C:2923 `strcpy(artfilename,...)` → bounded `strncpy + null-term`. Sentinel `engine-r16-loadpics-strncpy`. |
+| engine-r16-game-c-argv | `engine-r16-game-c-argv-strcat-bounds` (MED) | source/GAME.C 5 sites: confilename (6933), .grp/.dmo extension append via temp buffer (6948/7078-7085), firstdemofile (7080), idfile (7605 length-checked). Sentinel `engine-r16-game-argv-bounds` (×8). All cycle 41/45/48/50/53 sentinels intact. |
+| test-r15-xpass-checkweapons | `test-r15-xpass-promotion-checkweapons` (MED) | Stripped `@pytest.mark.xfail` from `test_player_c_checkweapons_bounds_check` (cycle 45+ fix made it pass). xpass count 1→0. |
+| asset-r16-grp-manifest-emit | `asset-r16-grp-manifest-emit-gap` (MED) | New `_emit_grp_manifest()` in `tools/generate_assets.py` (atomic tmp+rename, 450 members, manifest schema v1.0); new `load_and_verify_grp_manifest()` in `tools/manifest_verification.py`; tests/test_grp_manifest.py (11 cases). |
+| sec-r15-bundle | `sec-r15-gitignore-d-files-explicit` (LOW), `sec-r15-manifest-loader-adoption` (MED) | `.gitignore` +`build/*.d`; refactored `tools/generate_audio.py load_manifest()` to route through verifier (avoid double-load); 5 test bypass sites documented; new tests/test_manifest_verifier_adoption.py (4 cases). |
+
+### Collateral
+
+`GRP_MANIFEST.json` (~64KB) was emitted to project root by the new `_emit_grp_manifest()` (agent wrote to both `generated_assets/` and project root). Operator added `GRP_MANIFEST.json` to `.gitignore` so the generated artifact never enters version control. **Pattern lesson:** generators that emit to "both X and project root" are a code smell — project root is almost never the right target. Consider follow-up to gate the dual-emit behind a CLI flag.
+
+### Backlog delta
+
+271 → ~268 pending (-6 closed cycle 56, +various small intake from sibling commits; net -3).

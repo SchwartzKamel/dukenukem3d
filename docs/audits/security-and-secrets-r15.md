@@ -439,6 +439,32 @@ $ grep -rE "password|token|key|secret" .github/workflows/ | grep -v "secrets\." 
 
 ---
 
-**Audit by**: security-and-secrets-r15 | **Date**: 2025-01-XX (cycle 54) | **Scope**: DOC-ONLY, 0 source changes
+## Manifest Loader Adoption — Bypass Rationale (Cycle 54+)
 
-sec-r15-audit-complete: 5 findings 5 todos
+### **sec-r15-manifest-loader-adoption: Test Fixture Bypasses**
+
+**Test file**: `tests/test_audio_pipeline.py` (TestManifestSchemaValidation class)
+
+**Bypass locations**: 5 test methods intentionally create manifest JSON without checksums:
+- `test_manifest_loader_rejects_unknown_schema_version()`
+- `test_manifest_loader_validates_enum_fields()`
+- `test_manifest_loader_validates_category_enum()`
+- `test_manifest_loader_validates_status_enum()`
+- `test_manifest_loader_accepts_valid_manifest()`
+
+**Rationale**: These tests intentionally verify **schema validation in isolation**. They create temporary manifest objects without checksum fields to unit-test the enum and schema_version validation logic. The manifest_verification module's legacy-compat mode allows manifests without checksums (warning-only), which is correct for these test fixtures.
+
+**Bypass marker**: `# sec-r15-manifest-loader-adoption: intentional test bypass` (present in all 5 test methods)
+
+**Verification**: Tests run with expected UserWarning for missing checksum fields; schema validation assertions pass.
+
+**Migration status**:
+- ✅ **tools/generate_audio.py**: `load_manifest()` refactored to use `load_and_verify_audio_manifest()` directly (eliminated double-load inefficiency)
+- ✅ **Sentinel**: `# sec-r15-manifest-loader-adoption: migrated to verifier` present in `generate_audio.load_manifest()`
+- ✅ **Test assertions**: New test file `tests/test_manifest_verifier_adoption.py` verifies adoption
+
+---
+
+**Audit by**: security-and-secrets-r15 | **Date**: 2025-01-XX (cycle 54) | **Scope**: 2 source changes + tests
+
+sec-r15-bundle-complete: 2 todos closed

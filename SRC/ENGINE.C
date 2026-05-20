@@ -2920,7 +2920,8 @@ loadpics(char *filename)
 	short fil, i, j, k;
 
 	startup_log("  loadpics: filename='%s'", filename);
-	strcpy(artfilename,filename);
+	strncpy(artfilename, filename, sizeof(artfilename)-1); /* engine-r16-loadpics-strncpy: bound + null-term */
+	artfilename[sizeof(artfilename)-1] = '\0';
 
 	for(i=0;i<MAXTILES;i++)
 	{

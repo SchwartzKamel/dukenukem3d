@@ -235,6 +235,7 @@ def load_manifest(manifest_path):
     
     # manifest-checksum-verify-on-load: Verify at load time
     Performs SHA256 verification of both manifest integrity and per-file audio checksums.
+    # sec-r15-manifest-loader-adoption: migrated to verifier
     
     Args:
         manifest_path: Path to manifest JSON file
@@ -250,14 +251,12 @@ def load_manifest(manifest_path):
     if not os.path.exists(manifest_path):
         raise IOError(f"Manifest file not found: {manifest_path}")
     
-    with open(manifest_path) as f:
-        data = json.load(f)
-    
-    validate_manifest(data, manifest_path)
-    
-    # manifest-checksum-verify-on-load: Verify manifest and all file checksums
+    # sec-r15-manifest-loader-adoption: migrated to verifier
     base_dir = os.path.dirname(manifest_path)
-    load_and_verify_audio_manifest(manifest_path, base_dir)
+    data = load_and_verify_audio_manifest(manifest_path, base_dir)
+    
+    # Validate schema separately (not part of checksum verification)
+    validate_manifest(data, manifest_path)
     
     return data
 

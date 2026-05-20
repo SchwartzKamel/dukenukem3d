@@ -1025,7 +1025,6 @@ class TestPlayerWeaponAmmoBounds:
             "Engine-r9 bounds checking may be incomplete."
         )
 
-    @pytest.mark.xfail(strict=False, reason="engine-r9-player-weapon-ammo-bounds: cycle-30 attempt reverted; awaiting re-dispatch")
     def test_player_c_checkweapons_bounds_check(self, repo_root):
         """PLAYER.C checkweapons() must bounds-check weapon before array access."""
         player_c = repo_root / "source" / "PLAYER.C"
@@ -3473,4 +3472,162 @@ class TestNetR13PacketBoundsTrio:
         assert precheck_line < first_field_read, (
             f"Type-8 pre-check sentinel at line {precheck_line+1} must appear BEFORE "
             f"first packbuf field read at line {first_field_read+1}"
+        )
+
+
+class TestEngineR16LoadpicsStrcpyBounds:
+    """Test engine-r16 strcpy bounds fix for artfilename buffer in SRC/ENGINE.C loadpics()."""
+
+    def test_sentinel_present(self, repo_root):
+        """engine-r16-loadpics-strncpy sentinel must be present."""
+        engine_c = repo_root / "SRC" / "ENGINE.C"
+        if not engine_c.exists():
+            pytest.skip(f"{engine_c} not found")
+
+        content = engine_c.read_text(errors="replace")
+
+        assert "engine-r16-loadpics-strncpy" in content, (
+            "SRC/ENGINE.C loadpics() must have sentinel comment 'engine-r16-loadpics-strncpy'"
+        )
+
+    def test_strcpy_artfilename_removed(self, repo_root):
+        """strcpy(artfilename without 'n' must NOT appear in SRC/ENGINE.C."""
+        engine_c = repo_root / "SRC" / "ENGINE.C"
+        if not engine_c.exists():
+            pytest.skip(f"{engine_c} not found")
+
+        content = engine_c.read_text(errors="replace")
+
+        assert "strcpy(artfilename" not in content, (
+            "SRC/ENGINE.C must NOT contain unbounded strcpy(artfilename"
+        )
+
+    def test_strncpy_artfilename_present(self, repo_root):
+        """strncpy(artfilename with sizeof(artfilename)-1 must appear."""
+        engine_c = repo_root / "SRC" / "ENGINE.C"
+        if not engine_c.exists():
+            pytest.skip(f"{engine_c} not found")
+
+        content = engine_c.read_text(errors="replace")
+
+        assert "strncpy(artfilename" in content, (
+            "SRC/ENGINE.C must contain bounded strncpy(artfilename"
+        )
+
+        assert "sizeof(artfilename)-1" in content, (
+            "SRC/ENGINE.C strncpy must use sizeof(artfilename)-1 as size parameter"
+        )
+
+
+class TestEngineR16GameArgvBounds:
+    """Test engine-r16 strcpy/strcat bounds fix for argv-derived strings in source/GAME.C."""
+
+    def test_sentinel_present(self, repo_root):
+        """engine-r16-game-argv-bounds sentinel must be present in GAME.C."""
+        game_c = repo_root / "source" / "GAME.C"
+        if not game_c.exists():
+            pytest.skip(f"{game_c} not found")
+
+        content = game_c.read_text(errors="replace")
+
+        assert "engine-r16-game-argv-bounds" in content, (
+            "source/GAME.C must have sentinel comment 'engine-r16-game-argv-bounds'"
+        )
+
+    def test_strcpy_confilename_removed(self, repo_root):
+        """strcpy(confilename without 'n' must NOT appear in GAME.C argv processing."""
+        game_c = repo_root / "source" / "GAME.C"
+        if not game_c.exists():
+            pytest.skip(f"{game_c} not found")
+
+        content = game_c.read_text(errors="replace")
+
+        assert "strcpy(confilename,c)" not in content, (
+            "source/GAME.C must NOT contain unbounded strcpy(confilename,c)"
+        )
+
+    def test_strncpy_confilename_present(self, repo_root):
+        """strncpy(confilename with sizeof(confilename)-1 must appear."""
+        game_c = repo_root / "source" / "GAME.C"
+        if not game_c.exists():
+            pytest.skip(f"{game_c} not found")
+
+        content = game_c.read_text(errors="replace")
+
+        assert "strncpy(confilename,c,sizeof(confilename)-1)" in content, (
+            "source/GAME.C must contain bounded strncpy(confilename,c,sizeof(confilename)-1)"
+        )
+
+    def test_strcpy_firstdemofile_removed(self, repo_root):
+        """strcpy(firstdemofile without 'n' must NOT appear in case 'd'/'D' argv processing."""
+        game_c = repo_root / "source" / "GAME.C"
+        if not game_c.exists():
+            pytest.skip(f"{game_c} not found")
+
+        content = game_c.read_text(errors="replace")
+
+        assert "strcpy(firstdemofile,c)" not in content, (
+            "source/GAME.C must NOT contain unbounded strcpy(firstdemofile,c)"
+        )
+
+    def test_strncpy_firstdemofile_present(self, repo_root):
+        """strncpy(firstdemofile with sizeof(firstdemofile)-1 must appear."""
+        game_c = repo_root / "source" / "GAME.C"
+        if not game_c.exists():
+            pytest.skip(f"{game_c} not found")
+
+        content = game_c.read_text(errors="replace")
+
+        assert "strncpy(firstdemofile,temp,sizeof(firstdemofile)-1)" in content or \
+               "strncpy(firstdemofile,c,sizeof(firstdemofile)-1)" in content, (
+            "source/GAME.C must contain bounded strncpy(firstdemofile,...,sizeof(firstdemofile)-1)"
+        )
+
+    def test_argv_temp_buffer_for_extensions(self, repo_root):
+        """argv-derived strings must use temporary buffers before extension appending."""
+        game_c = repo_root / "source" / "GAME.C"
+        if not game_c.exists():
+            pytest.skip(f"{game_c} not found")
+
+        content = game_c.read_text(errors="replace")
+
+        # Verify temp buffer is used in 'g' case for .grp extension
+        assert "char temp[256];" in content, (
+            "source/GAME.C case 'g'/'G' must use temporary buffer 'char temp[256];'"
+        )
+
+    def test_idfile_strcat_bounds_checked(self, repo_root):
+        """strcat(idfile, IDFILENAME) must have length bounds check."""
+        game_c = repo_root / "source" / "GAME.C"
+        if not game_c.exists():
+            pytest.skip(f"{game_c} not found")
+
+        content = game_c.read_text(errors="replace")
+
+        # Look for the bounds check pattern for idfile strcat
+        # The pattern should be either an if check or use strncat
+        has_strlen_check = "strlen(idfile)" in content and "IDFILENAME" in content
+        has_strncat = "strncat(idfile,IDFILENAME" in content
+        
+        assert has_strlen_check or has_strncat, (
+            "source/GAME.C must have bounds check for idfile before using IDFILENAME; "
+            "either if(strlen(idfile)...) check or strncat()"
+        )
+
+    def test_strncpy_count_increased(self, repo_root):
+        """Count of strncpy calls in GAME.C should match baseline plus conversions."""
+        game_c = repo_root / "source" / "GAME.C"
+        if not game_c.exists():
+            pytest.skip(f"{game_c} not found")
+
+        content = game_c.read_text(errors="replace")
+        
+        strncpy_count = content.count("strncpy(")
+        
+        # We converted at least 3 strcpy/strcat calls (confilename, firstdemofile x2, 
+        # plus temp buffer uses) to strncpy/strncat, so minimum count should be
+        # baseline + 3. The exact number depends on whether strncat is used.
+        assert strncpy_count >= 9, (
+            f"source/GAME.C must have >= 9 strncpy calls, found {strncpy_count}; "
+            "the argv bounds fixes should have added bounded string functions"
         )
