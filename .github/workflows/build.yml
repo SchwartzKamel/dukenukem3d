@@ -47,6 +47,9 @@ jobs:
       - name: Generate assets
         run: python3 tools/generate_assets.py --no-ai
       
+       - name: Validate generated artifacts
+         run: python3 tools/validate_generated_artifacts.py --sets textures grp maps scripts --no-audio-manifest
+
       - name: Verify GRP file
         run: |
           test -f DUKE3D.GRP
@@ -103,6 +106,9 @@ jobs:
       - name: Generate assets
         run: python3 tools/generate_assets.py --no-ai
       
+       - name: Validate generated artifacts (Windows)
+         run: python3 tools/validate_generated_artifacts.py --sets textures grp maps scripts --no-audio-manifest
+
       - name: Package Windows release
         run: |
           python3 tools/generate_assets.py --no-ai
@@ -173,13 +179,9 @@ jobs:
       - name: Generate assets (procedural)
         run: python3 tools/generate_assets.py --no-ai
       
-      - name: Validate generated files
-        run: |
-          echo "Checking generated assets..."
-          for f in TILES000.ART PALETTE.DAT TABLES.DAT E1L1.MAP GAME.CON DEFS.CON USER.CON LOOKUP.DAT; do
-            test -f generated_assets/$f && echo "  ✅ $f ($(stat -c%s generated_assets/$f) bytes)" || echo "  ❌ $f MISSING"
-          done
-          test -f DUKE3D.GRP && echo "  ✅ DUKE3D.GRP ($(stat -c%s DUKE3D.GRP) bytes)"
+       - name: Validate generated artifacts
+         run: python3 tools/validate_generated_artifacts.py --sets textures grp maps scripts --no-audio-manifest
+
 
   test-windows-native:
     runs-on: windows-latest

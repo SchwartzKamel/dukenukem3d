@@ -1066,6 +1066,36 @@ Security-and-secrets audits have validated most cycle-26/33/34 fixes; no NEW CRI
 
 - **compat-r10-error-fatal-noreturn** (LOW): error_fatal() missing _Noreturn annotation (C11 hygiene). **Cite:** [docs/audits/compat-layer-r10.md](docs/audits/compat-layer-r10.md).
 
+## Orphan / Dormant Files
+
+Files preserved in the repository for historical reference or potential future restoration, but currently unused in the active build.
+
+### compat/a.c — Historical C Port of SRC/A.ASM (Archived)
+
+**Location**: `docs/archive/compat/a.c` (894 lines)
+
+**Status**: Dead code (unreferenced in build system)
+
+**Disposition**: Archived as **Option B** (legacy/reference port) with full documentation.
+
+**Provenance**: Pure-C implementation of BUILD engine's inner-loop rendering routines (texture-mapped walls, floors, ceilings, sprite rendering, translucency, voxel slabs). Intended as a portable replacement for x86 assembly in `SRC/A.ASM` when the codebase was transitioned to C. Added in commit 748cedc ("Add Makefile, fix linker errors, and complete the build").
+
+**Why Archived?**
+
+- Not integrated into build system (CMakeLists.txt, build.mk, Makefile)
+- Superseded by active implementations in SRC/ENGINE.C (hlineasm4, vlineasm, etc.)
+- No external references in active source code
+- Build and tests pass without this file
+
+**Preservation Rationale**: File is kept in git history for educational reference and potential future restoration if:
+1. A pure-C rendering backend becomes necessary (current implementations use ENGINE.C's approach)
+2. Platform-specific issues require returning to a portable baseline
+3. Code porting exercises need portable C reference implementations
+
+**To Restore**: See [docs/archive/compat/README.md](docs/archive/compat/README.md) for restoration instructions.
+
+**Audit**: Cycle 57 build-system audit (committed via compat-layer-r15 fixes); confirmed orphan status with no callers in active source.
+
 ### Summary & Backlog
 
 For the full live backlog with cycle numbers and dependencies, see [docs/audits/SUMMARY.md](docs/audits/SUMMARY.md) and [docs/audits/GRIND_LOG.md](docs/audits/GRIND_LOG.md).

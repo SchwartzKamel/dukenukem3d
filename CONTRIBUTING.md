@@ -21,15 +21,37 @@ On Debian/Ubuntu:
 sudo apt install build-essential libsdl2-dev python3 python3-pip git
 ```
 
+On macOS:
+
+```bash
+# Install Xcode Command Line Tools (one-time setup)
+xcode-select --install
+
+# Install dependencies via Homebrew
+brew install sdl2 cmake python@3.11 git
+```
+
 ### Clone and Build
 
 ```bash
 git clone <repo-url> dukenukem3d
 cd dukenukem3d
-make clean && make
 ```
 
+**On Linux:**
+```bash
+make clean && make
+```
 The build produces the `duke3d` executable in the project root.
+
+**On macOS:**
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j $(sysctl -n hw.ncpu)
+```
+The build produces the `duke3d` executable in `build/`.
+
+*(macOS uses CMake build system. See [.github/workflows/build.yml](https://github.com/SchwartzKamel/dukenukem3d/blob/master/.github/workflows/build.yml) — build-macos job for CI reference)*
 
 ### Run the Asset Pipeline
 

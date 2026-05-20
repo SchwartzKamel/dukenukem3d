@@ -985,3 +985,97 @@ class TestAudioR15SampleRateExtraction:
             )
 
 
+
+class TestVoiceManifestSync:
+    """Validate VOICE_LINES and SOUND_MANIFEST synchronization."""
+
+    def test_manifest_sync_clean_match(self):
+        """Verify current VOICE_LINES and SOUND_MANIFEST are perfectly in sync."""
+        # This should not raise an exception
+        generate_audio.validate_voice_manifest_sync(
+            generate_audio.VOICE_LINES,
+            generate_audio.SOUND_MANIFEST
+        )
+
+    def test_manifest_sync_orphan_in_voice_lines(self):
+        """Detect orphan files in VOICE_LINES with no SOUND_MANIFEST entry."""
+        voice_lines = [
+            ("TEST01.WAV", "Test prompt", "alloy"),
+            ("TEST02.WAV", "Another test", "echo"),
+        ]
+        sound_manifest = [
+            {"wav": "TEST01.WAV", "voice": "alloy"},
+        ]
+        
+        with pytest.raises(ValueError) as exc_info:
+            generate_audio.validate_voice_manifest_sync(voice_lines, sound_manifest)
+        
+        assert "Orphans in VOICE_LINES" in str(exc_info.value)
+        assert "TEST02.WAV" in str(exc_info.value)
+
+    def test_manifest_sync_orphan_in_sound_manifest(self):
+        """Detect orphan entries in SOUND_MANIFEST with no VOICE_LINES entry."""
+        voice_lines = [
+            ("TEST01.WAV", "Test prompt", "alloy"),
+        ]
+        sound_manifest = [
+            {"wav": "TEST01.WAV", "voice": "alloy"},
+            {"wav": "TEST02.WAV", "voice": "echo"},
+        ]
+        
+        with pytest.raises(ValueError) as exc_info:
+            generate_audio.validate_voice_manifest_sync(voice_lines, sound_manifest)
+        
+        assert "Orphans in SOUND_MANIFEST" in str(exc_info.value)
+        assert "TEST02.WAV" in str(exc_info.value)
+
+    def test_manifest_sync_order_mismatch(self):
+        """Detect when files are in different order."""
+        voice_lines = [
+            ("TEST01.WAV", "Test prompt", "alloy"),
+            ("TEST02.WAV", "Another test", "echo"),
+        ]
+        sound_manifest = [
+            {"wav": "TEST02.WAV", "voice": "echo"},
+            {"wav": "TEST01.WAV", "voice": "alloy"},
+        ]
+        
+        with pytest.raises(ValueError) as exc_info:
+            generate_audio.validate_voice_manifest_sync(voice_lines, sound_manifest)
+        
+        assert "Order mismatch" in str(exc_info.value)
+
+    def test_manifest_sync_voice_mismatch(self):
+        """Detect when same file has different voice assignment."""
+        voice_lines = [
+            ("TEST01.WAV", "Test prompt", "alloy"),
+        ]
+        sound_manifest = [
+            {"wav": "TEST01.WAV", "voice": "echo"},
+        ]
+        
+        with pytest.raises(ValueError) as exc_info:
+            generate_audio.validate_voice_manifest_sync(voice_lines, sound_manifest)
+        
+        assert "Voice mismatch" in str(exc_info.value)
+        assert "TEST01.WAV" in str(exc_info.value)
+
+    def test_manifest_sync_multiple_violations(self):
+        """Detect multiple violations in a single validation."""
+        voice_lines = [
+            ("TEST01.WAV", "Test prompt", "alloy"),
+            ("TEST02.WAV", "Another test", "echo"),
+            ("TEST03.WAV", "Third test", "onyx"),
+        ]
+        sound_manifest = [
+            {"wav": "TEST01.WAV", "voice": "echo"},  # Voice mismatch
+            {"wav": "TEST04.WAV", "voice": "alloy"},  # Orphan in manifest
+        ]
+        
+        with pytest.raises(ValueError) as exc_info:
+            generate_audio.validate_voice_manifest_sync(voice_lines, sound_manifest)
+        
+        error_msg = str(exc_info.value)
+        assert "Voice mismatch" in error_msg
+        assert "Orphans in VOICE_LINES" in error_msg
+        assert "Orphans in SOUND_MANIFEST" in error_msg

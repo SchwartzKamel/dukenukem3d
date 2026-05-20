@@ -2149,3 +2149,38 @@ None. Build green, all cycle 41-58 sentinels intact (re-verified by net-r14-rand
 
 **Backlog delta:** 289 → 297 pending (+8 intake from docs-r16 + build-r17 new todos; 9 archival candidates pending operator review). Tests stable at 943.
 
+
+---
+
+## Cycle 60 (audit-grind, 2026-05-20T23:22Z)
+
+**Baseline:** build green, 943 tests passed.
+**Dispatched:** 6 parallel Haiku agents on disjoint files.
+
+### Closures (6 todos via 6 agents)
+
+| Agent | Todo | Highlights |
+|-------|------|------------|
+| build-windows-force-c | `build-windows-compat-force-c` (MED) | Makefile:161 +1 flag `-x c` on Windows compat rule. Linux build green, no regression. Defensive: matches uppercase .C handling. |
+| build-compat-a-orphan | `build-resolve-compat-a-orphan` (MED) | Determined compat/a.c (894 lines) was already archived to docs/archive/compat/a.c (commit 8ad9822). Added new "## Orphan / Dormant Files" section to docs/ARCHITECTURE.md documenting status, provenance (C port of SRC/A.ASM rendering inner loops), and restoration path. No follow-up todos. |
+| assets-ci-artifact-validation | `audit-assets-ci-artifact-validation` (MED) | New `tools/validate_generated_artifacts.py` (7.1 KB; modular sets for textures/grp/maps/scripts/audio; exit-1 on missing or zero-byte; supports `--skip-audio` selective). Wired into 5 CI jobs (build.yml: build-linux, build-windows, test-assets; release.yml: build-release linux+windows). New `tests/test_asset_validation.py` (26 tests). |
+| docs-macos-platform | `docs-macos-platform-story` (MED) | README.md macOS badge + prerequisites table + build section (cites .github/workflows/build.yml build-macos job 256-286). CONTRIBUTING.md macOS Xcode CLT + brew install sdl2 sections. All claims sourced from CI workflow. |
+| audio-voice-manifest-sync | `fix-assets-voice-manifest-sync-validation` (MED) | `validate_voice_manifest_sync()` at tools/generate_audio.py:164 (validates filenames + order + voice assignment; clear ValueError listing all mismatches). Wired into main() at line 467 BEFORE generation work. +6 tests in `TestVoiceManifestSync` class in tests/test_audio_pipeline.py. Current VOICE_LINES↔SOUND_MANIFEST verified perfectly synced (21 entries each, all matching). |
+| engine-numwalls-audit | `audit-engine-numwalls-usage` (MED) — **REAL BUG FIXED** | 10 sites audited (SRC/ENGINE.C ×5, source/MENUES.C ×2, source/GAME.C ×1, source/PREMAP.C ×2). Found and fixed **UNSAFE pattern** at SRC/ENGINE.C:6445: `for(i=numwalls-1,wal=&wall[i];...)` — comma operator assigns `wal=&wall[-1]` invalid pointer when `numwalls==0`, even if loop never executes. Guard added: `if (numwalls > 0)`. Sentinel `engine-r17-numwalls-load-clamp` placed at 5 sites (load-time validators in ENGINE.C:2400,2405 + MENUES.C:329,340 + the new draw-loop guard at 6447). +4 regression tests in `TestNumwallsNumsectorsBounds` class. |
+
+### Collateral
+
+None. All 6 agents touched disjoint files. SUMMARY.md edits this cycle came from concurrent audit-pass tick (cycle 63) and are not part of the grind commit.
+
+### Backlog delta
+
+297 → 291 pending (-6 closures, 0 follow-ups from grind).
+Tests: 943 → 979 (+36 from voice manifest sync +6, numwalls +4, asset validation +26).
+Build: green.
+
+### Notable
+
+- engine-numwalls-audit surfaced a genuine off-by-one pointer underflow (latent crash on empty maps); not theoretical.
+- compat/a.c orphan finally documented — closes a 6+ month inventory gap.
+- macOS now documented platform across README + CONTRIBUTING; CI was already green but invisible to contributors.
+

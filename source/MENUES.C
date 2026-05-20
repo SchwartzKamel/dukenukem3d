@@ -326,6 +326,7 @@ loadplayer(signed char spot)
      kdfread((char *)waloff[MAXTILES-3],160,100,fil);
 
          kdfread(&numwalls,2,1,fil);
+     /* engine-r17-numwalls-load-clamp */
      if(numwalls < 0 || numwalls > MAXWALLS)
      {
         kclose(fil);
@@ -336,6 +337,7 @@ loadplayer(signed char spot)
      kdfread(&wall[0],sizeof(walltype),numwalls,fil);
      memset(wall + numwalls, 0, (MAXWALLS - numwalls) * sizeof(walltype));
          kdfread(&numsectors,2,1,fil);
+     /* engine-r17-numwalls-load-clamp */
      if(numsectors < 0 || numsectors > MAXSECTORS)
      {
         kclose(fil);

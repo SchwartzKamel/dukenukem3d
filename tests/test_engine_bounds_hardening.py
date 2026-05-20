@@ -2111,3 +2111,117 @@ class TestEngineR16GameArgvBounds:
             "the argv bounds fixes should have added bounded string functions"
         )
 
+
+
+
+class TestNumwallsNumsectorsBounds:
+    """Verify cycle-r17 numwalls/numsectors load-time and usage bounds hardening."""
+
+    def test_engine_c_numwalls_load_clamp_sentinel(self, repo_root):
+        """SRC/ENGINE.C must have engine-r17-numwalls-load-clamp sentinel at numwalls load."""
+        engine_c = repo_root / "SRC" / "ENGINE.C"
+        if not engine_c.exists():
+            pytest.skip(f"{engine_c} not found")
+
+        content = engine_c.read_text(errors="replace")
+
+        has_sentinel = "/* engine-r17-numwalls-load-clamp */" in content
+        assert has_sentinel, (
+            "SRC/ENGINE.C must have '/* engine-r17-numwalls-load-clamp */' sentinel "
+            "before numwalls and numsectors load-time bounds checks"
+        )
+
+        has_numwalls_bounds = (
+            "kread(fil,&numwalls,2)" in content and
+            "if (numwalls < 0 || numwalls > MAXWALLS)" in content
+        )
+        assert has_numwalls_bounds, (
+            "SRC/ENGINE.C must have numwalls bounds check: "
+            "if (numwalls < 0 || numwalls > MAXWALLS)"
+        )
+
+        has_numsectors_bounds = (
+            "kread(fil,&numsectors,2)" in content and
+            "if (numsectors < 0 || numsectors > MAXSECTORS)" in content
+        )
+        assert has_numsectors_bounds, (
+            "SRC/ENGINE.C must have numsectors bounds check: "
+            "if (numsectors < 0 || numsectors > MAXSECTORS)"
+        )
+
+    def test_menues_c_numwalls_load_clamp_sentinel(self, repo_root):
+        """source/MENUES.C must have engine-r17-numwalls-load-clamp sentinel at load."""
+        menues_c = repo_root / "source" / "MENUES.C"
+        if not menues_c.exists():
+            pytest.skip(f"{menues_c} not found")
+
+        content = menues_c.read_text(errors="replace")
+
+        has_sentinel = "/* engine-r17-numwalls-load-clamp */" in content
+        assert has_sentinel, (
+            "source/MENUES.C must have '/* engine-r17-numwalls-load-clamp */' sentinel "
+            "before numwalls and numsectors load-time bounds checks"
+        )
+
+        has_numwalls_bounds = (
+            "kdfread(&numwalls,2,1,fil)" in content and
+            "if(numwalls < 0 || numwalls > MAXWALLS)" in content
+        )
+        assert has_numwalls_bounds, (
+            "source/MENUES.C must have numwalls bounds check: "
+            "if(numwalls < 0 || numwalls > MAXWALLS)"
+        )
+
+        has_numsectors_bounds = (
+            "kdfread(&numsectors,2,1,fil)" in content and
+            "if(numsectors < 0 || numsectors > MAXSECTORS)" in content
+        )
+        assert has_numsectors_bounds, (
+            "source/MENUES.C must have numsectors bounds check: "
+            "if(numsectors < 0 || numsectors > MAXSECTORS)"
+        )
+
+    def test_engine_c_draw2dline_numwalls_guard(self, repo_root):
+        """SRC/ENGINE.C draw2dline must guard numwalls=0 in wall loop."""
+        engine_c = repo_root / "SRC" / "ENGINE.C"
+        if not engine_c.exists():
+            pytest.skip(f"{engine_c} not found")
+
+        content = engine_c.read_text(errors="replace")
+
+        has_guard_pattern = (
+            "if (numwalls > 0)" in content and
+            "for(i=numwalls-1,wal=&wall[i];i>=0;i--,wal--)" in content
+        )
+        assert has_guard_pattern, (
+            "SRC/ENGINE.C draw2dline loop must have 'if (numwalls > 0)' guard "
+            "before 'for(i=numwalls-1,wal=&wall[i];i>=0;i--,wal--)' to prevent "
+            "out-of-bounds pointer assignment when numwalls=0"
+        )
+
+    def test_no_unguarded_numwalls_minus_one_init(self, repo_root):
+        """Verify no unguarded wall[numwalls-1] or [numwalls-1] pointer initialization."""
+        engine_c = repo_root / "SRC" / "ENGINE.C"
+        if not engine_c.exists():
+            pytest.skip(f"{engine_c} not found")
+
+        content = engine_c.read_text(errors="replace")
+
+        lines = content.split("\n")
+        found_dangerous = False
+        prev_has_guard = False
+
+        for i, line in enumerate(lines):
+            if "if (numwalls > 0)" in line:
+                prev_has_guard = True
+                continue
+            elif "wal=&wall[i]" in line and "numwalls-1" in line:
+                if not prev_has_guard:
+                    found_dangerous = True
+                    break
+                prev_has_guard = False
+
+        assert not found_dangerous, (
+            "SRC/ENGINE.C contains unguarded 'wal=&wall[numwalls-1]' pattern. "
+            "All such initializations must be guarded by 'if (numwalls > 0)'"
+        )

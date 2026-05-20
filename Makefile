@@ -158,7 +158,7 @@ $(WIN_BUILD_DIR)/game_%.o: source/%.C | $(WIN_BUILD_DIR)
 	$(WIN_CC) $(WIN_CFLAGS) $(WIN_SDL2_CFLAGS) $(INCLUDES) -x c -c $< -o $@
 
 $(WIN_BUILD_DIR)/compat_%.o: compat/%.c | $(WIN_BUILD_DIR)
-	$(WIN_CC) $(COMPAT_STD) $(OPT_FLAGS) -Wall $(LTO_FLAGS) $(COMMON_DEFINES) -DPLATFORM_WIN32 $(WIN_SDL2_CFLAGS) $(INCLUDES) -c $< -o $@
+	$(WIN_CC) $(COMPAT_STD) $(OPT_FLAGS) -Wall $(LTO_FLAGS) $(COMMON_DEFINES) -DPLATFORM_WIN32 $(WIN_SDL2_CFLAGS) $(INCLUDES) -x c -c $< -o $@
 
 # ===== Asset generation =====
 

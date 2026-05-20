@@ -7,6 +7,7 @@
 [![Build](https://img.shields.io/badge/build-passing-brightgreen?style=flat-square&logo=gnu-bash)](https://github.com/SchwartzKamel/dukenukem3d)
 [![License: GPL-2.0](https://img.shields.io/badge/license-GPL--2.0-blue?style=flat-square)](GNU.TXT)
 [![Platform: Linux](https://img.shields.io/badge/platform-Linux%20x86--64-orange?style=flat-square&logo=linux&logoColor=white)](https://github.com/SchwartzKamel/dukenukem3d)
+[![Platform: macOS](https://img.shields.io/badge/platform-macOS%20x86--64-lightgrey?style=flat-square&logo=apple&logoColor=white)](https://github.com/SchwartzKamel/dukenukem3d)
 [![Platform: Windows](https://img.shields.io/badge/platform-Windows%20x64-blue?style=flat-square&logo=windows&logoColor=white)](https://github.com/SchwartzKamel/dukenukem3d)
 
 **The King is back. Rebuilt from the original 1996 source. Dripping in neon.**
@@ -126,6 +127,15 @@ reproducibility.
 | SDL2 development libraries | [SDL2 releases](https://github.com/libsdl-org/SDL/releases) — get the `-VC.zip` for MSVC or `-mingw.zip` for MinGW |
 | CMake *(optional)* | [cmake.org](https://cmake.org/download/) or via `winget install cmake` |
 
+### macOS
+
+| Requirement | Install |
+|---|---|
+| Xcode Command Line Tools | `xcode-select --install` |
+| SDL2 | `brew install sdl2` |
+| Python 3.8+ | Usually pre-installed; update via `brew install python@3.11` if needed |
+| CMake | `brew install cmake` |
+
 ---
 
 ## 🔨 Building
@@ -173,6 +183,15 @@ build_windows.bat msvc
 set SDL2_DIR=C:\SDL2
 build_windows.bat mingw
 ```
+
+### macOS
+
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j $(sysctl -n hw.ncpu)
+```
+
+The binary will be in `build/duke3d`. *(Source: [.github/workflows/build.yml](https://github.com/SchwartzKamel/dukenukem3d/blob/master/.github/workflows/build.yml) — build-macos job)*
 
 ### Both platforms (Linux)
 

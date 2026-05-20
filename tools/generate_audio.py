@@ -161,6 +161,63 @@ SOUND_MANIFEST = [{'wav': 'TAUNT01.WAV', 'engine_sound_id': None, 'engine_sound_
 _validate_voice_line_filename_uniqueness(VOICE_LINES)
 
 
+def validate_voice_manifest_sync(voice_lines, sound_manifest):
+    """Validate that VOICE_LINES and SOUND_MANIFEST are in sync.
+    
+    Ensures both data structures have matching entries:
+    - Same filenames (no orphans in either side)
+    - Same order
+    - Same voice assignment for matching entries
+    
+    Args:
+        voice_lines: List of (filename, prompt, voice) tuples
+        sound_manifest: List of dicts with 'wav' and 'voice' keys
+        
+    Raises:
+        ValueError: If any sync violations are detected, listing:
+            - Orphans in VOICE_LINES (files with no SOUND_MANIFEST entry)
+            - Orphans in SOUND_MANIFEST (files with no VOICE_LINES entry)
+            - Order differences (if same files but different positions)
+            - Voice assignment mismatches (same file, different voice)
+    """
+    voice_lines_filenames = [filename for filename, _, _ in voice_lines]
+    voice_lines_voices = {filename: voice for filename, _, voice in voice_lines}
+    
+    sound_manifest_filenames = [entry['wav'] for entry in sound_manifest]
+    sound_manifest_voices = {entry['wav']: entry['voice'] for entry in sound_manifest}
+    
+    errors = []
+    
+    # Check for orphans in VOICE_LINES
+    orphans_in_voice = set(voice_lines_filenames) - set(sound_manifest_filenames)
+    if orphans_in_voice:
+        errors.append(f"Orphans in VOICE_LINES (no SOUND_MANIFEST entry): {sorted(orphans_in_voice)}")
+    
+    # Check for orphans in SOUND_MANIFEST
+    orphans_in_manifest = set(sound_manifest_filenames) - set(voice_lines_filenames)
+    if orphans_in_manifest:
+        errors.append(f"Orphans in SOUND_MANIFEST (no VOICE_LINES entry): {sorted(orphans_in_manifest)}")
+    
+    # Check for order differences (same files, different order)
+    if voice_lines_filenames != sound_manifest_filenames:
+        if set(voice_lines_filenames) == set(sound_manifest_filenames):
+            errors.append(f"Order mismatch: VOICE_LINES {voice_lines_filenames} != SOUND_MANIFEST {sound_manifest_filenames}")
+    
+    # Check for voice assignment mismatches
+    common_files = set(voice_lines_filenames) & set(sound_manifest_filenames)
+    for filename in common_files:
+        voice_lines_voice = voice_lines_voices[filename]
+        manifest_voice = sound_manifest_voices[filename]
+        if voice_lines_voice != manifest_voice:
+            errors.append(f"Voice mismatch for {filename}: VOICE_LINES={voice_lines_voice}, SOUND_MANIFEST={manifest_voice}")
+    
+    if errors:
+        raise ValueError(
+            f"Voice manifest sync validation failed:\n" +
+            "\n".join(f"  - {error}" for error in errors)
+        )
+
+
 def load_env(path):
     """Load key=value pairs from a .env file."""
     env = {}
@@ -404,6 +461,13 @@ def main():
     api_key = env.get("AUDIO_API_KEY", "")
     model = env.get("AUDIO_MODEL", "gpt-audio-1.5")
     use_ai = not args.no_ai and endpoint and api_key
+
+    # Validate VOICE_LINES and SOUND_MANIFEST are in sync before any generation
+    try:
+        validate_voice_manifest_sync(VOICE_LINES, SOUND_MANIFEST)
+    except ValueError as e:
+        print(f"[ERROR] Voice manifest sync validation failed:\n{e}", file=sys.stderr)
+        return 1
 
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 

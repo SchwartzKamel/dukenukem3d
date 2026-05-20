@@ -2397,10 +2397,12 @@ loadboard(char *filename, int32_t *daposx, int32_t *daposy, int32_t *daposz,
 	kread(fil,dacursectnum,2);
 
 	kread(fil,&numsectors,2);
+	/* engine-r17-numwalls-load-clamp */
 	if (numsectors < 0 || numsectors > MAXSECTORS) { kclose(fil); return(-1); }
 	kread(fil,&sector[0],sizeof(sectortype)*numsectors);
 
 	kread(fil,&numwalls,2);
+	/* engine-r17-numwalls-load-clamp */
 	if (numwalls < 0 || numwalls > MAXWALLS) { kclose(fil); return(-1); }
 	kread(fil,&wall[0],sizeof(walltype)*numwalls);
 
@@ -6442,6 +6444,8 @@ draw2dscreen(long posxe, long posye, short ange, long zoome, short gride)
 	}
 
 	faketimerhandler();
+	/* engine-r17-numwalls-load-clamp */
+	if (numwalls > 0)
 	for(i=numwalls-1,wal=&wall[i];i>=0;i--,wal--)
 	{
 		if (editstatus == 0)
