@@ -1082,3 +1082,40 @@ return-format contract.
 - Always run a SQL `SELECT id FROM todos WHERE id LIKE '<prefix>-%'`
   check after each audit-pass; if zero rows came back but the doc
   describes N findings, manually INSERT them.
+
+## Cycle 30 — 2026-05-20T14:30 UTC (audit-only)
+
+### Audit-pass (2 in parallel)
+
+- **security-and-secrets-r9** (last r8 cycle 26): 4 new findings
+  - MEDIUM `sec-r9-endpoint-logging` — Azure speech endpoint
+    written to logs in tools/generate_audio.py (low-value
+    intelligence leak but worth suppressing).
+  - OPTIONAL `sec-r9-codeowners-optional`,
+    `sec-r9-notice-third-party`, `sec-r9-pre-commit-hook-setup`.
+- **asset-pipeline-r9** (last r8 cycle 26): 3 new findings
+  - MEDIUM `asset-r9-map-bounds-validation` — .MAP parser
+    untrusted counts (numsectors/walls/sprites) not validated
+    against int16 range before allocation.
+  - MEDIUM `asset-r9-flux-retry-backoff` — FLUX API path lacks
+    retry/backoff (mirror of audio-r8 Azure finding).
+  - LOW `asset-r9-base64-error-handling` — binascii.Error in
+    base64 decode currently bubbles as TypeError.
+
+Both agents complied with the new cycle-29 contract: SELECT-after-
+INSERT proof included in their returns. Zero hallucinations.
+
+### Backlog snapshot
+
+- 99 pending / 199 done / 3 blocked (was 92 / 199 / 3).
+- Open CRITICAL: 1 (`build-r7-lto-maxtiles-mismatch`).
+- Open HIGH backlog: 4 net-new cycle-29 engine-r9 HIGHs +
+  3 r3 net architectural carryovers + 2 build-r7 carryovers.
+
+### Lessons
+
+- The SELECT-after-INSERT contract for audit agents (added in
+  cycle 30 prompts after the cycle-29 hallucination) appears to
+  work: both r9 audits returned proof their seeded todos were
+  actually committed to the DB. Continue using this in all future
+  audit-pass prompts.
