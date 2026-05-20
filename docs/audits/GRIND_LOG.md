@@ -890,3 +890,80 @@ All on disjoint files; zero collisions, zero hallucinations.
   multi-cycle handling.
 - Two CRITICALs now block — `net-r5-packet-type-9` should be
   highest-priority dispatch next grind cycle.
+
+## Cycle 26 + 27 — 2026-05-20T13:30-13:50 UTC
+
+### Cycle 26 audit-pass (3 in parallel)
+
+- **asset-pipeline-r8** (last r7 cycle 22) — 2 new todos
+  (`asset-r8-pil-truncation-handling`, `asset-r8-font-render-errors`).
+- **compat-layer-r7** (last r6 cycle 21) — re-seeded the 3 audio-r7
+  RWops findings under `compat-r7-*` despite cross-team instruction;
+  immediately marked done in SQL after operator verification (they map
+  1:1 to audio-r7 fixes already landed in this cycle). 1 net-new
+  todo: `compat-r7-read-unused-result`.
+- **security-and-secrets-r8** (last r7 cycle 21) — 1 todo
+  (`sec-r8-audit-pass`).
+
+### Cycle 26 grind (5 in parallel) — ALL CLOSED
+
+Disjoint files, zero collisions, zero hallucinations. Every agent
+returned grep + diff-stat + pytest evidence per the post-cycle-22
+return contract.
+
+- **net-packet-dispatch-hardening** (CRITICAL + HIGH batched):
+  - `net-r5-packet-type-9-buffer-overflow` — wchoice array now
+    rejects `packbufleng-1 > MAX_WEAPONS`.
+  - `net-r5-packet-types-0-1-oob-read` — bitmask-driven
+    required-length pre-validation in source/GAME.C cases 0 and 1.
+- **engine-r8-allocache-overflow** (HIGH) — `INT_MAX - 15` guard in
+  SRC/CACHE1D.C `allocache()`.
+- **engine-r8-engine-c-batch** (HIGH + MEDIUM): hlineasm logx/logy
+  clamp [0,31]; animateoffs result clamp to [0,MAXTILES) with
+  original-tilenum fallback.
+- **engine-r8-savegame-loader** (HIGH) — read exactly
+  numwalls/numsectors then memset remainder to zero in
+  source/MENUES.C `loadplayer`.
+- **audio-r7-rwops-leaks** (3 MEDIUMs batched) — explicit
+  `SDL_FreeRW` on all three Mix_Load*_RW failure paths in
+  compat/audio_stub.c; MUSIC_PlaySong clears current_music_rw.
+
+### Cycle 27 audit-pass (2 in parallel)
+
+- **build-system-r8** (last r7 cycle 22) — 3 new todos
+  (`build-r8-cmake-compile-flags-clarity`,
+  `build-r8-cmake-lto-parity`, `build-r8-test-build-h-coverage`).
+  Re-confirmed the open CRITICAL `build-r7-lto-maxtiles-mismatch`
+  and HIGH `build-r7-makefile-race-condition`,
+  `build-r7-windows-arch-mismatch` carryovers.
+- **test-engineer-r8** (last r7 cycle 23) — 0 new todos. Suite is
+  healthy (637 / 657 --runslow / 1 xfailed); test runtimes within
+  budget; xfail tracks open MAXTILES.
+
+### Validation
+
+- Build: clean rebuild (release, 654 KB). The
+  `build-r7-makefile-race-condition` did not trigger.
+- Tests: 626 -> 637 default (+11 across net/engine/audio
+  regressions); 1 xfailed (MAXTILES) intact.
+- Persistence-regression streak: **49+** consecutive parallel
+  sub-agents under the absolute-rule + return-format contract.
+
+### Backlog
+
+- 90 pending / 191 done / 3 blocked (was 96 / 178 / 3 at cycle 25
+  end).
+- Open **CRITICAL**: 1 (`build-r7-lto-maxtiles-mismatch`).
+- Open HIGH: `build-r7-makefile-race-condition`,
+  `build-r7-windows-arch-mismatch`, 3 net-r3 architectural
+  carryovers, 0 net new since cycle 25 audit.
+
+### Lessons
+
+- Per-cycle commit theming (3 commits: fix(net), fix(engine),
+  fix(compat)) keeps `git log` reviewable; do not collapse into one
+  monster commit even when all changes pass simultaneously.
+- compat-r7 reseeding audio-r7 findings under its own prefix is a
+  cross-team boundary case worth instructing more explicitly next
+  audit cycle. Closing dupes as `done` in SQL is the right move when
+  the underlying fix has already landed.
