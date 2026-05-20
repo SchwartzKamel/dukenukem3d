@@ -1624,6 +1624,7 @@ prepwall(long z, walltype *wal)
 ceilscan (long x1, long x2, long sectnum)
 {
 	long i, j, ox, oy, x, y1, y2, twall, bwall;
+	long tsizx, tsizy, xnice, ynice, x_mask, y_is_pow2;
 	sectortype *sec;
 
 	sec = &sector[sectnum];
@@ -1645,6 +1646,18 @@ ceilscan (long x1, long x2, long sectnum)
 	if (waloff[globalpicnum] == 0) loadtile(globalpicnum);
 	if (waloff[globalpicnum] == 0) return;
 	globalbufplc = waloff[globalpicnum];
+
+	tsizx = tilesizx[globalpicnum];
+	tsizy = tilesizy[globalpicnum];
+	xnice = (pow2long[picsiz[globalpicnum]&15] == tsizx);
+	ynice = (pow2long[picsiz[globalpicnum]>>4] == tsizy);
+
+	/* Pre-compute wrapping masks for power-of-2 textures */
+	if (xnice)
+		x_mask = tsizx - 1;
+	else
+		x_mask = -1;
+	y_is_pow2 = ynice;
 
 	globalshade = (long)sec->ceilingshade;
 	globvis = globalcisibility;
@@ -1792,6 +1805,7 @@ ceilscan (long x1, long x2, long sectnum)
 florscan (long x1, long x2, long sectnum)
 {
 	long i, j, ox, oy, x, y1, y2, twall, bwall;
+	long tsizx, tsizy, xnice, ynice, x_mask, y_is_pow2;
 	sectortype *sec;
 
 	sec = &sector[sectnum];
@@ -1812,6 +1826,18 @@ florscan (long x1, long x2, long sectnum)
 	if (waloff[globalpicnum] == 0) loadtile(globalpicnum);
 	if (waloff[globalpicnum] == 0) return;
 	globalbufplc = waloff[globalpicnum];
+
+	tsizx = tilesizx[globalpicnum];
+	tsizy = tilesizy[globalpicnum];
+	xnice = (pow2long[picsiz[globalpicnum]&15] == tsizx);
+	ynice = (pow2long[picsiz[globalpicnum]>>4] == tsizy);
+
+	/* Pre-compute wrapping masks for power-of-2 textures */
+	if (xnice)
+		x_mask = tsizx - 1;
+	else
+		x_mask = -1;
+	y_is_pow2 = ynice;
 
 	globalshade = (long)sec->floorshade;
 	globvis = globalcisibility;
@@ -1959,7 +1985,7 @@ florscan (long x1, long x2, long sectnum)
 wallscan(long x1, long x2, short *uwal, short *dwal, long *swal, long *lwal)
 {
 	long i, x, xnice, ynice, fpalookup, shade;
-	long y1ve[4], y2ve[4], u4, d4, dax, z, tsizx, tsizy;
+	long y1ve[4], y2ve[4], u4, d4, dax, z, tsizx, tsizy, x_mask, y_is_pow2;
 	char bad;
 
 	tsizx = tilesizx[globalpicnum];
@@ -1973,8 +1999,16 @@ wallscan(long x1, long x2, short *uwal, short *dwal, long *swal, long *lwal)
 	if (waloff[globalpicnum] == 0) return;
 
 	xnice = (pow2long[picsiz[globalpicnum]&15] == tsizx);
-	if (xnice) tsizx--;
 	ynice = (pow2long[picsiz[globalpicnum]>>4] == tsizy);
+
+	/* Pre-compute wrapping masks for power-of-2 textures */
+	if (xnice)
+		x_mask = tsizx - 1;
+	else
+		x_mask = -1;
+	y_is_pow2 = ynice;
+
+	if (xnice) tsizx--;
 	if (ynice) tsizy = (picsiz[globalpicnum]>>4);
 
 	fpalookup = FP_OFF(safe_palookup(globalpal));
@@ -1993,8 +2027,8 @@ wallscan(long x1, long x2, short *uwal, short *dwal, long *swal, long *lwal)
 		palookupoffse[0] = fpalookup+(getpalookup((long)mulscale16(swal[x],globvis),globalshade)<<8);
 
 		bufplce[0] = lwal[x] + globalxpanning;
-		if (bufplce[0] >= tsizx) { if (xnice == 0) bufplce[0] %= tsizx; else bufplce[0] &= tsizx; }
-		if (ynice == 0) bufplce[0] *= tsizy; else bufplce[0] <<= tsizy;
+		if (bufplce[0] >= tsizx) { if (x_mask == -1) bufplce[0] %= tsizx; else bufplce[0] &= x_mask; }
+		if (y_is_pow2 == 0) bufplce[0] *= tsizy; else bufplce[0] <<= tsizy;
 
 		vince[0] = swal[x]*globalyscale;
 		vplce[0] = globalzd + vince[0]*(y1ve[0]-globalhoriz+1);
@@ -2011,8 +2045,8 @@ wallscan(long x1, long x2, short *uwal, short *dwal, long *swal, long *lwal)
 			if (y2ve[z] < y1ve[z]) { bad += pow2char[z]; continue; }
 
 			i = lwal[x+z] + globalxpanning;
-			if (i >= tsizx) { if (xnice == 0) i %= tsizx; else i &= tsizx; }
-			if (ynice == 0) i *= tsizy; else i <<= tsizy;
+			if (i >= tsizx) { if (x_mask == -1) i %= tsizx; else i &= x_mask; }
+			if (y_is_pow2 == 0) i *= tsizy; else i <<= tsizy;
 			bufplce[z] = waloff[globalpicnum]+i;
 
 			vince[z] = swal[x+z]*globalyscale;
@@ -2068,8 +2102,8 @@ wallscan(long x1, long x2, short *uwal, short *dwal, long *swal, long *lwal)
 		palookupoffse[0] = fpalookup+(getpalookup((long)mulscale16(swal[x],globvis),globalshade)<<8);
 
 		bufplce[0] = lwal[x] + globalxpanning;
-		if (bufplce[0] >= tsizx) { if (xnice == 0) bufplce[0] %= tsizx; else bufplce[0] &= tsizx; }
-		if (ynice == 0) bufplce[0] *= tsizy; else bufplce[0] <<= tsizy;
+		if (bufplce[0] >= tsizx) { if (x_mask == -1) bufplce[0] %= tsizx; else bufplce[0] &= x_mask; }
+		if (y_is_pow2 == 0) bufplce[0] *= tsizy; else bufplce[0] <<= tsizy;
 
 		vince[0] = swal[x]*globalyscale;
 		vplce[0] = globalzd + vince[0]*(y1ve[0]-globalhoriz+1);

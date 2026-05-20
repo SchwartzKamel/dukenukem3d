@@ -3,12 +3,87 @@ import sys
 import subprocess
 import json
 from pathlib import Path
+import re
 
 import pytest
+from pydantic import BaseModel, field_validator
 
 # Add project root and tools to path
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, os.path.join(PROJECT_ROOT, "tools"))
+
+
+# ============================================================================
+# Pydantic Model for Sound Manifest Entry Validation
+# ============================================================================
+
+class SoundManifestEntry(BaseModel):
+    """Validates individual sound manifest entries with pydantic v2."""
+    
+    wav: str
+    engine_sound_id: str | None = None
+    engine_sound_id_int: int | None = None
+    voice: str
+    category: str
+    prompt_summary: str
+    status: str = "generated"
+    generated_at: str | None = None
+    notes: str | None = None
+    
+    @field_validator('engine_sound_id')
+    @classmethod
+    def validate_sound_id(cls, v):
+        """Validate engine_sound_id matches C identifier pattern."""
+        if v is None:
+            return v
+        if not re.match(r'^[A-Z_][A-Z0-9_]*$', v):
+            raise ValueError(f"sound_id '{v}' does not match pattern ^[A-Z_][A-Z0-9_]*$")
+        return v
+    
+    @field_validator('voice')
+    @classmethod
+    def validate_voice(cls, v):
+        """Validate voice is one of known enum values."""
+        valid_voices = {'alloy', 'echo', 'onyx'}
+        if v not in valid_voices:
+            raise ValueError(f"voice '{v}' not in {valid_voices}")
+        return v
+    
+    @field_validator('wav')
+    @classmethod
+    def validate_wav_path(cls, v):
+        """Validate wav_path ends with .wav or .WAV."""
+        if not (v.endswith('.wav') or v.endswith('.WAV')):
+            raise ValueError(f"wav_path '{v}' does not end with .wav or .WAV")
+        return v
+
+
+# ============================================================================
+# Shared Session-Scoped Fixtures
+# ============================================================================
+
+@pytest.fixture(scope="session")
+def project_root():
+    """Return absolute path to project root (parent of tests/ directory)."""
+    return Path(PROJECT_ROOT)
+
+
+@pytest.fixture(scope="session")
+def binary_path(project_root):
+    """Return path to the duke3d binary."""
+    return project_root / "duke3d"
+
+
+@pytest.fixture(scope="session")
+def grp_path(project_root):
+    """Return path to DUKE3D.GRP file."""
+    return project_root / "DUKE3D.GRP"
+
+
+@pytest.fixture(scope="session")
+def generated_assets_dir(project_root):
+    """Return path to generated_assets directory."""
+    return project_root / "generated_assets"
 
 
 @pytest.fixture(scope="session", autouse=True)
