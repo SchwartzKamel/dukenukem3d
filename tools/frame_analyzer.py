@@ -9,6 +9,13 @@ from pathlib import Path
 from typing import Optional, Tuple, List, Dict
 import struct
 import statistics
+import numpy as np
+
+try:
+    from scipy import ndimage
+    HAS_SCIPY = True
+except ImportError:
+    HAS_SCIPY = False
 
 
 def load_frame(path: str) -> Image.Image:
@@ -49,10 +56,10 @@ def unique_color_count(img: Image.Image) -> int:
     """Count the number of distinct colors in the image."""
     colors = img.getcolors(maxcolors=2**24)
     if colors is None:
-        # Fallback for images with more unique colors than maxcolors
-        pixels_bytes = img.tobytes()
-        pixels = [tuple(pixels_bytes[i:i+3]) for i in range(0, len(pixels_bytes), 3)]
-        return len(set(pixels))
+        # Fallback: use numpy for vectorized conversion from bytes to pixel tuples
+        pixels_array = np.asarray(img)
+        pixels_reshaped = pixels_array.reshape(-1, 3)
+        return len(np.unique(pixels_reshaped, axis=0))
     return len(colors)
 
 
@@ -60,12 +67,13 @@ def color_histogram(img: Image.Image) -> Dict[Tuple[int, int, int], int]:
     """Return a dict mapping (R,G,B) tuples to pixel counts."""
     colors = img.getcolors(maxcolors=2**24)
     if colors is None:
-        # Fallback for images with more unique colors than maxcolors
-        hist: Dict[Tuple[int, int, int], int] = {}
-        pixels_bytes = img.tobytes()
-        pixels = [tuple(pixels_bytes[i:i+3]) for i in range(0, len(pixels_bytes), 3)]
-        for rgb in pixels:
-            hist[rgb] = hist.get(rgb, 0) + 1
+        # Fallback: use numpy for vectorized processing
+        pixels_array = np.asarray(img)
+        pixels_reshaped = pixels_array.reshape(-1, 3)
+        unique_colors, counts = np.unique(pixels_reshaped, axis=0, return_counts=True)
+        hist: Dict[Tuple[int, int, int], int] = {
+            tuple(color): count for color, count in zip(unique_colors, counts)
+        }
         return hist
     # colors is [(count, (r, g, b)), ...]
     return {color: count for count, color in colors}
@@ -109,20 +117,16 @@ def frame_difference(img1: Image.Image, img2: Image.Image) -> float:
     if img1.size != img2.size:
         img2 = img2.resize(img1.size)
 
-    pixels1_bytes = img1.tobytes()
-    pixels2_bytes = img2.tobytes()
-    # Reconstruct RGB tuples from bytes (3 bytes per pixel for RGB mode)
-    pixels1 = [tuple(pixels1_bytes[i:i+3]) for i in range(0, len(pixels1_bytes), 3)]
-    pixels2 = [tuple(pixels2_bytes[i:i+3]) for i in range(0, len(pixels2_bytes), 3)]
-    total = len(pixels1)
-    if total == 0:
-        return 0.0
-
-    diff_sum = 0.0
-    for (r1, g1, b1), (r2, g2, b2) in zip(pixels1, pixels2):
-        diff_sum += (abs(r1 - r2) + abs(g1 - g2) + abs(b1 - b2)) / 765.0  # 765 = 255*3
-
-    return diff_sum / total
+    # Use numpy for vectorized pixel-level operations
+    arr1 = np.asarray(img1)
+    arr2 = np.asarray(img2)
+    
+    # Compute absolute differences across all channels, sum per pixel, then normalize
+    diff_per_channel = np.abs(arr1.astype(np.float32) - arr2.astype(np.float32))
+    diff_per_pixel = np.sum(diff_per_channel, axis=2)
+    total_diff = np.sum(diff_per_pixel) / (arr1.shape[0] * arr1.shape[1] * 765.0)
+    
+    return float(total_diff)
 
 
 def detect_text_region(img: Image.Image, y_start: int, y_end: int) -> bool:
@@ -133,30 +137,34 @@ def detect_text_region(img: Image.Image, y_start: int, y_end: int) -> bool:
     """
     band = img.crop((0, y_start, img.width, y_end))
     gray = band.convert("L")
-    # For grayscale mode, tobytes() returns raw byte values which are the pixel values
-    pixels = list(gray.tobytes())
-    if not pixels:
+    
+    if band.width == 0 or band.height == 0:
         return False
-
-    width = band.width
-    height = band.height
-
-    # Look for high-contrast transitions (edges) along horizontal scanlines
-    transition_count = 0
-    for row in range(height):
-        row_start = row * width
-        for col in range(1, width):
-            diff = abs(pixels[row_start + col] - pixels[row_start + col - 1])
-            if diff > 40:
-                transition_count += 1
-
-    total_possible = width * height
+    
+    # Convert grayscale to numpy array and compute edge magnitude using Sobel
+    if HAS_SCIPY:
+        pixels_array = np.asarray(gray, dtype=np.float32)
+        # Sobel edge detection in x and y directions
+        edges_x = ndimage.sobel(pixels_array, axis=1)
+        edges_y = ndimage.sobel(pixels_array, axis=0)
+        # Compute edge magnitude
+        edge_magnitude = np.sqrt(edges_x**2 + edges_y**2)
+        # Count high-contrast transitions (edges)
+        transition_count = int(np.sum(edge_magnitude > 40))
+    else:
+        # Fallback: vectorized horizontal difference (no scipy)
+        pixels_array = np.asarray(gray, dtype=np.float32)
+        # Compute absolute difference between adjacent pixels horizontally
+        diff = np.abs(np.diff(pixels_array, axis=1))
+        transition_count = int(np.sum(diff > 40))
+    
+    total_possible = band.width * band.height
     if total_possible == 0:
         return False
-
+    
     transition_ratio = transition_count / total_possible
     # Text regions typically have many small contrast transitions
-    return transition_ratio > 0.05
+    return bool(transition_ratio > 0.05)
 
 
 def analyze_frame(img: Image.Image) -> Dict:
