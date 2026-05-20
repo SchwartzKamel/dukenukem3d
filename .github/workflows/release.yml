@@ -42,6 +42,21 @@ jobs:
           sudo apt-get install -y gcc libsdl2-dev gcc-mingw-w64-i686 python3-pip
           pip3 install --break-system-packages -r requirements.txt
       
+      - name: Parse SDL2 version
+        if: matrix.target == 'windows'
+        run: |
+          SDL2_VERSION=$(grep '^SDL2_VERSION' build.mk | head -1 | sed 's/.*= *//')
+          echo "SDL2_VERSION=${SDL2_VERSION}" >> $GITHUB_ENV
+      
+      - name: Cache SDL2 MinGW
+        if: matrix.target == 'windows'
+        uses: actions/cache@0c45773b623bea8c8e75f6c82b208c3cf94ea4f9 # v4
+        with:
+          path: SDL2-${{ env.SDL2_VERSION }}
+          key: sdl2-mingw-${{ env.SDL2_VERSION }}
+          restore-keys: |
+            sdl2-mingw-
+      
       - name: Install SDL2 MinGW (Windows only)
         if: matrix.target == 'windows'
         run: |
