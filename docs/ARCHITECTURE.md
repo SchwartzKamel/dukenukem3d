@@ -787,6 +787,27 @@ Payload: up to MAXPACKETSIZE = 2048 bytes
 - Host closes → clients recv() EOF, drop to single-player
 - **Cleanup**: `memset(&recv_bufs[i], 0, sizeof(recv_bufs[i]))` clears per-player recv buffer (prevents stale data leak on reconnect)
 
+### Packet Integrity (current gap)
+
+**CRC Implementation Status (Cycle 59 audit closure):**
+
+Helper functions `initcrc()`, `getcrc()`, and `updatecrc16()` are **compiled and initialized** (SRC/MMULTI.C:319–358, 381) but **never invoked per-packet**. This creates a dormant integrity gap:
+
+| Aspect | Current State | Risk |
+|--------|---------------|------|
+| **Wire Format** | 4-byte header: `[sender_id][dest_id][len_lo][len_hi]`; no CRC field | No protection against bit-flip errors |
+| **LAN Scenarios** | TCP checksums + host relays all traffic | **LOW risk**; TCP catches ~99.99% of accidental bit-flips; host authority prevents replay attacks |
+| **WAN Scenarios (cross-datacenter)** | TCP checksums only; packet corruption undetected | **MEDIUM risk**; deliberate bit-flips or rare bitrot could pass TCP validation on low-MTU paths |
+| **Mitigation Assumed** | Not implemented; relying on TCP + host trust model | Suitable for cooperative LAN play; insufficient for untrusted networks |
+
+**Why CRC Not Active:**
+- Cycle 39–48 designs flagged CRC as essential but deferred implementation due to **backwards-incompatible wire format bump** (4 → 8-byte header required).
+- Functions retained in source (not deleted) to ease future protocol upgrade without reimplementation.
+
+**Future Work:**
+- See audit [docs/audits/network-multiplayer-r14.md](docs/audits/network-multiplayer-r14.md) § CRC Validation — Dormant/Unused for full scope.
+- **Todo**: `net-r14-crc-validation-dormant-full-impl` (pending; MEDIUM severity) — expand header to 8 bytes (`[sender][dest][len_lo][len_hi][crc32_lo][crc32_mid][crc32_mid2][crc32_hi]`), calculate CRC over `[sender][dest][payload_len][payload]`, validate on receive, drop peers with CRC mismatch.
+
 ### Known Gaps & Design Pending (Cycle 48 r12)
 
 **HIGH Priority:**

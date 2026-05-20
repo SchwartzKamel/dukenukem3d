@@ -493,3 +493,149 @@ Send failures don't close sockets; mid-game timeouts undefined. Not critical for
 ---
 
 **Sentinel**: `net-r14-audit-complete: 5 findings 5 todos`
+
+---
+
+## Cycle 59 Closure — Randomseed Synchronization at Game Start
+
+**Todo Closed**: `net-r14-randomseed-game-start-sync`  
+**Approach**: Extend handshake packet from 4 bytes to 8 bytes; include 4-byte little-endian randomseed field; both host and client initialize RNG from shared seed.
+
+### Implementation Summary
+
+1. **Host Handshake Send (SRC/MMULTI.C, lines 501–521)**:
+   ```c
+   /* Send handshake to each client: [player_index, numplayers, version_lo, version_hi, seed_le32] */
+   /* net-r14-randomseed-sync: host generates seed for deterministic RNG init */
+   {
+       unsigned long seed = (unsigned long)totalclock ^ 0x12345678UL;
+       for (i = 1; i < numplayers; i++) {
+           unsigned char msg[8];
+           msg[0] = (unsigned char)i;
+           msg[1] = (unsigned char)numplayers;
+           mm_pack_u16_le(msg + 2, NET_PROTOCOL_VERSION);
+           msg[4] = (unsigned char)(seed & 0xFF);
+           msg[5] = (unsigned char)((seed >> 8) & 0xFF);
+           msg[6] = (unsigned char)((seed >> 16) & 0xFF);
+           msg[7] = (unsigned char)((seed >> 24) & 0xFF);
+           net_send_raw(player_sockets[i], msg, 8);
+           net_set_nonblocking(player_sockets[i]);
+       }
+       /* net-r14-randomseed-sync: host also initializes from shared seed */
+       randomseed = (long)seed;
+       srand((unsigned)randomseed);
+   }
+   ```
+   **Sentinel**: `net-r14-randomseed-sync` at host seed generation and RNG init.
+
+2. **Client Handshake Receive (SRC/MMULTI.C, lines 559–603)**:
+   ```c
+   /* Receive handshake: [player_index, numplayers, version_lo, version_hi, seed_le32] */
+   /* net-r14-randomseed-sync: client receives seed from host for deterministic RNG init */
+   {
+       int hs_len;
+       unsigned long seed;
+       unsigned char msg_full[8];
+       uint16_t peer_version;
+       
+       hs_len = net_recv_all(sock, msg_full, 8);
+       if (hs_len == 8) {
+           /* New 8-byte handshake format */
+           peer_version = mm_unpack_u16_le(msg_full + 2);
+           if (peer_version != NET_PROTOCOL_VERSION) {
+               printf("NET: Protocol version mismatch (expected 0x%04x, got 0x%04x)\n",
+                      NET_PROTOCOL_VERSION, peer_version);
+               net_close(sock);
+               goto singleplayer;
+           }
+           myconnectindex = (short)msg_full[0];
+           numplayers = (short)msg_full[1];
+           /* Extract randomseed from bytes 4-7 (little-endian) */
+           seed = (unsigned long)(msg_full[4] | (msg_full[5] << 8) |
+                                  (msg_full[6] << 16) | (msg_full[7] << 24));
+           randomseed = seed;
+           /* net-r14-randomseed-sync: set RNG seed from handshake */
+           srand((unsigned)randomseed);
+       } else if (hs_len == 4) {
+           /* Legacy 4-byte handshake (backward-compat) */
+           printf("NET: WARNING: Legacy 4-byte handshake detected; RNG may diverge\n");
+           /* ... fall back to time(NULL) seed ... */
+       }
+   }
+   ```
+   **Sentinel**: `net-r14-randomseed-sync` at both client seed extraction and RNG init.
+
+3. **Little-Endian Packing Pattern**:
+   - Uses explicit byte-by-byte packing (lines 511–514 in host send) following cycle-58 `net-r13-endian` conventions.
+   - Client unpacking (lines 592–593 in client receive) mirrors host packing exactly.
+   - Ensures cross-platform correctness if porting to big-endian systems.
+
+4. **Backward Compatibility**:
+   - Client attempts 8-byte handshake first; falls back to 4-byte legacy format (line 596).
+   - Legacy path warns user and seeds from `time(NULL)` (original behavior).
+   - **Risk**: Peers with mismatched handshake formats (e.g., new host with old client) will have RNG divergence and eventual desync.
+
+### Verification
+
+- **Build**: `make clean && make -j$(nproc)` GREEN.
+- **Tests**: `TestNetR14RandomseedSync` in tests/test_network_packet_bounds.py:
+  - 8-byte handshake recognized and parsed correctly.
+  - Randomseed extracted as 4-byte little-endian value.
+  - 4-byte legacy handshake still accepted (backward-compat warning).
+  - Sentinels `net-r14-randomseed-sync` present at all expected sites (host send, client recv, RNG init).
+  - Both host and client initialize `randomseed` and call `srand()` from same seed value.
+- **Pytest baseline**: ≥ 917 tests passing.
+
+### Risk Assessment
+
+- **Positive Impact**: Deterministic replay now possible; RNG divergence eliminated at game start.
+- **Backward-Compat Risk**: Old client connecting to new host (or vice versa) will detect 4-byte fallback and seed from time(NULL), causing eventual desync. Warning message alerts operators.
+- **Mitigation**: Document version requirement in release notes; network protocol version field (already checked) allows future coordination.
+
+---
+
+## Cycle 59 Closure — CRC dormant (doc-only path)
+
+**Todo Closed**: `net-r14-crc-validation-dormant`  
+**Approach**: Option (1b) — Document the gap explicitly; leave `initcrc()` in place.
+
+### Implementation Summary
+
+1. **Sentinel Comment in SRC/MMULTI.C (line 381)**:
+   ```c
+   /* net-r14-crc-dormant: CRC helpers initialized but not validated per-packet.
+      See docs/ARCHITECTURE.md "Packet Integrity (current gap)" + audit r14. */
+   initcrc();
+   ```
+   Ensures future maintainers understand why dormant CRC code remains in repository.
+
+2. **Documentation in docs/ARCHITECTURE.md (new subsection)**:
+   - New subsection **"Packet Integrity (current gap)"** under Network Architecture (cycle 59).
+   - Explains: CRC functions compiled/initialized, never called per-packet.
+   - Risk matrix: LAN (low), WAN (medium).
+   - Cross-references this audit and future todo `net-r14-crc-validation-dormant-full-impl`.
+
+3. **Future Todo Created**: `net-r14-crc-validation-dormant-full-impl` (PENDING, MEDIUM severity)
+   - **Description**: Extend wire header to 8 bytes (4 payload + 4 CRC32); receiver validates CRC32 against payload; rejection counters per peer.
+   - **Scope**: Backwards-incompatible protocol bump; defer to future cycle.
+   - **Effort**: 30–60 minutes (header redesign + both sender/receiver validation).
+   - **See**: docs/audits/network-multiplayer-r14.md § CRC Validation + ARCHITECTURE.md § Packet Integrity.
+
+### Rationale
+
+**Why Option (1b)?**
+- **Option (1a)** (remove `initcrc()` call): Permanently deletes code, making future CRC implementation require rediscovery of algorithm.
+- **Option (1b)** (document gap, keep code): **CHOSEN**. Low cost, high future-proofing. Documentation clarifies intent; code remains for reference.
+
+**Risk Assessment**:
+- **LAN play** (primary use case): TCP checksums + host-authority model sufficient; CRC deferral acceptable.
+- **WAN play** (future expansion): CRC gap flagged explicitly in ARCHITECTURE.md; future implementer has clear checklist.
+
+### Verification
+
+- Build: `make clean && make -j$(nproc)` GREEN (sentinel comment in GNU89 `/* */` format).
+- ARCHITECTURE.md markdown valid (no broken table syntax).
+- Audit reference linked in ARCHITECTURE.md § Packet Integrity.
+
+---
+

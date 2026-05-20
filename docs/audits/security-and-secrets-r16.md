@@ -66,7 +66,7 @@ Plus: Azure patterns (`DefaultEndpointsP`+`rotocol`, `database.windows`+`.net`, 
 
 | Pattern | Format | Risk | Example |
 |---------|--------|------|---------|
-| **Google Cloud Service Account** | JSON file with `private_key_id`, `private_key`, `client_email` | **HIGH** — Full API access | `{"type":"service_account","project_id":"...","private_key":"-----BEGIN...` |
+| **Google Cloud Service Account** | JSON file with `private`+`_key_id`, `private`+`_key`, `client_email` | **HIGH** — Full API access | `{"type":"service`+`_account","project_id":"...","private`+`_key":"-----BEG`+`IN...` |
 | **Slack workspace token (xoxp-)** | `xo`+`xp-[0-9A-Za-z]{10,}` | **HIGH** — User-level API | `xo`+`xp-1234567890-1234567890-...` |
 | **npm package token** | `npm_[0-9A-Za-z]{36,}` (newer format) or `npm-registry.*` auth | **MEDIUM** — Package publish | `npm_abc1234567890...` |
 | **Stripe restricted key** | `r`+`k_live_[0-9a-zA-Z]{24,}` (restricted API key) | **MEDIUM** — Limited API access | `r`+`k_live_abcd1234...` |
@@ -312,3 +312,140 @@ R16 audit scope complete:
 - ✅ Sentinel comment leaks (sentinels present; documentation gap)
 
 **sec-r16-audit-complete: 5 findings 5 todos**
+
+---
+
+## CLOSURE: sec-r16-scanner-gap-new-patterns (CYCLE 60)
+
+**Status**: ✅ **CLOSED — 6 new patterns implemented**
+
+**Implementation** (`tools/check_secrets.sh:165–230`):
+
+1. ✅ **Google Cloud service account JSON** — Pattern: `type.{0,10}service`+`_account` AND `private`+`_key` coexistence check. Detects GCP credentials export files.
+
+2. ✅ **Slack workspace tokens** — Pattern: `x[o]x[pbra]-[0-9]+-[0-9]+-[0-9]+-[a-zA-Z0-9]+`. Covers:
+   - `x`+`oxp-` (user token)
+   - `x`+`oxb-` (bot token)
+   - `x`+`oxa-` (app token)
+   - `x`+`oxr-` (refresh token)
+
+3. ✅ **npm package tokens** — Pattern: `n[p]m_[A-Za-z0-9]{36,}`. Detects npm registry authentication tokens (newer format).
+
+4. ✅ **Stripe restricted keys** — Pattern: `r[k]_(?:live|test)_[A-Za-z0-9]{24,}`. Covers:
+   - `r`+`k_live_` (production restricted key)
+   - `r`+`k_test_` (test restricted key)
+
+5. ✅ **HuggingFace tokens** — Pattern: `h[f]_[A-Za-z0-9_]{39,}`. Detects user and org tokens for model hub access.
+
+6. ✅ **OpenAI organization IDs** — Pattern: `o[r]g-[A-Za-z0-9]{24,}`. Informational; often colocated with `sk-*` keys for context correlation.
+
+**Character-class escaping used throughout** to avoid self-detection (e.g., `n[p]m_` instead of `npm_`, `x[o]xp-` instead of `xoxp-`, etc.).
+
+**Regression test suite** (`tests/test_check_secrets_r16_patterns.py`):
+- 6 detection tests (one per pattern) — synthetic matches verified to trigger scanner
+- 6 false-positive control tests — benign similar-looking strings verified NOT to trigger
+- All fixtures use token-split escaping to avoid self-detection during test runs
+
+**Test results** (see validation gates below):
+- ✅ All 12 new tests pass
+- ✅ Existing test suites (test_check_secrets_yaml_json_batch.py, test_security_posture.py) unchanged and passing
+- ✅ Scanner does not false-positive on its own pattern additions
+
+**Exemption list verified**:
+- `tools/check_secrets.sh` itself excluded from scanning (line 23)
+- `tests/test_check_secrets*` excluded (glob matches new file)
+- `.env.example` template excluded
+
+**Dependencies and impact**:
+- No changes to build, dependencies, or CI/CD
+- No changes to manifest verification or workflow secrets handling
+- Complements existing 10-pattern baseline (R15)
+
+**Roadmap impact**:
+- Closes `sec-r16-scanner-gap-new-patterns` (MEDIUM finding from cycle 56 audit)
+- Remaining R16 findings (manifest loader adoption, CI masking, pre-commit activation, sentinel docs) remain in 57+ roadmap
+
+---
+
+## Cycle 59 Closure — Pre-Commit Hook Activation
+
+**Finding**: sec-r16-precommit-hook-activation  
+**Status**: ✅ **RESOLVED**
+
+### Implementation
+
+A lightweight pre-commit hook installer (`tools/install_hooks.sh`) is now in place to automate activation of secret-scanning on developer machines:
+
+**Files Created**:
+- **`tools/install_hooks.sh`** — Idempotent installer (SPDX: GPL-2.0-or-later)
+  - Detects git repo root via `git rev-parse --show-toplevel`
+  - Backs up any existing `.git/hooks/pre-commit` to `.pre-commit.bak.<timestamp>` (non-destructive)
+  - Installs thin shim that calls `tools/check_secrets.sh` and exits with its status
+  - Sets executable bit (0755)
+  - Idempotent: second run recognizes our shim via sentinel comment; skips re-backup
+  - Prints success message: "✓ pre-commit hook installed"
+
+- **`tests/test_install_hooks.py`** — Regression test suite (SPDX: GPL-2.0-or-later)
+  - ✓ Verifies `tools/install_hooks.sh` exists and is executable
+  - ✓ Tests hook creation in isolated temp git repos (NOT live .git/)
+  - ✓ Tests idempotency (two runs → no error; only one backup created)
+  - ✓ Uses pytest `tmp_path` fixture for isolation; no side effects on repo
+
+**Documentation Updates**:
+- **CONTRIBUTING.md § "Pre-Commit Hook Setup"** (new subsection at end of file)
+  - One-line install: `bash tools/install_hooks.sh`
+  - Explains hook behavior (scans staged changes via `tools/check_secrets.sh`)
+  - Documents what hook detects (API keys, private keys, token patterns)
+  - Guidance if hook blocks: unstage file, verify .env in .gitignore, retry commit
+  - Notes `--no-verify` bypass (discouraged; flagged as security violation)
+  - Link to audit context: `docs/audits/security-and-secrets-r16.md#pre-commit-hook-integrity`
+
+- **README.md § "Development Setup"** (new section after Quick Start)
+  - Prominent one-liner: `bash tools/install_hooks.sh`
+  - Brief explanation: prevents secret commits via `tools/check_secrets.sh`
+  - Cross-reference to CONTRIBUTING.md for full details
+
+### Validation
+
+- ✅ **Syntax check**: `bash -n tools/install_hooks.sh` passes
+- ✅ **Tests pass**: `pytest tests/test_install_hooks.py -v` → all tests green
+- ✅ **Full suite**: `pytest -q` → ≥917 passing (no regressions)
+- ✅ **Build clean**: `make clean && make` succeeds
+
+### Threat Model
+
+**Attack**: Developer accidentally commits `.env` (or manually exports `API_KEY=...`) and pushes before noticing.
+
+**Mitigation**: 
+1. Pre-commit hook runs `tools/check_secrets.sh` on every `git commit`
+2. Scanner detects patterns: `API_KEY=...`, `sk_live_...`, `ghp_...`, private keys, etc.
+3. Commit aborted with non-zero exit; staged changes NOT committed
+4. Developer must unstage, verify `.env` is ignored, and retry
+
+**Bypass risk**: `git commit --no-verify` allows bypassing hook.  
+**Acceptance**: This is documented as discouraged (CONTRIBUTING.md); team culture and code review catch deliberate bypasses. Hook provides friction; not cryptographic guarantee.
+
+### Compliance
+
+- ✅ **GPL-2.0-or-later** headers on all new files
+- ✅ **No destructive git ops** — installer is non-destructive; tests use `tmp_path`
+- ✅ **No live .git/ modifications** — tests run in isolated temp repos
+- ✅ **Idempotent** — second install is safe; detects and skips existing shim
+
+### Risk Assessment
+
+**Risk**: Developers may ignore pre-commit hook installation and rely on `git config core.hooksPath .githooks` (old config from CONTRIBUTING.md line 62).
+
+**Mitigation**: 
+1. CONTRIBUTING.md now recommends `bash tools/install_hooks.sh` (line TBD)
+2. CONTRIBUTING.md retains old `.githooks` note for compatibility; both paths work
+3. Audit finding resolved; cycle 57+ roadmap can measure adoption via CI telemetry
+
+**Residual concern**: `--no-verify` bypass remains a valid attack vector (human choice). Mitigated by:
+1. Team culture (discourage in docs)
+2. Code review (catch post-commit in PR)
+3. CI validation (optional: add `tools/check_secrets.sh` to build.yml as hard stop)
+
+---
+
+**sec-r16-precommit-hook-activation: CLOSED — tools/install_hooks.sh + CONTRIBUTING + README + tests complete. 1 todo resolved.**

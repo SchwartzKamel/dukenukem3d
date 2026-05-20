@@ -60,6 +60,7 @@ typedef int SOCKET;
 uint16_t crctable[256];
 
 extern volatile long totalclock; /* build-r16-lto-type: aligned to legacy K&R decl in BUILD.H */
+extern long randomseed; /* net-r14-randomseed-sync: external RNG seed from GAME.C/CAVE.C */
 static int32_t timeoutcount = 60, resendagaincount = 4;
 static int32_t lastsendtime[MAXPLAYERS];
 static int tcp_send_failures = 0;
@@ -378,6 +379,8 @@ initmultiplayers(char damultioption, char dacomrateoption, char dapriority)
 	(void)dacomrateoption;
 	(void)dapriority;
 
+	/* net-r14-crc-dormant: CRC helpers initialized but not validated per-packet.
+	   See docs/ARCHITECTURE.md "Packet Integrity (current gap)" + audit r14. */
 	initcrc();
 
 	for (i = 0; i < MAXPLAYERS; i++) {
@@ -498,14 +501,25 @@ initmultiplayers(char damultioption, char dacomrateoption, char dapriority)
 
 		printf("NET: Starting game with %d players\n", numplayers);
 
-		/* Send handshake to each client: [player_index, numplayers, version_lo, version_hi] */
-		for (i = 1; i < numplayers; i++) {
-			unsigned char msg[4];
-			msg[0] = (unsigned char)i;
-			msg[1] = (unsigned char)numplayers;
-		mm_pack_u16_le(msg + 2, NET_PROTOCOL_VERSION);
-			net_send_raw(player_sockets[i], msg, 4);
-			net_set_nonblocking(player_sockets[i]);
+		/* Send handshake to each client: [player_index, numplayers, version_lo, version_hi, seed_le32] */
+		/* net-r14-randomseed-sync: host generates seed for deterministic RNG init */
+		{
+			unsigned long seed = (unsigned long)totalclock ^ 0x12345678UL;
+			for (i = 1; i < numplayers; i++) {
+				unsigned char msg[8];
+				msg[0] = (unsigned char)i;
+				msg[1] = (unsigned char)numplayers;
+			mm_pack_u16_le(msg + 2, NET_PROTOCOL_VERSION);
+				msg[4] = (unsigned char)(seed & 0xFF);
+				msg[5] = (unsigned char)((seed >> 8) & 0xFF);
+				msg[6] = (unsigned char)((seed >> 16) & 0xFF);
+				msg[7] = (unsigned char)((seed >> 24) & 0xFF);
+				net_send_raw(player_sockets[i], msg, 8);
+				net_set_nonblocking(player_sockets[i]);
+			}
+			/* net-r14-randomseed-sync: host also initializes from shared seed */
+			randomseed = (long)seed;
+			srand((unsigned)randomseed);
 		}
 
 	} else if (join_addr) {
@@ -548,24 +562,53 @@ initmultiplayers(char damultioption, char dacomrateoption, char dapriority)
 		setsockopt(sock, IPPROTO_TCP, TCP_NODELAY,
 		           (const char *)&flag, sizeof(flag));
 
-		/* Receive handshake: [player_index, numplayers, version_lo, version_hi] */
-		if (net_recv_all(sock, msg, 4) != 4) {
-			printf("NET: Handshake failed (timeout or connection closed)\n");
-			net_close(sock);
-			goto singleplayer;
-		}
+		/* Receive handshake: [player_index, numplayers, version_lo, version_hi, seed_le32] */
+		/* net-r14-randomseed-sync: client receives seed from host for deterministic RNG init */
+		{
+			int hs_len;
+			unsigned long seed;
+			unsigned char msg_full[8];
+			uint16_t peer_version;
 
-		/* Verify protocol version */
-		uint16_t peer_version = mm_unpack_u16_le(msg + 2);
-		if (peer_version != NET_PROTOCOL_VERSION) {
-			printf("NET: Protocol version mismatch (expected 0x%04x, got 0x%04x)\n",
-			       NET_PROTOCOL_VERSION, peer_version);
-			net_close(sock);
-			goto singleplayer;
+			hs_len = net_recv_all(sock, msg_full, 8);
+			if (hs_len == 8) {
+				/* New 8-byte handshake format */
+				peer_version = mm_unpack_u16_le(msg_full + 2);
+				if (peer_version != NET_PROTOCOL_VERSION) {
+					printf("NET: Protocol version mismatch (expected 0x%04x, got 0x%04x)\n",
+					       NET_PROTOCOL_VERSION, peer_version);
+					net_close(sock);
+					goto singleplayer;
+				}
+				myconnectindex = (short)msg_full[0];
+				numplayers = (short)msg_full[1];
+				/* Extract randomseed from bytes 4-7 (little-endian) */
+				seed = (unsigned long)(msg_full[4] | (msg_full[5] << 8) |
+						       (msg_full[6] << 16) | (msg_full[7] << 24));
+				randomseed = seed;
+				/* net-r14-randomseed-sync: set RNG seed from handshake */
+				srand((unsigned)randomseed);
+			} else if (hs_len == 4) {
+				/* Legacy 4-byte handshake (backward-compat) */
+				printf("NET: WARNING: Legacy 4-byte handshake detected; RNG may diverge\n");
+				peer_version = mm_unpack_u16_le(msg_full + 2);
+				if (peer_version != NET_PROTOCOL_VERSION) {
+					printf("NET: Protocol version mismatch (expected 0x%04x, got 0x%04x)\n",
+					       NET_PROTOCOL_VERSION, peer_version);
+					net_close(sock);
+					goto singleplayer;
+				}
+				myconnectindex = (short)msg_full[0];
+				numplayers = (short)msg_full[1];
+				/* Seed from time as fallback (original behavior) */
+				randomseed = (long)time(NULL);
+				srand((unsigned)randomseed);
+			} else {
+				printf("NET: Handshake failed (expected 4 or 8 bytes, got %d)\n", hs_len);
+				net_close(sock);
+				goto singleplayer;
+			}
 		}
-
-		myconnectindex = (short)msg[0];
-		numplayers     = (short)msg[1];
 		player_sockets[0] = sock;
 
 		net_set_nonblocking(sock);

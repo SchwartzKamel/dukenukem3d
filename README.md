@@ -70,6 +70,18 @@ That's it. Build, generate, and the King rides again.
 
 ---
 
+## 🛡️ Development Setup
+
+After cloning, **install git hooks to prevent accidental secret commits**:
+
+```bash
+bash tools/install_hooks.sh
+```
+
+This runs `tools/check_secrets.sh` on every commit to catch API keys and credentials before they leak. See [CONTRIBUTING.md § Pre-Commit Hook Setup](CONTRIBUTING.md#pre-commit-hook-setup) for details.
+
+---
+
 ## 📈 Performance Notes
 
 Asset and audio generation are parallelized for fast iterative builds:

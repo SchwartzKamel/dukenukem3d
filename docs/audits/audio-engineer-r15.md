@@ -499,3 +499,42 @@ def _emit_grp_manifest(grp_path: str, grp_contents: dict, manifest_path: str, ge
 ---
 
 audio-r15-audit-complete: 4 findings 5 todos
+
+---
+
+## Cycle 59 Closure — Manifest Migration Documentation
+
+**Status**: ✅ CLOSED
+
+**Deliverable**: Documentation added to CONTRIBUTING.md for manifest verification pattern adoption (Cycle 53 migration).
+
+**Context**: Cycle 53 migrated `tools/generate_audio.py` to route through `tools/manifest_verification.py::load_and_verify_audio_manifest()`. This migration was technically complete and verified (Finding 1.1), but was **not documented for new contributors**. New developers working with the asset pipeline or adding voice lines had no guidance on why raw `json.load()` is forbidden or when to use the three verifier APIs.
+
+**Solution**: Added comprehensive "## Manifest Verification Pattern" section to CONTRIBUTING.md covering:
+
+1. **When to Use**: Always use `load_and_verify_audio_manifest()`, `load_and_verify_grp_manifest()`, `load_and_verify_tables_manifest()` for production asset loads; raw `json.load()` forbidden except with explicit test sentinel `# sec-r15-manifest-loader-adoption: intentional test bypass`.
+
+2. **The Three Verifiers**: Full API documentation for each of the three manifest loaders, including signature, parameters, and what each verifies (manifest-level checksums, per-entry file checksums).
+
+3. **Behavior Contracts**: Comprehensive table documenting error handling (RuntimeError on checksum mismatch with sentinel `manifest-checksum-verify-on-load`; UserWarning on legacy missing `sha256` field).
+
+4. **Schema Validation**: Explicit note that checksum verification and schema validation are decoupled; developers can choose to validate schema before or after the verifier depending on use case.
+
+5. **Implementation Reference**: Pointer to `tools/manifest_verification.py` for internal logic.
+
+6. **Audit History**: Cross-references to `docs/audits/audio-engineer-r15.md` Finding 1.1 (Manifest Loader Migration) and `docs/audits/security-and-secrets-r15.md` for full context on why this migration was necessary.
+
+**File Changes**:
+- CONTRIBUTING.md: Added ~70 lines (manifest verification section inserted before "## Continuous Integration & Caching")
+
+**Verification**:
+- ✅ Markdown syntax valid (no formatting errors)
+- ✅ Cross-references accurate (audit files exist and are cited correctly)
+- ✅ Code examples use correct function signatures from tools/manifest_verification.py
+- ✅ No source code changes (documentation only)
+- ✅ Build/test validation: `make clean && make` clean, `pytest -q` ≥ 917 passing
+
+**New Contributors Outcome**: Developers adding voice lines now have clear guidance in CONTRIBUTING.md that they must use `load_and_verify_audio_manifest()` to load manifests, with rationale and examples. The cycle 53 migration is now documented and discoverable in the main contribution guide.
+
+**SQL Todo**: `audio-r15-cycle-53-manifest-migration-documentation` → CLOSED ✅
+

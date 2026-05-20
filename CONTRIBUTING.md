@@ -378,6 +378,102 @@ If you're looking for something to work on, these are high-impact areas:
 Pick any of these, or propose your own improvement. We're happy to discuss
 ideas in Issues before you start coding.
 
+## Manifest Verification Pattern
+
+This project uses **manifest verification** to ensure the integrity of generated assets (audio WAVs, lookup tables, GRP archive). The manifest loaders provide a consistent pattern for production and test code.
+
+### When to Use Manifest Verifiers
+
+**Always use the verifier functions** for production asset loads:
+
+- `load_and_verify_audio_manifest()` — for audio manifests (WAV checksums, voice catalog)
+- `load_and_verify_grp_manifest()` — for GRP archive manifests (member file checksums)
+- `load_and_verify_tables_manifest()` — for lookup table manifests (TABLES.DAT checksums)
+
+**Raw `json.load()` is forbidden** in production code paths. Exception: explicit test bypasses only, marked with:
+
+```python
+# sec-r15-manifest-loader-adoption: intentional test bypass
+manifest = json.load(f)  # Only in tests with this sentinel
+```
+
+### The Three Verifier APIs
+
+Located in `tools/manifest_verification.py`:
+
+#### `load_and_verify_audio_manifest(manifest_path: str, base_dir: str = None) -> dict`
+
+Loads an audio manifest and verifies:
+- **Manifest-level checksum**: SHA256 of the entire manifest structure (if present)
+- **Per-entry WAV checksums**: SHA256 of each referenced WAV file matches the manifest entry
+
+Used by `tools/generate_audio.py` (line 256) to validate voice line integrity before runtime loading.
+
+#### `load_and_verify_grp_manifest(manifest_path: str, base_dir: str = None) -> dict`
+
+Loads the GRP archive manifest and verifies:
+- **Manifest-level checksum**: Top-level SHA256 of manifest structure
+- **GRP file checksum**: SHA256 of the entire DUKE3D.GRP archive file
+- **Member checksums** (optional): SHA256 of individual files packed in the GRP
+
+#### `load_and_verify_tables_manifest(manifest_path: str, base_dir: str = None) -> dict`
+
+Loads the lookup tables manifest and verifies:
+- **Manifest-level checksum**: Top-level SHA256
+- **Tables file checksum**: SHA256 of TABLES.DAT
+
+### Behavior Contracts
+
+All three verifiers follow the same contract:
+
+| Condition | Behavior |
+|-----------|----------|
+| Manifest file missing | Raises `IOError` |
+| Manifest JSON invalid | Raises `ValueError` |
+| Checksum mismatch (expected vs. computed) | Raises `RuntimeError` with sentinel `manifest-checksum-verify-on-load` |
+| Entry/file missing a `sha256`/`checksum` field (legacy) | Issues `UserWarning` and continues (backward compatibility) |
+| Schema validation fails | See next section — decoupled from checksum verification |
+
+The **`manifest-checksum-verify-on-load` sentinel** is used in all RuntimeError messages for automated log scanning and incident identification.
+
+### Schema Validation (Separate from Checksum Verification)
+
+Checksum verification and schema validation are intentionally decoupled:
+
+- **Verifiers** (`load_and_verify_*()`) handle checksums only — they assume manifest JSON is well-formed
+- **Schema validation** (if needed) should be done *before* or *after* the verifier, depending on your use case
+
+Example workflow:
+```python
+import json
+from manifest_verification import load_and_verify_audio_manifest
+
+# Load and verify checksums
+manifest = load_and_verify_audio_manifest("generated_assets/sounds/MANIFEST.json", "generated_assets/sounds")
+
+# Optionally, validate schema separately (if required for your domain)
+assert "entries" in manifest
+assert "schema_version" in manifest
+```
+
+### Implementation Reference
+
+See `tools/manifest_verification.py` for:
+- Internal helper functions: `_sha256_of_file()`, `_sha256_of_manifest()`
+- Checksum computation logic (SHA256 of JSON with sorted keys)
+- Per-file checksum verification (compute on disk, compare to manifest entry)
+
+### Audit History & Context
+
+**Cycle 53 Migration**: Audio pipeline migrated from raw `json.load()` to `load_and_verify_audio_manifest()`.
+- Affected: `tools/generate_audio.py` (line 256)
+- Sentinel marker: `sec-r15-manifest-loader-adoption: migrated to verifier` (lines 238, 254)
+- Verification: All checksum logic now centralized in verifier; zero duplication
+
+See audit reports for full context:
+- `docs/audits/audio-engineer-r15.md` — Finding 1.1: Manifest Loader Migration
+- `docs/audits/security-and-secrets-r15.md` — Asset pipeline integrity validation
+
 ## Continuous Integration & Caching
 
 The GitHub Actions workflows in `.github/workflows/` use `actions/setup-python`
@@ -400,3 +496,38 @@ The reusable `tools/ci/generate_assets.sh` script is the canonical
 asset-generation entry point in CI; updating CI workflows should call
 into it rather than duplicating `python3 tools/generate_assets.py …`
 invocations.
+
+## Pre-Commit Hook Setup
+
+To prevent accidental commits of API keys and secrets, install the pre-commit hook:
+
+```bash
+bash tools/install_hooks.sh
+```
+
+This one-line install:
+- Detects your git repository root
+- Creates `.git/hooks/pre-commit` (or backs up any existing hook)
+- Configures the hook to call `tools/check_secrets.sh` on all staged changes
+- Sets executable permissions automatically
+
+**What the hook checks:**
+- API key patterns (AWS, Stripe, GitHub, OpenAI, etc.)
+- Private key headers (RSA, OpenSSH, EC, DSA)
+- Common secret prefixes (sk-, ghp-, xoxb-, etc.)
+- Base64-encoded credential-like strings
+
+**If the hook blocks your commit:**
+1. Verify that `.env` is NOT being committed (should be ignored)
+2. Unstage the problematic file: `git reset HEAD <file>`
+3. Check that `.env` is in `.gitignore` and not tracked
+4. Commit again
+
+**To bypass** (not recommended and discouraged):
+```bash
+git commit --no-verify
+```
+
+Bypassing is considered a security violation; discuss with the team before doing so.
+
+For full details on secret handling and the audit context, see [docs/audits/security-and-secrets-r16.md](docs/audits/security-and-secrets-r16.md#pre-commit-hook-integrity).

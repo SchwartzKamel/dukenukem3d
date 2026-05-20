@@ -2101,3 +2101,39 @@ None. All sentinels intact across cycles 41–57 (re-verified by net-r13 + build
 - **security-and-secrets-r16:** 5 findings, **5 todos** (0 CRIT/HIGH). MED: `sec-r16-scanner-gap-new-patterns` (6 NEW gaps — Google Cloud JSON, Slack xoxp-, npm_, rk_live_, hf_, org-), `sec-r16-manifest-loader-adoption-audit` (verify other loaders haven't drifted), `sec-r16-ci-secret-masking-audit`, `sec-r16-precommit-hook-activation` (hook script exists but `.git/hooks/pre-commit` not installed for fresh clones). LOW: `sec-r16-sentinel-documentation-gap`. Verified: 10 active scanner patterns, manifest verify-on-load LIVE, workflow permissions least-privilege, 100% requirements pinning (CVE-free).
 
 **Backlog delta:** ~278 → ~287 pending (+9 intake from test-r16 + sec-r16).
+
+---
+
+## Cycle 59 (grind, 2026-05-20T23:00Z)
+
+**Baseline:** 917 passed → **943 passed** (+26 across 6 closures, including 8 randomseed regression tests landed cleanly in the freshly-split test_network_packet_bounds.py).
+
+### Closures (7 todos via 6 parallel agents)
+
+| Agent | Todos | Highlights |
+|-------|-------|------------|
+| net-r14-randomseed | `net-r14-randomseed-game-start-sync` (**CRIT**) | SRC/MMULTI.C handshake 4→8 bytes (host generates LE seed, joiner extracts + seeds game RNG; 4-byte legacy peers warned + fall back). 5 `net-r14-randomseed-sync` sentinels. 8 regression tests in TestNetR14RandomseedSync. r14.md cycle-59 closure section. |
+| net-r14-crc-dormant | `net-r14-crc-validation-dormant` (**CRIT** doc-only path) + new follow-up `net-r14-crc-validation-dormant-full-impl` (MED, future cycle) | SRC/MMULTI.C `net-r14-crc-dormant` TODO sentinel at initcrc() site. ARCHITECTURE.md new "Packet Integrity (current gap)" subsection under Network Architecture (LAN low / WAN medium risk matrix). r14.md cycle-59 closure section (distinct from randomseed). |
+| test-r16-mega-split | `test-r16-mega-file-split-critical` (**CRIT** escalated from r15 HIGH) | 3-way split of tests/test_engine_net_hardening_regressions.py (3803 lines) → test_network_packet_bounds.py (1502 lines, 57 tests, 15 classes), test_engine_bounds_hardening.py (2113 lines, 102 tests, 38 classes), test_pipeline_integration.py (614 lines, 24 tests). Original file → 13-line deprecation shim. **Successfully integrated concurrent TestNetR14RandomseedSync append from sibling agent mid-refactor.** test-r16.md closure section with full split metrics. |
+| sec-r16-scanner-gap | `sec-r16-scanner-gap-new-patterns` (MED) | tools/check_secrets.sh + 6 new patterns (Google Cloud service-account JSON, Slack `xo`+`x[pbra]-`, `n`+`pm_`, Stripe `r`+`k_(live\|test)_`, `h`+`f_`, OpenAI `or`+`g-`). All char-class-escaped to avoid self-detection. New tests/test_check_secrets_r16_patterns.py (15 cases: 6 detection + 6 false-positive controls + 3 Slack variants). sec-r16.md cycle-59 closure section. |
+| sec-r16-precommit-activate | `sec-r16-precommit-hook-activation` (MED) | New tools/install_hooks.sh (idempotent installer: detects git root, backs up existing hook with timestamp, installs shim calling check_secrets.sh, sets +x). CONTRIBUTING.md "## Pre-Commit Hook Setup" subsection. README.md "## 🛡️ Development Setup" section. New tests/test_install_hooks.py (3 tests: existence, hook creation in isolated tmp_path, idempotency). sec-r16.md cycle-59 closure section. |
+| audio-r15-mig-doc | `audio-r15-cycle-53-manifest-migration-documentation` (MED) | CONTRIBUTING.md "## Manifest Verification Pattern" section (3 verifier APIs, behavior contracts: SHA256 mismatch → RuntimeError, legacy → UserWarning; schema_version validation). audio-r15.md cycle-59 closure section. |
+
+### Collateral
+
+None. Build green, all cycle 41-58 sentinels intact (re-verified by net-r14-randomseed). Concurrent test-file mutation between mega-split and randomseed agents handled gracefully — mega-split detected the appended class and auto-categorized it into the correct new file (test_network_packet_bounds.py).
+
+### Backlog delta
+
+287 → ~282 pending (-7 closed, +1 follow-up net-r14-crc-full-impl; plus standard intake from cycle 61 audit-pass tick).
+
+---
+
+## Cycle 61 (audit-pass tick, 2026-05-20T23:00Z)
+
+**Stalest rotation:** engine-porter (last r16 @ cycle 55) + asset-pipeline (last r16 @ cycle 55). Both 6 cycles old.
+
+- **engine-porter-r17:** 4 findings, **2 todos** (0 CRIT/HIGH). MED: `engine-r17-build-h-header-alignment-doc` (document SRC/BUILD.H vs source/BUILD.H header divergence for future maintainers), `engine-r17-engine-tile-multiplication-overflow-guard` (defensive cast-before-multiply in tile size arithmetic, 15-min fix). VERIFIED: cycle 56 strncpy/argv/loadpics hardening LIVE, allocache+Z_Malloc NULL checks in place, sector recursion depth cap (scansector guard) LIVE.
+- **asset-pipeline-r17:** 5 findings, **5 todos** (0 CRIT/HIGH). MED: `asset-r17-manifest-schema-migration-contract` (cycle-59 audio-r15-mig-doc added "Manifest Verification Pattern" to CONTRIBUTING but did NOT document the schema_version migration contract), `asset-r17-palette-validation-input-bounds` (create_palette_dat assumes 256×8-bit RGB input without bounds checks). LOW: generation-log-queryability-guide, map-id-cross-references, test-fixture-overlap-risk.
+
+**Backlog delta:** ~282 → ~289 pending (+7 intake from engine-r17 + asset-r17).

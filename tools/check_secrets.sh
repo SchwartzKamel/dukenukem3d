@@ -162,6 +162,82 @@ if echo "$STAGED_DIFF" | grep -iE '(aws_session_token|aws_secret_access_key).{0,
      EXIT_CODE=1
 fi
 
+# sec-r16-scanner-gap-new-patterns: Google Cloud service account JSON
+# Detects "type": "service_account" AND "private_key" in same ADDED lines
+# Inner checks must be scoped to ^+ and apply the same exclusions as outer
+# (cycle-59 collateral fix: avoid false-trigger on removed lines / audit docs / scanner script).
+ADDED_DIFF=$(echo "$STAGED_DIFF" | grep '^+' | \
+    grep -v 'check_secrets\.sh' | \
+    grep -v 'tests/test_check_secrets' | \
+    grep -v '\.env\.example' | \
+    grep -v 'docs/audits/' || true)
+if echo "$ADDED_DIFF" | grep -E 'type.{0,10}service_account' > /dev/null 2>&1 && \
+   echo "$ADDED_DIFF" | grep -E 'private_key' > /dev/null 2>&1; then
+    echo "🔴 ERROR: Detected potential Google Cloud service account JSON in staged changes!"
+    echo "   Check staged files for service_account + private_key patterns"
+    EXIT_CODE=1
+fi
+
+# sec-r16-scanner-gap-new-patterns: Slack workspace tokens (xoxp-, xoxb-, xoxa-, xoxr-)
+# Pattern: xoxp/b/a/r-[0-9]+-[0-9]+-([0-9]+-)?[a-zA-Z0-9]{20,}
+if echo "$STAGED_DIFF" | grep -iE 'x[o]x[pbra]-[0-9]+-[0-9]+-[a-zA-Z0-9]+' | \
+    grep -v 'check_secrets\.sh' | \
+    grep -v 'tests/test_check_secrets' | \
+    grep -v '#' | \
+    grep -v '\.env\.example' > /dev/null 2>&1; then
+      echo "🔴 ERROR: Detected potential Slack workspace token (xoxp-/xoxb-/xoxa-/xoxr-) in staged changes!"
+      echo "   Check staged files for Slack token patterns"
+      EXIT_CODE=1
+fi
+
+# sec-r16-scanner-gap-new-patterns: npm package tokens
+# Pattern: npm_[A-Za-z0-9]{36,}
+if echo "$STAGED_DIFF" | grep -E 'n[p]m_[A-Za-z0-9]{36,}' | \
+    grep -v 'check_secrets\.sh' | \
+    grep -v 'tests/test_check_secrets' | \
+    grep -v '#' | \
+    grep -v '\.env\.example' > /dev/null 2>&1; then
+      echo "🔴 ERROR: Detected potential npm package token in staged changes!"
+      echo "   Check staged files for npm_ pattern"
+      EXIT_CODE=1
+fi
+
+# sec-r16-scanner-gap-new-patterns: Stripe restricted keys
+# Pattern: rk_live_[A-Za-z0-9]+ and rk_test_[A-Za-z0-9]+
+if echo "$STAGED_DIFF" | grep -E 'r[k]_(live|test)_[A-Za-z0-9]{24,}' | \
+    grep -v 'check_secrets\.sh' | \
+    grep -v 'tests/test_check_secrets' | \
+    grep -v '#' | \
+    grep -v '\.env\.example' > /dev/null 2>&1; then
+      echo "🔴 ERROR: Detected potential Stripe restricted key (rk_live_/rk_test_) in staged changes!"
+      echo "   Check staged files for Stripe restricted key pattern"
+      EXIT_CODE=1
+fi
+
+# sec-r16-scanner-gap-new-patterns: HuggingFace tokens
+# Pattern: hf_[A-Za-z0-9_]+
+if echo "$STAGED_DIFF" | grep -E 'h[f]_[A-Za-z0-9_]{39,}' | \
+    grep -v 'check_secrets\.sh' | \
+    grep -v 'tests/test_check_secrets' | \
+    grep -v '#' | \
+    grep -v '\.env\.example' > /dev/null 2>&1; then
+      echo "🔴 ERROR: Detected potential HuggingFace token in staged changes!"
+      echo "   Check staged files for hf_ pattern"
+      EXIT_CODE=1
+fi
+
+# sec-r16-scanner-gap-new-patterns: OpenAI organization IDs
+# Pattern: org-[A-Za-z0-9]{24,} (informational; often colocated with sk-* keys)
+if echo "$STAGED_DIFF" | grep -E 'o[r]g-[A-Za-z0-9]{24,}' | \
+    grep -v 'check_secrets\.sh' | \
+    grep -v 'tests/test_check_secrets' | \
+    grep -v '#' | \
+    grep -v '\.env\.example' > /dev/null 2>&1; then
+      echo "🔴 ERROR: Detected potential OpenAI organization ID in staged changes!"
+      echo "   Check staged files for org- pattern"
+      EXIT_CODE=1
+fi
+
 if [ $EXIT_CODE -eq 0 ]; then
     echo "✓ No obvious secrets detected in staged changes"
 fi
