@@ -202,7 +202,10 @@ void checkavailweapon( struct player_struct *p )
     if( p->gotweapon[weap] && p->ammo_amount[weap] > 0 )
         return;
 
-    snum = sprite[p->i].yvel;
+    snum = player_from_yvel(sprite[p->i].yvel);
+
+    if (snum < 0)
+        return;
 
     for(i=0;i<10;i++)
     {
@@ -1125,9 +1128,13 @@ void movedummyplayers(void)
     {
         nexti = nextspritestat[i];
 
-        p = sprite[OW].yvel;
+        p = player_from_yvel(sprite[OW].yvel);
 
-        if( ps[p].on_crane >= 0 || sector[ps[p].cursectnum].lotag != 1 || sprite[ps[p].i].extra <= 0 )
+        if (p < 0)
+        {
+            KILLIT(i);
+        }
+        else if( ps[p].on_crane >= 0 || sector[ps[p].cursectnum].lotag != 1 || sprite[ps[p].i].extra <= 0 )
         {
             ps[p].dummyplayersprite = -1;
             KILLIT(i);
@@ -2618,26 +2625,29 @@ void moveweapons(void)
 
                         if(sprite[j].picnum == APLAYER)
                         {
-                            p = sprite[j].yvel;
-                            spritesound(PISTOL_BODYHIT,j);
-
-                            if(s->picnum == SPIT)
+                            p = player_from_yvel(sprite[j].yvel);
+                            if(p >= 0)
                             {
-                                ps[p].horiz += 32;
-                                ps[p].return_to_center = 8;
+                                spritesound(PISTOL_BODYHIT,j);
 
-                                if(ps[p].loogcnt == 0)
+                                if(s->picnum == SPIT)
                                 {
-                                    if(Sound[DUKE_LONGTERM_PAIN].num < 1)
-                                        spritesound(DUKE_LONGTERM_PAIN,ps[p].i);
+                                    ps[p].horiz += 32;
+                                    ps[p].return_to_center = 8;
 
-                                    j = 3+(TRAND&3);
-                                    ps[p].numloogs = j;
-                                    ps[p].loogcnt = 24*4;
-                                    for(x=0;x < j;x++)
+                                    if(ps[p].loogcnt == 0)
                                     {
-                                        ps[p].loogiex[x] = TRAND%xdim;
-                                        ps[p].loogiey[x] = TRAND%ydim;
+                                        if(Sound[DUKE_LONGTERM_PAIN].num < 1)
+                                            spritesound(DUKE_LONGTERM_PAIN,ps[p].i);
+
+                                        j = 3+(TRAND&3);
+                                        ps[p].numloogs = j;
+                                        ps[p].loogcnt = 24*4;
+                                        for(x=0;x < j;x++)
+                                        {
+                                            ps[p].loogiex[x] = TRAND%xdim;
+                                            ps[p].loogiey[x] = TRAND%ydim;
+                                        }
                                     }
                                 }
                             }
@@ -2818,11 +2828,12 @@ void movetransports(void)
 
                     if( sprite[j].owner != -1 )
                     {
-                        p = sprite[j].yvel;
+                        p = player_from_yvel(sprite[j].yvel);
+                        if(p >= 0)
+                        {
+                            ps[p].on_warping_sector = 1;
 
-                        ps[p].on_warping_sector = 1;
-
-                        if( ps[p].transporter_hold == 0 && ps[p].jumping_counter == 0 )
+                            if( ps[p].transporter_hold == 0 && ps[p].jumping_counter == 0 )
                         {
                             if(ps[p].on_ground && sectlotag == 0 && onfloorz && ps[p].jetpack_on == 0 )
                             {
@@ -2950,6 +2961,7 @@ void movetransports(void)
                                 q = spawn(ps[p].i,WATERBUBBLE);
                                 sprite[q].z += TRAND&16383;
                             }
+                        }
                         }
                     }
                     break;
@@ -4052,7 +4064,7 @@ void moveactors(void)
                 }
 
                 if(sprite[s->owner].picnum == APLAYER)
-                    l = sprite[s->owner].yvel;
+                    l = player_from_yvel(sprite[s->owner].yvel);
                 else l = -1;
 
                 if(s->xvel > 0)
@@ -4433,14 +4445,19 @@ void moveexplosions(void)  // STATNUM 5
 
                 if(t[0])
                 {
+                    long pnum;
+
                     t[0]++;
                     if(t[0] == 8) s->picnum = NUKEBUTTON+1;
                     else if(t[0] == 16)
                     {
                         s->picnum = NUKEBUTTON+2;
-                        ps[sprite[s->owner].yvel].fist_incs = 1;
+                        pnum = player_from_yvel(sprite[s->owner].yvel);
+                        if (pnum >= 0)
+                            ps[pnum].fist_incs = 1;
                     }
-                    if( ps[sprite[s->owner].yvel].fist_incs == 26 )
+                    pnum = player_from_yvel(sprite[s->owner].yvel);
+                    if (pnum >= 0 && ps[pnum].fist_incs == 26 )
                         s->picnum = NUKEBUTTON+3;
                 }
                 goto BOLT;
@@ -6130,14 +6147,17 @@ void moveeffectors(void)   //STATNUM 3
                 {
                     if(sprite[j].statnum == 10 && sprite[j].owner >= 0)
                     {
-                        p = sprite[j].yvel;
-                        if(numplayers < 2)
-                            ps[p].oposz = ps[p].posz;
-                        ps[p].posz += q;
-                        ps[p].truefz += q;
-                        ps[p].truecz += q;
-                        if(numplayers > 1)
-                            ps[p].oposz = ps[p].posz;
+                        p = player_from_yvel(sprite[j].yvel);
+                        if(p >= 0)
+                        {
+                            if(numplayers < 2)
+                                ps[p].oposz = ps[p].posz;
+                            ps[p].posz += q;
+                            ps[p].truefz += q;
+                            ps[p].truecz += q;
+                            if(numplayers > 1)
+                                ps[p].oposz = ps[p].posz;
+                        }
                     }
                     if( sprite[j].statnum != 3 )
                     {
@@ -6189,25 +6209,27 @@ void moveeffectors(void)   //STATNUM 3
 
                         if(sprite[k].statnum == 10 && sprite[k].owner >= 0)
                         {
-                            p = sprite[k].yvel;
+                            p = player_from_yvel(sprite[k].yvel);
+                            if(p >= 0)
+                            {
+                                ps[p].posx += sprite[j].x-s->x;
+                                ps[p].posy += sprite[j].y-s->y;
+                                ps[p].posz = sector[sprite[j].sectnum].floorz-(sc->floorz-ps[p].posz);
 
-                            ps[p].posx += sprite[j].x-s->x;
-                            ps[p].posy += sprite[j].y-s->y;
-                            ps[p].posz = sector[sprite[j].sectnum].floorz-(sc->floorz-ps[p].posz);
+                                hittype[k].floorz = sector[sprite[j].sectnum].floorz;
+                                hittype[k].ceilingz = sector[sprite[j].sectnum].ceilingz;
 
-                            hittype[k].floorz = sector[sprite[j].sectnum].floorz;
-                            hittype[k].ceilingz = sector[sprite[j].sectnum].ceilingz;
+                                ps[p].bobposx = ps[p].oposx = ps[p].posx;
+                                ps[p].bobposy = ps[p].oposy = ps[p].posy;
+                                ps[p].oposz = ps[p].posz;
 
-                            ps[p].bobposx = ps[p].oposx = ps[p].posx;
-                            ps[p].bobposy = ps[p].oposy = ps[p].posy;
-                            ps[p].oposz = ps[p].posz;
+                                ps[p].truefz = hittype[k].floorz;
+                                ps[p].truecz = hittype[k].ceilingz;
+                                ps[p].bobcounter = 0;
 
-                            ps[p].truefz = hittype[k].floorz;
-                            ps[p].truecz = hittype[k].ceilingz;
-                            ps[p].bobcounter = 0;
-
-                            changespritesect(k,sprite[j].sectnum);
-                            ps[p].cursectnum = sprite[j].sectnum;
+                                changespritesect(k,sprite[j].sectnum);
+                                ps[p].cursectnum = sprite[j].sectnum;
+                            }
                         }
                         else if( sprite[k].statnum != 3 )
                         {
@@ -6255,8 +6277,11 @@ void moveeffectors(void)   //STATNUM 3
                                 while(j >= 0)
                                 {
                                     if(sprite[j].picnum == APLAYER && sprite[j].owner >= 0)
-                                        if( ps[sprite[j].yvel].on_ground == 1 )
-                                            ps[sprite[j].yvel].posz += sc->extra;
+                                    {
+                                        long pnum = player_from_yvel(sprite[j].yvel);
+                                        if (pnum >= 0 && ps[pnum].on_ground == 1 )
+                                            ps[pnum].posz += sc->extra;
+                                    }
                                     if( sprite[j].zvel == 0 && sprite[j].statnum != 3 && sprite[j].statnum != 4)
                                     {
                                         hittype[j].bposz = sprite[j].z += sc->extra;
@@ -6289,8 +6314,11 @@ void moveeffectors(void)   //STATNUM 3
                                 while(j >= 0)
                                 {
                                     if(sprite[j].picnum == APLAYER && sprite[j].owner >= 0)
-                                        if( ps[sprite[j].yvel].on_ground == 1 )
-                                            ps[sprite[j].yvel].posz -= sc->extra;
+                                    {
+                                        long pnum = player_from_yvel(sprite[j].yvel);
+                                        if (pnum >= 0 && ps[pnum].on_ground == 1 )
+                                            ps[pnum].posz -= sc->extra;
+                                    }
                                     if( sprite[j].zvel == 0 && sprite[j].statnum != 3 && sprite[j].statnum != 4)
                                     {
                                         hittype[j].bposz = sprite[j].z -= sc->extra;
@@ -6885,8 +6913,11 @@ void moveeffectors(void)   //STATNUM 3
                                 while(j >= 0)
                                 {
                                     if(sprite[j].picnum == APLAYER && sprite[j].owner >= 0)
-                                        if( ps[sprite[j].yvel].on_ground == 1 )
-                                            ps[sprite[j].yvel].posz += l;
+                                    {
+                                        long pnum = player_from_yvel(sprite[j].yvel);
+                                        if (pnum >= 0 && ps[pnum].on_ground == 1 )
+                                            ps[pnum].posz += l;
+                                    }
                                     if( sprite[j].zvel == 0 && sprite[j].statnum != 3 && sprite[j].statnum != 4)
                                     {
                                         hittype[j].bposz = sprite[j].z += l;
@@ -6915,8 +6946,11 @@ void moveeffectors(void)   //STATNUM 3
                                 while(j >= 0)
                                 {
                                     if(sprite[j].picnum == APLAYER && sprite[j].owner >= 0)
-                                        if( ps[sprite[j].yvel].on_ground == 1 )
-                                            ps[sprite[j].yvel].posz += l;
+                                    {
+                                        long pnum = player_from_yvel(sprite[j].yvel);
+                                        if (pnum >= 0 && ps[pnum].on_ground == 1 )
+                                            ps[pnum].posz += l;
+                                    }
                                     if( sprite[j].zvel == 0 && sprite[j].statnum != 3 && sprite[j].statnum != 4 )
                                     {
                                         hittype[j].bposz = sprite[j].z += l;
@@ -6947,8 +6981,11 @@ void moveeffectors(void)   //STATNUM 3
                             while(j >= 0)
                             {
                                 if(sprite[j].picnum == APLAYER && sprite[j].owner >= 0)
-                                    if( ps[sprite[j].yvel].on_ground == 1 )
-                                        ps[sprite[j].yvel].posz += l;
+                                {
+                                    long pnum = player_from_yvel(sprite[j].yvel);
+                                    if (pnum >= 0 && ps[pnum].on_ground == 1 )
+                                        ps[pnum].posz += l;
+                                }
                                 if( sprite[j].zvel == 0 && sprite[j].statnum != 3 && sprite[j].statnum != 4 )
                                 {
                                     hittype[j].bposz = sprite[j].z += l;
@@ -6976,8 +7013,11 @@ void moveeffectors(void)   //STATNUM 3
                             while(j >= 0)
                             {
                                 if(sprite[j].picnum == APLAYER && sprite[j].owner >= 0)
-                                    if( ps[sprite[j].yvel].on_ground == 1 )
-                                        ps[sprite[j].yvel].posz -= l;
+                                {
+                                    long pnum = player_from_yvel(sprite[j].yvel);
+                                    if (pnum >= 0 && ps[pnum].on_ground == 1 )
+                                        ps[pnum].posz -= l;
+                                }
                                 if(sprite[j].zvel == 0 && sprite[j].statnum != 3 && sprite[j].statnum != 4 )
                                 {
                                     hittype[j].bposz = sprite[j].z -= l;

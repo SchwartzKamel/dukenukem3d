@@ -88,7 +88,11 @@ Prepared for public release: 03/21/2003 - Charlie Wiederhold, 3D Realms
 #define NUM_SOUNDS 450
 
 /* sgn: replaced Watcom #pragma aux with C function */
-static inline int sgn(int x) { return (x > 0) - (x < 0); }\
+static inline int sgn(int x) { return (x > 0) - (x < 0); }
+
+/* Validate player index from sprite[].yvel before using as ps[] index.
+   Returns valid index [0,MAXPLAYERS) or -1 if out of bounds. */
+#define player_from_yvel(yv) ( (yv) < 0 || (yv) >= MAXPLAYERS ? -1 : (yv) )
 
 #define    ALT_IS_PRESSED ( KB_KeyPressed( sc_RightAlt ) || KB_KeyPressed( sc_LeftAlt ) )
 #define    SHIFTS_IS_PRESSED ( KB_KeyPressed( sc_RightShift ) || KB_KeyPressed( sc_LeftShift ) )
