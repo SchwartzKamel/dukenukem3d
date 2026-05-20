@@ -550,6 +550,17 @@ void getpackets(void)
 
                 if (SoundToggle == 0 || ud.lockout == 1 || FXDevice == NumSoundCards)
                     break;
+
+                /*
+                   Validate RTS sound ID against arbitrary values from untrusted
+                   multiplayer packets. The sound ID is decremented before passing
+                   to RTS_GetSound, then incremented back. Valid range is [1, numlumps)
+                   but we use MAX_RTS_SOUNDS as a conservative cap to defend against
+                   hostile packets.
+                */
+                if (packbuf[1] < 1 || packbuf[1] >= MAX_RTS_SOUNDS)
+                    break;
+
                 rtsptr = (char *)RTS_GetSound(packbuf[1]-1);
                 if (*rtsptr == 'C')
                     FX_PlayVOC3D(rtsptr,0,0,0,255,-packbuf[1]);

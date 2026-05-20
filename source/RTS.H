@@ -34,6 +34,12 @@ Prepared for public release: 03/21/2003 - Charlie Wiederhold, 3D Realms
 #define __rts_public__
 
 /*
+   Conservative upper bound for RTS sound IDs to protect against
+   hostile multiplayer packets. Actual valid range is [1, numlumps].
+*/
+#define MAX_RTS_SOUNDS 256
+
+/*
 ====================
 =
 = RTS_Init
