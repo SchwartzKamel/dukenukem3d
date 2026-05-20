@@ -2,13 +2,16 @@
 """Generate audio assets for Duke3D: Neon Noir using GPT Audio 1.5."""
 
 import argparse
+import asyncio
 import base64
+import concurrent.futures
 import json
 import os
 import struct
 import sys
 import time
 
+import aiohttp
 import requests
 
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -279,7 +282,7 @@ def generate_silence_wav(duration_sec, sample_rate=22050, bits=16):
 
 
 def generate_audio(prompt, voice, endpoint, api_key, model):
-    """Call GPT Audio 1.5 to generate a WAV file."""
+    """Call GPT Audio 1.5 to generate a WAV file (synchronous, for compatibility)."""
     url = (
         f"{endpoint.rstrip('/')}/openai/deployments/{model}"
         f"/chat/completions?api-version=2025-01-01-preview"
@@ -312,12 +315,57 @@ def generate_audio(prompt, voice, endpoint, api_key, model):
         return None
 
 
+async def generate_audio_async(session, prompt, voice, endpoint, api_key, model):
+    """Call GPT Audio 1.5 to generate a WAV file (async, for concurrent requests)."""
+    url = (
+        f"{endpoint.rstrip('/')}/openai/deployments/{model}"
+        f"/chat/completions?api-version=2025-01-01-preview"
+    )
+
+    headers = {
+        "api-key": api_key,
+        "Content-Type": "application/json",
+    }
+
+    payload = {
+        "model": model,
+        "modalities": ["text", "audio"],
+        "audio": {"voice": voice, "format": "wav"},
+        "messages": [{"role": "user", "content": prompt}],
+        "max_tokens": 500,
+    }
+
+    try:
+        async with session.post(url, json=payload, headers=headers, timeout=60) as resp:
+            if resp.status != 200:
+                text = await resp.text()
+                return None, f"API error {resp.status}: {text[:200]}"
+
+            result = await resp.json()
+            audio_b64 = result["choices"][0]["message"]["audio"]["data"]
+            return base64.b64decode(audio_b64), None
+    except Exception as e:
+        return None, f"Failed: {e}"
+
+
 def main():
     parser = argparse.ArgumentParser(description="Generate audio assets for Duke3D")
     parser.add_argument(
         "--no-ai",
         action="store_true",
         help="Skip API calls (generate silence placeholders)",
+    )
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=4,
+        help="Number of parallel workers (default: 4)",
+    )
+    parser.add_argument(
+        "--concurrency",
+        type=int,
+        default=4,
+        help="Max concurrent API requests for async mode (default: 4, Azure limit ~8)",
     )
     args = parser.parse_args()
 
@@ -332,41 +380,112 @@ def main():
     print("=== Generating Audio Assets ===")
     if use_ai:
         print(f"  Using: {model} at {endpoint[:50]}...")
+        print(f"  Max concurrent requests: {args.concurrency}")
     else:
-        print("  Mode: placeholder silence (set AUDIO_* in .env for AI generation)")
+        print(f"  Mode: placeholder silence (set AUDIO_* in .env for AI generation)")
+        print(f"  Workers: {args.workers}")
 
+    start_time = time.time()
     generated = []
-    for filename, prompt, voice in VOICE_LINES:
-        print(f"  {filename}: {prompt[:60]}...")
 
-        wav_data = None
-        if use_ai:
-            wav_data = generate_audio(prompt, voice, endpoint, api_key, model)
-            if wav_data:
-                print(f"    [AI] OK ({len(wav_data)} bytes)")
-            time.sleep(0.5)
+    if use_ai:
+        # API path: use async with semaphore for rate limiting
+        generated = _generate_audio_parallel_api(
+            args.concurrency, endpoint, api_key, model
+        )
+    else:
+        # Local WAV synthesis path: use ThreadPoolExecutor
+        generated = _generate_audio_parallel_local(args.workers)
 
-        if wav_data is None:
-            wav_data = generate_silence_wav(0.5)
-            if not use_ai:
-                print(f"    [Silence placeholder] OK")
-            else:
-                print(f"    [Fallback: silence] OK")
+    elapsed = time.time() - start_time
 
-        out_path = os.path.join(OUTPUT_DIR, filename)
-        with open(out_path, "wb") as f:
-            f.write(wav_data)
-        generated.append(filename)
-
-    # Write the sound-ID manifest
+    # Write manifest (sorted for determinism)
     manifest_path = os.path.join(OUTPUT_DIR, "MANIFEST.json")
     with open(manifest_path, "w") as f:
-        json.dump(SOUND_MANIFEST, f, indent=2)
+        json.dump(SOUND_MANIFEST, f, indent=2, sort_keys=True)
     print(f"\n=== Manifest written to {manifest_path} ===")
 
-    print(f"=== Done! Generated {len(generated)} audio files ===")
+    print(f"=== Done! Generated {len(generated)} audio files in {elapsed:.2f}s ===")
     print(f"  Output: {OUTPUT_DIR}/")
     return 0
+
+
+def _generate_audio_parallel_local(workers):
+    """Generate silence WAVs using ThreadPoolExecutor (GIL-releasing struct packing)."""
+    generated = []
+
+    def process_voice_line(item):
+        idx, (filename, prompt, voice) = item
+        wav_data = generate_silence_wav(0.5)
+        return idx, filename, wav_data
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:
+        futures = []
+        for idx, (filename, prompt, voice) in enumerate(VOICE_LINES):
+            print(f"  {filename}: {prompt[:60]}...")
+            future = executor.submit(process_voice_line, (idx, (filename, prompt, voice)))
+            futures.append(future)
+
+        # Collect results in order
+        results = [None] * len(VOICE_LINES)
+        for future in concurrent.futures.as_completed(futures):
+            idx, filename, wav_data = future.result()
+            out_path = os.path.join(OUTPUT_DIR, filename)
+            with open(out_path, "wb") as f:
+                f.write(wav_data)
+            results[idx] = filename
+            print(f"    [Silence placeholder] OK")
+
+        generated = [f for f in results if f is not None]
+
+    return generated
+
+
+def _generate_audio_parallel_api(concurrency, endpoint, api_key, model):
+    """Generate audio via API using asyncio + aiohttp with semaphore."""
+    return asyncio.run(
+        _generate_audio_async_main(concurrency, endpoint, api_key, model)
+    )
+
+
+async def _generate_audio_async_main(concurrency, endpoint, api_key, model):
+    """Async generator for API calls with rate limiting."""
+    semaphore = asyncio.Semaphore(concurrency)
+    generated = [None] * len(VOICE_LINES)
+
+    async def bounded_generate(session, idx, filename, prompt, voice):
+        async with semaphore:
+            wav_data, error = await generate_audio_async(
+                session, prompt, voice, endpoint, api_key, model
+            )
+            return idx, filename, wav_data, error
+
+    connector = aiohttp.TCPConnector(limit=concurrency)
+    timeout = aiohttp.ClientTimeout(total=60)
+    async with aiohttp.ClientSession(connector=connector, timeout=timeout) as session:
+        tasks = []
+        for idx, (filename, prompt, voice) in enumerate(VOICE_LINES):
+            print(f"  {filename}: {prompt[:60]}...")
+            task = bounded_generate(session, idx, filename, prompt, voice)
+            tasks.append(task)
+
+        # Collect results
+        results = await asyncio.gather(*tasks)
+        for idx, filename, wav_data, error in results:
+            if wav_data is None:
+                wav_data = generate_silence_wav(0.5)
+                if error:
+                    print(f"    [!] {error}")
+                print(f"    [Fallback: silence] OK")
+            else:
+                print(f"    [AI] OK ({len(wav_data)} bytes)")
+
+            out_path = os.path.join(OUTPUT_DIR, filename)
+            with open(out_path, "wb") as f:
+                f.write(wav_data)
+            generated[idx] = filename
+
+    return [f for f in generated if f is not None]
 
 
 if __name__ == "__main__":

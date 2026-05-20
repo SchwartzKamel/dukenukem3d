@@ -27,7 +27,9 @@ def create_grp(files_dict):
     directory = b""
     all_data = b""
 
-    for filename, data in files_dict.items():
+    # Sort files for deterministic output
+    for filename in sorted(files_dict.keys()):
+        data = files_dict[filename]
         name = filename.upper().encode("ascii")
         if len(name) > 12:
             raise ValueError(f"Filename too long (max 12 chars): {filename}")

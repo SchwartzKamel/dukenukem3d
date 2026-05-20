@@ -12,6 +12,7 @@ import argparse
 import base64
 import io
 import math
+import multiprocessing
 import os
 import random
 import shutil
@@ -624,6 +625,59 @@ def proc_sprite_placeholder(w, h, label, seed):
     points2 = [(cx, cy - r2), (cx + r2, cy), (cx, cy + r2), (cx - r2, cy)]
     draw.polygon(points2, fill=inner_col)
     return img
+
+
+# ---------------------------------------------------------------------------
+# Worker functions for multiprocessing texture generation
+# ---------------------------------------------------------------------------
+
+def _generate_texture_worker(task):
+    """Worker function to generate a single texture (procedural, --no-ai path).
+    
+    task: (tile_num, width, height, description, palette_obj)
+    Returns: (tile_num, (width, height, picanm, column_major_pixels))
+    """
+    tile_num, tw, th, desc, palette = task
+    
+    # Use only procedural generation (no AI in worker)
+    if tile_num in PROCEDURAL_MAP:
+        img = PROCEDURAL_MAP[tile_num](tw, th)
+    elif tile_num in GENERIC_COLORS:
+        img = proc_generic(tw, th, GENERIC_COLORS[tile_num], 100 + tile_num)
+    else:
+        img = proc_generic(tw, th, (128, 128, 128), 100 + tile_num)
+    
+    indexed = quantize_image(img, palette)
+    col_major = rgb_to_column_major(indexed, tw, th)
+    return (tile_num, (tw, th, 0, col_major))
+
+
+def _generate_sprite_worker(task):
+    """Worker function to generate a single sprite placeholder.
+    
+    task: (tile_num, width, height, description, palette_obj)
+    Returns: (tile_num, (width, height, picanm, column_major_pixels))
+    """
+    tile_num, tw, th, desc, palette = task
+    
+    img = proc_sprite_placeholder(tw, th, desc, 200 + tile_num)
+    indexed = quantize_image(img, palette)
+    col_major = rgb_to_column_major(indexed, tw, th)
+    return (tile_num, (tw, th, 0, col_major))
+
+
+def _generate_font_tile_worker(task):
+    """Worker function to generate a single font tile.
+    
+    task: (tile_num, char_code, palette_obj)
+    Returns: (tile_num, (width, height, picanm, column_major_pixels))
+    """
+    tile_num, char_code, palette = task
+    
+    img = _render_font_tile(char_code, 8, 8)
+    indexed = quantize_image(img, palette)
+    col_major = rgb_to_column_major(indexed, 8, 8)
+    return (tile_num, (8, 8, 0, col_major))
 
 
 PROCEDURAL_MAP = {
@@ -1682,44 +1736,89 @@ def main():
     # tiles dict: tile_num -> (width, height, picanm, column_major_pixels)
     tiles = {}
 
-    for tile_num, tw, th, desc, prompt in TEXTURE_DEFS:
-        print(f"  Tile {tile_num:3d} ({tw}x{th}) {desc}")
-        img = None
+    # For --no-ai path, parallelize texture generation using multiprocessing
+    if not use_ai:
+        # Determine worker count
+        cpu_count = os.cpu_count() or 4
+        worker_count = min(8, cpu_count)
+        
+        # Prepare tasks for TEXTURE_DEFS
+        texture_tasks = [
+            (tile_num, tw, th, desc, palette)
+            for tile_num, tw, th, desc, prompt in TEXTURE_DEFS
+        ]
+        
+        print(f"  Using {worker_count} workers for texture generation")
+        with multiprocessing.Pool(worker_count) as pool:
+            results = pool.imap_unordered(_generate_texture_worker, texture_tasks)
+            # Collect results and sort by tile_num for determinism
+            for tile_num, tile_data in sorted(results, key=lambda x: x[0]):
+                tiles[tile_num] = tile_data
+                print(f"  Tile {tile_num:3d} [Procedural] OK")
+        
+        # Prepare tasks for SPRITE_DEFS
+        sprite_tasks = [
+            (tile_num, tw, th, desc, palette)
+            for tile_num, tw, th, desc in SPRITE_DEFS
+        ]
+        
+        with multiprocessing.Pool(worker_count) as pool:
+            results = pool.imap_unordered(_generate_sprite_worker, sprite_tasks)
+            for tile_num, tile_data in sorted(results, key=lambda x: x[0]):
+                tiles[tile_num] = tile_data
+                print(f"  Tile {tile_num:3d} [Sprite] OK")
+        
+        # Prepare tasks for font tiles
+        font_tasks = [
+            (2048 + i, i, palette)
+            for i in range(128)
+        ]
+        
+        print("  Generating font tiles 2048-2175")
+        with multiprocessing.Pool(worker_count) as pool:
+            results = pool.imap_unordered(_generate_font_tile_worker, font_tasks)
+            for tile_num, tile_data in sorted(results, key=lambda x: x[0]):
+                tiles[tile_num] = tile_data
+    else:
+        # Sequential generation for --ai path (with AI, then procedural fallback)
+        for tile_num, tw, th, desc, prompt in TEXTURE_DEFS:
+            print(f"  Tile {tile_num:3d} ({tw}x{th}) {desc}")
+            img = None
 
-        if use_ai:
-            img = generate_texture_ai(prompt, tw, th, flux_endpoint, flux_api_key, flux_model)
-            if img:
-                print(f"    [AI] OK")
+            if use_ai:
+                img = generate_texture_ai(prompt, tw, th, flux_endpoint, flux_api_key, flux_model)
+                if img:
+                    print(f"    [AI] OK")
 
-        if img is None:
-            if tile_num in PROCEDURAL_MAP:
-                img = PROCEDURAL_MAP[tile_num](tw, th)
-            elif tile_num in GENERIC_COLORS:
-                img = proc_generic(tw, th, GENERIC_COLORS[tile_num], 100 + tile_num)
-            else:
-                img = proc_generic(tw, th, (128, 128, 128), 100 + tile_num)
-            print(f"    [Procedural] OK")
+            if img is None:
+                if tile_num in PROCEDURAL_MAP:
+                    img = PROCEDURAL_MAP[tile_num](tw, th)
+                elif tile_num in GENERIC_COLORS:
+                    img = proc_generic(tw, th, GENERIC_COLORS[tile_num], 100 + tile_num)
+                else:
+                    img = proc_generic(tw, th, (128, 128, 128), 100 + tile_num)
+                print(f"    [Procedural] OK")
 
-        indexed = quantize_image(img, palette)
-        col_major = rgb_to_column_major(indexed, tw, th)
-        tiles[tile_num] = (tw, th, 0, col_major)
+            indexed = quantize_image(img, palette)
+            col_major = rgb_to_column_major(indexed, tw, th)
+            tiles[tile_num] = (tw, th, 0, col_major)
 
-    # Sprite placeholders
-    for tile_num, tw, th, desc in SPRITE_DEFS:
-        print(f"  Tile {tile_num:3d} ({tw}x{th}) {desc}")
-        img = proc_sprite_placeholder(tw, th, desc, 200 + tile_num)
-        indexed = quantize_image(img, palette)
-        col_major = rgb_to_column_major(indexed, tw, th)
-        tiles[tile_num] = (tw, th, 0, col_major)
+        # Sprite placeholders
+        for tile_num, tw, th, desc in SPRITE_DEFS:
+            print(f"  Tile {tile_num:3d} ({tw}x{th}) {desc}")
+            img = proc_sprite_placeholder(tw, th, desc, 200 + tile_num)
+            indexed = quantize_image(img, palette)
+            col_major = rgb_to_column_major(indexed, tw, th)
+            tiles[tile_num] = (tw, th, 0, col_major)
 
-    # Font characters (tiles 2048-2175 → 128 tiles covering ASCII 0-127)
-    print("  Generating font tiles 2048-2175")
-    for i in range(128):
-        char_code = i  # ASCII 0-127
-        img = _render_font_tile(char_code, 8, 8)
-        indexed = quantize_image(img, palette)
-        col_major = rgb_to_column_major(indexed, 8, 8)
-        tiles[2048 + i] = (8, 8, 0, col_major)
+        # Font characters (tiles 2048-2175 → 128 tiles covering ASCII 0-127)
+        print("  Generating font tiles 2048-2175")
+        for i in range(128):
+            char_code = i  # ASCII 0-127
+            img = _render_font_tile(char_code, 8, 8)
+            indexed = quantize_image(img, palette)
+            col_major = rgb_to_column_major(indexed, 8, 8)
+            tiles[2048 + i] = (8, 8, 0, col_major)
 
     # -- Game-critical tiles from NAMES.H ------------------------------------
     print("\n=== Generating game-critical tiles from NAMES.H ===")
