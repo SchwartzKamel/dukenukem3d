@@ -6,6 +6,13 @@ on:
   pull_request:
     branches: [master]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-linux:
     runs-on: ubuntu-latest
@@ -35,7 +42,7 @@ jobs:
           echo "✅ Linux binary built successfully"
       
       - name: Run tests
-        run: python3 -m pytest tests/ -v --tb=short
+        run: python3 -m pytest tests/ -v --tb=short --runslow
       
       - name: Generate assets
         run: python3 tools/generate_assets.py --no-ai
@@ -161,7 +168,7 @@ jobs:
           pip3 install --break-system-packages -r requirements.txt
       
       - name: Run asset pipeline tests
-        run: python3 -m pytest tests/ -v --tb=short -k "asset or palette or art or grp or map or table"
+        run: python3 -m pytest tests/ -v --tb=short --runslow -k "asset or palette or art or grp or map or table"
       
       - name: Generate assets (procedural)
         run: python3 tools/generate_assets.py --no-ai
