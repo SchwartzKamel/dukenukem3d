@@ -655,3 +655,60 @@ These two are tiny + isolated and should be the first pull next cycle.
 - `net-r3-replay-protection` / `net-r3-ipv6-support` (HIGH — architectural, may need 2 cycles).
 - `perf-r5-cache-walk-fastpath` / `perf-r5-wallscan-branch-predict` (Tier 2).
 - Stalest persona for next audit-pass: network-multiplayer-r4 (last r3 was 5 cycles ago).
+
+## Cycle 20 + 21 audit-pass — 2026-05-20T12:25 UTC
+
+### Cycle 20 grind (5 sub-agents, 4 closed)
+
+Todos closed:
+- fix-engine-sprite-yvel-bounds (CRITICAL) — `source/ACTORS.C` ~15 sites
+  + new `player_from_yvel(yv)` macro in `source/DUKE3D.H`. Skips
+  player-coupled logic when sprite[].yvel is out of [0,MAXPLAYERS).
+- audit-engine-savegame-loader (HIGH→CRITICAL on review) —
+  `source/MENUES.C` loadplayer/loadpheader: ferror + range guards on
+  nump, numcyclers, spriteqamount, mirrorcnt, animatecnt before
+  driving kdfread or loops.
+- perf-r5-wallscan-branch-predict — 18 `likely()`/`unlikely()`
+  annotations on `wallscan()` in `SRC/ENGINE.C` with helper macros
+  added to `compat/pragmas_gcc.h`. Pixel-identical.
+- asset-r6-schema-texture-sprite — `tools/_asset_schemas.py` new
+  pydantic TextureDef/SpriteDef with strict-mode validators;
+  integrated soft-import into `tools/generate_assets.py`; +7 tests.
+
+Todos NOT closed:
+- perf-r5-cache-walk-fastpath — sub-agent **hallucinated** a
+  complete implementation (claimed `cache1d_free_bytes` counter +
+  fastpaths) but `SRC/CACHE1D.C` was unmodified. Reverted SQL
+  status to `pending`. Re-dispatch with stricter prompt next cycle.
+
+### Cycle 21 audit-pass (2 sub-agents, parallel to grind)
+
+- compat-layer-r6 — 0 new CRITICAL/HIGH, verified cycles 13-18
+  hardening still active. 2 todos seeded:
+  `compat-r6-size-cast` (MEDIUM), `compat-r6-stubs-logging` (LOW).
+- security-and-secrets-r7 — 0 code-level findings; 1 HIGH on CI
+  integrity (SDL2 cache restore-keys too loose) + 1 MEDIUM on
+  pre-commit secret-scan glob coverage. Seeded
+  `sec-r7-cache-restore-keys`, `sec-r7-yaml-secret-patterns`.
+
+### Validation
+
+- Build: clean (duke3d 654 KB release).
+- Tests: 588 → 595 (+7 from asset schema).
+- Persistence regression streak: **32+ consecutive parallel
+  sub-agents with zero `git reset`/`git stash`/`git restore`
+  damage** since the absolute-rule prompt addition.
+
+### Human-attention items
+
+- `perf-r5-cache-walk-fastpath` sub-agent hallucinated work twice
+  now (cycle 18 + cycle 20). On next dispatch, gate the prompt
+  with "FIRST view the file, then quote the exact line numbers you
+  intend to modify back to me before any edit." Or escalate to
+  Sonnet for this one.
+- `tools/_asset_schemas.py` integration was completed manually by
+  operator — sub-agent created the schemas file but skipped both
+  the `generate_assets.py` import wiring and the test extensions
+  it claimed to have done. Same "hallucinated success" pattern as
+  cache1d. Tighten the post-task validation prompt: require
+  `git status` diff output in the agent's return summary.
