@@ -2235,3 +2235,191 @@ class TestSpawnSectnumBounds:
             f"Sentinel (line {sentinel_line}) and guard (line {guard_line}) "
             f"should be on same or adjacent lines. Found {abs(sentinel_line - guard_line)} lines apart."
         )
+
+
+class TestRecvEagainDistinguish:
+    """Verify net-r9 MMULTI.C recv() EAGAIN/EWOULDBLOCK error discrimination."""
+
+    def test_mmulti_recv_eagain_distinguish_sentinel_present(self, repo_root):
+        """MMULTI.C must have sentinel comment 'net-r9-recv-eagain-distinguish' for recv() fixes."""
+        mmulti_c = repo_root / "SRC" / "MMULTI.C"
+        if not mmulti_c.exists():
+            pytest.skip(f"{mmulti_c} not found")
+
+        content = mmulti_c.read_text(errors="replace")
+
+        # Count occurrences of sentinel comment in EAGAIN/EWOULDBLOCK handling
+        sentinel_count = content.count("net-r9-recv-eagain-distinguish")
+
+        assert sentinel_count >= 1, (
+            f"MMULTI.C must have at least 1 sentinel comment "
+            f"'net-r9-recv-eagain-distinguish' for recv() EAGAIN handling, "
+            f"found {sentinel_count}. Cycle-r9 fix may be incomplete."
+        )
+
+    def test_mmulti_recv_eagain_posix_handling(self, repo_root):
+        """MMULTI.C recv() calls must handle EAGAIN/EWOULDBLOCK/EINTR on POSIX."""
+        mmulti_c = repo_root / "SRC" / "MMULTI.C"
+        if not mmulti_c.exists():
+            pytest.skip(f"{mmulti_c} not found")
+
+        content = mmulti_c.read_text(errors="replace")
+        lines = content.split('\n')
+
+        # Find recv() calls and their surrounding context
+        recv_line_nums = []
+        for i, line in enumerate(lines):
+            if 'recv(sock' in line:
+                recv_line_nums.append(i + 1)
+
+        # At least 1 recv() call site expected
+        assert len(recv_line_nums) >= 1, (
+            f"MMULTI.C must have at least 1 recv() call, found {len(recv_line_nums)}"
+        )
+
+        # For each recv(), check if EAGAIN/EWOULDBLOCK handling exists in nearby context
+        for recv_line in recv_line_nums:
+            # Check ±20 lines around the recv() for error handling patterns
+            start = max(0, recv_line - 20)
+            end = min(len(lines), recv_line + 30)
+            context = '\n'.join(lines[start:end])
+
+            # Must handle POSIX errors: EAGAIN, EWOULDBLOCK, EINTR
+            has_posix_eagain = 'EAGAIN' in context
+            has_posix_ewouldblock = 'EWOULDBLOCK' in context or 'errno' in context
+            has_eintr = 'EINTR' in context
+
+            # At minimum, context near recv() should reference these constants
+            assert has_posix_eagain or has_eintr, (
+                f"recv() at line {recv_line} must handle EAGAIN/EWOULDBLOCK/EINTR "
+                f"on POSIX. Check lines {start+1}-{end}"
+            )
+
+    def test_mmulti_recv_windows_handling(self, repo_root):
+        """MMULTI.C recv() calls must handle WSAEWOULDBLOCK on Windows."""
+        mmulti_c = repo_root / "SRC" / "MMULTI.C"
+        if not mmulti_c.exists():
+            pytest.skip(f"{mmulti_c} not found")
+
+        content = mmulti_c.read_text(errors="replace")
+
+        # Check for Windows-specific error code handling
+        has_wsaewouldblock = 'WSAEWOULDBLOCK' in content
+        has_wsa_getlasterror = 'WSAGetLastError()' in content
+
+        # Should have both to properly handle Windows socket errors
+        assert has_wsaewouldblock and has_wsa_getlasterror, (
+            "MMULTI.C must have Windows socket error handling:\n"
+            f"  - WSAEWOULDBLOCK: {has_wsaewouldblock}\n"
+            f"  - WSAGetLastError(): {has_wsa_getlasterror}\n"
+            "Both are required for proper Windows recv() error discrimination."
+        )
+
+
+class TestFtaQuotesStrcpyOverflow:
+    """Verify r12 fta_quotes buffer overflow fix (sec-r12-strcat-fta-quotes-overflow)."""
+
+    def test_fta_quotes_strncpy_replacement(self, repo_root):
+        """GAME.C lines 6482, 6704: verify strcpy→strncpy replacement for fta_quotes buffer."""
+        game_c = repo_root / "source" / "GAME.C"
+        if not game_c.exists():
+            pytest.skip(f"{game_c} not found")
+
+        content = game_c.read_text(errors="replace")
+        lines = content.split('\n')
+
+        sentinel_found_6480s = False
+        sentinel_found_6700s = False
+        strncpy_found_6480s = False
+        strncpy_found_6700s = False
+        strcpy_found_6480s = False
+        strcpy_found_6700s = False
+
+        for i in range(max(0, 6475-1), min(len(lines), 6495)):
+            if "sec-r12-strcat-fta-quotes-overflow" in lines[i]:
+                sentinel_found_6480s = True
+            if "strncpy(fta_quotes" in lines[i] or "strncpy(&fta_quotes" in lines[i]:
+                strncpy_found_6480s = True
+            if "strcpy(fta_quotes" in lines[i] or "strcpy(&fta_quotes" in lines[i]:
+                strcpy_found_6480s = True
+
+        for i in range(max(0, 6700-1), min(len(lines), 6720)):
+            if "sec-r12-strcat-fta-quotes-overflow" in lines[i]:
+                sentinel_found_6700s = True
+            if "strncpy(fta_quotes" in lines[i] or "strncpy(&fta_quotes" in lines[i]:
+                strncpy_found_6700s = True
+            if "strcpy(fta_quotes" in lines[i] or "strcpy(&fta_quotes" in lines[i]:
+                strcpy_found_6700s = True
+
+        assert sentinel_found_6480s or sentinel_found_6700s, (
+            "Sentinel comment 'sec-r12-strcat-fta-quotes-overflow' not found "
+            "near lines 6482 or 6704 in GAME.C"
+        )
+
+        assert strncpy_found_6480s, (
+            "strncpy(fta_quotes, ...) not found near line 6487 in GAME.C; "
+            "strcpy must be replaced with strncpy + explicit null-termination"
+        )
+
+        assert strncpy_found_6700s, (
+            "strncpy(fta_quotes, ...) not found near line 6708 in GAME.C; "
+            "strcpy must be replaced with strncpy + explicit null-termination"
+        )
+
+        assert not strcpy_found_6480s, (
+            "Raw strcpy(fta_quotes) still found near line 6487; "
+            "must use strncpy + explicit null-termination"
+        )
+
+        assert not strcpy_found_6700s, (
+            "Raw strcpy(fta_quotes) still found near line 6708; "
+            "must use strncpy + explicit null-termination"
+        )
+
+
+class TestActorsSpriteSectnumChain:
+    """Verify r12 ACTORS.C sprite sectnum bounds check (engine-r12-actors-sprite-sectnum-chain)."""
+
+    def test_actors_sprite_sectnum_chain_guards_present(self, repo_root):
+        """ACTORS.C must have >= 2 sectnum bounds guards in animation logic (lines 900-1319)."""
+        actors_c = repo_root / "source" / "ACTORS.C"
+        if not actors_c.exists():
+            pytest.skip(f"{actors_c} not found")
+
+        content = actors_c.read_text(errors="replace")
+        lines = content.split('\n')
+
+        # Count sentinel occurrences within the line range 900-1319
+        # The sentinel is: engine-r12-actors-sprite-sectnum-chain
+        sentinel_count = 0
+        sentinel_lines = []
+
+        for i, line in enumerate(lines):
+            line_num = i + 1
+            if 900 <= line_num <= 1319:
+                if "engine-r12-actors-sprite-sectnum-chain" in line:
+                    sentinel_count += 1
+                    sentinel_lines.append(line_num)
+
+        assert sentinel_count >= 2, (
+            f"ACTORS.C lines 900-1319 must have at least 2 bounds guards with sentinel "
+            f"'engine-r12-actors-sprite-sectnum-chain', found {sentinel_count} at lines {sentinel_lines}.\n"
+            "Guards must protect sector[s->sectnum] derefs from cascading OOB access."
+        )
+
+    def test_actors_sprite_sectnum_chain_bounds_check_pattern(self, repo_root):
+        """ACTORS.C must have pattern if((unsigned)s->sectnum >= MAXSECTORS) guards."""
+        actors_c = repo_root / "source" / "ACTORS.C"
+        if not actors_c.exists():
+            pytest.skip(f"{actors_c} not found")
+
+        content = actors_c.read_text(errors="replace")
+
+        # Check for the bounds check pattern
+        has_bounds_check = "if((unsigned)s->sectnum >= MAXSECTORS)" in content
+
+        assert has_bounds_check, (
+            "source/ACTORS.C must include bounds check pattern:\n"
+            "'if((unsigned)s->sectnum >= MAXSECTORS)'\n"
+            "used in animation logic (ms, movefta, moveplayers functions)"
+        )

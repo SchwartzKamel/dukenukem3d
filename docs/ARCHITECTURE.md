@@ -708,5 +708,81 @@ This section documents the major architectural changes introduced from cycles 28
 
 ---
 
+## Known Open Issues
+
+This section documents **CRITICAL, HIGH, and selected MEDIUM-priority** issues identified in audit rounds r7+ that remain open in the current release cycle. These items are actively tracked in the audit backlog and are prioritized for future development cycles.
+
+### Build System (MAXTILES Hardening — Active Remediation)
+
+The most significant open issue in the build system is the MAXTILES mismatch between engine and game headers, classified as **CRITICAL** and tracked across 3 remediation stages (see build-system-r13 for detailed analysis):
+
+- **build-r13-maxtiles-unify-headers-to-6144** (CRITICAL — Stage 2/3): SRC/BUILD.H:15 and source/BUILD.H declare MAXTILES with conflicting bounds (6144 vs 9216) → LTO link-time type-mismatch buffer-overflow risk. Stage 2 requires unifying to 6144 (game-centric); Stage 3 requires flipping abort() call in compat/maxtiles_guard.c and removing xfail from tests/test_maxtiles_assertion.py. Target: Cycles 40–41. **Cite:** [docs/audits/build-system-r13.md](docs/audits/build-system-r13.md) § Focus Areas 1–3.
+
+- **build-r7-makefile-race-condition** (HIGH): Makefile $(TARGET) rule race condition — chmod/strip not atomic, causing transient "cannot access 'duke3d'" errors during parallel builds (-j 4+). **Cite:** [docs/audits/build-system-r7.md](docs/audits/build-system-r7.md).
+
+- **build-r7-windows-arch-mismatch** (HIGH): build_windows.bat hardcodes x86_64 while developer environment is i686, leading to cross-architecture linking failures. Requires environment-variable detection or CLI flag. **Cite:** [docs/audits/build-system-r7.md](docs/audits/build-system-r7.md).
+
+### Engine (Bounds Hardening Phases II–III)
+
+Engine-porter audits have identified **3 CRITICAL and 6 HIGH** items across sector indexing, sprite metadata, and render paths. Recent cycles (37–39) have closed 3 items; 9 remain pending:
+
+**CRITICAL (3):**
+- **engine-r13-sector-operatesectors-bounds** (CRITICAL): operatesectors() unvalidated sector parameter — missing (unsigned) bounds check on sn before sector[] dereference at source/SECTOR.C:566. **Cite:** [docs/audits/engine-porter-r13.md](docs/audits/engine-porter-r13.md) § Part 4, Finding 1.
+
+- **engine-r12-actors-tempshort-explicit-cap** (CRITICAL — Latent Since r11): Latent buffer overflow in ACTORS.C tempshort buffer; explicit cap needed (cycle-39 implementations incomplete). **Cite:** [docs/audits/engine-porter-r13.md](docs/audits/engine-porter-r13.md) § Part 2.1.
+
+- (Prior r10–r11 items rolled into engine-r12/r13 consolidation; RTS.C numlumps, sector index in dereference both addressed in cycle-39 grind).
+
+**HIGH (6):**
+- **engine-r13-engine-nextsectorneighborz-bounds** (HIGH): nextsectorneighborz() unvalidated input and return — validate both sectnum input and wal->nextsector before sector[] dereference at SRC/ENGINE.C:4945–4973. **Cite:** [docs/audits/engine-porter-r13.md](docs/audits/engine-porter-r13.md) § Part 4, Finding 2.
+
+- **engine-r13-sector-animatesect-bounds** (HIGH): animatesect[] unvalidated at read points (source/SECTOR.C:297–310) — validate array access before sector index derivation. **Cite:** [docs/audits/engine-porter-r13.md](docs/audits/engine-porter-r13.md) § Part 4, Finding 3.
+
+- **engine-r13-actors-sprite-sectnum-chain** (HIGH): sprite.sectnum bounds chain in animation logic (source/ACTORS.C:902–1321) — 5-point access cascade unguarded. **Cite:** [docs/audits/engine-porter-r13.md](docs/audits/engine-porter-r13.md) § Part 3.1.
+
+- **engine-r12-actors-projectile-sectnum** (DECLASSIFIED as OBSOLETE per r13 analysis; code not present).
+
+- (Prior render-path items from r11–r12: drawsprite() sectnum, scansector() bitfield — superseded by operatesectors consolidation).
+
+### Network Multiplayer (Architectural Design — Cycles 39–40)
+
+Network-multiplayer audits have identified **3 architectural items** spanning packet type coverage and protocol design:
+
+- **net-r9-packet-type-6-8-16-17-bounds** (MEDIUM–HIGH, Architectural): Packet types 6, 8, 16, 17 require bounds validation for player indices, map metadata, and replay fields. Type-6 (cycle-38) partially addressed; types 8/16/17 pending. **Cite:** [docs/audits/network-multiplayer-r9.md](docs/audits/network-multiplayer-r9.md).
+
+- **net-r9-ipv6-design** (HIGH, Architectural): IPv6 support requires protocol redesign (currently IPv4-only). Identified in r9 as future-work item for v0.3+. **Cite:** [docs/audits/network-multiplayer-r9.md](docs/audits/network-multiplayer-r9.md).
+
+- **net-r8-recv-eagain-handling** (MEDIUM): Recv-side EAGAIN (non-blocking I/O) handling incomplete; may drop packets on transient socket unavailability. **Cite:** [docs/audits/network-multiplayer-r8.md](docs/audits/network-multiplayer-r8.md).
+
+### Security (String & Buffer Handling)
+
+Security-and-secrets audits have validated most cycle-26/33/34 fixes; no NEW CRITICAL items since r10, but prior findings remain **CLOSED or INCORPORATED**:
+
+- (Prior HIGH items: RTS.C overflow, ACTORS.C tempshort — now under engine-porter tracking above).
+- **sec-r12-remaining-open-items** (MEDIUM–ADVISORY): Code review debt — static patterns (GNU89 comments 746 instances, shift-overflow audit) not yet automated. **Cite:** [docs/audits/security-and-secrets-r11.md](docs/audits/security-and-secrets-r11.md).
+
+### Audio, Asset Pipeline, Compat (Lower Priority — MEDIUM/ADVISORY)
+
+- **audio-r10-music-state-consistency** (MEDIUM): MUSIC_PlaySong returns MUSIC_Ok despite Mix_LoadMUS_RW failure (error asymmetry). Cycle-37 partial fix; state machine redesign pending. **Cite:** [docs/audits/audio-engineer-r10.md](docs/audits/audio-engineer-r10.md).
+
+- **asset-r11-manifest-schema-alignment** (MEDIUM): Texture, sprite, palette, table, map generators lack versioned manifest (audio schema v1.0 adopted in cycle-34; cross-tool consistency gap). **Cite:** [docs/audits/asset-pipeline-r11.md](docs/audits/asset-pipeline-r11.md) § Part 3 (5 per-tool sub-steps recommended).
+
+- **asset-r9-flux-retry-backoff** (MEDIUM): FLUX API calls lack retry/backoff logic; API rate-limit risk. **Cite:** [docs/audits/asset-pipeline-r9.md](docs/audits/asset-pipeline-r9.md).
+
+- **compat-r10-error-fatal-noreturn** (LOW): error_fatal() missing _Noreturn annotation (C11 hygiene). **Cite:** [docs/audits/compat-layer-r10.md](docs/audits/compat-layer-r10.md).
+
+### Summary & Backlog
+
+For the full live backlog with cycle numbers and dependencies, see [docs/audits/SUMMARY.md](docs/audits/SUMMARY.md) and [docs/audits/GRIND_LOG.md](docs/audits/GRIND_LOG.md).
+
+**Current Status (Cycle 39+):**
+- **CRITICAL (4):** MAXTILES unification (Stage 2–3), operatesectors bounds, tempshort cap, nextsectorneighborz bounds.
+- **HIGH (6):** Makefile race, Windows arch, animatesect bounds, sprite sectnum chain, IPv6 design, packet type coverage.
+- **MEDIUM (12+):** Audio state, asset manifests, FLUX caching, error handling, xfail debt (see SUMMARY.md for full list).
+
+All items are cycle-40/41 candidates and tracked via the session todo backlog (see `docs/audits/SUMMARY.md` Index).
+
+---
+
 For detailed audit findings and rationale, see [docs/audits/SUMMARY.md](docs/audits/SUMMARY.md).
 

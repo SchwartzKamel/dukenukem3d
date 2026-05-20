@@ -893,6 +893,8 @@ void ms(short i)
 
     s = &sprite[i];
 
+    if((unsigned)s->sectnum >= MAXSECTORS) return;  /* engine-r12-actors-sprite-sectnum-chain: cascade guard */
+
     s->x += (s->xvel*(sintable[(s->ang+512)&2047]))>>14;
     s->y += (s->xvel*(sintable[s->ang&2047]))>>14;
 
@@ -926,6 +928,7 @@ void movefta(void)
         nexti = nextspritestat[i];
 
         s = &sprite[i];
+        if((unsigned)s->sectnum >= MAXSECTORS) { i = nexti; continue; }  /* engine-r12-actors-sprite-sectnum-chain: cascade guard */
         p = findplayer(s,&x);
 
         ssect = psect = s->sectnum;
@@ -1202,6 +1205,7 @@ void moveplayers(void) //Players
         nexti = nextspritestat[i];
 
         s = &sprite[i];
+        if((unsigned)s->sectnum >= MAXSECTORS) { i = nexti; continue; }  /* engine-r12-actors-sprite-sectnum-chain: cascade guard */
         p = &ps[s->yvel];
         if(s->owner >= 0)
         {

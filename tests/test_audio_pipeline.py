@@ -666,3 +666,87 @@ class TestEndpointLoggingRedaction:
             "generate_audio.py logging section should use _redact_endpoint "
             "for endpoint parameter (SEC-R11)"
         )
+
+
+class TestMixInitRetryBackoff:
+    """Regression tests for compat-r11-mix-init-retry-backoff implementation."""
+
+    def test_sentinel_comment_present(self):
+        """Verify sentinel comment is present in compat/audio_stub.c FX_Init."""
+        audio_stub = os.path.join(PROJECT_ROOT, "compat", "audio_stub.c")
+        assert os.path.exists(audio_stub), f"File not found: {audio_stub}"
+        
+        with open(audio_stub, "r") as f:
+            content = f.read()
+        
+        sentinel = "compat-r11-mix-init-retry-backoff: 3-attempt exp-backoff"
+        assert sentinel in content, (
+            f"Sentinel comment '{sentinel}' not found in {audio_stub}"
+        )
+
+    def test_sdl_delay_exponential_backoff(self):
+        """Verify SDL_Delay calls with exponential backoff (100, 200, 400 ms)."""
+        audio_stub = os.path.join(PROJECT_ROOT, "compat", "audio_stub.c")
+        
+        with open(audio_stub, "r") as f:
+            content = f.read()
+        
+        # Look for pattern: SDL_Delay with exponential backoff (1 << (attempt - 1))
+        # This checks for either explicit delays or a loop-based multiplier pattern
+        has_sdl_delay = re.search(
+            r'SDL_Delay\s*\(\s*\w+\s*\)',
+            content,
+            re.MULTILINE | re.DOTALL
+        )
+        assert has_sdl_delay, (
+            "SDL_Delay call not found in FX_Init"
+        )
+        
+        # Check for the exponential backoff pattern: 100 * (1 << ...)
+        has_backoff = re.search(
+            r'100\s*\*\s*\(\s*1\s*<<',
+            content
+        )
+        assert has_backoff, (
+            "Exponential backoff pattern (100 * (1 <<)) not found"
+        )
+
+    def test_mix_get_error_in_retry_block(self):
+        """Verify Mix_GetError() is called in the retry block."""
+        audio_stub = os.path.join(PROJECT_ROOT, "compat", "audio_stub.c")
+        
+        with open(audio_stub, "r") as f:
+            content = f.read()
+        
+        # Find the retry loop section (marked by sentinel comment)
+        sentinel_idx = content.find("compat-r11-mix-init-retry-backoff")
+        assert sentinel_idx != -1, "Sentinel comment not found"
+        
+        # Extract the FX_Init function area around the retry loop
+        # Look within a reasonable range after the sentinel
+        retry_section = content[sentinel_idx:sentinel_idx + 2000]
+        
+        assert "Mix_GetError()" in retry_section, (
+            "Mix_GetError() call not found in retry block near sentinel comment"
+        )
+
+    def test_mix_open_audio_wrapped_in_loop(self):
+        """Verify Mix_OpenAudio is called within a retry loop."""
+        audio_stub = os.path.join(PROJECT_ROOT, "compat", "audio_stub.c")
+        
+        with open(audio_stub, "r") as f:
+            content = f.read()
+        
+        # Check that Mix_OpenAudio is called with assignment to a variable
+        # and there's a loop structure
+        has_loop_structure = bool(re.search(
+            r'for\s*\(\s*\w+\s*=\s*1\s*;.*<=\s*3\s*;',
+            content
+        ))
+        has_mix_open = "Mix_OpenAudio" in content
+        
+        assert has_loop_structure, (
+            "Retry loop structure (for loop with <= 3) not found"
+        )
+        assert has_mix_open, "Mix_OpenAudio call not found"
+

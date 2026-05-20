@@ -204,9 +204,9 @@ static int net_recv_all(SOCKET sock, unsigned char *buf, int len)
 			return -1;
 		} else {
 #ifdef _WIN32
-			if (WSAGetLastError() != WSAEWOULDBLOCK) return -1;
+			if (WSAGetLastError() != WSAEWOULDBLOCK && WSAGetLastError() != WSAEINTR) return -1;
 #else
-			if (errno != EAGAIN && errno != EWOULDBLOCK) return -1;
+			if (errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR) return -1;
 #endif
 		}
 		if (time(NULL) - start > HANDSHAKE_TIMEOUT_SEC) return -1;
@@ -233,8 +233,27 @@ static void net_poll_sockets(void)
 		while (recv_bufs[i].len < RECV_BUF_SIZE - 4096) {
 			int r = recv(sock, (char *)(recv_bufs[i].buf + recv_bufs[i].len),
 			             RECV_BUF_SIZE - recv_bufs[i].len, 0);
-			if (r <= 0) break;
-			recv_bufs[i].len += r;
+			if (r > 0) {
+				recv_bufs[i].len += r;
+			} else if (r == 0) {
+				break;
+			} else {
+				int err;
+#ifdef _WIN32
+				err = WSAGetLastError();
+				if (err == WSAEWOULDBLOCK || err == WSAEINTR) {
+					/* net-r9-recv-eagain-distinguish: transient, retry */
+					continue;
+				}
+#else
+				err = errno;
+				if (err == EAGAIN || err == EWOULDBLOCK || err == EINTR) {
+					/* net-r9-recv-eagain-distinguish: transient, retry */
+					continue;
+				}
+#endif
+				break;
+			}
 		}
 
 		/* Extract complete packets */

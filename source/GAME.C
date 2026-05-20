@@ -6484,7 +6484,8 @@ void nonsharedkeys(void)
                     strcpy(&tempbuf[0],"PLAYING ");
                     strcat(&tempbuf[0],&music_fn[0][music_select][0]);
                     playmusic(&music_fn[0][music_select][0]);
-                    strcpy(&fta_quotes[26][0],&tempbuf[0]);
+                    strncpy(&fta_quotes[26][0],&tempbuf[0],sizeof(fta_quotes[26])-1);  /* sec-r12-strcat-fta-quotes-overflow: bound + null-term */
+                    fta_quotes[26][sizeof(fta_quotes[26])-1] = '\0';
                     FTA(26,&ps[myconnectindex]);
                     return;
                 }
@@ -6705,7 +6706,8 @@ void nonsharedkeys(void)
             KB_ClearKeyDown( sc_F5 );
             strcpy(&tempbuf[0],&music_fn[0][music_select][0]);
             strcat(&tempbuf[0],".  USE SHIFT-F5 TO CHANGE.");
-            strcpy(&fta_quotes[26][0],&tempbuf[0]);
+            strncpy(&fta_quotes[26][0],&tempbuf[0],sizeof(fta_quotes[26])-1);  /* sec-r12-strcat-fta-quotes-overflow: bound + null-term */
+            fta_quotes[26][sizeof(fta_quotes[26])-1] = '\0';
             FTA(26,&ps[myconnectindex]);
 
         }

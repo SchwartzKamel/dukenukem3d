@@ -55,7 +55,6 @@ def test_maxtiles_guard_constructor_present(repo_root):
         "GCC constructor attribute not found in compat/maxtiles_guard.c"
 
 
-@pytest.mark.xfail(strict=True, reason="MAXTILES headers diverge; Stage 2 will unify")
 def test_maxtiles_values_match_between_headers(repo_root):
     """Verify MAXTILES is identical in SRC/BUILD.H and source/BUILD.H.
     

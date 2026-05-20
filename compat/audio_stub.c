@@ -364,10 +364,28 @@ int FX_Init(int SoundCard, int numvoices, int numchannels,
         // Mix_Init can fail in minimal builds, but Mix_OpenAudio still works for WAV
         fprintf(stderr, "Warning: Mix_Init(OGG|MP3) failed, some formats may be unavailable\n");
     }
-    if (Mix_OpenAudio(mixrate ? (int)mixrate : 44100,
-                      MIX_DEFAULT_FORMAT,
-                      numchannels > 1 ? 2 : 1,
-                      2048) < 0) {
+    
+    // compat-r11-mix-init-retry-backoff: 3-attempt exp-backoff
+    // Retry Mix_OpenAudio with exponential backoff for transient failures (e.g., audio device busy)
+    int mix_open_attempt;
+    int mix_open_result = -1;
+    for (mix_open_attempt = 1; mix_open_attempt <= 3; mix_open_attempt++) {
+        mix_open_result = Mix_OpenAudio(mixrate ? (int)mixrate : 44100,
+                                        MIX_DEFAULT_FORMAT,
+                                        numchannels > 1 ? 2 : 1,
+                                        2048);
+        if (mix_open_result >= 0) {
+            break; // Success
+        }
+        fprintf(stderr, "Audio init attempt %d/3 failed: %s\n", mix_open_attempt, Mix_GetError());
+        if (mix_open_attempt < 3) {
+            // Exponential backoff: 100ms, 200ms, 400ms
+            int delay_ms = 100 * (1 << (mix_open_attempt - 1));
+            SDL_Delay(delay_ms);
+        }
+    }
+    
+    if (mix_open_result < 0) {
         SDL_QuitSubSystem(SDL_INIT_AUDIO);
         FX_ErrorCode = FX_Error;
         return FX_Error;
