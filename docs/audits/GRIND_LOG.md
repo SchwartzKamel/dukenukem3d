@@ -1945,3 +1945,14 @@ Keep v5 as the standing dispatch contract.
 - Both asset collision detectors (audio + map) now fail-fast at generation rather than producing silently overwritten manifests.
 - 6-agent parallel dispatch held: no overlapping-file conflicts. Single collateral was line-range drift, not race.
 - Backlog: 244 pending → ~246 after audio-r14/perf-r14 inserts; archival pace sustainable.
+
+---
+
+## Cycle 52 (audit-pass tick)
+
+**Stalest rotation:** network-multiplayer (last r12 @ cycle 48) + compat-layer (last r13 @ cycle 48).
+
+- **network-multiplayer-r13:** 7 findings, **5 todos** (2 **CRITICAL**: `net-r13-type-5-missing-bounds-check`, `net-r13-type-8-late-bounds-check`; 3 MEDIUM: type-7 RTS, byteswap audit, player-index bounds). Re-confirmed cycle-48 type-4 + type-9 pre-checks live; updated packet-dispatch matrix to 15 types. **Priority intake for next grind cycle.**
+- **compat-layer-r14:** 3 findings, **0 todos**. All 3 are LOW ADVISORY (Mix_Init graceful degradation, SSE2 fallback, joystick TODOs). Zero CRITICAL/HIGH. compat/ remains production-grade; cycle-46 audio-defines + cycle-42 maxtiles_guard verified live; SDL2 lifecycle clean; SDL2_VERSION still single-source in build.mk.
+
+**Backlog delta:** 252 → 257 pending (+5 net from net-r13).
