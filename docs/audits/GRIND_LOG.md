@@ -1985,3 +1985,14 @@ Keep v5 as the standing dispatch contract.
 ### Backlog delta
 
 Pending 257 → 257 (-8 closed, +4 new from frag audit, +others from r14 audits already counted).
+
+---
+
+## Cycle 54 (audit-pass tick)
+
+**Stalest rotation:** test-engineer (last r14 @ cycle 46) + security-and-secrets (last r14 @ cycle 47).
+
+- **test-engineer-r15:** 7 findings, **7 todos**. Suite snapshot: 910 collected / 872 passed (96% pass), 34.5% xdist speedup (29.29s→19.17s) verified, zero flakiness across 3 consecutive runs, 15/15 cycle 48-53 sentinels covered. **HIGH:** `test-r15-mega-file-split` (test_engine_net_hardening_regressions.py at 3476 lines, 3-way split recommended). **MEDIUM:** `test-r15-frame-analyzer-slow-mark` (frame analyzer = 35% of total suite wallclock); `test-r15-xpass-promotion-checkweapons` (another stale xfail candidate); etc.
+- **security-and-secrets-r15:** 5 findings, **5 todos**. **0 CRITICAL / 0 HIGH** — verification pass confirms cycle-48 scanner additions + cycle-53 manifest verifier chain functional. All MEDIUMs are forward-looking: `sec-r15-manifest-loader-adoption` (universal loader gating), `sec-r15-workflow-secrets-script-logging`, `sec-r15-subprocess-injection-audit`, `sec-r15-workflow-publish-permissions`, `sec-r15-gitignore-d-files-explicit` (LOW).
+
+**Backlog delta:** 253 → 265 pending (+12 net: -0 closed audit-pass, +12 new from r15 intake).
