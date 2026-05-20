@@ -416,3 +416,36 @@ disk but SQL never updated.
 workaround for small-file todos eliminated the failure mode entirely.
 Going forward: docs/single-file polish tasks should be operator-edited;
 multi-file refactors and test infrastructure are safe to dispatch.
+
+## 2026-05-20 — Cycle 10 + audit pass (build-system / docs / compat r4)
+
+**Closed**:
+- audit-audio-3d-attenuation-doc — `compat/audio_stub.c` mixer_play_3d: expanded
+  the 0..255 SDL_mixer distance comment (empirical ×4 factor + BUILD ranges).
+- audit-audio-manifest-write-error — `tools/generate_audio.py`: manifest write
+  is now tmpfile + `os.replace` atomic, wrapped in try/except OSError.
+- perf-sprite-iteration — `source/GAME.C` SE40_Draw: 4 MAXSPRITES scans
+  replaced with `headspritestat[]/nextspritestat[]` walks.
+- perf-cache-allocation — `SRC/CACHE1D.C` allocache: candidate-slot quick path.
+- fix-audio-semaphore-timeout — verified `acquire_timeout_sec` plumbing in
+  `tools/generate_audio.py` (async path + CLI) + regression tests.
+- fix-audio-async-manifest-sync — verified async path writes status,
+  `generated_at`, `error` like the local path does.
+- test-net-multiplayer-regression — new `tests/test_multiplayer_protocol.py`
+  (42 unit tests; handshake, header bounds, CRC-16 CCITT).
+
+**Blocked / ghosted**:
+- fix-net-queue-overflow, fix-net-graceful-disconnect,
+  audit-net-crc-implementation — agent reported success on SRC/MMULTI.C
+  (+90/-3) but the diff did not survive in the working tree (persistence
+  regression v3). SQL rolled back to `pending`; needs direct edit next cycle.
+
+**Build/test delta**: 552 → 583 passed (--runslow) with the new regression
+tests. Build clean across both gnu89 (SRC/, source/) and c11 (compat/) sets.
+
+**New audit reports**:
+- `docs/audits/audio-engineer-r3.md`
+- `docs/audits/security-and-secrets-r4.md` (added 3 new sec todos)
+
+**Human-attention items**:
+- None this cycle. Operator's standing approval on push held.
