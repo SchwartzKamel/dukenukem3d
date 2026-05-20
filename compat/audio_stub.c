@@ -66,6 +66,15 @@ static void mixer_channel_done(int channel)
 /*
  * Determine the file size from a VOC or WAV header.  The FX_Play*
  * API only passes a pointer, not a length, so we have to derive it.
+ *
+ * SAFETY: callers must pass a buffer that is at least 22 bytes for a
+ * VOC header (we read p[20..21] for the data offset) or at least 8
+ * bytes for a WAV header (we read p[4..7] for the chunk size).  In
+ * practice game-asset blobs are always >> 22 bytes; the only callers
+ * are FX_Play* and mixer_play in this same translation unit, so the
+ * pre-condition is enforced by the asset pipeline rather than this
+ * function.  Do NOT call these helpers on attacker-controlled data
+ * without first validating buffer length.
  */
 #define MAX_SOUND_FILE_SIZE (512 * 1024)
 
@@ -75,6 +84,7 @@ static unsigned long voc_file_size(const unsigned char *p)
     const unsigned char *cur, *limit;
 
     if (p[0] != 'C' || p[1] != 'r') return 0;
+    /* SAFETY: p[20..21] unchecked — caller pre-condition (see header). */
     data_off = (unsigned short)(p[20] | ((unsigned)p[21] << 8));
     if (data_off < 26) data_off = 26;
     cur   = p + data_off;
@@ -95,6 +105,7 @@ static unsigned long wav_file_size(const unsigned char *p)
 {
     unsigned long sz;
     if (p[0] != 'R' || p[1] != 'I') return 0;
+    /* SAFETY: p[4..7] unchecked — caller pre-condition (see header). */
     sz = (unsigned long)p[4] | ((unsigned long)p[5] << 8)
        | ((unsigned long)p[6] << 16) | ((unsigned long)p[7] << 24);
     return sz + 8;
@@ -1024,6 +1035,13 @@ void KB_Shutdown(void)
 
 /* ═══════════════════════════════════════════════════════════════════
    CONTROL – input mapping system (replaces precompiled MACT library)
+
+   STUB: joystick support is currently disabled.  The CONTROL_*Joystick
+   and CONTROL_*Axis routines below are no-op or trivial stubs.  Full
+   implementation requires wiring through the SDL2 joystick API
+   (SDL_JoystickOpen/SDL_JoystickGetAxis/SDL_JoystickGetButton) and
+   feeding the results into ctrl_analog_map / ctrl_digital_fwd /
+   CONTROL_ButtonState*.  Tracked: TODO joystick-sdl2.
    ═══════════════════════════════════════════════════════════════════ */
 
 /* Global state variables */
@@ -1243,6 +1261,7 @@ void CONTROL_CenterJoystick(void (*CenterCenter)(void),
                             void (*CenterThrottle)(void),
                             void (*CenterRudder)(void))
 {
+    /* STUB: joystick calibration. TODO joystick-sdl2: wire to SDL2. */
     (void)CenterCenter; (void)UpperLeft; (void)LowerRight;
     (void)CenterThrottle; (void)CenterRudder;
 }
@@ -1282,6 +1301,7 @@ void CONTROL_Shutdown(void)
 
 void CONTROL_MapAnalogAxis(int32 whichaxis, int32 whichanalog)
 {
+    /* STUB: analog axis mapping. TODO joystick-sdl2: feed SDL_JoystickGetAxis. */
     if (whichaxis >= 0 && whichaxis < MAX_AXES)
         ctrl_analog_map[whichaxis] = whichanalog;
 }
@@ -1289,6 +1309,7 @@ void CONTROL_MapAnalogAxis(int32 whichaxis, int32 whichanalog)
 void CONTROL_MapDigitalAxis(int32 whichaxis, int32 whichfunction,
                             int32 direction)
 {
+    /* STUB: digital axis direction mapping. TODO joystick-sdl2. */
     if (whichaxis < 0 || whichaxis >= MAX_AXES) return;
     if (direction == 0)
         ctrl_digital_fwd[whichaxis] = whichfunction;
@@ -1298,6 +1319,7 @@ void CONTROL_MapDigitalAxis(int32 whichaxis, int32 whichfunction,
 
 void CONTROL_SetAnalogAxisScale(int32 whichaxis, int32 axisscale)
 {
+    /* STUB: axis scale factor. TODO joystick-sdl2. */
     if (whichaxis >= 0 && whichaxis < MAX_AXES)
         ctrl_axis_scale[whichaxis] = axisscale;
 }
