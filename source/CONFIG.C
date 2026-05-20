@@ -89,7 +89,8 @@ void CONFIG_GetSetupFilename( void )
    int32 numfiles;
    int32 i;
 
-   strcpy(setupfilename,SETUPFILENAME);
+   strncpy(setupfilename, SETUPFILENAME, sizeof(setupfilename) - 1);
+   setupfilename[sizeof(setupfilename) - 1] = 0;
 
    // determine extension
 
@@ -99,7 +100,8 @@ void CONFIG_GetSetupFilename( void )
       {
       src--;
       }
-   strcpy (&extension[1],src);
+   strncpy(&extension[1], src, sizeof(extension) - 2);
+   extension[sizeof(extension) - 1] = 0;
    extension[0] = '*';
 
    numfiles=0;
@@ -108,7 +110,8 @@ void CONFIG_GetSetupFilename( void )
       do
          {
          filenames[numfiles]=SafeMalloc(128);
-         strcpy(filenames[numfiles],fblock.name);
+         strncpy(filenames[numfiles], fblock.name, 128 - 1);
+         filenames[numfiles][128 - 1] = 0;
          numfiles++;
          if (numfiles == MAXSETUPFILES)
             break;
@@ -119,7 +122,8 @@ void CONFIG_GetSetupFilename( void )
    if (i!=0)
       {
       numfiles = 0;
-      strcpy(setupfilename,_argv[i+1]);
+      strncpy(setupfilename, _argv[i+1], sizeof(setupfilename) - 1);
+      setupfilename[sizeof(setupfilename) - 1] = 0;
       }
    if (numfiles>1)
       {
@@ -164,7 +168,8 @@ void CONFIG_GetSetupFilename( void )
             ch -='a';
             if (ch>=0 && ch<numfiles)
                {
-               strcpy (setupfilename, filenames[ch]);
+               strncpy(setupfilename, filenames[ch], sizeof(setupfilename) - 1);
+               setupfilename[sizeof(setupfilename) - 1] = 0;
                break;
                }
             }
@@ -172,7 +177,8 @@ void CONFIG_GetSetupFilename( void )
       printf("\n\n");
       }
    if (numfiles==1)
-      strcpy (setupfilename, filenames[0]);
+      strncpy(setupfilename, filenames[0], sizeof(setupfilename) - 1);
+      setupfilename[sizeof(setupfilename) - 1] = 0;
    printf("Using Setup file: '%s'\n",setupfilename);
    i=clock()+(3*CLOCKS_PER_SEC/4);
    while (clock()<i)
@@ -401,13 +407,13 @@ void CONFIG_SetupMouse( int32 scripthandle )
 
    for (i=0;i<MAXMOUSEBUTTONS;i++)
       {
-      sprintf(str,"MouseButton%ld",i);
+      snprintf(str, sizeof(str), "MouseButton%ld", i);
       memset(temp,0,sizeof(temp));
       SCRIPT_GetString( scripthandle,"Controls", str,temp,sizeof(temp));
       function = CONFIG_FunctionNameToNum(temp);
       if (function != -1)
          CONTROL_MapButton( function, i, false );
-      sprintf(str,"MouseButtonClicked%ld",i);
+      snprintf(str, sizeof(str), "MouseButtonClicked%ld", i);
       memset(temp,0,sizeof(temp));
       SCRIPT_GetString( scripthandle,"Controls", str,temp,sizeof(temp));
       function = CONFIG_FunctionNameToNum(temp);
@@ -417,7 +423,7 @@ void CONFIG_SetupMouse( int32 scripthandle )
    // map over the axes
    for (i=0;i<MAXMOUSEAXES;i++)
       {
-      sprintf(str,"MouseAnalogAxes%ld",i);
+      snprintf(str, sizeof(str), "MouseAnalogAxes%ld", i);
       memset(temp,0,sizeof(temp));
       SCRIPT_GetString(scripthandle, "Controls", str,temp,sizeof(temp));
       function = CONFIG_AnalogNameToNum(temp);
@@ -425,19 +431,19 @@ void CONFIG_SetupMouse( int32 scripthandle )
          {
          CONTROL_MapAnalogAxis(i,function);
          }
-      sprintf(str,"MouseDigitalAxes%ld_0",i);
+      snprintf(str, sizeof(str), "MouseDigitalAxes%ld_0", i);
       memset(temp,0,sizeof(temp));
       SCRIPT_GetString(scripthandle, "Controls", str,temp,sizeof(temp));
       function = CONFIG_FunctionNameToNum(temp);
       if (function != -1)
          CONTROL_MapDigitalAxis( i, function, 0 );
-      sprintf(str,"MouseDigitalAxes%ld_1",i);
+      snprintf(str, sizeof(str), "MouseDigitalAxes%ld_1", i);
       memset(temp,0,sizeof(temp));
       SCRIPT_GetString(scripthandle, "Controls", str,temp,sizeof(temp));
       function = CONFIG_FunctionNameToNum(temp);
       if (function != -1)
          CONTROL_MapDigitalAxis( i, function, 1 );
-      sprintf(str,"MouseAnalogScale%ld",i);
+      snprintf(str, sizeof(str), "MouseAnalogScale%ld", i);
       SCRIPT_GetNumber(scripthandle, "Controls", str,&scale);
       CONTROL_SetAnalogAxisScale( i, scale );
       }
@@ -464,13 +470,13 @@ void CONFIG_SetupGamePad( int32 scripthandle )
 
    for (i=0;i<MAXJOYBUTTONS;i++)
       {
-      sprintf(str,"JoystickButton%ld",i);
+      snprintf(str, sizeof(str), "JoystickButton%ld", i);
       memset(temp,0,sizeof(temp));
       SCRIPT_GetString( scripthandle,"Controls", str,temp,sizeof(temp));
       function = CONFIG_FunctionNameToNum(temp);
       if (function != -1)
          CONTROL_MapButton( function, i, false );
-      sprintf(str,"JoystickButtonClicked%ld",i);
+      snprintf(str, sizeof(str), "JoystickButtonClicked%ld", i);
       memset(temp,0,sizeof(temp));
       SCRIPT_GetString( scripthandle,"Controls", str,temp,sizeof(temp));
       function = CONFIG_FunctionNameToNum(temp);
@@ -480,13 +486,13 @@ void CONFIG_SetupGamePad( int32 scripthandle )
    // map over the axes
    for (i=0;i<MAXGAMEPADAXES;i++)
       {
-      sprintf(str,"GamePadDigitalAxes%ld_0",i);
+      snprintf(str, sizeof(str), "GamePadDigitalAxes%ld_0", i);
       memset(temp,0,sizeof(temp));
       SCRIPT_GetString(scripthandle, "Controls", str,temp,sizeof(temp));
       function = CONFIG_FunctionNameToNum(temp);
       if (function != -1)
          CONTROL_MapDigitalAxis( i, function, 0 );
-      sprintf(str,"GamePadDigitalAxes%ld_1",i);
+      snprintf(str, sizeof(str), "GamePadDigitalAxes%ld_1", i);
       memset(temp,0,sizeof(temp));
       SCRIPT_GetString(scripthandle, "Controls", str,temp,sizeof(temp));
       function = CONFIG_FunctionNameToNum(temp);
@@ -514,13 +520,13 @@ void CONFIG_SetupJoystick( int32 scripthandle )
 
    for (i=0;i<MAXJOYBUTTONS;i++)
       {
-      sprintf(str,"JoystickButton%ld",i);
+      snprintf(str, sizeof(str), "JoystickButton%ld", i);
       memset(temp,0,sizeof(temp));
       SCRIPT_GetString( scripthandle,"Controls", str,temp,sizeof(temp));
       function = CONFIG_FunctionNameToNum(temp);
       if (function != -1)
          CONTROL_MapButton( function, i, false );
-      sprintf(str,"JoystickButtonClicked%ld",i);
+      snprintf(str, sizeof(str), "JoystickButtonClicked%ld", i);
       memset(temp,0,sizeof(temp));
       SCRIPT_GetString( scripthandle,"Controls", str,temp,sizeof(temp));
       function = CONFIG_FunctionNameToNum(temp);
@@ -530,7 +536,7 @@ void CONFIG_SetupJoystick( int32 scripthandle )
    // map over the axes
    for (i=0;i<MAXJOYAXES;i++)
       {
-      sprintf(str,"JoystickAnalogAxes%ld",i);
+      snprintf(str, sizeof(str), "JoystickAnalogAxes%ld", i);
       memset(temp,0,sizeof(temp));
       SCRIPT_GetString(scripthandle, "Controls", str,temp,sizeof(temp));
       function = CONFIG_AnalogNameToNum(temp);
@@ -538,19 +544,19 @@ void CONFIG_SetupJoystick( int32 scripthandle )
          {
          CONTROL_MapAnalogAxis(i,function);
          }
-      sprintf(str,"JoystickDigitalAxes%ld_0",i);
+      snprintf(str, sizeof(str), "JoystickDigitalAxes%ld_0", i);
       memset(temp,0,sizeof(temp));
       SCRIPT_GetString(scripthandle, "Controls", str,temp,sizeof(temp));
       function = CONFIG_FunctionNameToNum(temp);
       if (function != -1)
          CONTROL_MapDigitalAxis( i, function, 0 );
-      sprintf(str,"JoystickDigitalAxes%ld_1",i);
+      snprintf(str, sizeof(str), "JoystickDigitalAxes%ld_1", i);
       memset(temp,0,sizeof(temp));
       SCRIPT_GetString(scripthandle, "Controls", str,temp,sizeof(temp));
       function = CONFIG_FunctionNameToNum(temp);
       if (function != -1)
          CONTROL_MapDigitalAxis( i, function, 1 );
-      sprintf(str,"JoystickAnalogScale%ld",i);
+      snprintf(str, sizeof(str), "JoystickAnalogScale%ld", i);
       SCRIPT_GetNumber(scripthandle, "Controls", str,&scale);
       CONTROL_SetAnalogAxisScale( i, scale );
       }
@@ -743,7 +749,7 @@ void CONFIG_ReadSetup( void )
 
        for(dummy=0;dummy<10;dummy++)
        {
-           sprintf(buf,"WeaponChoice%ld",dummy);
+           snprintf(buf, sizeof(buf), "WeaponChoice%ld", dummy);
            SCRIPT_GetNumber( scripthandle, "Misc", buf, &ud.wchoice[0][dummy]);
        }
     }
@@ -856,7 +862,7 @@ void CONFIG_WriteSetup( void )
 
    for(dummy=0;dummy<10;dummy++)
    {
-       sprintf(buf,"WeaponChoice%ld",dummy);
+       snprintf(buf, sizeof(buf), "WeaponChoice%ld", dummy);
        SCRIPT_PutNumber( scripthandle, "Misc",buf,ud.wchoice[myconnectindex][dummy],false,false);
    }
 

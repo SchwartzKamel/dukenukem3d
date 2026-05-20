@@ -94,6 +94,15 @@ static inline int sgn(int x) { return (x > 0) - (x < 0); }
    Returns valid index [0,MAXPLAYERS) or -1 if out of bounds. */
 #define player_from_yvel(yv) ( (yv) < 0 || (yv) >= MAXPLAYERS ? -1 : (yv) )
 
+/* Validate weapon index before array access. Returns 1 if valid, 0 if out of bounds. */
+#define WEAPON_VALID(w) (((unsigned)(w) < (unsigned)MAX_WEAPONS))
+
+/* Validate and clamp weapon index. Returns clamped weapon (0 if out of bounds). */
+#define WEAPON_CLAMP(w) (WEAPON_VALID(w) ? (w) : 0)
+
+/* Cap config file key name parsing length for security */
+#define MAX_CONFIG_KEY 64
+
 #define    ALT_IS_PRESSED ( KB_KeyPressed( sc_RightAlt ) || KB_KeyPressed( sc_LeftAlt ) )
 #define    SHIFTS_IS_PRESSED ( KB_KeyPressed( sc_RightShift ) || KB_KeyPressed( sc_LeftShift ) )
 #define    RANDOMSCRAP EGS(s->sectnum,s->x+(TRAND&255)-128,s->y+(TRAND&255)-128,s->z-(8<<8)-(TRAND&8191),SCRAP6+(TRAND&15),-8,48,48,TRAND&2047,(TRAND&63)+64,-512-(TRAND&2047),i,5)
