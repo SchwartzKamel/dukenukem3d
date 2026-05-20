@@ -844,3 +844,49 @@ All on disjoint files; zero collisions, zero hallucinations.
   fails today and we want CI to record the fact": the
   build-r7-lto-maxtiles-mismatch test will flip to xpass once the
   CRITICAL is unified, signaling the cleanup.
+
+## Cycle 25 — 2026-05-20T13:13 UTC
+
+### Audit-pass (3 sub-agents in parallel)
+
+- **engine-porter-r8** (stalest, last r7 cycle 19): 4 new findings
+  - HIGH `engine-r8-allocache-overflow` — SRC/CACHE1D.C:71
+    `newbytes + 15` signed-int overflow before alignment.
+  - HIGH `engine-r8-savegame-unfixed-reads` — source/MENUES.C:329,338
+    validates count but always reads MAXWALLS/MAXSECTORS bytes.
+  - HIGH `engine-r8-hlineasm-shift-bounds` — SRC/ENGINE.C:365 logx/logy
+    not validated in `[0, 32)` before shift ops.
+  - MEDIUM `engine-r8-animateoffs-clamp` — SRC/ENGINE.C:3594 wrap to
+    out-of-bounds silently converts to tile 0.
+- **audio-engineer-r7** (last r6 cycle 20): 3 MEDIUM RWops leaks
+  - `audio-r7-sdl-rwops-mixer-play` — compat/audio_stub.c:185
+  - `audio-r7-sdl-rwops-mixer-play-3d` — compat/audio_stub.c:241
+  - `audio-r7-sdl-rwops-music-playsong` — compat/audio_stub.c:882
+- **network-multiplayer-r5** (last r4 cycle 19): 4 new
+  - **CRITICAL** `net-r5-packet-type-9-buffer-overflow` — wchoice
+    unbounded write from untrusted packet
+  - HIGH `net-r5-packet-types-0-1-oob-read` — sync payload parsed
+    without pre-validation
+  - MEDIUM `net-r5-packet-types-5-8-range-validation` — level/volume
+    /skill bounds
+  - MEDIUM `net-r5-packet-format-documentation` — protocol contract
+    drift between code + docs
+
+### Validation
+
+- Build: clean (no source touched; audit-only).
+- Tests: 626 / 657 --runslow / 1 xfailed — unchanged.
+
+### Backlog snapshot
+
+- 96 pending / 178 done / 3 blocked (was 85 / 178 / 3).
+- Open **CRITICAL items**: 2 (`build-r7-lto-maxtiles-mismatch`,
+  `net-r5-packet-type-9-buffer-overflow`).
+
+### Notes
+
+- R3 carryovers (replay-protection, ipv6-support, packet-loss-
+  diagnostic) intentionally NOT re-seeded — flagged in r5 doc for
+  multi-cycle handling.
+- Two CRITICALs now block — `net-r5-packet-type-9` should be
+  highest-priority dispatch next grind cycle.
