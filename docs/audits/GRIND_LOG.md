@@ -2137,3 +2137,15 @@ None. Build green, all cycle 41-58 sentinels intact (re-verified by net-r14-rand
 - **asset-pipeline-r17:** 5 findings, **5 todos** (0 CRIT/HIGH). MED: `asset-r17-manifest-schema-migration-contract` (cycle-59 audio-r15-mig-doc added "Manifest Verification Pattern" to CONTRIBUTING but did NOT document the schema_version migration contract), `asset-r17-palette-validation-input-bounds` (create_palette_dat assumes 256×8-bit RGB input without bounds checks). LOW: generation-log-queryability-guide, map-id-cross-references, test-fixture-overlap-risk.
 
 **Backlog delta:** ~282 → ~289 pending (+7 intake from engine-r17 + asset-r17).
+
+---
+
+## Cycle 62 (audit-pass tick, 2026-05-20T23:21Z)
+
+**Stalest rotation:** documentation-curator (last r15 @ cycle 57) + build-system (last r16 @ cycle 57). Both 5 cycles old. Doc-only audits, no source/test mutation.
+
+- **documentation-curator-r16:** 8 findings, **3 todos** (0 CRIT/HIGH). MED: `docs-r16-readme-cycles-50-61-updates` (README Recent Improvements table lags 3-4 cycles; multiplayer roadmap status ambiguous). LOW-OPTIONAL: `docs-r16-summary-archival-policy` (queue at r25 milestone), `docs-r16-persona-template-onboarding` (PERSONA_TEMPLATE.md for future launches). VERIFIED EXEMPLARY: ARCHITECTURE.md Network section (cycles 48+50+59 compose with zero contradictions). VERIFIED CLEAN: 6/6 cross-doc link spot-checks valid. CONTRIBUTING.md cycle-59 sections integrate without duplication. 9 archival candidates identified (not yet archived — operator review pending).
+- **build-system-r17:** 9 findings, **5 todos** (0 CRIT/HIGH). MED: `build-r17-compat-stub-audit` (LTO 17 type-mismatch baseline unresolved), `build-r17-test-warnings-refactor` (test_build_warnings.py sys.exit(1)-before-assert antipattern), `build-r17-ci-debug-matrix` (DEBUG coverage gap, r15 carryover), `build-r17-reproducibility-check` (LTRANS determinism unverified). LOW: `build-r17-requirements-python-floor` (Python version floor not documented). VERIFIED: CMake/Makefile parity intact (LANGUAGE C + LTO synchronized), MAXTILES unified at 6144 both headers, requirements.txt pinned + rationale documented. Build claimed 980 tests but operator validation shows 943 (build agent likely measured a transient state).
+
+**Backlog delta:** 289 → 297 pending (+8 intake from docs-r16 + build-r17 new todos; 9 archival candidates pending operator review). Tests stable at 943.
+
