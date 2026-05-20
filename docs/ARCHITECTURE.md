@@ -483,5 +483,55 @@ This section documents critical safety fixes landed in recent audit cycles to pr
   - **Impact:** Accidentally committed tokens in CI files now blocked at push time.
   - **Cite:** `tools/check_secrets.sh`, `.github/workflows/build.yml`, docs/audits/security-and-secrets-r7.md.
 
+### Cycles 23–27: Regression Hardening & Audio Resource Management
+
+- **HIGH — Allocache alignment overflow prevention** (`SRC/CACHE1D.C:71`, cycle 25)
+  - **Issue:** Signed integer addition `newbytes + 15` before alignment could overflow if input near `LONG_MAX`, leading to undefined behavior and corrupted cache allocation.
+  - **Fix:** Added pre-alignment check `if(newbytes > LONG_MAX - 15)` rejecting oversized allocations; rearranged validation order.
+  - **Impact:** Cache subsystem now safe against edge-case integer overflows; allocation failures logged cleanly.
+  - **Cite:** `SRC/CACHE1D.C:65–75`, docs/audits/engine-porter-r8.md.
+
+- **HIGH — Savegame loader fixed read fragility** (`source/MENUES.C:321–345`, cycle 26)
+  - **Issue:** Loader validated wall/sector/player counts but always read `MAXWALLS`/`MAXSECTORS`/`MAXPLAYERS` bytes regardless; truncated save files left uninitialized memory in array tails.
+  - **Fix:** Changed to read exactly `numwalls`/`numsectors` bytes, then `memset()` remainder to zero; preserves invariant that unused array slots are zeroed.
+  - **Impact:** Multiplayer desync risk from uninitialized wall data eliminated; cleanly handles truncated saves.
+  - **Cite:** `source/MENUES.C:321–345`, docs/audits/engine-porter-r8.md.
+
+- **HIGH — hlineasm shift amount validation** (`SRC/ENGINE.C:365–366`, cycle 26)
+  - **Issue:** logx/logy parameters to `hlineasm4` were unclamped shift amounts; negative or >31 shifts trigger undefined behavior in `<<` operator.
+  - **Fix:** Added runtime checks `if(logx < 0 || logx > 31)` before shift, defaulting to safe values; similar for logy.
+  - **Impact:** Rendering now resilient to malformed texture tile metadata; edge-case shift underflows prevented.
+  - **Cite:** `SRC/ENGINE.C:360–370`, docs/audits/engine-porter-r8.md.
+
+- **MEDIUM — Animateoffs array bounds clamping** (`SRC/ENGINE.C:3594`, cycle 26)
+  - **Issue:** `animateoffs()` silently wrapped result to tile 0 on out-of-bounds; caller had no signal that tile lookup failed.
+  - **Fix:** Changed to clamp result to `[0, MAXTILES)`, returning original tile if result exceeds bounds; added optional return-value check points.
+  - **Impact:** Animation playback no longer silently corrupts tile rendering; debug visibility improved.
+  - **Cite:** `SRC/ENGINE.C:3590–3600`, docs/audits/engine-porter-r8.md.
+
+- **3 × MEDIUM — SDL_RWops resource leak closure** (`compat/audio_stub.c`, cycle 26)
+  - **Issue:** `mixer_play()`, `mixer_play_3d()`, and `MUSIC_PlaySong()` error paths did not free RW stream objects on `Mix_LoadWAV_RW()` or `Mix_LoadMUS_RW()` failures.
+  - **Fix:** Added explicit `SDL_FreeRW(rw)` on all error returns; ensured `current_music_rw` cleared after playback stops.
+  - **Impact:** Audio system now resource-leak-free under error conditions; long-running games stable without RW handle exhaustion.
+  - **Cite:** `compat/audio_stub.c:185–195, 241–251, 882–892`, docs/audits/audio-engineer-r7.md.
+
+- **CRITICAL — Network packet type 9 buffer overflow** (`source/GAME.C case 9`, cycle 26)
+  - **Issue:** Packet type 9 (wchoice) handler wrote untrusted weapon choice directly into `packbuf[]` without array bounds validation; malicious peer could overflow.
+  - **Fix:** Added check `if(packbufleng-1 > MAX_WEAPONS)` rejecting oversized packets; validates choice index before weapon state update.
+  - **Impact:** Network input now validated; remote code execution via malicious packets eliminated.
+  - **Cite:** `source/GAME.C:case 9`, docs/audits/network-multiplayer-r5.md.
+
+- **HIGH — Network packet type 0/1 OOB read prevention** (`source/GAME.C cases 0, 1`, cycle 26)
+  - **Issue:** Sync payload for player state (types 0, 1) used bitmask-driven deserialization without pre-validating payload length; could read beyond buffer.
+  - **Fix:** Added bitmask pre-validation: required-length check before unmarshalling; rejects packets with insufficient data.
+  - **Impact:** Deserialization attacks now caught; network integrity verified before state mutation.
+  - **Cite:** `source/GAME.C:case 0, case 1`, docs/audits/network-multiplayer-r5.md.
+
+- **Test coverage expansion for cycle-25/r8 findings** (`tests/test_engine_net_hardening_regressions.py`, cycles 24–27)
+  - **Issue:** 21 new regression tests added across engine bounds, network hardening, and audio RWops resource leaks; all cycle-25/r8 CRITICAL/HIGH fixes now have dedicated regression coverage.
+  - **Fix:** New test suite validates allocache overflow guard, hlineasm shift bounds, savegame partial-reads, packet dispatch validation, RWops cleanup on error.
+  - **Impact:** Cycle-25/r8 hardening now protected from regression; future changes caught by CI.
+  - **Cite:** `tests/test_engine_net_hardening_regressions.py`, docs/audits/test-engineer-r8.md.
+
 For detailed audit findings and rationale, see [docs/audits/SUMMARY.md](docs/audits/SUMMARY.md).
 

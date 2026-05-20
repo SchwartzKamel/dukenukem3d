@@ -967,3 +967,66 @@ return contract.
   cross-team boundary case worth instructing more explicitly next
   audit cycle. Closing dupes as `done` in SQL is the right move when
   the underlying fix has already landed.
+
+## Cycle 28 — 2026-05-20T14:00 UTC
+
+### Audit-pass (2 in parallel, lean rotation)
+
+- **documentation-curator-r8** (last r7 cycle 23) — refreshed
+  CHANGELOG (610 -> 637 tests through cycle 27, added cycles 23-27
+  hardening sections), extended ARCHITECTURE "Recent Hardening"
+  through cycle 27, kept CONTRIBUTING anti-hallucination contract
+  current. Wrote `docs/audits/documentation-curator-r8.md` summary.
+  Per the persona's mandate, this is **direct-edit** work, no
+  human handoff.
+- **performance-profiler-r8** (last r7 cycle 24) — reassessed
+  `perf-r7-inline-animateoffs` in light of the cycle-26
+  animateoffs clamp; re-confirmed inline still slightly wins for
+  hot-path callers. No new seeds.
+
+### Grind (6 in parallel) — ALL CLOSED
+
+Disjoint files; zero collisions; zero hallucinations under the
+return-format contract.
+
+- **net-r5-packet-5-8** (MEDIUM) — volume/level/skill +
+  boolean-flag range checks added in source/GAME.C types 5 and 8.
+- **compat-r7-saferead-unused** (LOW) — SafeRead now checks
+  read() return; -Wunused-result cleared for mact_stub.c.
+- **asset-r8-pil-truncation** (MEDIUM) — Image.open + .load()
+  hardened in tools/generate_assets.py AND
+  tools/frame_analyzer.py (cross-cutting; same pattern).
+  LOAD_TRUNCATED_IMAGES=False explicit.
+- **asset-r8-font-render** (LOW) — ImageFont.truetype +
+  ImageDraw.text now report path/size on failure.
+- **build-r8-test-build-h-coverage** (MEDIUM) — parameterized
+  sweep over every BUILD.H #define shared between source/ and SRC/
+  in tests/test_build_h_consistency.py; MAXTILES xfail intact.
+- **build-r8-cmake-lto-parity** (MEDIUM) —
+  INTERPROCEDURAL_OPTIMIZATION enabled in CMakeLists.txt Release
+  builds via CheckIPOSupported, matching the Makefile -flto path.
+
+### Validation
+
+- Build: clean rebuild (release).
+- Tests: 637 -> 648 default + 1 xfailed. 11 new tests added.
+- Persistence-regression streak: **55+** consecutive parallel
+  sub-agents.
+
+### Backlog
+
+- 84 pending / 199 done / 3 blocked.
+- Open CRITICAL: 1 (`build-r7-lto-maxtiles-mismatch`, unchanged).
+- Open HIGH: `build-r7-makefile-race-condition`,
+  `build-r7-windows-arch-mismatch`, 3 net-r3 architectural items.
+
+### Notes
+
+- Cross-cutting fix in tools/frame_analyzer.py (asset-r8-pil
+  agent's instinct to apply the same truncation hardening to a
+  second PIL caller) is a reasonable persona-scope expansion.
+  Accept and log as evidence the personas are starting to think
+  in terms of patterns rather than file boundaries.
+- The asset-r8 agents successfully coordinated on
+  tests/test_generate_assets_validation.py without collision
+  (append-only protocol from the prompt held).
