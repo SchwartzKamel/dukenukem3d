@@ -2196,3 +2196,17 @@ Build: green.
 
 **Backlog delta:** 291 → 298 pending (+7 intake from audio-r16 + perf-r16 new todos, -1 perf-r16 auto-close). Tests stable at 979.
 
+
+---
+
+## Cycle 64 (audit-pass tick, 2026-05-20T23:45Z)
+
+**Stalest rotation:** network-multiplayer (last r14 @ cycle 59) + compat-layer (last r15 @ cycle 59). Both 5 cycles old. Doc-only audits.
+
+- **network-multiplayer-r15:** 6 findings, **0 new todos** (clean verification pass). VERIFIED LIVE: cycle 59 `net-r14-randomseed-game-start-sync` (5 sentinels in MMULTI.C, 8-byte handshake intact, 4-byte legacy fallback at lines 559-563, TestNetR14RandomseedSync survived mega-split into tests/test_network_packet_bounds.py), `net-r14-crc-validation-dormant` (TODO sentinel at initcrc() present). VERIFIED: ARCHITECTURE.md Network sections cycles 48/50/53/59 coherent (no contradictions). NEW SOFT FINDING: `tcp_send_failures` counter incremented but never inspected — design gap, not regression; leverage point for future `net-r14-socket-zombie` work. **Cycle-65 grind recommendations:** `fix-net-auth-spoofing` (HIGH, HMAC handshake) + `fix-net-sequence-numbers` (HIGH, NET_HEADER seqnums).
+- **compat-layer-r16:** 3 findings, **0 new todos** (all ADVISORY/INFORMATIONAL). VERIFIED: compat/ inventory 14 files / 4839 LOC, no new orphans; c11/gnu89 boundary clean (sampled sdl_driver.c, audio_stub.c, mact_stub.c); cycle 60 `-x c` Windows flag at Makefile:161 confirmed, Linux asymmetry justified; 17 LTO type-mismatch warnings (build-r17 carryover) NOT rooted in compat stubs — stub signatures clean; SDL2 2.30.9 forward-compatible patterns exemplary; FX_*/MUSIC_*/CONTROL_* stub completeness production-ready. ADVISORY: SDL2 error-path logging opportunity (debug builds), Mix_OpenAudio retry env-var tuning (optional `AUDIO_INIT_RETRIES`). **Cycle-65 grind recommendations:** Both LOW priority; defer in favor of net HIGH items.
+
+**Backlog delta:** 298 → 298 pending (0 intake; both audits clean verifications). Tests stable at 979.
+
+**Note:** Two clean audits in a row indicate the codebase has reached high stability in network + compat layers. Operator can confidently shift cycle-65 grind to HIGH-priority backlog drain (net auth/seqnums).
+
