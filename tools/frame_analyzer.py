@@ -4,25 +4,53 @@
 Analyzes BMP frame captures from the game's headless mode to validate
 that rendering is working correctly.
 """
-from PIL import Image, ImageFile, UnidentifiedImageError
-
-# Explicitly disable truncated image loading to catch corruption early
-ImageFile.LOAD_TRUNCATED_IMAGES = False
 from pathlib import Path
 from typing import Optional, Tuple, List, Dict
 import struct
 import statistics
 import sys
-import numpy as np
-
-try:
-    from scipy import ndimage
-    HAS_SCIPY = True
-except ImportError:
-    HAS_SCIPY = False
 
 
-def load_frame(path: str) -> Image.Image:
+# Lazy import helpers with singleton caching
+_PIL_cache = {}
+_numpy_cache = {}
+_scipy_cache = {}
+
+
+def _import_pil():
+    """Lazy import PIL modules with singleton caching."""
+    if "Image" not in _PIL_cache:
+        from PIL import Image, ImageFile, UnidentifiedImageError
+        _PIL_cache["Image"] = Image
+        _PIL_cache["ImageFile"] = ImageFile
+        _PIL_cache["UnidentifiedImageError"] = UnidentifiedImageError
+        # Explicitly disable truncated image loading to catch corruption early
+        ImageFile.LOAD_TRUNCATED_IMAGES = False
+    return _PIL_cache["Image"], _PIL_cache["ImageFile"], _PIL_cache["UnidentifiedImageError"]
+
+
+def _import_numpy():
+    """Lazy import numpy with singleton caching."""
+    if "np" not in _numpy_cache:
+        import numpy as np
+        _numpy_cache["np"] = np
+    return _numpy_cache["np"]
+
+
+def _import_scipy():
+    """Lazy import scipy.ndimage with singleton caching."""
+    if "ndimage" not in _scipy_cache:
+        try:
+            from scipy import ndimage
+            _scipy_cache["ndimage"] = ndimage
+            _scipy_cache["HAS_SCIPY"] = True
+        except ImportError:
+            _scipy_cache["HAS_SCIPY"] = False
+            _scipy_cache["ndimage"] = None
+    return _scipy_cache.get("HAS_SCIPY", False), _scipy_cache.get("ndimage")
+
+
+def load_frame(path: str):
     """Load a captured BMP frame with robustness to truncation/corruption.
     
     Args:
@@ -35,6 +63,7 @@ def load_frame(path: str) -> Image.Image:
         OSError: If file cannot be read or is truncated/corrupted
         UnidentifiedImageError: If file format is not recognized
     """
+    Image, ImageFile, UnidentifiedImageError = _import_pil()
     try:
         img = Image.open(path)
         img.load()  # Force load to detect truncation/corruption early
@@ -47,7 +76,7 @@ def load_frame(path: str) -> Image.Image:
         raise
 
 
-def is_black_screen(img: Image.Image, threshold: float = 0.95, black_cutoff: int = 10) -> bool:
+def is_black_screen(img, threshold: float = 0.95, black_cutoff: int = 10) -> bool:
     """Check if image is mostly black (broken rendering).
 
     Args:
@@ -75,22 +104,24 @@ def is_black_screen(img: Image.Image, threshold: float = 0.95, black_cutoff: int
     return (black_count / total) >= threshold
 
 
-def unique_color_count(img: Image.Image) -> int:
+def unique_color_count(img) -> int:
     """Count the number of distinct colors in the image."""
     colors = img.getcolors(maxcolors=2**24)
     if colors is None:
         # Fallback: use numpy for vectorized conversion from bytes to pixel tuples
+        np = _import_numpy()
         pixels_array = np.asarray(img)
         pixels_reshaped = pixels_array.reshape(-1, 3)
         return len(np.unique(pixels_reshaped, axis=0))
     return len(colors)
 
 
-def color_histogram(img: Image.Image) -> Dict[Tuple[int, int, int], int]:
+def color_histogram(img) -> Dict[Tuple[int, int, int], int]:
     """Return a dict mapping (R,G,B) tuples to pixel counts."""
     colors = img.getcolors(maxcolors=2**24)
     if colors is None:
         # Fallback: use numpy for vectorized processing
+        np = _import_numpy()
         pixels_array = np.asarray(img)
         pixels_reshaped = pixels_array.reshape(-1, 3)
         unique_colors, counts = np.unique(pixels_reshaped, axis=0, return_counts=True)
@@ -102,7 +133,7 @@ def color_histogram(img: Image.Image) -> Dict[Tuple[int, int, int], int]:
     return {color: count for count, color in colors}
 
 
-def brightness_stats(img: Image.Image) -> Dict[str, float]:
+def brightness_stats(img) -> Dict[str, float]:
     """Return min, max, mean, median brightness (0-255 grayscale equivalent)."""
     gray = img.convert("L")
     # For grayscale mode, tobytes() returns raw byte values which are the pixel values
@@ -117,12 +148,12 @@ def brightness_stats(img: Image.Image) -> Dict[str, float]:
     }
 
 
-def region_crop(img: Image.Image, x: int, y: int, w: int, h: int) -> Image.Image:
+def region_crop(img, x: int, y: int, w: int, h: int):
     """Crop a region from the image."""
     return img.crop((x, y, x + w, y + h))
 
 
-def has_visible_content(img: Image.Image, min_unique_colors: int = 4, max_black_ratio: float = 0.98) -> bool:
+def has_visible_content(img, min_unique_colors: int = 4, max_black_ratio: float = 0.98) -> bool:
     """Check if the frame has meaningful visible content.
 
     A frame has visible content if it's not mostly black AND has enough color variety.
@@ -132,7 +163,7 @@ def has_visible_content(img: Image.Image, min_unique_colors: int = 4, max_black_
     return unique_color_count(img) >= min_unique_colors
 
 
-def frame_difference(img1: Image.Image, img2: Image.Image) -> float:
+def frame_difference(img1, img2) -> float:
     """Compute normalized difference between two frames (0.0 = identical, 1.0 = completely different).
 
     Useful for detecting if the game is actually animating/progressing.
@@ -141,6 +172,7 @@ def frame_difference(img1: Image.Image, img2: Image.Image) -> float:
         img2 = img2.resize(img1.size)
 
     # Use numpy for vectorized pixel-level operations
+    np = _import_numpy()
     arr1 = np.asarray(img1)
     arr2 = np.asarray(img2)
     
@@ -152,7 +184,7 @@ def frame_difference(img1: Image.Image, img2: Image.Image) -> float:
     return float(total_diff)
 
 
-def detect_text_region(img: Image.Image, y_start: int, y_end: int) -> bool:
+def detect_text_region(img, y_start: int, y_end: int) -> bool:
     """Detect if there's likely text content in a horizontal band.
 
     Looks for high-contrast small features typical of text rendering.
@@ -165,6 +197,9 @@ def detect_text_region(img: Image.Image, y_start: int, y_end: int) -> bool:
         return False
     
     # Convert grayscale to numpy array and compute edge magnitude using Sobel
+    HAS_SCIPY, ndimage = _import_scipy()
+    np = _import_numpy()
+    
     if HAS_SCIPY:
         pixels_array = np.asarray(gray, dtype=np.float32)
         # Sobel edge detection in x and y directions
@@ -190,7 +225,7 @@ def detect_text_region(img: Image.Image, y_start: int, y_end: int) -> bool:
     return bool(transition_ratio > 0.05)
 
 
-def analyze_frame(img: Image.Image) -> Dict:
+def analyze_frame(img) -> Dict:
     """Run full analysis on a frame and return a summary dict.
 
     Returns dict with keys:

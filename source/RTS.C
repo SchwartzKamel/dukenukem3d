@@ -82,6 +82,9 @@ void RTS_AddFile (char *filename)
       Error ("RTS file %s doesn't have IWAD id\n",filename);
    header.numlumps = IntelLong(header.numlumps);
    header.infotableofs = IntelLong(header.infotableofs);
+   /* engine-r10-rts-overflow: reject WADs with absurd numlumps before mult overflow */
+   if (header.numlumps < 0 || header.numlumps > 65536)
+      Error ("RTS: invalid numlumps %d, refusing to load %s\n", header.numlumps, filename);
    length = header.numlumps*sizeof(filelump_t);
    fileinfo = alloca (length);
    if (!fileinfo)

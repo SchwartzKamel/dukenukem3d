@@ -58,6 +58,7 @@ uint16_t crctable[256];
 extern int32_t totalclock;
 static int32_t timeoutcount = 60, resendagaincount = 4;
 static int32_t lastsendtime[MAXPLAYERS];
+static int tcp_send_failures = 0;
 
 short myconnectindex, numplayers;
 short connecthead, connectpoint2[MAXPLAYERS];
@@ -139,8 +140,28 @@ static void net_send_raw(SOCKET sock, const unsigned char *data, int len)
 {
 	int sent = 0;
 	while (sent < len) {
-		int r = send(sock, (const char *)(data + sent), len - sent, 0);
-		if (r <= 0) break;
+		int attempts = 0;
+		int r = -1;
+		/* Retry loop for send(): handle EINTR and EAGAIN up to 8 attempts */
+		while (attempts < 8 && r < 0) {
+			r = send(sock, (const char *)(data + sent), len - sent, 0);
+			if (r < 0) {
+				int err;
+#ifdef _WIN32
+				err = WSAGetLastError();
+				if (err != WSAEWOULDBLOCK && err != WSAEINTR) break;
+#else
+				err = errno;
+				if (err != EAGAIN && err != EWOULDBLOCK && err != EINTR) break;
+#endif
+				attempts++;
+				if (attempts < 8) net_sleep(1);
+			}
+		}
+		if (r <= 0) {
+			tcp_send_failures++;
+			break;
+		}
 		sent += r;
 	}
 }

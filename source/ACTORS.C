@@ -468,6 +468,8 @@ void hitradius( short i, long  r, long  hp1, long  hp2, long  hp3, long  hp4 )
         do
         {
             dasect = tempshort[sectcnt++];
+            /* engine-r10-dasect-unvalidated: bound check before sector[] deref */
+            if(dasect < 0 || dasect >= MAXSECTORS) continue;
             if(((sector[dasect].ceilingz-s->z)>>8) < r)
             {
                d = klabs(wall[sector[dasect].wallptr].x-s->x)+klabs(wall[sector[dasect].wallptr].y-s->y);

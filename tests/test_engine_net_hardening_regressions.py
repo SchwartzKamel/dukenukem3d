@@ -1365,3 +1365,193 @@ class TestPacketType4ChatStrncpy:
                     "Must use strncpy with bounds-check."
                 )
 
+
+
+class TestRTSNumlumpsOverflow:
+    """Verify cycle-35 RTS.C integer overflow fix (engine-r10-rts-overflow).
+    
+    Bug: header.numlumps read from attacker-controlled WAD file, then multiplied
+    by sizeof(filelump_t) without overflow check. Multiplication can overflow int
+    to huge unsigned value, resulting in tiny allocation followed by OOB write.
+    
+    Fix: Add bounds-check guard before multiplication: if numlumps < 0 or > 65536,
+    reject the WAD file and cleanup.
+    """
+
+    def test_rts_numlumps_guard_present(self, repo_root):
+        """Verify RTS.C has numlumps overflow guard before multiplication."""
+        rts_c = repo_root / "source" / "RTS.C"
+        if not rts_c.exists():
+            pytest.skip(f"{rts_c} not found")
+        
+        content = rts_c.read_text(errors="replace")
+        
+        # Check for the guard pattern:
+        # if (header.numlumps < 0 || header.numlumps > 65536)
+        guard_pattern = re.search(
+            r'if\s*\(\s*header\.numlumps\s*<\s*0\s*\|\|\s*header\.numlumps\s*>\s*65536\s*\)',
+            content,
+            re.MULTILINE
+        )
+        
+        assert guard_pattern, (
+            "RTS.C missing numlumps overflow guard. Expected pattern:\n"
+            "if (header.numlumps < 0 || header.numlumps > 65536)"
+        )
+        
+        # Check for the error message inside the guard (Error() is the project's
+        # fatal handler — equivalent semantics to printf+abort, see RTS.C:82).
+        error_msg_pattern = re.search(
+            r'(?:printf|Error\s*\().*RTS.*invalid.*numlumps.*refusing',
+            content,
+            re.MULTILINE | re.IGNORECASE
+        )
+        
+        assert error_msg_pattern, (
+            "RTS.C missing error message. Expected Error() or printf with 'RTS: invalid numlumps ... refusing'"
+        )
+        
+        # Verify the guard comes BEFORE the multiplication
+        # Pattern: header.numlumps*sizeof(filelump_t)
+        mult_pattern = re.search(
+            r'length\s*=\s*header\.numlumps\s*\*\s*sizeof\s*\(\s*filelump_t\s*\)',
+            content,
+            re.MULTILINE
+        )
+        
+        assert mult_pattern, (
+            "RTS.C missing numlumps multiplication. Expected pattern:\n"
+            "length = header.numlumps*sizeof(filelump_t);"
+        )
+        
+        # Ensure guard appears before multiplication
+        guard_pos = guard_pattern.start()
+        mult_pos = mult_pattern.start()
+        assert guard_pos < mult_pos, (
+            "Bounds-check guard must appear BEFORE numlumps multiplication."
+        )
+        
+        # The guard must abort/return — Error() is fatal in this codebase (see RTS.C:82),
+        # equivalent to printf-then-exit semantics.
+        error_handler = re.search(
+            r'if\s*\(\s*header\.numlumps\s*<\s*0\s*\|\|\s*header\.numlumps\s*>\s*65536\s*\)\s*'
+            r'(?:\{[^}]*?(?:Error\s*\(|return\s*;|fclose\s*\([^)]*\))[^}]*?\}'
+            r'|\s*Error\s*\([^;]*;)',
+            content,
+            re.MULTILINE | re.DOTALL
+        )
+        
+        assert error_handler, (
+            "RTS.C guard must contain Error(), return, or fclose(handle) to halt processing."
+        )
+
+
+
+class TestDasectSectorIndexValidation:
+    """Regression test for engine-r10-dasect-unvalidated vulnerability.
+    
+    Finding: In ACTORS.C checkfloordamage(), dasect is assigned from tempshort[]
+    (attacker-controlled data from map) without validation, then immediately
+    dereferenced with sector[dasect].ceilingz at line 471+. This allows
+    out-of-bounds reads if dasect < 0 or dasect >= MAXSECTORS (1024).
+    
+    Fix: Add bounds-check guard immediately after assignment and before
+    first dereference.
+    """
+
+    def test_dasect_bounds_check_present(self, repo_root):
+        """Verify dasect has bounds-check before sector[] dereference."""
+        actors_c = repo_root / "source" / "ACTORS.C"
+        content = actors_c.read_text(errors="replace")
+        
+        # Verify the sentinel comment exists
+        assert "engine-r10-dasect-unvalidated" in content, (
+            "Missing sentinel comment for dasect bounds-check."
+        )
+        
+        # Find the pattern: dasect = tempshort[...]; followed by bounds-check guard.
+        # Allow an optional /* ... */ sentinel comment between the two lines.
+        bounds_check_pattern = re.search(
+            r'dasect\s*=\s*tempshort\[sectcnt\+\+\]\s*;'
+            r'(?:\s|/\*.*?\*/)*'
+            r'if\s*\(\s*dasect\s*<\s*0\s*\|\|\s*dasect\s*>=\s*MAXSECTORS\s*\)\s*continue\s*;',
+            content,
+            re.MULTILINE | re.DOTALL
+        )
+        
+        assert bounds_check_pattern, (
+            "dasect bounds-check not found. Expected pattern:\n"
+            "dasect = tempshort[sectcnt++];\n"
+            "if(dasect < 0 || dasect >= MAXSECTORS) continue;"
+        )
+        
+        # Get the position where the bounds-check pattern ends
+        bounds_check_end = bounds_check_pattern.end()
+        
+        # Verify that sector[dasect] appears after the bounds-check
+        # Look for sector[dasect] within the next 500 characters
+        post_check_content = content[bounds_check_end:bounds_check_end+500]
+        assert "sector[dasect]" in post_check_content, (
+            "sector[dasect] dereference must appear after the bounds-check guard."
+        )
+
+
+class TestSpriteQAmountBounds:
+    """Regression test for spriteqamount savegame bounds-check fix.
+    
+    Finding: spriteqamount loaded from savegame was checked against MAXSPRITES (4096),
+    but the spriteq[] array is only 1024 elements. This could cause out-of-bounds
+    reads when the savegame contains spriteqamount > 1024.
+    
+    Fix: Add defensive bounds-check capping spriteqamount to 1024 array size.
+    """
+
+    def test_spriteqamount_bounds_check(self, repo_root):
+        """Verify spriteqamount has bounds-check against actual array size."""
+        menues_c = repo_root / "source" / "MENUES.C"
+        content = menues_c.read_text(errors="replace")
+        
+        # Verify the sentinel comment exists
+        assert "engine-porter: defensive cap against spriteq[1024]" in content, (
+            "Missing sentinel comment for spriteqamount bounds-check."
+        )
+        
+        # Find the bounds-check pattern
+        bounds_check_pattern = re.search(
+            r'/\*\s*engine-porter:\s*defensive\s+cap\s+against\s+spriteq\[1024\].*?\*/'
+            r'\s*if\s*\(\s*spriteqamount\s*>\s*1024\s*\)\s*spriteqamount\s*=\s*0\s*;',
+            content,
+            re.MULTILINE
+        )
+        
+        assert bounds_check_pattern, (
+            "spriteqamount bounds-check not found. Expected pattern:\n"
+            "/* engine-porter: defensive cap against spriteq[1024] */\n"
+            "if(spriteqamount > 1024) spriteqamount = 0;"
+        )
+        
+        # Verify the existing MAXSPRITES check is still present
+        maxsprites_check = re.search(
+            r'if\s*\(\s*spriteqamount\s*<\s*0\s*\|\|\s*spriteqamount\s*>\s*MAXSPRITES\s*\)',
+            content
+        )
+        assert maxsprites_check, (
+            "Original MAXSPRITES check must be preserved (not modified)."
+        )
+        
+        # Verify the new check appears after the MAXSPRITES check
+        maxsprites_pos = maxsprites_check.start()
+        new_check_pos = bounds_check_pattern.start()
+        assert new_check_pos > maxsprites_pos, (
+            "New bounds-check must appear AFTER the MAXSPRITES check."
+        )
+        
+        # Verify the kdfread call is after the bounds-check
+        kdfread_pattern = re.search(
+            r'kdfread\s*\(\s*\(short\s*\*\)\s*&spriteq\[0\]',
+            content
+        )
+        assert kdfread_pattern, "kdfread for spriteq not found."
+        assert kdfread_pattern.start() > new_check_pos, (
+            "kdfread must come AFTER the new bounds-check."
+        )

@@ -1491,3 +1491,82 @@ Both agents:
 - Open CRITICAL: 3 (build-r7-lto-maxtiles-mismatch + 2 new engine-r10).
 - Open HIGH: 5 (3 net-r3 architectural + 2 new engine-r10).
 
+
+---
+
+## Cycle 36 — 2026-05-20T16:30Z
+
+### Grind (6 agents, all CRITICAL/HIGH/MEDIUM closures)
+
+Status: **6/6 closed** (after operator recovery — see Forensics).
+
+| Todo | Severity | File | Result |
+|------|----------|------|--------|
+| `engine-r10-rts-overflow` | CRITICAL | source/RTS.C:85-91 | ✅ guard `if (header.numlumps < 0 \|\| > 65536)` → Error() |
+| `engine-r10-dasect-unvalidated` | CRITICAL | source/ACTORS.C:470 | ✅ `if(dasect < 0 \|\| dasect >= MAXSECTORS) continue;` |
+| `engine-r10-player-sprite-unvalidated` | HIGH | source/GAME.C:1715-1717 | ✅ `if ((unsigned)ps[i].i >= MAXSPRITES) continue;` |
+| `fix-engine-spriteqamount-bounds` | MEDIUM | source/MENUES.C:413 | ✅ `if(spriteqamount > 1024) spriteqamount = 0;` |
+| `fix-net-partial-send-handling` | MEDIUM | SRC/MMULTI.C:140-167 | ✅ 8-attempt EINTR/EAGAIN retry loop + `tcp_send_failures` counter |
+| `perf-frame-analyzer-cold-start` | LOW | tools/frame_analyzer.py | ✅ `_import_pil()` / `_import_numpy()` / `_import_scipy()` lazy helpers; cold import 0.009s |
+
+Regression tests added: `TestRTSNumlumpsOverflow`, `TestDasectSectorIndexValidation`, `TestSpriteQAmountBounds`, `test_frame_analyzer_import_time`.
+
+### Forensics — sibling-agent reset storm (v4 contract violated, AGAIN)
+
+`git reflog` showed three `reset: moving to HEAD` events at 16:09–16:10
+while parallel grind agents were running. After the first wave landed,
+`git status` shrank from 8 modified files to 3: RTS.C, ACTORS.C, GAME.C,
+MMULTI.C, and tools/frame_analyzer.py edits all disappeared between
+sibling agent completions, despite the v4 contract explicitly
+prohibiting `git reset`/`stash`/`checkout`/`clean`.
+
+`git stash list` was empty (so the destructive op was `git reset --hard`
+or `git checkout -- <path>`, not `stash`). The dasect, RTS, GAME, and
+spriteq agents had all SELF-REPORTED success with literal sentinel
+tokens — their work simply got wiped by a sibling that ran in between.
+
+**Recovery path:** Operator reapplied each fix by hand from the agent's
+reported sentinel + line citation. All ADD-only, all <5 lines each.
+Test regex for `TestRTSNumlumpsOverflow` was loosened to accept the
+`Error()` fatal handler instead of `fclose(handle); return;` (RTS.C uses
+POSIX int fd, not FILE*); `TestDasectSectorIndexValidation` regex
+loosened to permit a /\* sentinel comment \*/ between the assignment
+and the guard.
+
+**v5 contract escalation (drafted, NOT YET applied to dispatch):**
+- Add to every grind prompt: "If you discover the working tree is in an
+  unexpected state, STOP and report — do NOT attempt to reconcile."
+- Operator MUST snapshot `git status --short` + reflog HEAD before each
+  cycle and diff post-cycle for any silent file disappearance.
+- Consider sequencing CRITICAL/HIGH agents one-at-a-time to eliminate
+  sibling contention until cause is identified.
+
+### Audit-pass (4 personas, doc-only — ran concurrently with grind)
+
+All v4-clean (no resets, sentinel tokens grep-verified).
+
+- `network-multiplayer-r7` (554 lines, +5 todos: `net-r7-eintr-eagain-handling`,
+  `net-r7-ipv6-dual-stack`, `net-r7-partial-send-retry`, `net-r7-queue-drop-logging`,
+  `net-r7-seq-number-design`).
+- `compat-layer-r9` (374 lines, +5 todos: `compat-r9-likely-unlikely-clang-guard`,
+  `compat-r9-mix-init-recovery-test`, `compat-r9-r6-carryover-refinement`,
+  `compat-r9-c11-noreturn-annotation`, `compat-r9-sdl2-api-forward-compat`).
+- `build-system-r10` (573 lines, todos with `build-r10-` prefix). Open CRITICAL
+  `build-r7-lto-maxtiles-mismatch` carried forward.
+- `asset-pipeline-r10` (397 lines, +2 todos: `asset-r10-manifest-schema-alignment`,
+  `asset-r10-flux-response-cache`). Audio schema cycle-34 verified as precedent
+  for other asset types.
+
+### Build & Test
+
+- `make -j$(nproc)` → `Build complete: duke3d (release)` (1 pre-existing realloc
+  warning on RTS.C:36 lumpinfo, unchanged).
+- `pytest -q` → **679 passed**, 34 skipped, 3 xfailed, 1 xpassed (+4 over
+  cycle-35 baseline of 675).
+
+### Backlog snapshot
+
+- ~117 pending / 218 done / 3 blocked (+17 new audit todos this cycle, −6 grind closures).
+- Open CRITICAL: 1 (`build-r7-lto-maxtiles-mismatch` only — both engine-r10
+  CRITICALs closed this cycle).
+- Open HIGH: 3 (net-r3 architectural).

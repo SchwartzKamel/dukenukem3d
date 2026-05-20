@@ -413,6 +413,9 @@ loadplayer(signed char spot)
 
      }
 
+     /* engine-porter: defensive cap against spriteq[1024] array bounds */
+     if(spriteqamount > 1024) spriteqamount = 0;
+
      kdfread((short *)&spriteq[0],sizeof(short),spriteqamount,fil);
          kdfread(&mirrorcnt,sizeof(short),1,fil);
 
