@@ -1864,3 +1864,40 @@ Keep v5 as the standing dispatch contract.
 - v6 contract held across all 6 grind agents; sibling edits tolerated correctly.
 - xdist re-enable validated in BOTH default (auto) and `-n 0` serial paths before commit (lesson from cycle 45 over-claim).
 - compat-r12-audio-defines collateral on test_audio_pipeline.py is the expected ratchet pattern when extracting magic numbers — fix-forward, not revert.
+
+---
+
+## 2026-05-21 — Cycle 47-48
+
+### Cycle 47 audit-pass (8a14d16): performance-profiler-r13, security-and-secrets-r14
+- perf-r13: verified cycle-46 xdist closure (37.5% speedup), filelock LIVE, header deps OK. 1 HIGH todo (frame-analyzer parametrization).
+- sec-r14: cycles 43-46 hardening verified clean, all r13 HIGHs CLOSED. 3 todos (OpenAI/Anthropic key pattern, AWS session token, manifest verify-on-load).
+
+### Cycle 48 audit-pass (this batch): network-multiplayer-r12, compat-layer-r13, engine-porter-r15, asset-pipeline-r15
+- net-r12: enumerated packet-handler bounds matrix (15 active types). 2 HIGH/MEDIUM gaps (type-4 chat underflow, type-9 weapon overread — both closed this cycle), 5 more todos (IPv6 staged, replay tracking, recv-buf xdist isolation, socket lifecycle leaks, unhandled-type fallthrough).
+- compat-r13: verified cycle-46 audio-defines LIVE, C11 clean, SDL2 production-grade. 3 LOW/MEDIUM todos (MSVC stage3 doc, SDL2 error logging, music init docs).
+- engine-r15: 11/11 sentinel sweep PASS (cycles 41-48 all intact). 4 new findings: 1 CRITICAL (PREMAP volume/level multiply OOB), 1 HIGH (MENUES music index bounds), 1 MEDIUM (K&R C++ comments in PREMAP/RTS), 1 MEDIUM (engine test coverage gap).
+- asset-r15: 6 findings, 6 todos seeded (full audit doc landed).
+
+### Cycle 48 grind (this batch — 6 closures, all green)
+- ✅ net-r12-type-4-chat-underflow (HIGH) + net-r12-type-9-weapon-overread (MEDIUM) — source/GAME.C lines 570/669 packbufleng<2 prevalidate guards with sentinels.
+- ✅ perf-r13-frame-analyzer-parametrization + test-r14-frame-analyzer-parametrization (duplicate, both closed) — tests/test_frame_analyzer.py parametrize [1,3,5] across xdist workers. Note: operator trimmed agent's proposed [10] variant (14.3s gating regression) down to [1,3,5] (8.45s max variant). Better coverage at acceptable wallclock.
+- ✅ sec-r14-secret-scan-openai-pattern + sec-r14-secret-scan-aws-session-token — tools/check_secrets.sh 2 new pattern groups, self-detection avoided via character-class escape (s[k]-proj-). 6 new tests.
+- ✅ fix-engine-cloud-array-sizing (LOW) — source/MENUES.C `#define MAXCLOUDS 128` replaces 6 occurrences of `sizeof(short)<<7` in loadplayer/saveplayer.
+- ✅ docs-arch-network-section — docs/ARCHITECTURE.md new 156-line "Network Architecture" section (wire format, packet matrix, lifecycle, known gaps, test harness).
+- ✅ perf-ci-parallel-spawn — tools/ci/generate_assets.sh backgrounded audio+assets python invocations with PID tracking and exit-code propagation. 14 new tests.
+
+### Collateral fix (operator, this batch)
+- tests/test_frame_analyzer.py — trimmed parametrize from [1,3,5,10] to [1,3,5]. The [10] variant cost 14.3s and gated the whole xdist wallclock (pulling suite from 14s → 32s). Trim brought it to 20.98s, accepting modest regression for genuine coverage improvement.
+
+### Build/test deltas
+- 805 → **834 passing** (+29 across 6 successful closures)
+- make clean && make -j: green
+- pytest -q (parallel xdist): 834 passed, 35 skipped, 2 xfailed, 2 xpassed in ~21s
+- v6 contract held across all 6 grind agents
+- Backlog impact: net-r12 + sec-r14 + perf-r13 + test-r14 + fix-engine + perf-ci + docs-arch all moved to done; cycle-48 + cycle-49 audits seeded ~17 new todos
+
+### Notes
+- Operator caught perf-r13 frame-analyzer agent's over-claim: the [10] variant pulled wallclock 2.3x worse. Reinforces "always read agent's perf numbers carefully — wallclock is what matters, not aggregate compute".
+- Engine-r15 surfaced a CRITICAL: PREMAP.C/MENUES.C `(volume_number*11)+level_number` multiply without pre-bound check. Add to cycle 50.
+- Net-r12 packet-handler bounds matrix is now in audit doc — use as authoritative source for future packet work.
