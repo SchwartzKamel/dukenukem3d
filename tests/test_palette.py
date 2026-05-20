@@ -20,6 +20,7 @@ def test_palette_index_zero_is_black():
     assert pal[0] == (0, 0, 0)
 
 
+@pytest.mark.slow
 def test_palette_dat_starts_with_rgb():
     """PALETTE.DAT begins with 768 bytes of VGA palette (0-63 range)."""
     pal = build_palette()

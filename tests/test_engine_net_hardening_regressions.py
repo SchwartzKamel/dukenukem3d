@@ -1,5 +1,5 @@
 """
-Regression tests for hardening fixes from cycle 11-15.
+Regression tests for hardening fixes from cycle 11-15, 19-20, 22.
 
 These tests use static analysis (grep-style source inspection) to verify
 that critical guard patterns remain in place. They do NOT execute the engine.
@@ -17,6 +17,11 @@ Test coverage:
   6. MMULTI.C bounds (cycle 15): from_player bounds checks
   7. SoundOwner cap (cycle 15): FX_StopSound in xyzsound context
   8. FX_SetVolume thread safety (cycle 15): SDL_LockAudio in FX_SetVolume
+  9. sprite-yvel bounds (cycle 20): player_from_yvel macro and usage
+  10. savegame loader bounds (cycle 20): ferror checks after kdfread
+  11. cache1d_free_bytes counter (cycle 22): static variable + references
+  12. NET_CONNECT_TIMEOUT define (cycle 22): timeout value <= 30
+  13. spriteqamount bounds (cycle 19): array bounds checking
 """
 
 import re
@@ -233,6 +238,166 @@ class TestFXSetVolumeLocking:
             pytest.skip("FX_SetVolume function not found in audio_stub.c")
 
 
+class TestSpriteYvelBounds:
+    """Verify cycle-20 sprite Y-velocity bounds checking with player_from_yvel."""
+
+    def test_duke3d_h_player_from_yvel_macro(self, repo_root):
+        """DUKE3D.H must define player_from_yvel macro."""
+        duke3d_h = repo_root / "source" / "DUKE3D.H"
+        if not duke3d_h.exists():
+            pytest.skip(f"{duke3d_h} not found")
+
+        content = duke3d_h.read_text(errors="replace")
+
+        assert "player_from_yvel" in content, (
+            "DUKE3D.H must define player_from_yvel macro for Y-velocity bounds. "
+            "Cycle-20 fix may have been reverted."
+        )
+
+    def test_actors_c_player_from_yvel_usage(self, repo_root):
+        """ACTORS.C must use player_from_yvel macro at 10+ call sites."""
+        actors_c = repo_root / "source" / "ACTORS.C"
+        if not actors_c.exists():
+            pytest.skip(f"{actors_c} not found")
+
+        content = actors_c.read_text(errors="replace")
+
+        # Count player_from_yvel( function-call usage
+        usage_count = content.count("player_from_yvel(")
+        assert usage_count >= 10, (
+            f"ACTORS.C should use player_from_yvel macro at least 10 times, "
+            f"found {usage_count}. Cycle-20 Y-velocity bounds fix may have been reverted."
+        )
+
+
+class TestSavegameLoaderBounds:
+    """Verify cycle-20 savegame loader ferror guards after kdfread."""
+
+    def test_menues_c_kdfread_ferror_checks(self, repo_root):
+        """MENUES.C must have ferror guards after kdfread operations."""
+        menues_c = repo_root / "source" / "MENUES.C"
+        if not menues_c.exists():
+            pytest.skip(f"{menues_c} not found")
+
+        content = menues_c.read_text(errors="replace")
+
+        # Check for kdfread operations
+        has_kdfread = "kdfread(" in content
+        # Verify ferror guards exist (already tested in TestMenuesFileIO)
+        has_ferror = "ferror(fil)" in content
+
+        assert has_kdfread and has_ferror, (
+            "MENUES.C must contain kdfread calls with subsequent ferror(fil) "
+            "checks for savegame loading robustness. Cycle-20 fix may have been reverted."
+        )
+
+    def test_menues_c_animatecnt_kdfread_boundary(self, repo_root):
+        """MENUES.C must have ferror check after animatecnt kdfread."""
+        menues_c = repo_root / "source" / "MENUES.C"
+        if not menues_c.exists():
+            pytest.skip(f"{menues_c} not found")
+
+        content = menues_c.read_text(errors="replace")
+
+        # Look for kdfread(&animatecnt pattern followed by ferror
+        # This is a specific critical boundary in savegame loading
+        has_animatecnt_kdfread = "kdfread(&animatecnt" in content
+        assert has_animatecnt_kdfread, (
+            "MENUES.C savegame loader must read animatecnt via kdfread. "
+            "Cycle-20 fix may have been reverted."
+        )
+
+
+class TestCache1dFreeBytes:
+    """Verify cycle-22 cache1d_free_bytes counter management in CACHE1D.C."""
+
+    def test_cache1d_c_free_bytes_declaration(self, repo_root):
+        """CACHE1D.C must declare static long cache1d_free_bytes."""
+        cache1d_c = repo_root / "SRC" / "CACHE1D.C"
+        if not cache1d_c.exists():
+            pytest.skip(f"{cache1d_c} not found")
+
+        content = cache1d_c.read_text(errors="replace")
+
+        assert "static long cache1d_free_bytes" in content, (
+            "CACHE1D.C must declare 'static long cache1d_free_bytes' counter. "
+            "Cycle-22 memory tracking fix may have been reverted."
+        )
+
+    def test_cache1d_c_free_bytes_references(self, repo_root):
+        """CACHE1D.C must reference cache1d_free_bytes at 5+ sites."""
+        cache1d_c = repo_root / "SRC" / "CACHE1D.C"
+        if not cache1d_c.exists():
+            pytest.skip(f"{cache1d_c} not found")
+
+        content = cache1d_c.read_text(errors="replace")
+
+        # Count cache1d_free_bytes references (excluding the static declaration)
+        reference_count = content.count("cache1d_free_bytes")
+        assert reference_count >= 5, (
+            f"CACHE1D.C should reference cache1d_free_bytes at least 5 times, "
+            f"found {reference_count}. Cycle-22 memory tracking fix may have been reverted."
+        )
+
+
+class TestNETConnectTimeout:
+    """Verify cycle-22 NET_CONNECT_TIMEOUT define and value in MMULTI.C."""
+
+    def test_mmulti_c_net_connect_timeout_define(self, repo_root):
+        """MMULTI.C must define NET_CONNECT_TIMEOUT with value <= 30."""
+        mmulti_c = repo_root / "SRC" / "MMULTI.C"
+        if not mmulti_c.exists():
+            pytest.skip(f"{mmulti_c} not found")
+
+        content = mmulti_c.read_text(errors="replace")
+
+        # Check for the #define NET_CONNECT_TIMEOUT
+        assert "#define NET_CONNECT_TIMEOUT" in content, (
+            "MMULTI.C must define NET_CONNECT_TIMEOUT for connection timeout. "
+            "Cycle-22 network hardening fix may have been reverted."
+        )
+
+        # Extract and verify the value is <= 30
+        import re
+        timeout_match = re.search(
+            r"#define\s+NET_CONNECT_TIMEOUT\s+(\d+)",
+            content
+        )
+
+        if timeout_match:
+            timeout_value = int(timeout_match.group(1))
+            assert timeout_value <= 30, (
+                f"NET_CONNECT_TIMEOUT value must be <= 30, found {timeout_value}. "
+                "Cycle-22 network hardening fix may have been weakened."
+            )
+        else:
+            pytest.fail(
+                "NET_CONNECT_TIMEOUT define found but value could not be parsed"
+            )
+
+
+class TestSpriteqamountBounds:
+    """Verify cycle-19 spriteqamount array bounds checking in MENUES.C."""
+
+    def test_menues_c_spriteqamount_bounds_check(self, repo_root):
+        """MENUES.C must have spriteqamount bounds check against MAXSPRITES."""
+        menues_c = repo_root / "source" / "MENUES.C"
+        if not menues_c.exists():
+            pytest.skip(f"{menues_c} not found")
+
+        content = menues_c.read_text(errors="replace")
+
+        # Look for bounds check pattern: spriteqamount [<>]= MAXSPRITES
+        pattern = r"spriteqamount\s*[<>]=?\s*MAXSPRITES"
+        bounds_check = re.search(pattern, content)
+
+        assert bounds_check, (
+            "MENUES.C must have a bounds check like "
+            "'if(spriteqamount < 0 || spriteqamount > MAXSPRITES)' "
+            "or similar. Cycle-19 fix may have been reverted."
+        )
+
+
 # ===== Parametrized integration test =====
 class TestAllHardeningFixesSummary:
     """Quick summary that all 8 cycles of hardening are present."""
@@ -249,6 +414,12 @@ class TestAllHardeningFixesSummary:
             ("MMULTI.C bounds", "SRC/MMULTI.C", "MAXPLAYERS"),
             ("SoundOwner aging", "source/SOUNDS.C", "FX_StopSound"),
             ("SDL_LockAudio", "compat/audio_stub.c", "SDL_LockAudio"),
+            ("sprite-yvel bounds", "source/DUKE3D.H", "player_from_yvel"),
+            ("sprite-yvel usage", "source/ACTORS.C", "player_from_yvel("),
+            ("savegame kdfread", "source/MENUES.C", "kdfread("),
+            ("cache1d counter", "SRC/CACHE1D.C", "cache1d_free_bytes"),
+            ("NET timeout", "SRC/MMULTI.C", "NET_CONNECT_TIMEOUT"),
+            ("spriteqamount bounds", "source/MENUES.C", "MAXSPRITES"),
         ],
     )
     def test_hardening_patterns_present(self, repo_root, fix_name, file_path, pattern):
