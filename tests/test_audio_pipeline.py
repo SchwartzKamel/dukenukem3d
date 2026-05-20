@@ -892,3 +892,96 @@ class TestParallelManifestRace:
             finally:
                 generate_audio.OUTPUT_DIR = orig_output_dir
 
+
+class TestAudioR15SampleRateExtraction:
+    """Regression tests for audio-r15-hardcode-44100-hz-default-extraction.
+    
+    Verify that hardcoded 44100 Hz sample rate is extracted to AUDIO_DEFAULT_SAMPLE_RATE
+    define, and that existing cycle-46 audio defines are preserved.
+    """
+
+    def test_audio_default_sample_rate_define_present(self):
+        """Verify AUDIO_DEFAULT_SAMPLE_RATE define is present in compat/audio_stub.c."""
+        audio_stub = os.path.join(PROJECT_ROOT, "compat", "audio_stub.c")
+        assert os.path.exists(audio_stub), f"File not found: {audio_stub}"
+        
+        with open(audio_stub, "r") as f:
+            content = f.read()
+        
+        # Check for the define with sentinel comment
+        has_define = bool(re.search(
+            r'#define\s+AUDIO_DEFAULT_SAMPLE_RATE\s+44100',
+            content
+        ))
+        assert has_define, (
+            "AUDIO_DEFAULT_SAMPLE_RATE define not found in compat/audio_stub.c"
+        )
+        
+        # Verify sentinel comment is present
+        sentinel = "audio-r15-sample-rate: extracted from magic-number 44100"
+        assert sentinel in content, (
+            f"Sentinel comment '{sentinel}' not found in {audio_stub}"
+        )
+
+    def test_literal_44100_not_in_code(self):
+        """Verify literal 44100 no longer appears in compat/audio_stub.c code (only in define/comment)."""
+        audio_stub = os.path.join(PROJECT_ROOT, "compat", "audio_stub.c")
+        
+        with open(audio_stub, "r") as f:
+            lines = f.readlines()
+        
+        # Count occurrences outside of #define line and sentinel comment
+        literal_44100_count = 0
+        for i, line in enumerate(lines, 1):
+            # Skip the #define line itself
+            if "#define AUDIO_DEFAULT_SAMPLE_RATE" in line:
+                continue
+            # Skip the sentinel comment line
+            if "audio-r15-sample-rate" in line:
+                continue
+            if "44100" in line:
+                literal_44100_count += 1
+                # Report which line has the issue
+                print(f"Line {i}: {line.rstrip()}")
+        
+        assert literal_44100_count == 0, (
+            f"Found {literal_44100_count} occurrence(s) of literal 44100 outside of #define line"
+        )
+
+    def test_audio_default_sample_rate_used_in_mix_open_audio(self):
+        """Verify AUDIO_DEFAULT_SAMPLE_RATE is used in Mix_OpenAudio call."""
+        audio_stub = os.path.join(PROJECT_ROOT, "compat", "audio_stub.c")
+        
+        with open(audio_stub, "r") as f:
+            content = f.read()
+        
+        # Check that Mix_OpenAudio uses either literal or AUDIO_DEFAULT_SAMPLE_RATE
+        has_sample_rate = bool(re.search(
+            r'Mix_OpenAudio\s*\(\s*mixrate\s*\?\s*\(int\)\s*mixrate\s*:\s*AUDIO_DEFAULT_SAMPLE_RATE',
+            content
+        ))
+        assert has_sample_rate, (
+            "Mix_OpenAudio call does not use AUDIO_DEFAULT_SAMPLE_RATE fallback"
+        )
+
+    def test_cycle_46_audio_defines_preserved(self):
+        """Verify all cycle-46 audio defines are still present."""
+        audio_stub = os.path.join(PROJECT_ROOT, "compat", "audio_stub.c")
+        
+        with open(audio_stub, "r") as f:
+            content = f.read()
+        
+        # Check for cycle-46 defines
+        cycle_46_defines = [
+            ("AUDIO_BUFFER_SIZE", 2048),
+            ("AUDIO_MIX_INIT_MAX_RETRIES", 3),
+            ("AUDIO_MIX_INIT_BASE_DELAY_MS", 100),
+        ]
+        
+        for define_name, define_value in cycle_46_defines:
+            pattern = rf'#define\s+{define_name}\s+{define_value}'
+            assert re.search(pattern, content), (
+                f"Cycle-46 define {define_name} not found or has wrong value"
+            )
+
+

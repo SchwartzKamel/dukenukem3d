@@ -596,6 +596,9 @@ extern void sdl_timer_init(void);
 extern void sdl_timer_shutdown(void);
 extern unsigned long sdl_timer_getticks(void);
 
+/* Network (multiplayer support) */
+extern short getpacket(short *other, char *bufptr); /* build-r16-lto-type: aligned to legacy K&R decl */
+
 /* ======================================================================
  * POSIX name conflicts
  *

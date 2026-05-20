@@ -206,9 +206,9 @@ int SCRIPT_GetNumber(int handle, char *section, char *key, int32_t *dest) {
     return 0;
 }
 
-void SCRIPT_PutNumber(int handle, char *section, char *key, long value,
-                      int hexadecimal, int defaultvalue) {
-    script_t *sc = get_script(handle);
+void SCRIPT_PutNumber(int32_t handle, char *section, char *key, int32_t value,
+                      int32_t hexadecimal, int32_t defaultvalue) { /* build-r16-lto-type: aligned to legacy K&R caller decl */
+    script_t *sc = get_script((int)handle);
     script_entry_t *e;
     (void)hexadecimal; (void)defaultvalue;
     if (!sc) return;
@@ -218,7 +218,7 @@ void SCRIPT_PutNumber(int handle, char *section, char *key, long value,
         strncpy(e->section, section, 63); e->section[63] = '\0';
         strncpy(e->key, key, 63); e->key[63] = '\0';
     }
-    if (e) snprintf(e->value, MAX_ENTRY_LEN, "%ld", value);
+    if (e) snprintf(e->value, MAX_ENTRY_LEN, "%d", (int)value);
 }
 
 void SCRIPT_PutString(int handle, char *section, char *key, char *value) {
@@ -264,15 +264,16 @@ int SafeFileExists(const char *filename) {
     return (access(filename, F_OK) == 0);
 }
 
-void *SafeMalloc(long size) {
+void *SafeMalloc(int32_t size) { /* build-r16-lto-type: aligned to legacy K&R caller decl */
     void *p = malloc((size_t)size);
-    if (!p) { fprintf(stderr, "SafeMalloc: out of memory (%ld bytes)\n", size); exit(1); }
+    if (!p) { fprintf(stderr, "SafeMalloc: out of memory (%d bytes)\n", (int)size); exit(1); }
     return p;
 }
 
-void *SafeRealloc(void *ptr, long size) {
-    void *p = realloc(ptr, (size_t)size);
+void *SafeRealloc(void **ptr, int32_t newsize) { /* build-r16-lto-type: aligned to legacy K&R caller decl */
+    void *p = realloc(*ptr, (size_t)newsize);
     if (!p) { fprintf(stderr, "SafeRealloc: out of memory\n"); exit(1); }
+    *ptr = p;
     return p;
 }
 
@@ -280,18 +281,19 @@ void SafeFree(void *ptr) {
     if (ptr) free(ptr);
 }
 
-long SafeOpenRead(const char *filename) {
+int32_t SafeOpenRead(const char *filename, int32_t filetype) { /* build-r16-lto-type: aligned to legacy K&R caller decl */
     int fd = open(filename, O_RDONLY);
     if (fd < 0) { fprintf(stderr, "SafeOpenRead: can't open %s\n", filename); }
-    return (long)fd;
+    (void)filetype;
+    return (int32_t)fd;
 }
 
-void SafeRead(long handle, void *buf, long count) {
-    ssize_t n = read((int)handle, buf, (size_t)count);
+void SafeRead(int32_t handle, void *buffer, int32_t count) { /* build-r16-lto-type: aligned to legacy K&R caller decl */
+    ssize_t n = read((int)handle, buffer, (size_t)count);
     if (n < 0) {
         fprintf(stderr, "SafeRead: read error\n");
     } else if (n < (ssize_t)count) {
-        fprintf(stderr, "SafeRead: short read (%zd of %ld bytes)\n", n, count);
+        fprintf(stderr, "SafeRead: short read (%zd of %d bytes)\n", n, (int)count);
     }
 }
 
@@ -312,13 +314,13 @@ void Error(char *fmt, ...) {
     exit(1);
 }
 
-int CheckParm(char *check) {
+char CheckParm(char *check) { /* build-r16-lto-type: aligned to legacy K&R caller decl */
     /* Check command line parameters - stub returns 0 (not found) */
     (void)check;
     return 0;
 }
 
-long Z_AvailHeap(void) {
+int32_t Z_AvailHeap(void) { /* build-r16-lto-type: aligned to legacy K&R caller decl */
     return 16 * 1024 * 1024; /* Report 16MB available */
 }
 
@@ -341,7 +343,9 @@ void Music_SetVolume(int volume) { (void)volume; }
 void PlayMusic(char *fn) { (void)fn; }
 
 /* IntelLong: byte-swap for big-endian. On little-endian (x86), no-op */
-long IntelLong(long val) { return val; }
+int32_t IntelLong(int32_t val) { /* build-r16-lto-type: aligned to legacy K&R caller decl */
+    return val;
+}
 
 /* Mouse functions - forward to SDL driver */
 void setupmouse(void) { /* handled by SDL init */ }
@@ -357,10 +361,10 @@ void readmousebstatus(short *bstatus) {
     *bstatus = (short)btn;
 }
 
-long MOUSE_GetButtons(void) {
+int32_t MOUSE_GetButtons(void) { /* build-r16-lto-type: aligned to legacy K&R caller decl */
     int dx = 0, dy = 0, btn = 0;
     sdl_getmouse(&dx, &dy, &btn);
-    return (long)btn;
+    return (int32_t)btn;
 }
 
 /* Timer stubs if not already defined */
@@ -379,31 +383,31 @@ void printchrasm(long offset, long col, long ch) {
 }
 
 /* VBE_setPalette - called from some game files */
-long VBE_setPalette(long start, long num, char *dapal) {
+int32_t VBE_setPalette(int32_t start, int32_t num, char *dapal) { /* build-r16-lto-type: aligned to legacy K&R caller decl */
     sdl_setpalette((unsigned char *)dapal, (int)start, (int)num);
     return 1;
 }
 
 /* divscale generic (variable shift) */
-long divscale(long a, long b, long c) {
-    return (long)(((int64_t)a << c) / b);
+int32_t divscale(int32_t a, int32_t b, int32_t c) { /* build-r16-lto-type: aligned to legacy K&R caller decl */
+    return (int32_t)(((int64_t)a << c) / b);
 }
 
 /* FindDistance2D/3D */
-long FindDistance2D(long x, long y) {
-    long t;
-    x = labs(x);
-    y = labs(y);
+int32_t FindDistance2D(int32_t x, int32_t y) { /* build-r16-lto-type: aligned to legacy K&R caller decl */
+    int32_t t;
+    x = labs((int)x);
+    y = labs((int)y);
     if (x < y) { t = x; x = y; y = t; }
     t = y + (y >> 1);
     return x - (x >> 5) - (x >> 7) + (t >> 2) + (t >> 6);
 }
 
-long FindDistance3D(long x, long y, long z) {
-    long t;
-    x = labs(x);
-    y = labs(y);
-    z = labs(z);
+int32_t FindDistance3D(int32_t x, int32_t y, int32_t z) { /* build-r16-lto-type: aligned to legacy K&R caller decl */
+    int32_t t;
+    x = labs((int)x);
+    y = labs((int)y);
+    z = labs((int)z);
     if (x < y) { t = x; x = y; y = t; }
     if (x < z) { t = x; x = z; z = t; }
     t = y + z;

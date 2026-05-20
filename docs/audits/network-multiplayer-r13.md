@@ -404,4 +404,104 @@ This would unblock **LAN alpha testing** (types 0–9, 16–17 validated if r13 
 
 ---
 
+## SECTION 8: NET-R13 ENDIANNESS & PLAYER-INDEX AUDIT CLOSURE (CYCLE 51)
+
+### Overview
+This section documents the comprehensive audit of all packet handlers in `source/GAME.C` for:
+1. Multi-byte field reads and endianness handling
+2. Player index bounds validation
+
+**Status**: ✅ **AUDIT COMPLETE** — Two MEDIUM todos closed with sentinel documentation.
+
+---
+
+### Endianness Audit: Multi-Byte Field Access Summary
+
+**Finding**: All multi-byte field reads in packet handlers use explicit little-endian unpacking. No raw pointer casts (`*(short*)&buf[i]`) found. Project assumes x86 host endianness (acceptable legacy design).
+
+| Type | Handler | Multi-Byte Accesses | Endianness Method | Status |
+|------|---------|-------------------|-------------------|--------|
+| **0** | Master sync | Lines 453, 458 | Manual LE unpack `packbuf[j]+((short)packbuf[j+1]<<8)` | ✅ SAFE |
+| **1** | Slave sync | Lines 544, 545 | Manual LE unpack `packbuf[j]+((short)packbuf[j+1]<<8)` | ✅ SAFE |
+| **17** | Input sync delta | Lines 790, 791 | Manual LE unpack `packbuf[j]+((short)packbuf[j+1]<<8)` | ✅ SAFE |
+| **All other types** | Various | Single-byte or no multi-byte access | N/A | ✅ SAFE |
+
+**Sentinel Comments Added**:
+- Type-0 lines 453, 458: `/* net-r13-endian: little-endian unpack (host x86) */`
+- Type-1 lines 544, 545: `/* net-r13-endian: little-endian unpack (host x86) */`
+- Type-17 lines 790, 791: `/* net-r13-endian: little-endian unpack (host x86) */`
+
+**Design Rationale**:
+- Network packets are little-endian on wire (historical x86 architecture)
+- Host is x86/x64 (little-endian), so direct unpack is safe
+- Cross-platform (big-endian) support is NOT planned for this release
+- Explicit byte-shifting pattern makes endianness assumption visible in code
+
+**Conclusion**: ✅ **VERIFIED SAFE** — All multi-byte field reads are endianness-safe and explicitly documented.
+
+---
+
+### Player Index Bounds Validation Audit
+
+**Finding**: All packet handlers that use player indices receive pre-validated `other` parameter from `getpacket()` via MMULTI.C gateway.
+
+**Single Validation Point**: SRC/MMULTI.C line 267
+```c
+if (from_player < 0 || from_player >= MAXPLAYERS) {
+    printf("NET: SECURITY: Invalid from_player=%d (out of bounds [0,%d)). Dropping packet.\n",
+        from_player, MAXPLAYERS);
+    recv_bufs[i].len -= NET_HEADER_SIZE;
+    // ... drop packet ...
+}
+```
+
+**Dispatch Handlers Using Player Index**:
+- Type-6 (player name exchange): Line 647 redundant check `if ((unsigned)other >= MAXPLAYERS)` (defense-in-depth)
+- Type-9 (weapon choice): Uses `other` at line 678 `ud.wchoice[other][...]` (pre-validated)
+- Type-0 (master sync): Uses `i` loop variable (connecthead/connectpoint2 chain, never user-supplied)
+- Type-1, 17 (input sync): Uses `other` parameter (pre-validated)
+
+**Sentinel Comments Added**:
+- Type-6 line 646: `/* net-r13-player-idx-bounds: from_player validated in MMULTI.C line 267 gateway; redundant check for defense-in-depth */`
+
+**Design Pattern**:
+- **Single Point of Validation** (MMULTI.C line 267) ensures all packets reaching dispatch are from valid player indices
+- **Defense-in-Depth** (Type-6 redundant check) catches any future refactoring errors
+- No direct array indexing from untrusted `packbuf` values (only from pre-validated `other`)
+
+**Conclusion**: ✅ **VERIFIED SAFE** — Player index bounds validation is comprehensive and documented.
+
+---
+
+### Audit Completeness Summary
+
+**Case Arms Verified (0–17, 125–127, 250, 255)**:
+- ✅ Case 0 (master sync): Endianness documented, player-index loop-protected
+- ✅ Case 1 (slave sync): Endianness documented, pre-validated `other`
+- ✅ Case 4 (chat): Pre-check r12 closure, no multi-byte access
+- ✅ Case 5 (game settings): Pre-check r13 closure, no multi-byte access
+- ✅ Case 6 (player name): Pre-validated `other`, redundant guard documented
+- ✅ Case 7 (RTS sound): Pre-check r13 closure, no multi-byte access
+- ✅ Case 8 (post-game): Pre-check r13 closure, no multi-byte access
+- ✅ Case 9 (weapon): Pre-check r12 closure, pre-validated `other`
+- ✅ Case 16 (init): Init-only, no player index
+- ✅ Case 17 (input sync delta): Endianness documented, pre-validated `other`
+- ✅ Case 125–127, 250, 255: No player-supplied data access
+
+**Endianness Sentinels Present**: 3 (types 0, 1, 17)
+**Player-Index Sentinels Present**: 1 (type 6 defense-in-depth documentation)
+**Existing Cycle Sentinels Verified Intact**:
+- ✅ net-r12-type-4-chat-prevalidate (line 570)
+- ✅ net-r12-type-9-weapon-prevalidate (line 670)
+- ✅ net-r11-type-17-envelope-prevalidate (line 773)
+- ✅ net-r13-type-5-prevalidate (line 583)
+- ✅ net-r13-type-7-prevalidate (line 682)
+- ✅ net-r13-type-8-prevalidate (line 706)
+
+**Test Coverage**: New class `TestNetR13EndianPlayerIdx` added to test_engine_net_hardening_regressions.py.
+
+---
+
+**Sentinel**: `net-r13-endian-playeridx-complete: 2 todos closed`
+
 **Sentinel**: `net-r13-audit-complete: 7 findings 5 todos`

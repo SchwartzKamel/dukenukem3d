@@ -53,9 +53,63 @@ OUTPUT_DIR = os.path.join(PROJECT_ROOT, "generated_assets")
 ENV_FILE = os.path.join(PROJECT_ROOT, ".env")
 GENERATION_LOG_FILE = os.path.join(OUTPUT_DIR, "GENERATION_LOG.jsonl")
 
+# Log rotation parameters (asset-r16-generation-log-cleanup-policy)
+GENERATION_LOG_MAX_LINES = 1000
+GENERATION_LOG_MAX_BYTES = 5 * 1024 * 1024  # 5 MiB
+
 # ---------------------------------------------------------------------------
 # Structured Logging for Exception Diagnostics (asset-r13-exception-handling-hardening)
 # ---------------------------------------------------------------------------
+
+def _rotate_generation_log():
+    """Rotate GENERATION_LOG.jsonl if it exceeds size/line limits.
+    
+    # asset-r16-genlog-rotation: size-bounded log rotation
+    
+    If either line count or file size exceeds limits, truncate to latest 50%
+    of lines and prepend a synthetic log_rotated event. Uses atomic write via
+    temporary file + os.replace.
+    """
+    if not os.path.exists(GENERATION_LOG_FILE):
+        return
+    
+    try:
+        # Check file size
+        file_size = os.path.getsize(GENERATION_LOG_FILE)
+        
+        # Read all lines to check line count
+        with open(GENERATION_LOG_FILE, "r") as f:
+            lines = f.readlines()
+        
+        line_count = len(lines)
+        
+        # No rotation needed
+        if line_count <= GENERATION_LOG_MAX_LINES and file_size <= GENERATION_LOG_MAX_BYTES:
+            return
+        
+        # Rotation needed: keep latest 50% of lines
+        keep_count = max(1, line_count // 2)
+        kept_lines = lines[-keep_count:]
+        
+        # Create synthetic log_rotated entry
+        rotated_record = {
+            "event": "log_rotated",
+            "rotated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "kept_lines": keep_count,
+        }
+        
+        # Write atomically to temp file, then replace
+        temp_file = GENERATION_LOG_FILE + ".tmp"
+        with open(temp_file, "w") as f:
+            json.dump(rotated_record, f)
+            f.write("\n")
+            f.writelines(kept_lines)
+        
+        os.replace(temp_file, GENERATION_LOG_FILE)
+        
+    except Exception as rotate_e:
+        # Fail silently if rotation fails - don't cascade error
+        print(f"[!] Failed to rotate generation log: {rotate_e}", file=sys.stderr)
 
 def log_generation_error(tile_num, error_type, error_message, worker_pid=None):
     """Write structured exception record to GENERATION_LOG.jsonl (JSONL format).
@@ -79,6 +133,8 @@ def log_generation_error(tile_num, error_type, error_message, worker_pid=None):
     
     try:
         os.makedirs(OUTPUT_DIR, exist_ok=True)
+        # Rotate log if needed before appending
+        _rotate_generation_log()
         with open(GENERATION_LOG_FILE, "a") as f:
             json.dump(record, f)
             f.write("\n")

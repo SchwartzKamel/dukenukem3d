@@ -59,7 +59,7 @@ typedef int SOCKET;
 
 uint16_t crctable[256];
 
-extern int32_t totalclock;
+extern volatile long totalclock; /* build-r16-lto-type: aligned to legacy K&R decl in BUILD.H */
 static int32_t timeoutcount = 60, resendagaincount = 4;
 static int32_t lastsendtime[MAXPLAYERS];
 static int tcp_send_failures = 0;

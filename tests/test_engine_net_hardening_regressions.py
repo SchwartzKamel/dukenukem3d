@@ -3631,3 +3631,173 @@ class TestEngineR16GameArgvBounds:
             f"source/GAME.C must have >= 9 strncpy calls, found {strncpy_count}; "
             "the argv bounds fixes should have added bounded string functions"
         )
+
+
+class TestNetR13EndianPlayerIdx:
+    """Test net-r13 endianness and player-index bounds audit closures."""
+    
+    def test_type_0_endian_sentinels_present(self, repo_root):
+        """Type-0 multi-byte reads must have net-r13-endian sentinel."""
+        game_c = repo_root / "source" / "GAME.C"
+        if not game_c.exists():
+            pytest.skip(f"{game_c} not found")
+        
+        content = game_c.read_text(errors="replace")
+        
+        # Type-0 has two multi-byte reads at lines 453, 458 (fvel, svel)
+        # Each should be marked with net-r13-endian sentinel
+        endian_count = content.count("/* net-r13-endian: little-endian unpack (host x86) */")
+        
+        # Expected: 3 (type-0 x2, type-1 x2 but counting occurrences, type-17 x2)
+        # Actually should be: 6 individual sentinels (2 per type)
+        assert endian_count >= 6, (
+            f"source/GAME.C must have >= 6 net-r13-endian sentinels for multi-byte reads, found {endian_count}; "
+            "each multi-byte field unpack in types 0, 1, 17 must document endianness"
+        )
+    
+    def test_type_1_endian_sentinels_present(self, repo_root):
+        """Type-1 multi-byte reads must have net-r13-endian sentinel."""
+        game_c = repo_root / "source" / "GAME.C"
+        if not game_c.exists():
+            pytest.skip(f"{game_c} not found")
+        
+        content = game_c.read_text(errors="replace")
+        
+        # Verify sentinels are actually in type-1 handler (case 1:)
+        case1_start = content.find("case 1:")
+        case2_start = content.find("case 4:")  # Skip to case 4
+        if case1_start == -1:
+            pytest.skip("case 1 not found")
+        
+        case1_section = content[case1_start:case2_start]
+        
+        # Type-1 should have endian sentinels for fvel and svel unpacks
+        assert "nsyn[other].fvel = packbuf[j]+((short)packbuf[j+1]<<8)" in case1_section, (
+            "Type-1 (case 1) must have fvel unpack"
+        )
+        assert "/* net-r13-endian: little-endian unpack (host x86) */" in case1_section, (
+            "Type-1 multi-byte reads must have endian sentinel"
+        )
+    
+    def test_type_17_endian_sentinels_present(self, repo_root):
+        """Type-17 multi-byte reads must have net-r13-endian sentinel."""
+        game_c = repo_root / "source" / "GAME.C"
+        if not game_c.exists():
+            pytest.skip(f"{game_c} not found")
+        
+        content = game_c.read_text(errors="replace")
+        
+        # Verify sentinels are in type-17 handler (case 17:)
+        case17_start = content.find("case 17:")
+        case127_start = content.find("case 127:")
+        if case17_start == -1:
+            pytest.skip("case 17 not found")
+        
+        case17_section = content[case17_start:case127_start if case127_start != -1 else len(content)]
+        
+        # Type-17 should have endian sentinels for fvel and svel unpacks
+        assert "nsyn[other].fvel = packbuf[j]+((short)packbuf[j+1]<<8)" in case17_section, (
+            "Type-17 (case 17) must have fvel unpack"
+        )
+        assert "/* net-r13-endian: little-endian unpack (host x86) */" in case17_section, (
+            "Type-17 multi-byte reads must have endian sentinel"
+        )
+    
+    def test_type_6_player_idx_bounds_sentinel(self, repo_root):
+        """Type-6 player-index check must document the gateway validation."""
+        game_c = repo_root / "source" / "GAME.C"
+        if not game_c.exists():
+            pytest.skip(f"{game_c} not found")
+        
+        content = game_c.read_text(errors="replace")
+        
+        # Type-6 should have defensive player-index validation and a comment
+        case6_start = content.find("case 6:")
+        case9_start = content.find("case 9:")
+        if case6_start == -1:
+            pytest.skip("case 6 not found")
+        
+        case6_section = content[case6_start:case9_start if case9_start != -1 else len(content)]
+        
+        # Should have the bounds check
+        assert "if ((unsigned)other >= MAXPLAYERS)" in case6_section, (
+            "Type-6 must validate player index against MAXPLAYERS"
+        )
+        
+        # Should have sentinel documenting gateway validation
+        assert "net-r13-player-idx-bounds" in case6_section, (
+            "Type-6 should have net-r13-player-idx-bounds sentinel documenting gateway validation"
+        )
+    
+    def test_all_cycle_sentinels_intact(self, repo_root):
+        """Verify all prior cycle sentinels are still present (cycle 41/45/48/50/53/56)."""
+        game_c = repo_root / "source" / "GAME.C"
+        if not game_c.exists():
+            pytest.skip(f"{game_c} not found")
+        
+        content = game_c.read_text(errors="replace")
+        
+        required_sentinels = [
+            "net-r12-type-4-chat-prevalidate",
+            "net-r12-type-9-weapon-prevalidate",
+            "net-r11-type-17-envelope-prevalidate",
+            "net-r13-type-5-prevalidate",
+            "net-r13-type-7-prevalidate",
+            "net-r13-type-8-prevalidate",
+            "net-r12-packet-type-unhandled-sentinel",
+        ]
+        
+        for sentinel in required_sentinels:
+            assert sentinel in content, (
+                f"source/GAME.C must retain sentinel: {sentinel} "
+                f"(prior cycle fix or gate)"
+            )
+    
+    def test_no_raw_pointer_casts_for_multibyte(self, repo_root):
+        """Verify no unsafe raw pointer casts like *(short*)&buf[i] in packet handlers."""
+        game_c = repo_root / "source" / "GAME.C"
+        if not game_c.exists():
+            pytest.skip(f"{game_c} not found")
+        
+        content = game_c.read_text(errors="replace")
+        
+        # Look for danger pattern: (short*) or (int*) cast on buffer
+        # These indicate unsafe endianness assumptions
+        danger_patterns = [
+            "*(short*)&packbuf",
+            "*(int*)&packbuf",
+            "*(long*)&packbuf",
+            "(short*)&packbuf[",
+            "(int*)&packbuf[",
+            "(long*)&packbuf[",
+        ]
+        
+        for pattern in danger_patterns:
+            assert pattern not in content, (
+                f"source/GAME.C must not use raw pointer cast: {pattern}; "
+                f"use explicit byte-by-byte unpacking instead"
+            )
+    
+    def test_endian_audit_doc_complete(self, repo_root):
+        """Verify endianness audit findings are documented in r13 audit doc."""
+        audit_doc = repo_root / "docs" / "audits" / "network-multiplayer-r13.md"
+        if not audit_doc.exists():
+            pytest.skip(f"{audit_doc} not found")
+        
+        content = audit_doc.read_text(errors="replace")
+        
+        # Should document the endianness audit closure
+        assert "SECTION 8: NET-R13 ENDIANNESS & PLAYER-INDEX AUDIT CLOSURE" in content or \
+               "Endianness Audit" in content, (
+            "docs/audits/network-multiplayer-r13.md must document endianness audit findings"
+        )
+        
+        # Should document the player-index audit closure
+        assert "Player Index Bounds Validation Audit" in content, (
+            "docs/audits/network-multiplayer-r13.md must document player-index bounds audit"
+        )
+        
+        # Should have the closure sentinel
+        assert "net-r13-endian-playeridx-complete" in content, (
+            "docs/audits/network-multiplayer-r13.md must have closure sentinel"
+        )

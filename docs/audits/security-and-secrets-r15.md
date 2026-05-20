@@ -467,4 +467,81 @@ $ grep -rE "password|token|key|secret" .github/workflows/ | grep -v "secrets\." 
 
 **Audit by**: security-and-secrets-r15 | **Date**: 2025-01-XX (cycle 54) | **Scope**: 2 source changes + tests
 
-sec-r15-bundle-complete: 2 todos closed
+---
+
+## Cycle 54: sec-r15-subprocess-injection-audit & sec-r15-workflow-secrets-script-logging Completion
+
+### ✅ **sec-r15-subprocess-injection-audit: VERIFIED SAFE**
+
+**File audited**: `tools/generate_audio.py` (596 lines)
+
+**Finding**: ✅ **NO UNSAFE SUBPROCESS CALLS DETECTED**
+
+- **Status**: `subprocess` module NOT imported or used anywhere in generate_audio.py
+- **Security posture**: **SAFE** — No shell injection surface
+- **Verification method**: Full file scan for `subprocess.*` patterns; zero matches
+- **Sentinel documentation**: Audit assertion added to `tests/test_security_posture.py::test_generate_audio_no_unsafe_subprocess_calls()`
+
+**Test coverage**:
+- ✅ Assertion verifies subprocess module not imported
+- ✅ If subprocess were used in future, tests enforce: sentinel comment `# sec-r15-subproc: argv-list, shell=False, no interpolation` within 3 lines above each call
+- ✅ If subprocess is used, argv must be list (not string) and shell must be False or omitted
+
+**Verdict**: **SECURE — Subprocess module not in use; no injection surface exposed.**
+
+---
+
+### ✅ **sec-r15-workflow-secrets-script-logging: VERIFIED COMPLIANT**
+
+**Files audited**:
+- `.github/workflows/release.yml` — 2 steps with secrets (lines 76-85, 94-110)
+- `.github/workflows/build.yml` — No secrets references
+
+**Findings**: ✅ **ALL SECRETS PROPERLY PASSED VIA env: BLOCKS; NO LOGGING EXPOSURE**
+
+**Secrets inventory** (release.yml):
+1. Step: "Generate assets" (linux target)
+   - ✅ `FLUX_ENDPOINT`, `FLUX_API_KEY`, `FLUX_MODEL` passed via `env:`
+   - ✅ `AUDIO_ENDPOINT`, `AUDIO_API_KEY`, `AUDIO_MODEL` passed via `env:`
+   - ✅ NOT interpolated into `run:` shell string
+   - ✅ Sentinel: `# sec-r15-workflow-secrets: env-passed, no-echo` (line 76)
+
+2. Step: "Package Windows release" (windows target)
+   - ✅ `FLUX_ENDPOINT`, `FLUX_API_KEY`, `FLUX_MODEL` passed via `env:`
+   - ✅ `AUDIO_ENDPOINT`, `AUDIO_API_KEY`, `AUDIO_MODEL` passed via `env:`
+   - ✅ NOT interpolated into `run:` shell string
+   - ✅ Sentinel: `# sec-r15-workflow-secrets: env-passed, no-echo` (line 94)
+
+**Security checks performed**:
+- ✅ No `echo $SECRET` patterns in workflow steps
+- ✅ No `set -x` (debug mode) near secret usage
+- ✅ No `if: secrets.* != ''` condition checks (which leak secret existence to logs)
+- ✅ All secrets properly masked by GitHub Actions (no manual masking needed)
+
+**Test coverage**:
+- ✅ Assertion in `tests/test_security_posture.py::test_workflow_secrets_have_sentinels()` verifies:
+  - Each workflow step with secrets has sentinel comment
+  - Secrets passed via `env:` (not in `run:`)
+  - No echo/log patterns
+  - No set -x near secrets
+  - No existence-checking conditionals
+
+**Verdict**: **SECURE — Secrets properly isolated in env: blocks; no exposure vectors detected.**
+
+---
+
+### 📊 **Audit Summary: Cycle 54 Completion**
+
+| Todo | Status | Finding | Evidence |
+|------|--------|---------|----------|
+| **sec-r15-subprocess-injection-audit** | ✅ CLOSED | Safe (no subprocess usage) | grep: 0 matches for `subprocess.*` in generate_audio.py; test assertion added |
+| **sec-r15-workflow-secrets-script-logging** | ✅ CLOSED | Compliant (env: blocks only) | 2 workflow steps audited; 6 secrets properly isolated; sentinel comments added; test assertions pass |
+
+**Security posture**: 🟢 **ALL FINDINGS MITIGATED**
+- Subprocess: Not in use (safest outcome)
+- Workflows: Secrets properly handled; no logging exposure
+- Sibling sentinels: manifest-checksum-verify-on-load still present and verified
+
+**Test validation**: ✅ 908 tests passing (exceeds ≥ 899 requirement); new security tests included
+
+sec-r15-subproc-workflow-complete: 2 todos closed

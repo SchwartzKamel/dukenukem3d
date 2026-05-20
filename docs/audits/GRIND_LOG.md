@@ -2044,3 +2044,49 @@ Pending 257 → 257 (-8 closed, +4 new from frag audit, +others from r14 audits 
 - **documentation-curator-r15:** 15 findings, **2 new todos, 8 archived**. README/ARCHITECTURE drift report: clean (cycle 50 feature summary + cycle 53 MTU section still accurate). SUMMARY.md integrity: all r-levels indexed, 0 orphans. New: `docs-r15-contributing-testing-section` (add xdist testing docs), `docs-r15-readme-multiplayer-clarification`. **Archived 8 stale/subsumed todos** (r4-era perf/network/test items + r5-era aspirational infra) — all marked blocked with `[archived cycle 57: ...]` rationale.
 
 **Backlog delta:** 265 → ~264 pending (+5 build-r16 +2 docs-r15 = +7 intake, -8 archived = -1 net).
+
+---
+
+## Cycle 58 (grind, 2026-05-20T22:36Z)
+
+**Baseline:** 899 passed → **917 passed** (+18 across 5 closures).
+
+### Closures (6 todos, 5 agents)
+
+| Agent | Todos | Highlights |
+|-------|-------|------------|
+| net-r13-endian-playeridx | `net-r13-byteswap-endianness-audit`, `net-r13-player-index-bounds-audit` (both MED) | source/GAME.C type-0/1/17 little-endian unpack sentinels (lines 453/458/544/545/791/792 — `net-r13-endian`) + type-6 player-idx gateway sentinel (647 — `net-r13-player-idx-bounds`). Net 7 new tests in `TestNetR13EndianPlayerIdx`. r13.md SECTION 8 appended. No raw multi-byte pointer casts in GAME.C. MMULTI.C:267 is the single validation gateway. |
+| build-r16-lto-mact-stub | `build-r16-lto-type-mismatch` (MED) | 17 LTO type-mismatch warnings → 0. compat/mact_stub.c: 13 function signatures aligned to legacy K&R callers (long→int32_t, SafeRealloc void**, SafeOpenRead filetype param). compat/compat.h +`getpacket` forward decl. source/ACTORS.C `numenvsnds extern long`, separated actor_tog. source/MENUES.C `inputloc extern short`. SRC/MMULTI.C `totalclock extern volatile long`. New tests/test_build_warnings.py regression guard (asserts ≤0 lto-type-mismatch). |
+| sec-r15-subproc-workflow | `sec-r15-subprocess-injection-audit`, `sec-r15-workflow-secrets-script-logging` (both MED) | tools/generate_audio.py has zero subprocess module usage — verified SAFE. .github/workflows/release.yml all 6 secrets pass through `env:` blocks (no `echo $SECRET`, no `set -x`); +2 `sec-r15-workflow-secrets: env-passed, no-echo` sentinels. New tests/test_security_posture.py with subprocess + workflow assertions. security-and-secrets-r15.md appended closure findings. |
+| asset-r16-genlog-rotation | `asset-r16-generation-log-cleanup-policy` (MED) | tools/generate_assets.py +`_rotate_generation_log()` (1000-line / 5 MiB caps; keep latest 50%; synthetic `log_rotated` entry; atomic tmp+rename). Wired into `log_generation_error()`. 4 new tests in `TestAssetR16GenlogRotation`. Sentinel `asset-r16-genlog-rotation`. |
+| audio-r15-44100hz | `audio-r15-44100hz-magic-number` (LOW) | compat/audio_stub.c +`#define AUDIO_DEFAULT_SAMPLE_RATE 44100` alongside cycle-46 audio constants. `Mix_OpenAudio()` (line 384) consumes it. 4 new tests in `TestAudioR15SampleRateExtraction` (define presence, no-bare-44100 outside define, cycle-46 defines preserved). |
+
+### Collateral
+
+None. All sentinels intact across cycles 41–57 (re-verified by net-r13 + build-r16 agents).
+
+### Backlog delta
+
+279 → ~273 pending (-6 closed cycle 58, plus standard intake from sibling audit-pass tick).
+
+---
+
+## Cycle 58 (audit-pass tick)
+
+**Stalest rotation:** audio-engineer (last r14 @ cycle 51) + performance-profiler (last r14 @ cycle 51). Both 7 cycles old.
+
+- **audio-engineer-r15:** 4 findings, **5 todos** (0 CRIT/HIGH). Verified cycle 53/56 manifest verifier adoption + cycle 56 audio loader migration. New: filelock-timeout-design (ADVISORY), manifest-migration-doc (MED), and 3 small followups.
+- **performance-profiler-r15:** 4 findings, **6 todos** (0 CRIT/HIGH). Suite wallclock 19.84s (3.3% improvement vs r14 despite +7.3% test growth). xdist sweet spot is `-n 2` (22.8% faster than `-n 1`); plateau at `-n 4` suggests filelock/startup overhead. Frame analyzer `[5]` parametrization is 35% of suite — `@pytest.mark.slow` split candidate. Render-loop bounds checks verified <1µs overhead. Backlog: frame-analyzer-slow-marking, xdist-worker-scaling-opt, build-ccache-cost-benefit, grp-manifest-profile, bounds-check-hotspot, suite-growth-model.
+
+**Backlog delta:** 268 → 279 pending (+11 intake from audio-r15 + perf-r15).
+
+---
+
+## Cycle 59 (audit-pass tick, 2026-05-20T22:36Z)
+
+**Stalest rotation:** network-multiplayer (last r13 @ cycle 52) + compat-layer (last r14 @ cycle 52). Both 7 cycles old.
+
+- **network-multiplayer-r14:** 5 findings, **5 todos** (**2 CRIT**, 3 MED). CRIT: `net-r14-randomseed-game-start-sync` (RNG not synced across peers at game start — desync surface), `net-r14-crc-validation-dormant` (CRC code present but dormant, no integrity checks performed on packets). MED: socket-send-failure-zombie, mid-game-idle-timeout, packet-sequence-replay-protection. Verified: cycle 53 fragmentation doc accurate; no legacy IPX/serial code; master/slave authority model sound.
+- **compat-layer-r15:** **0 findings, 0 todos** (legitimate clean-pass per anti-hallucination contract v6). Verified cycle 58 AUDIO_DEFAULT_SAMPLE_RATE=44100 live single-source. All cycle-46-onward memory-hack constants intact, zero drift. C11/gnu89 pragma walls intact. SDL2 lifecycle pairing complete + atexit. Windows cross-compilation health: CMakeLists.txt LANGUAGE C still prevents /Tc errors.
+
+**Backlog delta:** ~273 → ~278 pending (+5 net-r14 CRIT/MED intake).

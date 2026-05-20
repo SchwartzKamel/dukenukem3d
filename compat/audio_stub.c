@@ -56,6 +56,9 @@ static void (*fx_callback)(unsigned long) = NULL;
 #define AUDIO_MIX_INIT_MAX_RETRIES 3
 #define AUDIO_MIX_INIT_BASE_DELAY_MS 100
 
+/* audio-r15-sample-rate: extracted from magic-number 44100 */
+#define AUDIO_DEFAULT_SAMPLE_RATE 44100
+
 static int            mixer_initialized = 0;
 static Mix_Chunk     *mixer_channel_chunk[MIXER_MAX_CHANNELS];
 static unsigned long  mixer_channel_cbval[MIXER_MAX_CHANNELS];
@@ -378,7 +381,7 @@ int FX_Init(int SoundCard, int numvoices, int numchannels,
     int mix_open_attempt;
     int mix_open_result = -1;
     for (mix_open_attempt = 1; mix_open_attempt <= AUDIO_MIX_INIT_MAX_RETRIES; mix_open_attempt++) {
-        mix_open_result = Mix_OpenAudio(mixrate ? (int)mixrate : 44100,
+        mix_open_result = Mix_OpenAudio(mixrate ? (int)mixrate : AUDIO_DEFAULT_SAMPLE_RATE,
                                         MIX_DEFAULT_FORMAT,
                                         numchannels > 1 ? 2 : 1,
                                         AUDIO_BUFFER_SIZE);

@@ -33,7 +33,7 @@ Prepared for public release: 03/21/2003 - Charlie Wiederhold, 3D Realms
 
 #define MAXCLOUDS 128  /* fix-engine-cloud-array-sizing: explicit constant. Original: sizeof(short)<<7 = 256 bytes = 2*128 shorts */
 
-extern char inputloc;
+extern short inputloc; /* build-r16-lto-type: aligned to legacy K&R decl in GAME.C */
 extern int recfilep;
 extern char vgacompatible;
 short probey=0,lastprobey=0,last_menu,globalskillsound=-1;

@@ -450,12 +450,12 @@ void getpackets(void)
                     if (l&1)
                     {
                         if (j+1 >= packbufleng) { printf("NET: SECURITY: Packet type 0 truncated (fvel). Dropping.\n"); break; }
-                        nsyn[i].fvel = packbuf[j]+((short)packbuf[j+1]<<8), j += 2;
+                        nsyn[i].fvel = packbuf[j]+((short)packbuf[j+1]<<8), j += 2;  /* net-r13-endian: little-endian unpack (host x86) */
                     }
                     if (l&2)
                     {
                         if (j+1 >= packbufleng) { printf("NET: SECURITY: Packet type 0 truncated (svel). Dropping.\n"); break; }
-                        nsyn[i].svel = packbuf[j]+((short)packbuf[j+1]<<8), j += 2;
+                        nsyn[i].svel = packbuf[j]+((short)packbuf[j+1]<<8), j += 2;  /* net-r13-endian: little-endian unpack (host x86) */
                     }
                     if (l&4)
                     {
@@ -541,8 +541,8 @@ void getpackets(void)
                     nsyn = (input *)&inputfifo[(movefifoend[other])&(MOVEFIFOSIZ-1)][0];
 
                     copybufbyte(&osyn[other],&nsyn[other],sizeof(input));
-                    if (k&1)   nsyn[other].fvel = packbuf[j]+((short)packbuf[j+1]<<8), j += 2;
-                    if (k&2)   nsyn[other].svel = packbuf[j]+((short)packbuf[j+1]<<8), j += 2;
+                    if (k&1)   nsyn[other].fvel = packbuf[j]+((short)packbuf[j+1]<<8), j += 2;  /* net-r13-endian: little-endian unpack (host x86) */
+                    if (k&2)   nsyn[other].svel = packbuf[j]+((short)packbuf[j+1]<<8), j += 2;  /* net-r13-endian: little-endian unpack (host x86) */
                     if (k&4)   nsyn[other].avel = (signed char)packbuf[j++];
                     if (k&8)   nsyn[other].bits = ((nsyn[other].bits&0xffffff00)|((long)packbuf[j++]));
                     if (k&16)  nsyn[other].bits = ((nsyn[other].bits&0xffff00ff)|((long)packbuf[j++])<<8);
@@ -642,9 +642,10 @@ void getpackets(void)
                 enterlevel(MODE_GAME);
 
                 break;
-            case 6:
-                /* net-r8-type-6-bounds: packet field validation */
-                if ((unsigned)other >= MAXPLAYERS)
+             case 6:
+                 /* net-r8-type-6-bounds: packet field validation */
+                 /* net-r13-player-idx-bounds: from_player validated in MMULTI.C line 267 gateway; redundant check for defense-in-depth */
+                 if ((unsigned)other >= MAXPLAYERS)
                 {
                     printf("NET: SECURITY: Packet type 6 invalid player index (%u >= %d). Dropping.\n",
                         (unsigned)other, MAXPLAYERS);
@@ -787,8 +788,8 @@ void getpackets(void)
 
                 copybufbyte(&osyn[other],&nsyn[other],sizeof(input));
                 k = packbuf[j++];
-                if (k&1)   nsyn[other].fvel = packbuf[j]+((short)packbuf[j+1]<<8), j += 2;
-                if (k&2)   nsyn[other].svel = packbuf[j]+((short)packbuf[j+1]<<8), j += 2;
+                if (k&1)   nsyn[other].fvel = packbuf[j]+((short)packbuf[j+1]<<8), j += 2;  /* net-r13-endian: little-endian unpack (host x86) */
+                if (k&2)   nsyn[other].svel = packbuf[j]+((short)packbuf[j+1]<<8), j += 2;  /* net-r13-endian: little-endian unpack (host x86) */
                 if (k&4)   nsyn[other].avel = (signed char)packbuf[j++];
                 if (k&8)   nsyn[other].bits = ((nsyn[other].bits&0xffffff00)|((long)packbuf[j++]));
                 if (k&16)  nsyn[other].bits = ((nsyn[other].bits&0xffff00ff)|((long)packbuf[j++])<<8);

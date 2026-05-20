@@ -73,6 +73,7 @@ jobs:
             make
           fi
       
+      # sec-r15-workflow-secrets: env-passed, no-echo
       - name: Generate assets
         if: matrix.target == 'linux'
         env:
@@ -91,6 +92,7 @@ jobs:
           cp duke3d DUKE3D.GRP README.md duke3d-${{ github.ref_name }}-linux-x64/
           tar czf duke3d-${{ github.ref_name }}-linux-x64.tar.gz duke3d-${{ github.ref_name }}-linux-x64/
       
+      # sec-r15-workflow-secrets: env-passed, no-echo
       - name: Package Windows release
         if: matrix.target == 'windows'
         env:

@@ -29,7 +29,8 @@ Prepared for public release: 03/21/2003 - Charlie Wiederhold, 3D Realms
 #include "audio_stub.h"
 #include "DUKE3D.H"
 
-extern char numenvsnds,actor_tog;
+extern long numenvsnds; /* build-r16-lto-type: aligned to legacy K&R decl in SOUNDS.C */
+extern char actor_tog; /* build-r16-lto-type: aligned to legacy K&R decl in GAME.C */
 
 void updateinterpolations()  //Stick at beginning of domovethings
 {
