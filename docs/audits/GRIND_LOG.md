@@ -626,3 +626,32 @@ These two are tiny + isolated and should be the first pull next cycle.
 - perf-r5 Tier-1 (palette32 SIMD) — measurable rendering win.
 - asset-r5-atomic-writes — generate_assets.py still missing tmp+replace.
 - Rotation candidates for next audit-pass: test-engineer-r6, documentation-curator-r6, security-and-secrets-r6 (stalest).
+
+---
+
+## Cycle 18 — 2026-05-20T11:27 UTC
+
+**7 todos closed via 5 parallel sub-agents** (one agent batched 3 co-located doc todos):
+
+- `perf-r5-palette32-simd` (Tier-1 perf) — `compat/sdl_driver.c` SSE2 vectorization of `sdl_nextpage` palette32 conversion (4 px/iter, scalar fallback for non-SSE2/big-endian, byte-identical output).
+- `asset-r5-atomic-writes` (HIGH, carry from r4/r5) — `tools/generate_assets.py` 3 asset-output sites switched to tmp+rename via new `_atomic_write_bytes()` helper. Matches the pattern in `generate_audio.py`.
+- `release-sdl2-cache` (MEDIUM) — `.github/workflows/release.yml` mirrors `build.yml`'s SDL2 cache pattern; saves ~30-60s/Windows release build.
+- `docs-r6-changelog-test-count` + `docs-r6-arch-fixes-citations` + `docs-r6-contributing-audit-grind` (3× MEDIUM) — CHANGELOG/ARCHITECTURE/CONTRIBUTING refreshed: test counts current (569/602), cycle-12/13/15 hardening cited with file:line refs, audit-grind orchestration documented for contributors.
+- `test-cycle-11-15-fix-validation` (HIGH) — `tests/test_engine_net_hardening_regressions.py` (19 static-analysis tests) locks in all 8 cycle-11..15 hardening invariants (labelcode array, MENUES dfwrite ferror, audio RIFF, channel exhaustion, CON-bounds, MMULTI bounds, SoundOwner aging, FX_SetVolume locks).
+
+**Build/test deltas:** 569/33 → 588/33 (+19 from new regression tests). Build clean.
+
+**Persistence regression posture:** Zero across 5 parallel agents. The no-git-mutation rule held for the 24th consecutive parallel sub-agent.
+
+**Coordination notes:**
+- 5 agents on 5 completely non-overlapping files. Batched 3 docs todos into one agent (CHANGELOG.md + ARCHITECTURE.md + CONTRIBUTING.md are all owned by documentation-curator).
+- Skipped net-r3-replay-protection / net-r3-ipv6-support this cycle — too architectural for a single Haiku cycle.
+
+**Backlog after cycle:** ~161 done / ~81 pending / 3 blocked.
+
+**Hot next-cycle items:**
+- `asset-r6-schema-texture-sprite` (HIGH opportunity, extends pydantic to texture/sprite defs).
+- `test-r6-coverage-infrastructure-follow-up` (carry from r5 HIGH).
+- `net-r3-replay-protection` / `net-r3-ipv6-support` (HIGH — architectural, may need 2 cycles).
+- `perf-r5-cache-walk-fastpath` / `perf-r5-wallscan-branch-predict` (Tier 2).
+- Stalest persona for next audit-pass: network-multiplayer-r4 (last r3 was 5 cycles ago).
