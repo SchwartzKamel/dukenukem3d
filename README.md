@@ -262,6 +262,7 @@ All 20 textures follow the Neon Noir Cyberpunk theme:
 ├── tools/                # Asset generation pipeline
 │   ├── generate_assets.py # Main orchestrator (textures + GRP packing)
 │   ├── generate_audio.py # Audio generation (voice lines + SFX)
+│   ├── check_secrets.sh  # Pre-commit hook for API key hygiene
 │   ├── art_format.py     # BUILD ART file format
 │   ├── grp_format.py     # GRP archive packer
 │   ├── palette.py        # 256-color palette & quantizer
@@ -271,10 +272,18 @@ All 20 textures follow the Neon Noir Cyberpunk theme:
 │   └── sounds/           # Generated WAV files (TAUNT01.WAV, etc.)
 ├── testdata/             # Game scripts (GAME.CON, DEFS.CON, etc.)
 ├── audiolib/             # Original DOS audio drivers (not used)
+├── .github/
+│   └── agents/           # 10 specialized Copilot custom agent personas
+├── docs/
+│   ├── ARCHITECTURE.md   # Technical deep-dive (engine, assets, compat layer)
+│   ├── audits/           # Codebase audit reports + SUMMARY.md
+│   └── archive/          # Legacy reference code (uncompiled, historical)
+├── .env.example          # Template for API credentials (.env is gitignored)
+├── .githooks/            # Pre-commit secret-scan hook
 ├── CMakeLists.txt        # Cross-platform CMake build (Windows/Linux/macOS)
 ├── build_windows.bat     # Windows native build (MSVC or MinGW)
 ├── Makefile              # Linux + Windows cross-compile
-└── .env                  # FLUX API credentials (gitignored)
+└── .env                  # FLUX API credentials (gitignored, not tracked)
 ```
 
 ---
@@ -313,6 +322,29 @@ Porting a 1996 DOS game to modern Linux isn't for the faint of heart. Here's wha
 - [ ] 🎨 Full tile set covering all `DEFS.CON` references
 - [ ] 🌐 Multiplayer over TCP/IP
 - [ ] 🏗️ Map editor integration
+
+---
+
+## 🤖 Copilot Custom Agents
+
+This project uses **10 specialized Copilot agent personas** — each responsible for a specific domain — to maintain code quality, documentation accuracy, and build reliability. Each persona owns its area and acts as the authority on decisions within that scope.
+
+| Agent | Scope | Location |
+|-------|-------|----------|
+| **Engine Porter** | SRC/, source/ (BUILD engine & game code) | `.github/agents/engine-porter.agent.md` |
+| **Compat Layer** | compat/ (SDL2 + DOS shims) | `.github/agents/compat-layer.agent.md` |
+| **Asset Pipeline** | tools/ (texture/map/audio generation) | `.github/agents/asset-pipeline.agent.md` |
+| **Audio Engineer** | generate_audio.py, audio systems | `.github/agents/audio-engineer.agent.md` |
+| **Build System** | Makefile, CMakeLists.txt, CI/CD | `.github/agents/build-system.agent.md` |
+| **Test Engineer** | tests/, pytest suite, test coverage | `.github/agents/test-engineer.agent.md` |
+| **Documentation Curator** | README, CONTRIBUTING, ARCHITECTURE, audits | `.github/agents/documentation-curator.agent.md` |
+| **Security & Secrets** | .env, credentials, secret scanning | `.github/agents/security-and-secrets.agent.md` |
+| **Network & Multiplayer** | MMULTI.C, TCP/IP, netplay (roadmap) | `.github/agents/network-multiplayer.agent.md` |
+| **Performance Profiler** | Benchmarking, optimization, profiling | `.github/agents/performance-profiler.agent.md` |
+
+When contributing code that touches a domain, work with the relevant persona. See [CONTRIBUTING.md](CONTRIBUTING.md) for details on how to collaborate with agents during code review.
+
+Audit reports for each agent are stored in [docs/audits/](docs/audits/) with a cross-cutting [SUMMARY.md](docs/audits/SUMMARY.md).
 
 ---
 
