@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
 """Palette and colour quantisation utilities for BUILD engine.
 
 Generates a Duke3D-compatible 256-colour palette and helper functions for

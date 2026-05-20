@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * compat.h - Master compatibility header for Duke Nukem 3D
  *

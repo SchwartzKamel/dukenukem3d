@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-2.0-or-later
 """ANM (Deluxe Animate LPF) file format encoder for Duke Nukem 3D.
 
 The ANM format is used by the BUILD engine for cutscene animations.

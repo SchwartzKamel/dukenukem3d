@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * hud.c - Simple framebuffer HUD for Duke Nukem 3D compat layer
  *

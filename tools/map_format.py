@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
 """MAP file creator for BUILD engine (map version 7).
 
 Creates playable maps: a simple test room (``create_test_map``) and fully

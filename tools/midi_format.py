@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-2.0-or-later
 """Generate valid MIDI format 0 files for Duke Nukem 3D.
 
 Each generated file contains a short melody or drone so it plays audibly

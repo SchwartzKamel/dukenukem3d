@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
 """Demo file (.dmo) format for Duke Nukem 3D.
 
 Demo format (from source/GAME.C):

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
 """ART file format for BUILD engine tile archives.
 
 ART format (version 1):

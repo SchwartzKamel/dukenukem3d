@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * audio_stub.c - Stub implementations of DOS audiolib, MACT, and keyboard APIs
  *

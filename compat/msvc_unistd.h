@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* msvc_unistd.h — Minimal unistd.h stub for MSVC
    MSVC doesn't have unistd.h but provides equivalents in io.h and direct.h */
 #ifndef MSVC_UNISTD_H

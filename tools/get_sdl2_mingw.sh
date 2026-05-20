@@ -1,4 +1,5 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-2.0-or-later
 # tools/get_sdl2_mingw.sh — Download SDL2 MinGW dev libraries (32-bit)
 set -euo pipefail
 

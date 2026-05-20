@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * sdl_driver.c - SDL2 platform layer for Duke Nukem 3D / BUILD engine port
  *

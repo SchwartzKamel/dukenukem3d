@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * mact_stub.c - Stub implementations for MACT library functions
  * and other missing functions from the precompiled Duke3D libraries.

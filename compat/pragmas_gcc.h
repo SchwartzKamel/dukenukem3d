@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * pragmas_gcc.h - GCC replacement for Watcom PRAGMAS.H
  *

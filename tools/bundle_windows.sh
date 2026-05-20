@@ -1,4 +1,5 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-2.0-or-later
 # tools/bundle_windows.sh — Bundle DLLs for self-contained Windows package (32-bit)
 set -euo pipefail
 

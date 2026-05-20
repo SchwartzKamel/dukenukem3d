@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
 """GRP file packer for Duke Nukem 3D / BUILD engine.
 
 GRP format:

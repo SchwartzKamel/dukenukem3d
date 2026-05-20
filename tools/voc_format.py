@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-2.0-or-later
 """Generate valid Creative Voice Files (.VOC) for Duke Nukem 3D.
 
 Format reference: Creative Voice File specification.

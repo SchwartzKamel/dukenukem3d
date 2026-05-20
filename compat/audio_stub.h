@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * audio_stub.h - Stub audio/input system replacing DOS audiolib + MACT library
  *

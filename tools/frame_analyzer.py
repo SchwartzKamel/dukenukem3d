@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
 """Frame analysis library for Duke Nukem 3D AI playtesting.
 
 Analyzes BMP frame captures from the game's headless mode to validate

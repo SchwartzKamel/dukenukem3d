@@ -1,4 +1,5 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-2.0-or-later
 # Shared asset generation script for CI workflows (Linux and Windows targets)
 # Usage: bash tools/ci/generate_assets.sh [--ai]
 

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
 """TABLES.DAT generator for BUILD engine.
 
 Produces the sine / cosine lookup table, radar angle table, font data

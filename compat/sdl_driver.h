@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 #ifndef SDL_DRIVER_H
 #define SDL_DRIVER_H
 

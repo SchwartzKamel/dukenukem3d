@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-2.0-or-later
 """Asset generation pipeline for Duke Nukem 3D.
 
 Generates textures (via FLUX.2-pro AI or procedural fallback), converts them
