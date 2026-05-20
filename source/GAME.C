@@ -2663,8 +2663,8 @@ void drawbackground(void)
 #define FOFTILE 13
 #define FOFTILEX 32
 #define FOFTILEY 32
-long tempsectorz[MAXSECTORS];
-long tempsectorpicnum[MAXSECTORS];
+int32_t tempsectorz[MAXSECTORS];
+short tempsectorpicnum[MAXSECTORS];
 //short tempcursectnum;
 
 SE40_Draw(int spnum,long x,long y,long z,short a,short h,long smoothratio)
