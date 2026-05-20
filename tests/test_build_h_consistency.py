@@ -34,33 +34,20 @@ def repo_root():
     return Path(__file__).resolve().parent.parent
 
 
-@pytest.mark.xfail(strict=False, reason="build-r7-lto-maxtiles-mismatch CRITICAL")
-def test_maxtiles_matches_between_headers(repo_root):
-    """MAXTILES should match between SRC/BUILD.H and source/BUILD.H.
+@pytest.mark.parametrize("constant_name", [
+    "MAXSECTORS",
+    "MAXWALLS",
+    "MAXSPRITES",
+    pytest.param("MAXTILES", marks=pytest.mark.xfail(strict=False, reason="build-r7-lto-maxtiles-mismatch CRITICAL")),
+    "MAXSTATUS",
+    "MAXSPRITESONSCREEN",
+])
+def test_build_h_constants_match_between_headers(repo_root, constant_name):
+    """BUILD.H constants should match between SRC/BUILD.H and source/BUILD.H.
     
-    Currently fails due to build-r7-lto-maxtiles-mismatch.
+    MAXTILES is expected to fail due to build-r7-lto-maxtiles-mismatch.
+    All other constants should match perfectly.
     """
-    src = _extract_define(repo_root / "SRC/BUILD.H", "MAXTILES")
-    source = _extract_define(repo_root / "source/BUILD.H", "MAXTILES")
-    assert src == source, f"MAXTILES mismatch: SRC/BUILD.H={src} vs source/BUILD.H={source}"
-
-
-def test_maxsectors_matches_between_headers(repo_root):
-    """MAXSECTORS should match between SRC/BUILD.H and source/BUILD.H."""
-    src = _extract_define(repo_root / "SRC/BUILD.H", "MAXSECTORS")
-    source = _extract_define(repo_root / "source/BUILD.H", "MAXSECTORS")
-    assert src == source, f"MAXSECTORS mismatch: SRC/BUILD.H={src} vs source/BUILD.H={source}"
-
-
-def test_maxwalls_matches_between_headers(repo_root):
-    """MAXWALLS should match between SRC/BUILD.H and source/BUILD.H."""
-    src = _extract_define(repo_root / "SRC/BUILD.H", "MAXWALLS")
-    source = _extract_define(repo_root / "source/BUILD.H", "MAXWALLS")
-    assert src == source, f"MAXWALLS mismatch: SRC/BUILD.H={src} vs source/BUILD.H={source}"
-
-
-def test_maxsprites_matches_between_headers(repo_root):
-    """MAXSPRITES should match between SRC/BUILD.H and source/BUILD.H."""
-    src = _extract_define(repo_root / "SRC/BUILD.H", "MAXSPRITES")
-    source = _extract_define(repo_root / "source/BUILD.H", "MAXSPRITES")
-    assert src == source, f"MAXSPRITES mismatch: SRC/BUILD.H={src} vs source/BUILD.H={source}"
+    src = _extract_define(repo_root / "SRC/BUILD.H", constant_name)
+    source = _extract_define(repo_root / "source/BUILD.H", constant_name)
+    assert src == source, f"{constant_name} mismatch: SRC/BUILD.H={src} vs source/BUILD.H={source}"

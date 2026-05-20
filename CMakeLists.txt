@@ -56,6 +56,13 @@ set_source_files_properties(${ENGINE_SRCS} ${GAME_SRCS} PROPERTIES LANGUAGE C)
 # Create executable
 add_executable(duke3d ${ENGINE_SRCS} ${GAME_SRCS} ${COMPAT_SRCS})
 
+# Enable LTO in release builds for parity with Makefile
+include(CheckIPOSupported)
+check_ipo_supported(RESULT _ipo_ok OUTPUT _ipo_msg)
+if(_ipo_ok AND CMAKE_BUILD_TYPE STREQUAL "Release")
+	set_property(TARGET duke3d PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
+endif()
+
 # Include directories
 target_include_directories(duke3d PRIVATE
     ${CMAKE_SOURCE_DIR}/compat
