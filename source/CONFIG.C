@@ -693,14 +693,14 @@ void CONFIG_ReadSetup( void )
    SCRIPT_GetString( scripthandle, "Comm Setup","PlayerName",&myname[0],sizeof(myname));
 
    dummy = CheckParm("NAME");
-   if( dummy ) strcpy(myname,_argv[dummy+1]);
+   if( dummy ) snprintf(myname,sizeof(myname),"%s",_argv[dummy+1]);
    dummy = CheckParm("MAP");
 #ifndef VOLUMEONE
    if( dummy )
    {
-       strcpy(boardfilename,_argv[dummy+1]);
+       snprintf(boardfilename,sizeof(boardfilename),"%s",_argv[dummy+1]);
        if( strchr(boardfilename,'.') == 0)
-           strcat(boardfilename,".map");
+           strncat(boardfilename,".map",sizeof(boardfilename)-strlen(boardfilename)-1);
        printf("Using level: '%s'.\n",boardfilename);
    }
    else
