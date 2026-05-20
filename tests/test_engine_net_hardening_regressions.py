@@ -716,3 +716,137 @@ class TestPacketTypes01OOBRead:
         assert has_field_msg, (
             "Packet type 0 field read validation must include security log messages"
         )
+
+
+class TestPacketTypes58RangeValidation:
+    """Verify r5 finding #3: Packet types 5 and 8 range validation for game settings."""
+
+    def test_packet_type_5_level_number_bounds(self, repo_root):
+        """Packet type 5 must validate level_number against bounds."""
+        game_c = repo_root / "source" / "GAME.C"
+        if not game_c.exists():
+            pytest.skip(f"{game_c} not found")
+
+        content = game_c.read_text(errors="replace")
+
+        # Check for level_number bounds check pattern in case 5
+        # Pattern: if (packbuf[1] >= 11) or similar
+        has_level_check = "packbuf[1] >= 11" in content
+        
+        assert has_level_check, (
+            "Packet type 5 must validate level_number with pattern: if (packbuf[1] >= 11)"
+        )
+
+        # Verify security message appears
+        has_security_msg = "Packet type 5 invalid level number" in content
+        assert has_security_msg, (
+            "Packet type 5 level bounds check must include security log message"
+        )
+
+    def test_packet_type_5_volume_number_bounds(self, repo_root):
+        """Packet type 5 must validate volume_number against bounds."""
+        game_c = repo_root / "source" / "GAME.C"
+        if not game_c.exists():
+            pytest.skip(f"{game_c} not found")
+
+        content = game_c.read_text(errors="replace")
+
+        # Check for volume_number bounds check pattern in case 5
+        # Pattern: if (packbuf[2] >= 4) or similar
+        has_volume_check = "packbuf[2] >= 4" in content
+        
+        assert has_volume_check, (
+            "Packet type 5 must validate volume_number with pattern: if (packbuf[2] >= 4)"
+        )
+
+        # Verify security message appears
+        has_security_msg = "Packet type 5 invalid volume number" in content
+        assert has_security_msg, (
+            "Packet type 5 volume bounds check must include security log message"
+        )
+
+    def test_packet_type_5_skill_bounds(self, repo_root):
+        """Packet type 5 must validate player_skill against bounds."""
+        game_c = repo_root / "source" / "GAME.C"
+        if not game_c.exists():
+            pytest.skip(f"{game_c} not found")
+
+        content = game_c.read_text(errors="replace")
+
+        # Check for skill bounds check pattern in case 5
+        # Pattern: if (packbuf[3] >= 5) or similar
+        has_skill_check = "packbuf[3] >= 5" in content
+        
+        assert has_skill_check, (
+            "Packet type 5 must validate skill with pattern: if (packbuf[3] >= 5)"
+        )
+
+        # Verify security message appears
+        has_security_msg = "Packet type 5 invalid skill" in content
+        assert has_security_msg, (
+            "Packet type 5 skill bounds check must include security log message"
+        )
+
+    def test_packet_type_5_boolean_flags_bounds(self, repo_root):
+        """Packet type 5 must validate boolean flags (monsters_off, respawn_*, marker, ffire)."""
+        game_c = repo_root / "source" / "GAME.C"
+        if not game_c.exists():
+            pytest.skip(f"{game_c} not found")
+
+        content = game_c.read_text(errors="replace")
+
+        # Check for boolean flag bounds checks
+        # Pattern: if (packbuf[N] > 1) for flags
+        has_monsters_off_check = "packbuf[4] > 1" in content
+        has_respawn_monsters_check = "packbuf[5] > 1" in content
+        has_respawn_items_check = "packbuf[6] > 1" in content
+        has_respawn_inventory_check = "packbuf[7] > 1" in content
+        has_marker_check = "packbuf[9] > 1" in content
+        has_ffire_check = "packbuf[10] > 1" in content
+        
+        assert has_monsters_off_check, (
+            "Packet type 5 must validate monsters_off flag: if (packbuf[4] > 1)"
+        )
+        assert has_respawn_monsters_check, (
+            "Packet type 5 must validate respawn_monsters flag: if (packbuf[5] > 1)"
+        )
+        assert has_respawn_items_check, (
+            "Packet type 5 must validate respawn_items flag: if (packbuf[6] > 1)"
+        )
+        assert has_respawn_inventory_check, (
+            "Packet type 5 must validate respawn_inventory flag: if (packbuf[7] > 1)"
+        )
+        assert has_marker_check, (
+            "Packet type 5 must validate marker flag: if (packbuf[9] > 1)"
+        )
+        assert has_ffire_check, (
+            "Packet type 5 must validate ffire flag: if (packbuf[10] > 1)"
+        )
+
+    def test_packet_type_8_range_validation(self, repo_root):
+        """Packet type 8 must have same range validation as type 5."""
+        game_c = repo_root / "source" / "GAME.C"
+        if not game_c.exists():
+            pytest.skip(f"{game_c} not found")
+
+        content = game_c.read_text(errors="replace")
+
+        # Check for level, volume, skill bounds in case 8
+        has_level_check = "Packet type 8 invalid level number" in content
+        has_volume_check = "Packet type 8 invalid volume number" in content
+        has_skill_check = "Packet type 8 invalid skill" in content
+        has_flags_check = "Packet type 8 invalid" in content
+        
+        assert has_level_check, (
+            "Packet type 8 must validate level_number with security message"
+        )
+        assert has_volume_check, (
+            "Packet type 8 must validate volume_number with security message"
+        )
+        assert has_skill_check, (
+            "Packet type 8 must validate skill with security message"
+        )
+        assert has_flags_check, (
+            "Packet type 8 must validate all flags with security messages"
+        )
+

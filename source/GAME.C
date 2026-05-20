@@ -577,6 +577,44 @@ void getpackets(void)
                 break;
 
             case 5:
+                /* Range-check game settings from untrusted packet */
+                if (packbuf[1] >= 11) {
+                    printf("NET: SECURITY: Packet type 5 invalid level number (%d >= 11). Clamping to 0.\n", packbuf[1]);
+                    packbuf[1] = 0;
+                }
+                if (packbuf[2] >= 4) {
+                    printf("NET: SECURITY: Packet type 5 invalid volume number (%d >= 4). Clamping to 0.\n", packbuf[2]);
+                    packbuf[2] = 0;
+                }
+                if (packbuf[3] >= 5) {
+                    printf("NET: SECURITY: Packet type 5 invalid skill (%d >= 5). Clamping to 0.\n", packbuf[3]);
+                    packbuf[3] = 0;
+                }
+                if (packbuf[4] > 1) {
+                    printf("NET: SECURITY: Packet type 5 invalid monsters_off flag (%d > 1). Clamping to 0.\n", packbuf[4]);
+                    packbuf[4] = 0;
+                }
+                if (packbuf[5] > 1) {
+                    printf("NET: SECURITY: Packet type 5 invalid respawn_monsters flag (%d > 1). Clamping to 0.\n", packbuf[5]);
+                    packbuf[5] = 0;
+                }
+                if (packbuf[6] > 1) {
+                    printf("NET: SECURITY: Packet type 5 invalid respawn_items flag (%d > 1). Clamping to 0.\n", packbuf[6]);
+                    packbuf[6] = 0;
+                }
+                if (packbuf[7] > 1) {
+                    printf("NET: SECURITY: Packet type 5 invalid respawn_inventory flag (%d > 1). Clamping to 0.\n", packbuf[7]);
+                    packbuf[7] = 0;
+                }
+                if (packbuf[9] > 1) {
+                    printf("NET: SECURITY: Packet type 5 invalid marker flag (%d > 1). Clamping to 0.\n", packbuf[9]);
+                    packbuf[9] = 0;
+                }
+                if (packbuf[10] > 1) {
+                    printf("NET: SECURITY: Packet type 5 invalid ffire flag (%d > 1). Clamping to 0.\n", packbuf[10]);
+                    packbuf[10] = 0;
+                }
+                
                 ud.m_level_number = ud.level_number = packbuf[1];
                 ud.m_volume_number = ud.volume_number = packbuf[2];
                 ud.m_player_skill = ud.player_skill = packbuf[3];
@@ -642,6 +680,44 @@ void getpackets(void)
                 rtsplaying = 7;
                 break;
             case 8:
+                /* Range-check game settings from untrusted packet */
+                if (packbuf[1] >= 11) {
+                    printf("NET: SECURITY: Packet type 8 invalid level number (%d >= 11). Clamping to 0.\n", packbuf[1]);
+                    packbuf[1] = 0;
+                }
+                if (packbuf[2] >= 4) {
+                    printf("NET: SECURITY: Packet type 8 invalid volume number (%d >= 4). Clamping to 0.\n", packbuf[2]);
+                    packbuf[2] = 0;
+                }
+                if (packbuf[3] >= 5) {
+                    printf("NET: SECURITY: Packet type 8 invalid skill (%d >= 5). Clamping to 0.\n", packbuf[3]);
+                    packbuf[3] = 0;
+                }
+                if (packbuf[4] > 1) {
+                    printf("NET: SECURITY: Packet type 8 invalid monsters_off flag (%d > 1). Clamping to 0.\n", packbuf[4]);
+                    packbuf[4] = 0;
+                }
+                if (packbuf[5] > 1) {
+                    printf("NET: SECURITY: Packet type 8 invalid respawn_monsters flag (%d > 1). Clamping to 0.\n", packbuf[5]);
+                    packbuf[5] = 0;
+                }
+                if (packbuf[6] > 1) {
+                    printf("NET: SECURITY: Packet type 8 invalid respawn_items flag (%d > 1). Clamping to 0.\n", packbuf[6]);
+                    packbuf[6] = 0;
+                }
+                if (packbuf[7] > 1) {
+                    printf("NET: SECURITY: Packet type 8 invalid respawn_inventory flag (%d > 1). Clamping to 0.\n", packbuf[7]);
+                    packbuf[7] = 0;
+                }
+                if (packbuf[9] > 1) {
+                    printf("NET: SECURITY: Packet type 8 invalid marker flag (%d > 1). Clamping to 0.\n", packbuf[9]);
+                    packbuf[9] = 0;
+                }
+                if (packbuf[10] > 1) {
+                    printf("NET: SECURITY: Packet type 8 invalid ffire flag (%d > 1). Clamping to 0.\n", packbuf[10]);
+                    packbuf[10] = 0;
+                }
+                
                 ud.m_level_number = ud.level_number = packbuf[1];
                 ud.m_volume_number = ud.volume_number = packbuf[2];
                 ud.m_player_skill = ud.player_skill = packbuf[3];
