@@ -449,3 +449,74 @@ tests. Build clean across both gnu89 (SRC/, source/) and c11 (compat/) sets.
 
 **Human-attention items**:
 - None this cycle. Operator's standing approval on push held.
+
+## 2026-05-20 — Cycle 11 + audit-pass (engine-porter r5 / compat-layer r4)
+
+**Closed (16)**:
+- audit-sec-check-secrets-flags — `tools/check_secrets.sh`: `set -e` → `set -eu`.
+- build-add-build-win-gitignore — `.gitignore`: ignore `build_win/`.
+- test-ci-runslow-integration — `.github/workflows/build.yml`: `pytest … --runslow`.
+- ci-powershell-sdl2-error-handling — workflow SDL2 PS step now uses
+  `$ErrorActionPreference='Stop'` + try/catch around `Invoke-WebRequest`.
+- audit-sec-api-response-leakage — `tools/generate_audio.py`: new
+  `_redact_api_response_text()` masks header/bearer/credential-looking
+  blobs in 4xx-error logs (sync + async paths).
+- audit-sec-manifest-errors — `tools/generate_audio.py`: manifest
+  `error` field stores only the exception *class name*; full repr only
+  goes to stderr.
+- test-requirements-exact-pinning — `requirements.txt` pinned with
+  comments documenting CVE-relevant lower bounds.
+- docs-audit-index-rebuild — already landed in 91697af.
+- fix-engine-allocache-off-by-one — reverted unsafe quick-path in
+  `SRC/CACHE1D.C` (see engine-porter-r5 finding).
+- fix-engine-allocache-stale-candidate — same revert.
+- fix-net-queue-overflow — `SRC/MMULTI.C`: ring size 512→1024,
+  DROP-OLDEST policy, `pq_dropped_packets`, `pq_count`.
+- fix-net-graceful-disconnect — `SRC/MMULTI.C`: `net_send_disconnect()`
+  helper + 250 ms drain in `uninitmultiplayers()`.
+- audit-net-crc-implementation — `SRC/MMULTI.C`: block comment above
+  `initcrc` documenting why CRC is dormant (no field in 4-byte header).
+- fix-net-payload-len-truncation — cast `buf[3]` to `unsigned` + bound
+  vs `MAXPACKETSIZE - NET_HEADER_SIZE`.
+- fix-net-ringbuffer-wraparound — modular arithmetic with `pq_count`.
+- fix-engine-unchecked-file-io — round 1 of 3 in `source/MENUES.C`:
+  14 critical save/load sites bounds-checked (saveplayer ×10,
+  loadplayer ×3, loadpheader ×1); remaining ~145 sites flagged
+  `TODO(file-io-r2)`.
+- fix-compat-mixer-callback-race — `compat/audio_stub.c`:
+  `mixer_channel_done` now snapshots `fx_callback`/`chunk`/`cbval` into
+  locals; `FX_SetCallBack` wraps the write in
+  `SDL_LockAudio/SDL_UnlockAudio`. Adding the lock inside the callback
+  itself would deadlock (SDL_mixer may invoke channel-finished
+  callbacks with the audio lock held), so the snapshot pattern is the
+  right shape.
+
+**Reopened (1)**:
+- perf-cache-allocation — original speedup reverted as unsafe; redesign
+  must invalidate `lastCandidate*` after the "Suck things out" block or
+  recompute the offset from `cac[]` before trusting it. Add a unit
+  test before re-landing.
+
+**Audit-pass findings (12 new todos seeded)**:
+- engine-porter-r5 (SQL only — report .md ghosted by sub-agent
+  persistence regression v4): 2 CRITICAL bugs flagged in the cycle-10
+  allocache quick-path (already reverted by this cycle's commit),
+  + `audit-engine-allocache-correctness`,
+  + `fix-engine-unchecked-file-io-priority` (closed in this cycle's
+  round-1 file-I/O commit).
+- compat-layer-r4 (SQL only — report .md ghosted): `fix-compat-
+  mixer-callback-race` (HIGH, closed this cycle), `add-gpl-headers-
+  compat`, `add-logging-stubs-compat`, `audit-compat-endianness`.
+- file-I/O follow-up: `fix-engine-unchecked-file-io-r2` (the 145
+  remaining `TODO(file-io-r2)` sites in source/MENUES.C).
+
+**Build/test delta**: 583 passed (--runslow), 553 fast — unchanged
+from start of cycle but with ten times more closed work.
+
+**Human-attention items**:
+- Persistence regression v4 ate the engine-porter-r5 + compat-layer-r4
+  audit *report* files (the SQL todo INSERTs survived). Findings are
+  captured in this GRIND_LOG entry instead. Next audit-pass should
+  re-run those two personas if a formal report is wanted.
+- `sec-env-real-keys` (Azure key rotation) still pending; operator
+  action required.
