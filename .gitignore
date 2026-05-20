@@ -44,3 +44,6 @@ id_ed25519
 .ssh/
 .docker/config.json
 .vscode/settings.json
+
+# Sub-agent SQL artifact (audit-grind tooling drops this in cwd; ignore)
+session.db
