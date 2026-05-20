@@ -178,7 +178,7 @@ static int mixer_play(const char *ptr, int loops, int vol,
 
     if (!mixer_initialized || !ptr) return -1;
     size = sound_file_size(ptr);
-    rw   = SDL_RWFromConstMem(ptr, (int)size);
+    rw   = SDL_RWFromConstMem(ptr, (size_t)size);
     if (!rw) return -1;
 
     chunk = Mix_LoadWAV_RW(rw, 1);
@@ -234,7 +234,7 @@ static int mixer_play_3d(const char *ptr, int angle, int distance,
 
     if (!mixer_initialized || !ptr) return -1;
     size = sound_file_size(ptr);
-    rw   = SDL_RWFromConstMem(ptr, (int)size);
+    rw   = SDL_RWFromConstMem(ptr, (size_t)size);
     if (!rw) return -1;
 
     chunk = Mix_LoadWAV_RW(rw, 1);
@@ -744,6 +744,19 @@ static unsigned long midi_file_size(const unsigned char *data,
                  ((unsigned long)data[5]  << 16) |
                  ((unsigned long)data[6]  << 8)  | data[7];
     num_tracks = ((unsigned long)data[10] << 8)  | data[11];
+    
+    /* Bounds check: header_len should be between 6 and reasonable upper bound */
+    if (header_len < 6 || header_len > max_size - 8) {
+        fprintf(stderr, "midi_file_size: invalid header length %lu (out of bounds)\n", header_len);
+        return 0;
+    }
+    
+    /* Bounds check: num_tracks should be non-negative and reasonable */
+    if (num_tracks > 256) {
+        fprintf(stderr, "midi_file_size: invalid track count %lu (> 256)\n", num_tracks);
+        return 0;
+    }
+    
     pos = 8 + header_len;
 
     for (i = 0; i < num_tracks && pos + 8 <= max_size; i++) {
@@ -862,7 +875,7 @@ int MUSIC_PlaySong(unsigned char *song, int loopflag)
     if (mixer_initialized && song) {
         unsigned long size = midi_file_size(song, 72000);
         free_current_music();
-        current_music_rw = SDL_RWFromConstMem(song, (int)size);
+        current_music_rw = SDL_RWFromConstMem(song, (size_t)size);
         if (current_music_rw) {
             current_music = Mix_LoadMUS_RW(current_music_rw, 0);
             if (current_music)
