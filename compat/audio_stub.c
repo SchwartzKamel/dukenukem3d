@@ -134,8 +134,10 @@ static int mixer_play(const char *ptr, int loops, int vol,
     if (channel < 0) { Mix_FreeChunk(chunk); return -1; }
 
     if (channel < MIXER_MAX_CHANNELS) {
+        SDL_LockAudio();
         mixer_channel_chunk[channel] = chunk;
         mixer_channel_cbval[channel] = cbval;
+        SDL_UnlockAudio();
     }
 
     if (left != right) {
@@ -169,8 +171,10 @@ static int mixer_play_3d(const char *ptr, int angle, int distance,
     if (channel < 0) { Mix_FreeChunk(chunk); return -1; }
 
     if (channel < MIXER_MAX_CHANNELS) {
+        SDL_LockAudio();
         mixer_channel_chunk[channel] = chunk;
         mixer_channel_cbval[channel] = cbval;
+        SDL_UnlockAudio();
     }
 
     /*
@@ -254,6 +258,7 @@ int FX_Init(int SoundCard, int numvoices, int numchannels,
                       MIX_DEFAULT_FORMAT,
                       numchannels > 1 ? 2 : 1,
                       2048) < 0) {
+        SDL_QuitSubSystem(SDL_INIT_AUDIO);
         FX_ErrorCode = FX_Error;
         return FX_Error;
     }

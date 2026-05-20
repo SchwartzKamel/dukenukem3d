@@ -193,6 +193,7 @@ int sdl_init(int xdim, int ydim)
             SDL_GetError());
         error_fatal("SDL Error", errbuf);
     }
+    atexit(sdl_shutdown);
     startup_log("  SDL_Init OK");
 
     screen_width  = xdim;
@@ -231,6 +232,8 @@ int sdl_init(int xdim, int ydim)
     if (!renderer) {
         snprintf(errbuf, sizeof(errbuf),
             "SDL_CreateRenderer failed: %s", SDL_GetError());
+        SDL_DestroyWindow(window);
+        window = NULL;
         error_fatal("SDL Error", errbuf);
     }
 
@@ -243,6 +246,10 @@ int sdl_init(int xdim, int ydim)
     if (!texture) {
         snprintf(errbuf, sizeof(errbuf),
             "SDL_CreateTexture failed: %s", SDL_GetError());
+        SDL_DestroyRenderer(renderer);
+        renderer = NULL;
+        SDL_DestroyWindow(window);
+        window = NULL;
         error_fatal("SDL Error", errbuf);
     }
 
