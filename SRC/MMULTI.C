@@ -90,6 +90,35 @@ static int pq_head = 0, pq_tail = 0;
 static int pq_count = 0;
 static int pq_dropped_packets = 0;
 
+/* ---- Endianness Convention & Wire Format ----
+ *
+ * WIRE FORMAT SPECIFICATION: ALL MULTI-BYTE INTEGERS ARE LITTLE-ENDIAN
+ *
+ * The network packet format assumes little-endian byte order throughout.
+ * Today's targets (x86_64, ARM64-LE) are all little-endian, so this behavior
+ * is preserved. However, the assumption was implicit in the 1996 code and
+ * must be documented for future ports.
+ *
+ * Byte-packing sites (always use mm_pack_u16_le / mm_unpack_u16_le):
+ *   - Payload length field in packet header: buf[2] (lo), buf[3] (hi)
+ *   - Protocol version in handshake: msg[2] (lo), msg[3] (hi)
+ *
+ * This ensures explicit endianness handling and enables cross-platform
+ * correctness if porting to big-endian or mixed-endian systems in future.
+ */
+
+/* Little-endian u16 pack/unpack helpers (compile away to nothing on LE platforms) */
+static inline void mm_pack_u16_le(unsigned char *buf, uint16_t val)
+{
+	buf[0] = (unsigned char)(val & 0xFF);
+	buf[1] = (unsigned char)((val >> 8) & 0xFF);
+}
+
+static inline uint16_t mm_unpack_u16_le(const unsigned char *buf)
+{
+	return (uint16_t)(buf[0] | ((unsigned)buf[1] << 8));
+}
+
 /* ---- Internal helpers ---- */
 
 static void net_set_nonblocking(SOCKET sock)
@@ -163,7 +192,7 @@ static void net_poll_sockets(void)
 		while (recv_bufs[i].len >= NET_HEADER_SIZE) {
 			int from_player = recv_bufs[i].buf[0];
 			int dest        = recv_bufs[i].buf[1];
-			int payload_len = recv_bufs[i].buf[2] | (((unsigned)recv_bufs[i].buf[3]) << 8);
+			int payload_len = mm_unpack_u16_le(recv_bufs[i].buf + 2);
 			int total_len;
 
 			/* Validate bounds before relay-forwarding */
@@ -395,8 +424,7 @@ initmultiplayers(char damultioption, char dacomrateoption, char dapriority)
 			unsigned char msg[4];
 			msg[0] = (unsigned char)i;
 			msg[1] = (unsigned char)numplayers;
-			msg[2] = (unsigned char)(NET_PROTOCOL_VERSION & 0xFF);
-			msg[3] = (unsigned char)((NET_PROTOCOL_VERSION >> 8) & 0xFF);
+		mm_pack_u16_le(msg + 2, NET_PROTOCOL_VERSION);
 			net_send_raw(player_sockets[i], msg, 4);
 			net_set_nonblocking(player_sockets[i]);
 		}
@@ -449,7 +477,7 @@ initmultiplayers(char damultioption, char dacomrateoption, char dapriority)
 		}
 
 		/* Verify protocol version */
-		uint16_t peer_version = (uint16_t)(msg[2] | (msg[3] << 8));
+		uint16_t peer_version = mm_unpack_u16_le(msg + 2);
 		if (peer_version != NET_PROTOCOL_VERSION) {
 			printf("NET: Protocol version mismatch (expected 0x%04x, got 0x%04x)\n",
 			       NET_PROTOCOL_VERSION, peer_version);
@@ -496,8 +524,7 @@ uninitmultiplayers()
 	/* Send DISCONNECT (marker=0xFF) to all known peers before closing sockets */
 	disconnect_pkt[0] = (unsigned char)myconnectindex;
 	disconnect_pkt[1] = 255;  /* broadcast */
-	disconnect_pkt[2] = 1;    /* payload length lo */
-	disconnect_pkt[3] = 0;    /* payload length hi */
+	mm_pack_u16_le(disconnect_pkt + 2, 1);  /* payload length = 1 */
 	disconnect_pkt[4] = 0xFF; /* disconnect marker */
 	
 	for (i = 0; i < MAXPLAYERS; i++) {
@@ -564,8 +591,7 @@ sendpacket(int32_t other, char *bufptr, int32_t messleng)
 
 	header[0] = (unsigned char)(myconnectindex & 0xFF);
 	header[1] = (unsigned char)(other & 0xFF);
-	header[2] = (unsigned char)(messleng & 0xFF);
-	header[3] = (unsigned char)((messleng >> 8) & 0xFF);
+	mm_pack_u16_le(header + 2, (uint16_t)messleng);
 
 	if (is_host) {
 		sock = player_sockets[other];
