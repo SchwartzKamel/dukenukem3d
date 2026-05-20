@@ -1382,6 +1382,12 @@ void enterlevel(char g)
 
 #ifndef VOLUMEONE
 
+    /* engine-r15-premap-volume-level-bounds: drop OOB index */
+    if ((unsigned)ud.volume_number >= 4 || (unsigned)ud.level_number >= 11) {
+        sprintf(tempbuf, "Invalid level selection (vol=%d, lev=%d)", ud.volume_number, ud.level_number);
+        gameexit(tempbuf);
+    }
+
     if( boardfilename[0] != 0 && ud.m_level_number == 7 && ud.m_volume_number == 0 )
     {
         if ( loadboard( boardfilename,&ps[0].posx, &ps[0].posy, &ps[0].posz, &ps[0].ang,&ps[0].cursectnum ) == -1 )
@@ -1397,6 +1403,12 @@ void enterlevel(char g)
     }
 
 #else
+
+    /* engine-r15-premap-volume-level-bounds: drop OOB index */
+    if ((unsigned)ud.volume_number >= 4 || (unsigned)ud.level_number >= 11) {
+        sprintf(tempbuf, "Invalid level selection (vol=%d, lev=%d)", ud.volume_number, ud.level_number);
+        gameexit(tempbuf);
+    }
 
     startup_log("  enterlevel: loading map vol=%d lev=%d", ud.volume_number, ud.level_number);
     startup_log("  enterlevel: map='%s'", level_file_names[(ud.volume_number*11)+ud.level_number]);

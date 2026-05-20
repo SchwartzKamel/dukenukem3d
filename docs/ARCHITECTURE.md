@@ -799,6 +799,76 @@ Payload: up to MAXPACKETSIZE = 2048 bytes
 2. **Socket lifecycle audit** — Error-path cleanup (crash recovery, partial-send retry, timeout edge cases) needs dedicated audit
 3. **xdist parallel isolation** — Verify recv_buf thread-safety under pytest `-n auto` (parallel test workers may share sockets on Linux)
 
+<!-- docs-feature-summary-update: cycle 50 -->
+
+## Recent Improvements (Cycles 41–49)
+
+This section documents major stabilization and performance work from cycles 41–49, with cross-references to audit reports and cycle closures.
+
+### Testing Infrastructure (Cycles 41–46)
+
+**Property-Based Testing (Cycle 41+)**
+- Hypothesis/property-based tests added for engine bounds, deterministic playback, and asset generation edge cases
+- Enables fuzzing-like coverage without manual test case explosion
+- **Cite:** [docs/audits/test-engineer-r13.md](docs/audits/test-engineer-r13.md) § Test Infrastructure.
+
+**Multiplayer Regression Harness (Cycle 48)**
+- New `tests/test_engine_net_hardening_regressions.py` implements automated packet type bounds matrix (15 active types, each pre-validated)
+- Closed 2 HIGH/MEDIUM packet handler gaps (Type-4 chat, Type-9 weapon) discovered in cycle-48 audit
+- Prevents future packet-type regression via parametrized test matrix
+- **Cite:** [docs/audits/network-multiplayer-r12.md](docs/audits/network-multiplayer-r12.md) § Packet Types & Bounds Matrix (lines 744–760 in this doc).
+
+**Parallel Testing with xdist + filelock (Cycles 45–46)**
+- Cycle-45 initial attempt failed due to shared `generated_audio_artifacts` fixture race on `/tmp` (reverted)
+- Cycle-46 closure: filelock-based singleton initialization in `tests/conftest.py` with per-worker coordination
+- Result: **37.5% wallclock speedup** (22.98s → 14.76s with `pytest -n auto`)
+- `pytest.ini` re-enabled: `addopts = -n auto --dist loadscope`
+- **Cite:** [docs/audits/performance-profiler-r13.md](docs/audits/performance-profiler-r13.md), [docs/audits/test-engineer-r14.md](docs/audits/test-engineer-r14.md) § xdist Coordination.
+
+### Build System (Cycle 46)
+
+**Header Dependency Tracking**
+- Makefile now uses `-MMD -MP` flags to generate `.d` dependency files
+- Include directive `-include *.d` automatically rebuilds on header touch
+- Eliminates stale binary syndrome (editing a header no longer ignored)
+- **Cite:** [docs/audits/build-system-r14.md](docs/audits/build-system-r14.md) § build-r14-header-deps.
+
+### Asset Pipeline & Audio (Cycles 42–46)
+
+**Atomic Manifest Write (Cycle 42, re-verified Cycle 46)**
+- Cycles 41–42: Identified ThreadPool and asyncio race in `tools/generate_audio.py` (manifest corruption on interruption)
+- Cycle 46 closure: Per-entry sequential writes + atomic top-level commit pattern
+- Manifest now includes SHA256 checksums for integrity detection
+- **Cite:** [docs/audits/audio-engineer-r12.md](docs/audits/audio-engineer-r12.md) § Manifest Race Fixes.
+
+**Manifest SHA256 Checksums (Cycle 46)**
+- `tools/generate_tables.py` and `tools/generate_audio.py` now compute per-entry + top-level SHA256
+- Mutations in generated assets now detectable during load (vs. silent corruption)
+- Tests in `tests/test_audio_pipeline.py` and `tests/test_asset_pipeline.py` verify checksum consistency
+- **Cite:** [docs/audits/asset-pipeline-r15.md](docs/audits/asset-pipeline-r15.md) § Asset Versioning.
+
+### Engine Hardening (Cycles 41–42)
+
+**SE40 Performance Optimization (Cycles 41–42)**
+- `SE40_Draw` rendering path validated for sprite sectnum bounds
+- Eliminated unnecessary allocache lookups in cold render path
+- **Result: 22× cold-start speedup** (frame analyzer 0.2s → 0.009s)
+- Guards preserve unsafe-by-default semantics: caller responsible for pre-validation, engine checks within SE40_Draw scope
+- **Cite:** [docs/audits/performance-profiler-r10.md](docs/audits/performance-profiler-r10.md); [docs/audits/engine-porter-r12.md](docs/audits/engine-porter-r12.md) § Cycles 41–42 Closures.
+
+**MAXTILES Header Unification + Abort Guard (Cycles 41–42)**
+- Long-standing conflict: `SRC/BUILD.H` hardcoded MAXTILES=9216 vs. `source/BUILD.H`=6144
+- **Cycle 41 Stage 2:** Unified both to 6144 (source/ is authority; SRC/ updated with compile-time assertion)
+- **Cycle 42 Stage 3:** Added runtime abort guard in `compat/maxtiles_guard.c` — constructor function compares and aborts if future divergence detected
+- Prevents silent tile ID OOB corruption from header desync
+- **Cite:** [docs/audits/build-system-r13.md](docs/audits/build-system-r13.md) → [docs/audits/build-system-r14.md](docs/audits/build-system-r14.md) § MAXTILES Stages 1–3.
+
+### Summary
+
+All cycles 41–49 improvements are production-verified and tracked in [docs/audits/GRIND_LOG.md](docs/audits/GRIND_LOG.md) with per-cycle closure details. Critical paths (Network, MAXTILES, xdist) all have parametrized test coverage and audit sign-off.
+
+---
+
 **See Also:**
 - [docs/audits/network-multiplayer-r12.md](docs/audits/network-multiplayer-r12.md) — Full packet-handler bounds matrix, cycle-41/44/45 closure verification, and r12 gap analysis
 - [docs/audits/network-multiplayer-r11.md](docs/audits/network-multiplayer-r11.md) — Cycle-41 EAGAIN distinction closure, cycle-44 landing verification

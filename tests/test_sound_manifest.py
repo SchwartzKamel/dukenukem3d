@@ -724,3 +724,70 @@ class TestManifestChecksums:  # asset-r13-manifest-checksums: SHA256 integrity
             # The checksums should be different
             assert mutated_checksum != stored_checksum, \
                 "Mutation detection failed: mutated data has same checksum as original"
+
+
+class TestAssetR15SoundNameCollision:
+    """Validate WAV filename collision detection in VOICE_LINES.
+    
+    asset-r15-sound-name-collision-detection: prevent silent WAV overwrite
+    """
+
+    def test_validation_function_exists(self):
+        """The _validate_voice_line_filename_uniqueness function must exist and be callable."""
+        assert hasattr(generate_audio, '_validate_voice_line_filename_uniqueness'), \
+            "_validate_voice_line_filename_uniqueness function not found in generate_audio module"
+        assert callable(generate_audio._validate_voice_line_filename_uniqueness), \
+            "_validate_voice_line_filename_uniqueness is not callable"
+
+    def test_unique_filenames_pass(self):
+        """A fixture VOICE_LINES dict with all-unique filenames must pass validation."""
+        # Create a fixture with unique filenames
+        fixture_voice_lines = [
+            ("UNIQUE01.WAV", "Prompt 1", "alloy"),
+            ("UNIQUE02.WAV", "Prompt 2", "echo"),
+            ("UNIQUE03.WAV", "Prompt 3", "onyx"),
+        ]
+        
+        # Should not raise
+        generate_audio._validate_voice_line_filename_uniqueness(fixture_voice_lines)
+
+    def test_duplicate_filenames_raise(self):
+        """A fixture with 2 entries sharing a filename must raise RuntimeError with asset-r15-sound-name-collision in message."""
+        # Create a fixture with duplicate filenames
+        fixture_voice_lines = [
+            ("DUPE.WAV", "Prompt 1", "alloy"),
+            ("UNIQUE.WAV", "Prompt 2", "echo"),
+            ("DUPE.WAV", "Prompt 3", "onyx"),  # Duplicate!
+        ]
+        
+        # Should raise RuntimeError with asset-r15-sound-name-collision in message
+        with pytest.raises(RuntimeError) as exc_info:
+            generate_audio._validate_voice_line_filename_uniqueness(fixture_voice_lines)
+        
+        assert "asset-r15-sound-name-collision" in str(exc_info.value), \
+            f"Expected 'asset-r15-sound-name-collision' in error message, got: {exc_info.value}"
+        assert "DUPE.WAV" in str(exc_info.value), \
+            f"Expected filename 'DUPE.WAV' in error message, got: {exc_info.value}"
+        assert "0, 2" in str(exc_info.value) or "0 and 2" in str(exc_info.value) or "0" in str(exc_info.value), \
+            f"Expected voice entry indices in error message, got: {exc_info.value}"
+
+    def test_sentinel_comment_present(self):
+        """The sentinel comment 'asset-r15-sound-name-collision-detection' must be in generate_audio.py."""
+        audio_file = os.path.join(PROJECT_ROOT, "tools", "generate_audio.py")
+        with open(audio_file) as f:
+            content = f.read()
+        
+        assert "asset-r15-sound-name-collision-detection" in content, \
+            "Sentinel comment 'asset-r15-sound-name-collision-detection' not found in generate_audio.py"
+
+    def test_actual_voice_lines_uniqueness(self):
+        """The REAL current VOICE_LINES from generate_audio.py must have no duplicates."""
+        # This test validates that the actual VOICE_LINES catalog is collision-free
+        # Should not raise
+        generate_audio._validate_voice_line_filename_uniqueness(generate_audio.VOICE_LINES)
+        
+        # Also explicitly verify uniqueness by counting
+        filenames = [filename for filename, _, _ in generate_audio.VOICE_LINES]
+        unique_filenames = set(filenames)
+        assert len(filenames) == len(unique_filenames), \
+            f"VOICE_LINES has duplicate filenames: {len(filenames)} entries, {len(unique_filenames)} unique"

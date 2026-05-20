@@ -294,6 +294,11 @@ loadplayer(signed char spot)
      else
          kdfread(&ud.savegame[spot][0],19,1,fil);
 
+     /* engine-r15-menues-music-index-bounds: validate before use */
+     if ((unsigned)ud.volume_number >= 4 || (unsigned)ud.level_number >= 11) {
+         ud.volume_number = 0;
+         ud.level_number = 0;
+     }
      music_changed = (music_select != (ud.volume_number*11) + ud.level_number);
 
          kdfread(&ud.volume_number,sizeof(ud.volume_number),1,fil);
@@ -594,8 +599,14 @@ loadplayer(signed char spot)
          cacheit();
      docacheit();
 
-     if(music_changed == 0)
+     if(music_changed == 0) {
+        /* engine-r15-menues-music-index-bounds: validate before use */
+        if ((unsigned)ud.volume_number >= 4 || (unsigned)ud.level_number >= 11) {
+            ud.volume_number = 0;
+            ud.level_number = 0;
+        }
         music_select = (ud.volume_number*11) + ud.level_number;
+     }
      playmusic(&music_fn[0][music_select][0]);
 
      ps[myconnectindex].gm = MODE_GAME;

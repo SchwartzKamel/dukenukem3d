@@ -2335,7 +2335,7 @@ class TestFtaQuotesStrcpyOverflow:
         strcpy_found_6480s = False
         strcpy_found_6700s = False
 
-        for i in range(max(0, 6475-1), min(len(lines), 6495)):
+        for i in range(max(0, 6475-1), min(len(lines), 6515)):
             if "sec-r12-strcat-fta-quotes-overflow" in lines[i]:
                 sentinel_found_6480s = True
             if "strncpy(fta_quotes" in lines[i] or "strncpy(&fta_quotes" in lines[i]:
@@ -2343,7 +2343,7 @@ class TestFtaQuotesStrcpyOverflow:
             if "strcpy(fta_quotes" in lines[i] or "strcpy(&fta_quotes" in lines[i]:
                 strcpy_found_6480s = True
 
-        for i in range(max(0, 6700-1), min(len(lines), 6720)):
+        for i in range(max(0, 6700-1), min(len(lines), 6740)):
             if "sec-r12-strcat-fta-quotes-overflow" in lines[i]:
                 sentinel_found_6700s = True
             if "strncpy(fta_quotes" in lines[i] or "strncpy(&fta_quotes" in lines[i]:
@@ -3119,4 +3119,146 @@ class TestNetR12PacketBoundsType4And9:
         assert found_check, (
             f"source/GAME.C case 9 handler must have 'packbufleng < 2' guard "
             f"within 2 lines after case 9 (found at line {case_9_line_idx + 1})"
+        )
+
+
+class TestNetR12PacketUnhandledSentinel:
+    """Verify net-r12 unhandled packet type sentinel and default case."""
+
+    def test_sentinel_comment_exists(self, repo_root):
+        """source/GAME.C must have sentinel 'net-r12-packet-type-unhandled-sentinel' comment."""
+        game_c = repo_root / "source" / "GAME.C"
+        if not game_c.exists():
+            pytest.skip(f"{game_c} not found")
+
+        content = game_c.read_text(errors="replace")
+
+        assert "net-r12-packet-type-unhandled-sentinel" in content, (
+            "source/GAME.C must contain sentinel comment 'net-r12-packet-type-unhandled-sentinel' "
+            "in the default case of the packet switch to mark unhandled packet types."
+        )
+
+    def test_default_case_exists(self, repo_root):
+        """source/GAME.C packet switch must have default: case."""
+        game_c = repo_root / "source" / "GAME.C"
+        if not game_c.exists():
+            pytest.skip(f"{game_c} not found")
+
+        content = game_c.read_text(errors="replace")
+        lines = content.split('\n')
+
+        # Find the sentinel comment
+        sentinel_found = False
+        default_case_found = False
+        for i, line in enumerate(lines):
+            if "net-r12-packet-type-unhandled-sentinel" in line:
+                sentinel_found = True
+                # Check that default: case is near the sentinel (within 5 lines before)
+                for j in range(max(0, i - 5), i):
+                    if "default:" in lines[j]:
+                        default_case_found = True
+                        break
+                if not default_case_found:
+                    # Also check if it's on the same line before the comment
+                    if i > 0 and "default:" in lines[i - 1]:
+                        default_case_found = True
+
+        assert sentinel_found, (
+            "source/GAME.C must contain sentinel comment 'net-r12-packet-type-unhandled-sentinel'"
+        )
+
+        assert default_case_found, (
+            "source/GAME.C must have a 'default:' case in the packet switch "
+            "near the sentinel comment."
+        )
+
+    def test_unknown_packet_counter_exists(self, repo_root):
+        """source/GAME.C default case must have unknown_packet_count counter."""
+        game_c = repo_root / "source" / "GAME.C"
+        if not game_c.exists():
+            pytest.skip(f"{game_c} not found")
+
+        content = game_c.read_text(errors="replace")
+        lines = content.split('\n')
+
+        # Find the sentinel comment
+        sentinel_found = False
+        counter_found = False
+        for i, line in enumerate(lines):
+            if "net-r12-packet-type-unhandled-sentinel" in line:
+                sentinel_found = True
+                # Check for unknown_packet_count in the next 10 lines
+                for j in range(i, min(i + 10, len(lines))):
+                    if "unknown_packet_count" in lines[j]:
+                        counter_found = True
+                        break
+                break
+
+        assert sentinel_found, (
+            "source/GAME.C must contain sentinel comment 'net-r12-packet-type-unhandled-sentinel'"
+        )
+
+        assert counter_found, (
+            "source/GAME.C default case must declare/increment 'unknown_packet_count' "
+            "to track unhandled packet types."
+        )
+
+
+class TestEngineR15VolumeLevelBounds:
+    """Verify bounds guards for volume/level indexing in engine-r15."""
+
+    def test_premap_bounds_sentinel(self, repo_root):
+        """source/PREMAP.C must have sentinel 'engine-r15-premap-volume-level-bounds'."""
+        premap_c = repo_root / "source" / "PREMAP.C"
+        if not premap_c.exists():
+            pytest.skip(f"{premap_c} not found")
+
+        content = premap_c.read_text(errors="replace")
+
+        assert "engine-r15-premap-volume-level-bounds" in content, (
+            "source/PREMAP.C must contain sentinel comment 'engine-r15-premap-volume-level-bounds' "
+            "to mark the entry guard for level/volume array bounds."
+        )
+
+    def test_premap_bounds_check_present(self, repo_root):
+        """source/PREMAP.C must check '(unsigned)ud.volume_number >= 4 || (unsigned)ud.level_number >= 11'."""
+        premap_c = repo_root / "source" / "PREMAP.C"
+        if not premap_c.exists():
+            pytest.skip(f"{premap_c} not found")
+
+        content = premap_c.read_text(errors="replace")
+
+        assert "ud.volume_number >= 4" in content or "volume_number >= 4" in content, (
+            "source/PREMAP.C must have bounds check for ud.volume_number >= 4"
+        )
+        assert "ud.level_number >= 11" in content or "level_number >= 11" in content, (
+            "source/PREMAP.C must have bounds check for ud.level_number >= 11"
+        )
+
+    def test_menues_bounds_sentinel(self, repo_root):
+        """source/MENUES.C must have sentinel 'engine-r15-menues-music-index-bounds'."""
+        menues_c = repo_root / "source" / "MENUES.C"
+        if not menues_c.exists():
+            pytest.skip(f"{menues_c} not found")
+
+        content = menues_c.read_text(errors="replace")
+
+        assert "engine-r15-menues-music-index-bounds" in content, (
+            "source/MENUES.C must contain sentinel comment 'engine-r15-menues-music-index-bounds' "
+            "to mark the entry guard for music index bounds."
+        )
+
+    def test_menues_bounds_check_present(self, repo_root):
+        """source/MENUES.C must check '(unsigned)ud.volume_number >= 4 || (unsigned)ud.level_number >= 11'."""
+        menues_c = repo_root / "source" / "MENUES.C"
+        if not menues_c.exists():
+            pytest.skip(f"{menues_c} not found")
+
+        content = menues_c.read_text(errors="replace")
+
+        assert "ud.volume_number >= 4" in content or "volume_number >= 4" in content, (
+            "source/MENUES.C must have bounds check for ud.volume_number >= 4"
+        )
+        assert "ud.level_number >= 11" in content or "level_number >= 11" in content, (
+            "source/MENUES.C must have bounds check for ud.level_number >= 11"
         )

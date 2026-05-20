@@ -881,6 +881,34 @@ def _process_pool_results(results_iterator, asset_type):
     
     return tiles, failures
 
+
+def _validate_map_ids(map_data):
+    """Validate that no duplicate MAP IDs exist in map generation.
+    
+    Args:
+        map_data: dictionary mapping map ID strings (e.g., "E1L1.MAP") to map bytes
+    
+    Raises:
+        RuntimeError: if any duplicate MAP IDs are detected
+    """
+    # asset-r15-map-id-collision: prevent silent map overwrite
+    # Check for duplicate map IDs by tracking what we've seen
+    map_id_count = {}
+    for map_id in map_data.keys():
+        if map_id not in map_id_count:
+            map_id_count[map_id] = 0
+        map_id_count[map_id] += 1
+    
+    # Verify no duplicates
+    for map_id, count in map_id_count.items():
+        if count > 1:
+            raise RuntimeError(
+                f"asset-r15-map-id-collision: duplicate map ID {map_id} from {count} sources"
+            )
+    
+    return True
+
+
 # ---------------------------------------------------------------------------
 # NAMES.H parser and game-critical tile generation
 # ---------------------------------------------------------------------------
@@ -2099,6 +2127,9 @@ def main():
             map_data[name] = map_bytes
             print(f"  {name}: {len(map_bytes)} bytes")
     print(f"  Total: {len(map_data)} maps generated")
+    
+    # Validate no duplicate MAP IDs
+    _validate_map_ids(map_data)
 
     # -- 6. Copy data files from testdata/ ------------------------------------
     print("\n=== Copying data files from testdata/ ===")

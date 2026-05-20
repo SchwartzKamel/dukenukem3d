@@ -820,6 +820,13 @@ void getpackets(void)
             case 255:
                 gameexit(" ");
                 break;
+            default:
+                /* net-r12-packet-type-unhandled-sentinel: drop unknown packet type */
+                {
+                    static int unknown_packet_count = 0;
+                    unknown_packet_count++;
+                }
+                break;
         }
     }
 }

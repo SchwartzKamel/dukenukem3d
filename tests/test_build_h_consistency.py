@@ -38,15 +38,17 @@ def repo_root():
     "MAXSECTORS",
     "MAXWALLS",
     "MAXSPRITES",
-    pytest.param("MAXTILES", marks=pytest.mark.xfail(strict=False, reason="build-r7-lto-maxtiles-mismatch CRITICAL")),
+    # test-r14-xpass-maxtiles-promotion: was xfail, now pass
+    # was xfail (cycle 42): build-r7-lto-maxtiles-mismatch CRITICAL — closed by cycle-42 MAXTILES abort()
+    "MAXTILES",
     "MAXSTATUS",
     "MAXSPRITESONSCREEN",
 ])
 def test_build_h_constants_match_between_headers(repo_root, constant_name):
     """BUILD.H constants should match between SRC/BUILD.H and source/BUILD.H.
     
-    MAXTILES is expected to fail due to build-r7-lto-maxtiles-mismatch.
-    All other constants should match perfectly.
+    All constants must match perfectly, including MAXTILES (now enforced by
+    cycle-42 Stage 3 abort() in the constructor).
     """
     src = _extract_define(repo_root / "SRC/BUILD.H", constant_name)
     source = _extract_define(repo_root / "source/BUILD.H", constant_name)

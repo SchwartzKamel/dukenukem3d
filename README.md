@@ -321,6 +321,23 @@ Porting a 1996 DOS game to modern Linux isn't for the faint of heart. Here's wha
 | **Struct Safety** | Compile-time struct size assertions for binary format compatibility |
 | **C Standards** | K&R C compiled with `-std=gnu89`, compat layer with `-std=gnu11` |
 
+<!-- docs-feature-summary-update: cycle 50 -->
+
+## 📝 Recent Improvements (Cycles 41–49)
+
+| Improvement | Purpose | Cycle |
+|---|---|---|
+| **Property-Based Testing** | Hypothesis/QuickCheck-style tests for deterministic playback, engine bounds, and asset generation edge cases | 41+ |
+| **Multiplayer Regression Harness** | `tests/test_engine_net_hardening_regressions.py` — automated packet type bounds matrix coverage (15 active types, 2 HIGH gaps closed cycles 48–49) | 48 |
+| **SE40 Performance Optimization + Cycle 42 Draw Guards** | Fixed `SE40_Draw` sprite sectnum validation; eliminated unnecessary allocache thrashing — cold render loop now **22× faster** (0.2s → 0.009s) | 41–42 |
+| **Atomic Manifest Write** | Eliminated ThreadPool/asyncio race in `tools/generate_audio.py` — manifest now serialized per-entry + checksummed (prevents corruption on interruption) | 42, 46 |
+| **Parallel Testing with xdist + filelock** | `pytest -n auto` now safe via per-worker filelock coordination; 37.5% wallclock speedup (22.98s → 14.76s) | 45–46 |
+| **Header Dependency Tracking** | Makefile `-MMD -MP` + `-include *.d` — header touch now triggers rebuild (prevents stale binaries) | 46 |
+| **Manifest SHA256 Checksums** | Per-entry + top-level checksum in `tools/generate_tables.py` and `tools/generate_audio.py` — mutations now detectable | 46 |
+| **MAXTILES Header Unification + Abort Guard** | Cycles 41–42 unified conflicting `SRC/BUILD.H` (9216) and `source/BUILD.H` (6144) to 6144; runtime abort guard in `compat/maxtiles_guard.c` prevents future divergence | 41–42 |
+
+See [docs/ARCHITECTURE.md § Recent Improvements](#recent-improvements) for technical depth and [docs/audits/GRIND_LOG.md](docs/audits/GRIND_LOG.md) for cycle-by-cycle details.
+
 ---
 
 ## ⚠️ Known Limitations
