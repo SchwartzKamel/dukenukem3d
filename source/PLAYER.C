@@ -3621,7 +3621,8 @@ void processinput(short snum)
                 else if( (*kb) > 19 )
                 {
                     (*kb) = 0;
-                    p->curr_weapon = HANDREMOTE_WEAPON;
+                    if (WEAPON_VALID(HANDREMOTE_WEAPON))
+                        p->curr_weapon = HANDREMOTE_WEAPON;
                     p->last_weapon = -1;
                     p->weapon_pos = 10;
                 }

@@ -565,14 +565,15 @@ void getpackets(void)
                 break;
 
             case 4:
-                strcpy(recbuf,packbuf+1);
-                recbuf[packbufleng-1] = 0;
-
-                adduserquote(recbuf);
-                sound(EXITMENUSOUND);
-
-                pus = NUMPAGES;
-                pub = NUMPAGES;
+                /* Type 4 (chat): bounds-check before strcpy */
+                if (packbufleng > 1 && packbufleng <= sizeof(recbuf)) {
+                    strncpy(recbuf, packbuf+1, packbufleng-1);
+                    recbuf[packbufleng-1] = 0;
+                    adduserquote(recbuf);
+                    sound(EXITMENUSOUND);
+                    pus = NUMPAGES;
+                    pub = NUMPAGES;
+                }
 
                 break;
 
@@ -1291,7 +1292,7 @@ short badguy(spritetype *s)
             case ROTATEGUN:
                 return 1;
     }
-    if( actortype[s->picnum] ) return 1;
+    if( actortype[PICNUM_SAFE(s->picnum)] ) return 1;
 
     return 0;
 }
@@ -3458,7 +3459,7 @@ short spawn( short j, short pn )
                     if(sp->xrepeat == 0 || sp->yrepeat == 0)
                         sp->xrepeat = sp->yrepeat = 1;
 
-                    if( actortype[sp->picnum] & 3)
+                    if( actortype[PICNUM_SAFE(sp->picnum)] & 3)
                     {
                         if( ud.monsters_off == 1 )
                         {
@@ -3469,7 +3470,7 @@ short spawn( short j, short pn )
 
                         makeitfall(i);
 
-                        if( actortype[sp->picnum] & 2)
+                        if( actortype[PICNUM_SAFE(sp->picnum)] & 2)
                             hittype[i].actorstayput = sp->sectnum;
 
                         ps[myconnectindex].max_actors_killed++;
@@ -5691,8 +5692,8 @@ void animatesprites(long x,long y,short a,long smoothratio)
 
                 t->picnum += k + ((long *)t4)[0] + l * t3;
 
-                if(l > 0) while(tilesizx[t->picnum] == 0 && t->picnum > 0 )
-                    t->picnum -= l;       //Hack, for actors
+                if(l > 0) while(tilesizx[PICNUM_SAFE(t->picnum)] == 0 && t->picnum > 0 )
+                    t->picnum -= l;       /*Hack, for actors*/
 
                 if( hittype[i].dispicnum >= 0)
                     hittype[i].dispicnum = t->picnum;

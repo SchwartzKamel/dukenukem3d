@@ -116,14 +116,22 @@ long floorspace(short sectnum)
 
 void addammo( short weapon,struct player_struct *p,short amount)
 {
+   /* Bounds check weapon index */
+   if (!WEAPON_VALID(weapon)) return;
+   
    p->ammo_amount[weapon] += amount;
 
    if( p->ammo_amount[weapon] > max_ammo_amount[weapon] )
         p->ammo_amount[weapon] = max_ammo_amount[weapon];
+   if( p->ammo_amount[weapon] < 0 )
+        p->ammo_amount[weapon] = 0;
 }
 
 void addweapon( struct player_struct *p,short weapon)
 {
+    /* Bounds check weapon parameter */
+    if (!WEAPON_VALID(weapon)) weapon = WEAPON_CLAMP(weapon);
+    
     if ( p->gotweapon[weapon] == 0 )
     {
         p->gotweapon[weapon] = 1;
@@ -190,6 +198,11 @@ void checkavailweapon( struct player_struct *p )
         weap = p->wantweaponfire;
         p->wantweaponfire = -1;
 
+        /* Bounds check wantweaponfire value */
+        if (!WEAPON_VALID(weap)) {
+            weap = WEAPON_CLAMP(weap);
+        }
+        
         if(weap == p->curr_weapon) return;
         else if( p->gotweapon[weap] && p->ammo_amount[weap] > 0 )
         {
@@ -223,6 +236,9 @@ void checkavailweapon( struct player_struct *p )
 
     if(i == 10) weap = 0;
 
+    /* Bounds check weap before assignment */
+    if (!WEAPON_VALID(weap)) weap = WEAPON_CLAMP(weap);
+    
     // Found the weapon
 
     p->last_weapon  = p->curr_weapon;
@@ -632,7 +648,7 @@ movesprite(short spritenum, long xchange, long ychange, long zchange, unsigned l
     dasectnum = sprite[spritenum].sectnum;
 
 	daz = sprite[spritenum].z;
-    h = ((tilesizy[sprite[spritenum].picnum]*sprite[spritenum].yrepeat)<<1);
+    h = ((tilesizy[PICNUM_SAFE(sprite[spritenum].picnum)]*sprite[spritenum].yrepeat)<<1);
     daz -= h;
 
     if( bg )
@@ -646,7 +662,7 @@ movesprite(short spritenum, long xchange, long ychange, long zchange, unsigned l
         {
             if(sprite[spritenum].picnum == LIZMAN)
                 cd = 292L;
-            else if( (actortype[sprite[spritenum].picnum]&3) )
+            else if( (actortype[PICNUM_SAFE(sprite[spritenum].picnum)]&3) )
                 cd = sprite[spritenum].clipdist<<2;
             else
                 cd = 192L;

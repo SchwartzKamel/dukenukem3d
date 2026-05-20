@@ -1280,3 +1280,88 @@ class TestConfigKeyLengthLimit:
             "and prevent NULL-termination edge cases (Finding 5)."
         )
 
+
+class TestActorTileMetadataBounds:
+    def test_picnum_safe_macro(self, repo_root):
+        h = repo_root / "source" / "DUKE3D.H"
+        assert re.search(r'#define\s+PICNUM_SAFE', h.read_text(errors="replace")), "PICNUM_SAFE macro required"
+    
+    def test_actor_bounds_guarded(self, repo_root):
+        ac = repo_root / "source" / "ACTORS.C"
+        c = ac.read_text(errors="replace")
+        assert len(re.findall(r'PICNUM_SAFE\(', c)) >= 2, "PICNUM_SAFE not applied to ACTORS.C"
+
+
+class TestPacketType4ChatStrncpy:
+    """Regression test for net-r6-type4-strcpy-fix: packet type 4 buffer overflow.
+    
+    Finding: Chat packet (type 4) used strcpy() to copy attacker-controlled data
+    from packbuf+1 into recbuf[80] with no bounds check. An attacker sending
+    a packet with packbufleng > 80 would overflow the buffer.
+    
+    Fix: Add bounds-check before strncpy, use min(packbufleng-1, sizeof(recbuf)-1).
+    """
+
+    def test_type4_strncpy_bounds(self, repo_root):
+        """Verify type 4 (chat) uses strncpy instead of strcpy."""
+        game_c = repo_root / "source" / "GAME.C"
+        content = game_c.read_text(errors="replace")
+        
+        # Find the case 4: block in getpackets()
+        case_4_match = re.search(
+            r'case\s+4\s*:\s*'
+            r'/\*.*?Type 4.*?bounds-check.*?\*/'
+            r'.*?if\s*\(\s*packbufleng\s*>\s*1\s*&&\s*packbufleng\s*<=\s*sizeof\(recbuf\)\s*\)'
+            r'.*?strncpy\s*\(\s*recbuf\s*,\s*packbuf\s*\+\s*1\s*,\s*packbufleng\s*-\s*1\s*\)',
+            content,
+            re.MULTILINE | re.DOTALL
+        )
+        
+        assert case_4_match, (
+            "Case 4 (chat packet) must use strncpy with bounds-check:\n"
+            "1. Comment explaining Type 4 bounds-check\n"
+            "2. if (packbufleng > 1 && packbufleng <= sizeof(recbuf))\n"
+            "3. strncpy(recbuf, packbuf+1, packbufleng-1)"
+        )
+
+    def test_type4_null_termination(self, repo_root):
+        """Verify type 4 explicitly null-terminates after strncpy."""
+        game_c = repo_root / "source" / "GAME.C"
+        content = game_c.read_text(errors="replace")
+        
+        # Ensure the pattern includes both strncpy and explicit null-termination
+        case_4_match = re.search(
+            r'case\s+4\s*:.*?'
+            r'strncpy\s*\([^)]+\)\s*;'
+            r'.*?recbuf\s*\[\s*packbufleng\s*-\s*1\s*\]\s*=\s*0\s*;',
+            content,
+            re.MULTILINE | re.DOTALL
+        )
+        
+        assert case_4_match, (
+            "Type 4 handler must explicitly null-terminate recbuf after strncpy:\n"
+            "recbuf[packbufleng-1] = 0;"
+        )
+
+    def test_type4_vulnerable_strcpy_removed(self, repo_root):
+        """Verify the vulnerable unbounded strcpy is no longer in case 4."""
+        game_c = repo_root / "source" / "GAME.C"
+        content = game_c.read_text(errors="replace")
+        
+        # Find case 4 block
+        case_4_match = re.search(
+            r'case\s+4\s*:.*?break\s*;',
+            content,
+            re.MULTILINE | re.DOTALL
+        )
+        
+        if case_4_match:
+            case_4_block = case_4_match.group(0)
+            # The block should contain strncpy, not an unbounded strcpy
+            # But it's OK if strcpy appears elsewhere (different case or other context)
+            if 'strcpy' in case_4_block and 'strncpy' not in case_4_block:
+                pytest.fail(
+                    "Case 4 block still contains unbounded strcpy without strncpy. "
+                    "Must use strncpy with bounds-check."
+                )
+

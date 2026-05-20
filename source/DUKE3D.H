@@ -100,6 +100,9 @@ static inline int sgn(int x) { return (x > 0) - (x < 0); }
 /* Validate and clamp weapon index. Returns clamped weapon (0 if out of bounds). */
 #define WEAPON_CLAMP(w) (WEAPON_VALID(w) ? (w) : 0)
 
+/* Validate and clamp tile picture index for tile metadata array access. Returns safe index (0 if out of bounds). */
+#define PICNUM_SAFE(p) (((unsigned)(p)) < MAXTILES ? (p) : 0)
+
 /* Cap config file key name parsing length for security */
 #define MAX_CONFIG_KEY 64
 
