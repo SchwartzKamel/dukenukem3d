@@ -1996,3 +1996,16 @@ Pending 257 → 257 (-8 closed, +4 new from frag audit, +others from r14 audits 
 - **security-and-secrets-r15:** 5 findings, **5 todos**. **0 CRITICAL / 0 HIGH** — verification pass confirms cycle-48 scanner additions + cycle-53 manifest verifier chain functional. All MEDIUMs are forward-looking: `sec-r15-manifest-loader-adoption` (universal loader gating), `sec-r15-workflow-secrets-script-logging`, `sec-r15-subprocess-injection-audit`, `sec-r15-workflow-publish-permissions`, `sec-r15-gitignore-d-files-explicit` (LOW).
 
 **Backlog delta:** 253 → 265 pending (+12 net: -0 closed audit-pass, +12 new from r15 intake).
+
+---
+
+## Cycle 55 (audit-pass tick)
+
+**Stalest rotation:** engine-porter (last r15 @ cycle 49) + asset-pipeline (last r15 @ cycle 49). Both 6 cycles old.
+
+- **engine-porter-r16:** 3 findings, **3 todos**. **CRITICAL:** `engine-r16-engine-c-loadpics-strcpy-bounds` (SRC/ENGINE.C:2923 `strcpy(artfilename[20], filename)` — 20-byte buffer, unbounded). **MEDIUM:** `engine-r16-game-c-argv-strcat-bounds` (GAME.C 6933/6948/7078/7080/7605 argv strcpy/strcat); `engine-r16-krn-phase-2-comment-sweep` (~1062 `//` comments across 15 files, distributed grind work). Cycle 50/53 closures all verified LIVE — guards tight, PREMAP K&R clean.
+- **asset-pipeline-r16:** 3 findings, **3 todos**. 0 CRIT/HIGH. **MEDIUM:** `asset-r16-grp-manifest-emit-gap` (GRP archive doesn't emit SHA256 manifest). **LOW:** GENERATION_LOG.jsonl cleanup policy; manifest schema forward-compat advisory. Cycle 50/53 collision detectors + manifest verifier all verified LIVE & tested.
+
+**Backlog delta:** 265 → 271 pending (+6 net intake).
+
+**Priority for next grind cycle:** `engine-r16-engine-c-loadpics-strcpy-bounds` (CRITICAL — 10 min effort, high leverage).
