@@ -51,16 +51,36 @@ static int            mixer_initialized = 0;
 static Mix_Chunk     *mixer_channel_chunk[MIXER_MAX_CHANNELS];
 static unsigned long  mixer_channel_cbval[MIXER_MAX_CHANNELS];
 
-/* Called by SDL2_mixer when a channel finishes playback. */
+/* Called by SDL2_mixer when a channel finishes playback.
+ *
+ * THREAD SAFETY: this runs on the SDL audio thread. We do NOT call
+ * SDL_LockAudio() here — SDL2_mixer is permitted to invoke channel-
+ * finished callbacks while the audio lock is held, so re-acquiring it
+ * from this context would risk a deadlock.
+ *
+ * Instead, every writer of mixer_channel_chunk[] / mixer_channel_cbval[]
+ * / fx_callback wraps its write in SDL_LockAudio/SDL_UnlockAudio. Since
+ * the lock blocks the main thread until the audio thread has finished
+ * executing the current callback, the snapshot we take here is
+ * guaranteed not to be torn. */
 static void mixer_channel_done(int channel)
 {
+    Mix_Chunk *chunk_snap;
+    unsigned long cbval_snap;
+    void (*cb_snap)(unsigned long);
+
     if (channel < 0 || channel >= MIXER_MAX_CHANNELS) return;
-    if (mixer_channel_chunk[channel]) {
-        Mix_FreeChunk(mixer_channel_chunk[channel]);
+
+    chunk_snap = mixer_channel_chunk[channel];
+    cbval_snap = mixer_channel_cbval[channel];
+    cb_snap    = fx_callback;
+
+    if (chunk_snap) {
+        Mix_FreeChunk(chunk_snap);
         mixer_channel_chunk[channel] = NULL;
     }
-    if (fx_callback)
-        fx_callback(mixer_channel_cbval[channel]);
+    if (cb_snap)
+        cb_snap(cbval_snap);
 }
 
 /*
@@ -316,7 +336,21 @@ int FX_Shutdown(void)
 
 int FX_SetCallBack(void (*function)(unsigned long))
 {
+    /* See mixer_channel_done: the audio thread reads fx_callback without
+     * a lock, so we have to serialize the write through the audio device
+     * lock to avoid a torn pointer on platforms where aligned-pointer
+     * writes are not atomic. */
+#ifdef HAVE_SDL2_MIXER
+    if (mixer_initialized) {
+        SDL_LockAudio();
+        fx_callback = function;
+        SDL_UnlockAudio();
+    } else {
+        fx_callback = function;
+    }
+#else
     fx_callback = function;
+#endif
     return FX_Ok;
 }
 
