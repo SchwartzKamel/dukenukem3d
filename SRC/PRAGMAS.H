@@ -2,6 +2,8 @@
 // Ken Silverman's official web site: "http://www.advsys.net/ken"
 // See the included license file "BUILDLIC.TXT" for license info.
 
+#error "SRC/PRAGMAS.H is Watcom-only legacy. Use compat/pragmas_gcc.h instead. See docs/audits/engine-porter.md."
+
 static long dmval;
 
 #pragma aux sqr =\
