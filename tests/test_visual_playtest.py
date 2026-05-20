@@ -6,6 +6,8 @@ that rendering produces visible content.
 Marked with @pytest.mark.playtest — run with: pytest -m playtest
 """
 
+import ctypes
+import ctypes.util
 import glob
 import os
 import shutil
@@ -27,6 +29,50 @@ CAPTURES_DIR = os.path.join(PROJECT_ROOT, "captures")
 
 
 # ---------------------------------------------------------------------------
+# Helper: detect SDL2 runtime availability
+# ---------------------------------------------------------------------------
+
+def sdl2_available():
+    """Check if libSDL2-2.0.so.0 is available in the runtime linker path."""
+    try:
+        ctypes.CDLL("libSDL2-2.0.so.0")
+        return True
+    except OSError:
+        return False
+
+
+def get_sdl2_lib_path():
+    """Try to find SDL2 library path from ctypes loading."""
+    # Try common Homebrew location first (most reliable)
+    homebrew_path = "/home/linuxbrew/.linuxbrew/lib"
+    if os.path.isdir(homebrew_path):
+        sdl2_file = os.path.join(homebrew_path, "libSDL2-2.0.so.0")
+        if os.path.isfile(sdl2_file):
+            return homebrew_path
+    
+    # Try to find via ldd or ldconfig
+    try:
+        result = subprocess.run(
+            ["ldconfig", "-p"],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        for line in result.stdout.split("\n"):
+            if "libSDL2-2.0.so.0" in line:
+                # Format: "libSDL2-2.0.so.0 (libc6, x86-64) => /path/to/lib"
+                parts = line.split(" => ")
+                if len(parts) == 2:
+                    path = parts[1].strip()
+                    if path:
+                        return os.path.dirname(path)
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        pass
+    
+    return None
+
+
+# ---------------------------------------------------------------------------
 # Session-scoped fixture: run the game ONCE, share results across all tests
 # ---------------------------------------------------------------------------
 
@@ -41,6 +87,8 @@ def headless_run():
         pytest.skip(f"Game binary not found: {BINARY_PATH}")
     if not os.path.isfile(GRP_PATH):
         pytest.skip(f"GRP file not found: {GRP_PATH}")
+    if not sdl2_available():
+        pytest.skip("libSDL2-2.0.so.0 not found in runtime linker path")
 
     # Clean previous captures
     if os.path.isdir(CAPTURES_DIR):
@@ -54,6 +102,15 @@ def headless_run():
         "DUKE3D_FRAME_LIMIT": "20",
         "DUKE3D_CAPTURE_INTERVAL": "5",
     })
+
+    # Ensure SDL2 library path is in LD_LIBRARY_PATH
+    sdl2_path = get_sdl2_lib_path()
+    if sdl2_path:
+        current_ld = env.get("LD_LIBRARY_PATH", "")
+        if current_ld:
+            env["LD_LIBRARY_PATH"] = f"{sdl2_path}:{current_ld}"
+        else:
+            env["LD_LIBRARY_PATH"] = sdl2_path
 
     try:
         result = subprocess.run(

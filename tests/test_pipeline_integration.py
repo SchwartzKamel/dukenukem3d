@@ -7,20 +7,22 @@ import sys
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
 
-def test_full_pipeline_no_ai():
+def test_full_pipeline_no_ai(tmp_path, monkeypatch):
     """Run the full asset pipeline with --no-ai and verify outputs."""
+    # Use absolute path to generate_assets.py script
+    generate_script = os.path.join(PROJECT_ROOT, "tools", "generate_assets.py")
     result = subprocess.run(
-        [sys.executable, "tools/generate_assets.py", "--no-ai"],
+        [sys.executable, generate_script, "--no-ai", "--output", str(tmp_path)],
         cwd=PROJECT_ROOT,
         capture_output=True, text=True, timeout=120
     )
     assert result.returncode == 0, f"Pipeline failed:\n{result.stderr}\n{result.stdout}"
     assert "Done!" in result.stdout
 
-    # Check GRP exists and has reasonable size
-    grp_path = os.path.join(PROJECT_ROOT, "DUKE3D.GRP")
-    assert os.path.exists(grp_path)
-    grp_size = os.path.getsize(grp_path)
+    # Check GRP exists and has reasonable size in the output directory
+    grp_path = tmp_path / "DUKE3D.GRP"
+    assert grp_path.exists(), f"GRP not found at {grp_path}"
+    grp_size = grp_path.stat().st_size
     assert grp_size > 100000, f"GRP too small: {grp_size} bytes"
 
     # Verify GRP magic
@@ -29,24 +31,24 @@ def test_full_pipeline_no_ai():
     assert magic == b"KenSilverman"
 
     # Check individual generated files
-    gen_dir = os.path.join(PROJECT_ROOT, "generated_assets")
     expected_files = [
         "TILES000.ART", "PALETTE.DAT", "TABLES.DAT",
         "E1L1.MAP", "GAME.CON", "DEFS.CON", "DUKE3D.GRP"
     ]
     for fname in expected_files:
-        fpath = os.path.join(gen_dir, fname)
-        assert os.path.exists(fpath), f"Missing: {fpath}"
-        assert os.path.getsize(fpath) > 0, f"Empty: {fpath}"
+        fpath = tmp_path / fname
+        assert fpath.exists(), f"Missing: {fpath}"
+        assert fpath.stat().st_size > 0, f"Empty: {fpath}"
 
 
-def test_generated_art_is_valid():
+def test_generated_art_is_valid(tmp_path, monkeypatch):
     """The generated TILES000.ART has valid header."""
-    art_path = os.path.join(PROJECT_ROOT, "generated_assets", "TILES000.ART")
-    if not os.path.exists(art_path):
+    generate_script = os.path.join(PROJECT_ROOT, "tools", "generate_assets.py")
+    art_path = tmp_path / "TILES000.ART"
+    if not art_path.exists():
         # Run pipeline first
         subprocess.run(
-            [sys.executable, "tools/generate_assets.py", "--no-ai"],
+            [sys.executable, generate_script, "--no-ai", "--output", str(tmp_path)],
             cwd=PROJECT_ROOT, capture_output=True, timeout=120
         )
 
@@ -62,12 +64,13 @@ def test_generated_art_is_valid():
     assert end == tile_count - 1
 
 
-def test_generated_palette_is_valid():
+def test_generated_palette_is_valid(tmp_path, monkeypatch):
     """The generated PALETTE.DAT has valid VGA palette."""
-    pal_path = os.path.join(PROJECT_ROOT, "generated_assets", "PALETTE.DAT")
-    if not os.path.exists(pal_path):
+    generate_script = os.path.join(PROJECT_ROOT, "tools", "generate_assets.py")
+    pal_path = tmp_path / "PALETTE.DAT"
+    if not pal_path.exists():
         subprocess.run(
-            [sys.executable, "tools/generate_assets.py", "--no-ai"],
+            [sys.executable, generate_script, "--no-ai", "--output", str(tmp_path)],
             cwd=PROJECT_ROOT, capture_output=True, timeout=120
         )
 
@@ -79,12 +82,13 @@ def test_generated_palette_is_valid():
         assert 0 <= b <= 63, f"Palette byte {i} = {b} exceeds VGA range"
 
 
-def test_generated_map_is_valid():
+def test_generated_map_is_valid(tmp_path, monkeypatch):
     """The generated E1L1.MAP has correct version."""
-    map_path = os.path.join(PROJECT_ROOT, "generated_assets", "E1L1.MAP")
-    if not os.path.exists(map_path):
+    generate_script = os.path.join(PROJECT_ROOT, "tools", "generate_assets.py")
+    map_path = tmp_path / "E1L1.MAP"
+    if not map_path.exists():
         subprocess.run(
-            [sys.executable, "tools/generate_assets.py", "--no-ai"],
+            [sys.executable, generate_script, "--no-ai", "--output", str(tmp_path)],
             cwd=PROJECT_ROOT, capture_output=True, timeout=120
         )
 
