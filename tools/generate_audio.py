@@ -225,9 +225,18 @@ def main():
 
     # Write manifest (sorted for determinism)
     manifest_path = os.path.join(OUTPUT_DIR, "MANIFEST.json")
-    with open(manifest_path, "w") as f:
-        json.dump(SOUND_MANIFEST, f, indent=2, sort_keys=True)
-    print(f"\n=== Manifest written to {manifest_path} ===")
+    try:
+        # Write to a temp file first then rename so a partial write never
+        # corrupts an existing manifest (audit-audio-manifest-write-error).
+        tmp_path = manifest_path + ".tmp"
+        with open(tmp_path, "w") as f:
+            json.dump(SOUND_MANIFEST, f, indent=2, sort_keys=True)
+        os.replace(tmp_path, manifest_path)
+        print(f"\n=== Manifest written to {manifest_path} ===")
+    except OSError as exc:
+        print(f"\n[ERROR] Failed to write manifest at {manifest_path}: {exc}",
+              file=sys.stderr)
+        return 1
 
     print(f"=== Done! Generated {len(generated)} audio files in {elapsed:.2f}s ===")
     print(f"  Output: {OUTPUT_DIR}/")
@@ -283,24 +292,34 @@ def _generate_audio_parallel_local(workers, use_deterministic):
     return generated
 
 
-def _generate_audio_parallel_api(concurrency, endpoint, api_key, model):
+def _generate_audio_parallel_api(concurrency, endpoint, api_key, model, acquire_timeout_sec=30.0, use_deterministic=False):
     """Generate audio via API using asyncio + aiohttp with semaphore."""
     return asyncio.run(
-        _generate_audio_async_main(concurrency, endpoint, api_key, model)
+        _generate_audio_async_main(concurrency, endpoint, api_key, model, acquire_timeout_sec, use_deterministic)
     )
 
 
-async def _generate_audio_async_main(concurrency, endpoint, api_key, model):
-    """Async generator for API calls with rate limiting."""
+async def _generate_audio_async_main(concurrency, endpoint, api_key, model, acquire_timeout_sec=30.0, use_deterministic=False):
+    """Async generator for API calls with rate limiting and timeout."""
+    # Determine timestamp based on determinism flag
+    if use_deterministic:
+        timestamp = "1970-01-01T00:00:00Z"
+    else:
+        timestamp = datetime.now(timezone.utc).isoformat()
+    
     semaphore = asyncio.Semaphore(concurrency)
     generated = [None] * len(VOICE_LINES)
 
     async def bounded_generate(session, idx, filename, prompt, voice):
-        async with semaphore:
-            wav_data, error = await generate_audio_async(
-                session, prompt, voice, endpoint, api_key, model
-            )
-            return idx, filename, wav_data, error
+        try:
+            async with asyncio.timeout(acquire_timeout_sec + 60):
+                async with semaphore:
+                    wav_data, error = await generate_audio_async(
+                        session, prompt, voice, endpoint, api_key, model
+                    )
+                    return idx, filename, wav_data, error
+        except asyncio.TimeoutError:
+            return idx, filename, None, f"Semaphore + request timeout (>{acquire_timeout_sec}s)"
 
     connector = aiohttp.TCPConnector(limit=concurrency)
     timeout = aiohttp.ClientTimeout(total=60)
@@ -314,13 +333,23 @@ async def _generate_audio_async_main(concurrency, endpoint, api_key, model):
         # Collect results
         results = await asyncio.gather(*tasks)
         for idx, filename, wav_data, error in results:
+            is_fallback = False
             if wav_data is None:
                 wav_data = generate_silence_wav(0.5)
+                is_fallback = True
+                status = "fallback"
                 if error:
                     print(f"    [!] {error}")
+                    status = "failed"
+                    SOUND_MANIFEST[idx]["error"] = error
                 print(f"    [Fallback: silence] OK")
             else:
+                status = "generated"
                 print(f"    [AI] OK ({len(wav_data)} bytes)")
+
+            # Update manifest entry with status and timestamp
+            SOUND_MANIFEST[idx]["status"] = status
+            SOUND_MANIFEST[idx]["generated_at"] = timestamp
 
             out_path = os.path.join(OUTPUT_DIR, filename)
             with open(out_path, "wb") as f:

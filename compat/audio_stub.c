@@ -197,8 +197,17 @@ static int mixer_play_3d(const char *ptr, int angle, int distance,
     sdl_angle %= 360;
 
     /*
-     * distance arrives as (BUILD_dist >> 6).  SDL_mixer distance:
-     * 0 = close, 255 = far.  Scale ×4 for audible attenuation.
+     * Distance mapping rationale (audit-audio-3d-attenuation-doc):
+     * BUILD passes its world-units distance pre-divided by 64 (i.e.
+     * `distance == BUILD_dist >> 6`).  Typical in-engine sounds reach
+     * silence around BUILD_dist ≈ 4096, which means `distance` here
+     * caps near 64.  SDL_mixer expects an 8-bit attenuation in
+     * [0..255] where 0 = at-listener and 255 = essentially inaudible.
+     * Multiplying by 4 maps the 0..64 BUILD range onto 0..256 which
+     * we then clamp to 255.  This keeps far-away sounds quiet without
+     * silencing mid-range sources prematurely.  The factor is
+     * empirical; if SDL_mixer playback feels too bright/dim, tune
+     * here rather than in BUILD's `dist` term.
      */
     {
         int d = distance * 4;
