@@ -174,6 +174,23 @@ loadpheader(char spot,int32 *vn,int32 *ln,int32 *psk,int32 *nump)
      }
 
      kdfread(nump,sizeof(int32),1,fil);
+
+
+     if(ferror(fil))
+
+
+     {
+
+
+         kclose(fil);
+
+
+         return(-1);
+
+
+     }
+
+
      if(*nump < 0 || *nump > MAXPLAYERS)
      {
          kclose(fil);
@@ -327,6 +344,35 @@ loadplayer(signed char spot)
          kdfread(&prevspritestat[0],2,MAXSPRITES,fil);
          kdfread(&nextspritestat[0],2,MAXSPRITES,fil);
          kdfread(&numcyclers,sizeof(numcyclers),1,fil);
+
+         if(ferror(fil))
+
+         {
+
+             kclose(fil);
+
+             ototalclock = totalclock;
+
+             ready2send = 1;
+
+             return 1;
+
+         }
+
+         if(numcyclers < 0 || numcyclers > MAXCYCLERS)
+
+         {
+
+             kclose(fil);
+
+             ototalclock = totalclock;
+
+             ready2send = 1;
+
+             return 1;
+
+         }
+
          kdfread(&cyclers[0][0],12,MAXCYCLERS,fil);
      kdfread(ps,sizeof(ps),1,fil);
      kdfread(po,sizeof(po),1,fil);
@@ -336,8 +382,66 @@ loadplayer(signed char spot)
          kdfread(&msy[0],sizeof(long),sizeof(msy)/sizeof(long),fil);
      kdfread((short *)&spriteqloc,sizeof(short),1,fil);
      kdfread((short *)&spriteqamount,sizeof(short),1,fil);
+
+     if(ferror(fil))
+
+     {
+
+         kclose(fil);
+
+         ototalclock = totalclock;
+
+         ready2send = 1;
+
+         return 1;
+
+     }
+
+     if(spriteqamount < 0 || spriteqamount > MAXSPRITES)
+
+     {
+
+         kclose(fil);
+
+         ototalclock = totalclock;
+
+         ready2send = 1;
+
+         return 1;
+
+     }
+
      kdfread((short *)&spriteq[0],sizeof(short),spriteqamount,fil);
          kdfread(&mirrorcnt,sizeof(short),1,fil);
+
+         if(ferror(fil))
+
+         {
+
+             kclose(fil);
+
+             ototalclock = totalclock;
+
+             ready2send = 1;
+
+             return 1;
+
+         }
+
+         if(mirrorcnt < 0 || mirrorcnt > 64)
+
+         {
+
+             kclose(fil);
+
+             ototalclock = totalclock;
+
+             ready2send = 1;
+
+             return 1;
+
+         }
+
          kdfread(&mirrorwall[0],sizeof(short),64,fil);
      kdfread(&mirrorsector[0],sizeof(short),64,fil);
      kdfread(&show2dsector[0],sizeof(char),MAXSECTORS>>3,fil);
@@ -382,6 +486,50 @@ loadplayer(signed char spot)
      kdfread(&pskyoff[0],sizeof(pskyoff[0]),MAXPSKYTILES,fil);
 
          kdfread(&animatecnt,sizeof(animatecnt),1,fil);
+
+
+         if(ferror(fil))
+
+
+         {
+
+
+             kclose(fil);
+
+
+             ototalclock = totalclock;
+
+
+             ready2send = 1;
+
+
+             return 1;
+
+
+         }
+
+
+         if(animatecnt < 0 || animatecnt > MAXANIMATES)
+
+
+         {
+
+
+             kclose(fil);
+
+
+             ototalclock = totalclock;
+
+
+             ready2send = 1;
+
+
+             return 1;
+
+
+         }
+
+
          kdfread(&animatesect[0],2,MAXANIMATES,fil);
          kdfread(&animateptr[0],sizeof(animateptr[0]),MAXANIMATES,fil);
      for(i = animatecnt-1;i>=0;i--) animateptr[i] = (int32_t *)((intptr_t)animateptr[i]+(intptr_t)(&sector[0]));
