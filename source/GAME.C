@@ -2489,7 +2489,8 @@ void displayrest(long smoothratio)
 void updatesectorz(long x, long y, long z, short *sectnum)
 {
     walltype *wal;
-    long i, j, cz, fz;
+    long i, j;
+    int32_t cz, fz;
 
     getzsofslope(*sectnum,x,y,&cz,&fz);
     if ((z >= cz) && (z <= fz))
@@ -2810,7 +2811,8 @@ static long oyrepeat=-1;
 
 void displayrooms(short snum,long smoothratio)
 {
-    long cposx,cposy,cposz,dst,j,fz,cz,hz,lz;
+    long cposx,cposy,cposz,dst,j,hz,lz;
+    int32_t fz,cz;
     short sect, cang, k, choriz,tsect;
     struct player_struct *p;
     long tposx,tposy,tposz,dx,dy,thoriz,i;
@@ -8124,7 +8126,8 @@ void fakedomovethings(void)
 {
         input *syn;
         struct player_struct *p;
-        long i, j, k, doubvel, fz, cz, hz, lz, x, y;
+        long i, j, k, doubvel, hz, lz, x, y;
+        int32_t fz, cz;
         unsigned long sb_snum;
         short psect, psectlotag, tempsect, backcstat;
         char shrunk, spritebridge;

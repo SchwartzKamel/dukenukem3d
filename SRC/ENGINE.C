@@ -813,7 +813,7 @@ int dorotatesprite(long sx, long sy, long z, short a, short picnum,
 int setbrightness(char dabrightness, char *dapal);
 int getceilzofslope(short sectnum, long dax, long day);
 int getflorzofslope(short sectnum, long dax, long day);
-int getzsofslope(short sectnum, long dax, long day, long *ceilz, long *florz);
+int getzsofslope(short sectnum, long dax, long day, int32_t *ceilz, int32_t *florz);
 int wallmost(short *mostbuf, long w, long sectnum, char dastat);
 int grouscan(long dax1, long dax2, long sectnum, char dastat);
 int parascan(long dax1, long dax2, long sectnum, char dastat, long bunch);
@@ -1191,7 +1191,8 @@ drawalls (long bunch)
 {
 	sectortype *sec, *nextsec;
 	walltype *wal;
-	long i, j, k, l, m, n, x, y, x1, x2, cz[5], fz[5];
+	long i, j, k, l, m, n, x, y, x1, x2;
+	int32_t cz[5], fz[5];
 	long z, wallnum, sectnum, nextsectnum, globalhorizbak;
 	long startsmostwallcnt, startsmostcnt, gotswall;
 	char andwstat1, andwstat2;
@@ -8458,7 +8459,7 @@ getflorzofslope(short sectnum, long dax, long day)
 	return(sector[sectnum].floorz+scale(sector[sectnum].floorheinum,j,i));
 }
 
-getzsofslope(short sectnum, long dax, long day, long *ceilz, long *florz)
+getzsofslope(short sectnum, long dax, long day, int32_t *ceilz, int32_t *florz)
 {
 	long dx, dy, i, j;
 	walltype *wal, *wal2;
