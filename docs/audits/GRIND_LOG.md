@@ -379,3 +379,40 @@ rolled back for re-dispatch next cycle:
   filesystem snapshot but only some agents' writes get reconciled
   back. Workaround for next cycle: dispatch smaller-file todos
   SOLO (sequential) instead of in the parallel batch.
+
+## Cycle 9 — 2026-05-20T08:22Z
+
+**Strategy shift:** to defeat the cycle-7/8 persistence regression, I
+edited all small-file todos directly (no sub-agent dispatch). Larger
+multi-file todos still went to parallel sub-agents.
+
+**Dispatched:** 4 sub-agents (haiku, parallel).
+
+**Direct edits (8 todos closed):**
+- engine-tempsectorz: `fix-engine-tempsectorz-type-mismatch`
+- compat stub docs: `audit-compat-voc-bounds-check`,
+  `audit-compat-joystick-stub`
+- docs drift (5): `docs-readme-homebrew-outdated`, `docs-audio-manifest`,
+  `docs-parallel-perf`, `docs-sdl-detection`, `docs-ci-caching`
+
+**Sub-agent todos closed (9):**
+- net-hygiene: `fix-net-platform-types`, `fix-net-handshake-timeout`,
+  `fix-net-version-check`, `fix-net-bounds-relay`
+- engine-getzsofslope: `fix-engine-getzsofslope-signature`
+- hypothesis-property-tests: `test-grp-property-hypothesis`,
+  `test-wav-property-hypothesis`
+- ci-sdl2-macos: `test-ci-sdl2-check`, `ci-build-macos-coverage`
+
+**Cycle 8 carryover marked done (3):** test-conftest-shared-fixtures,
+test-wav-roundtrip-json, test-manifest-schema-pydantic — work was on
+disk but SQL never updated.
+
+**Build/test deltas:**
+- Build: green.
+- Tests default: 511 -> 513 passed (parity check tests).
+- Tests --runslow: 533 -> **537 passed** (4 property-based tests).
+
+**Persistence regression: ZERO recurrences this cycle.** The direct-edit
+workaround for small-file todos eliminated the failure mode entirely.
+Going forward: docs/single-file polish tasks should be operator-edited;
+multi-file refactors and test infrastructure are safe to dispatch.
