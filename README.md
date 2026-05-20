@@ -60,12 +60,30 @@ make assets
 python3 tools/generate_assets.py
 
 # Run it
-# Only needed if SDL2 is installed via Homebrew on Linux:
-# export LD_LIBRARY_PATH=$(brew --prefix)/lib:$LD_LIBRARY_PATH
+# Only needed if SDL2 is installed via Homebrew:
+#   Linux:  export LD_LIBRARY_PATH=$(brew --prefix)/lib:$LD_LIBRARY_PATH
+#   macOS:  export DYLD_LIBRARY_PATH=$(brew --prefix)/lib:$DYLD_LIBRARY_PATH
 ./duke3d
 ```
 
 That's it. Build, generate, and the King rides again.
+
+---
+
+## 📈 Performance Notes
+
+Asset and audio generation are parallelized for fast iterative builds:
+
+- `tools/generate_assets.py` uses `multiprocessing.Pool` to parallelize
+  procedural texture, sprite, and font-tile rendering (~6–7× speedup on
+  modern CPUs).
+- `tools/generate_audio.py` uses a `ThreadPoolExecutor` + `asyncio` +
+  `aiohttp` pipeline for concurrent voice synthesis (~4–6× speedup when
+  hitting an external TTS endpoint).
+
+In `--no-ai` mode both pipelines remain deterministic (silence WAVs +
+fixed epoch timestamps), so the parallelism does not affect output
+reproducibility.
 
 ---
 

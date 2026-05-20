@@ -312,3 +312,26 @@ If you're looking for something to work on, these are high-impact areas:
 
 Pick any of these, or propose your own improvement. We're happy to discuss
 ideas in Issues before you start coding.
+
+## Continuous Integration & Caching
+
+The GitHub Actions workflows in `.github/workflows/` use `actions/setup-python`
+with pip caching to keep CI fast:
+
+```yaml
+- uses: actions/setup-python@v5
+  with:
+    python-version: '3.11'
+    cache: 'pip'
+    cache-dependency-path: 'requirements.txt'
+```
+
+This saves roughly **20–30 seconds per job** by reusing the cached
+wheels for `pillow`, `aiohttp`, `numpy`, etc. When you change
+`requirements.txt`, the cache invalidates automatically — you do not
+need to bump the cache key by hand.
+
+The reusable `tools/ci/generate_assets.sh` script is the canonical
+asset-generation entry point in CI; updating CI workflows should call
+into it rather than duplicating `python3 tools/generate_assets.py …`
+invocations.

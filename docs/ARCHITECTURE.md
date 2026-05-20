@@ -247,6 +247,43 @@ tools/generate_assets.py
 - **Silence fallback** generates empty WAV files when AI is unavailable
   (`--no-ai` flag), keeping the pipeline functional without API keys.
 
+#### SOUND_MANIFEST.json schema
+
+Each entry in `generated_assets/sounds/SOUND_MANIFEST.json` carries:
+
+| Field          | Type   | Notes                                                              |
+|----------------|--------|--------------------------------------------------------------------|
+| `sound_id`     | string | C identifier (uppercase + underscores).                            |
+| `voice`        | string | `alloy` / `echo` / `onyx`.                                         |
+| `wav_path`     | string | Relative path to the generated WAV file.                           |
+| `status`       | string | `generated`, `placeholder`, or `failed`. Legacy entries default to `generated` on read. |
+| `generated_at` | string | ISO 8601 timestamp. In `--no-ai` mode this is fixed to `1970-01-01T00:00:00Z` so the manifest is byte-deterministic. |
+| `error`        | string | Optional. Populated when `status == "failed"`; carries the upstream error message. |
+
+The pipeline gracefully tolerates missing optional fields when reading
+older manifest files, so re-running `generate_audio.py` over an existing
+tree never wipes prior context.
+
+#### SDL2 Runtime Detection
+
+The audio (and video) subsystem locates SDL2 at run-time from
+platform-specific search paths:
+
+- **Linux** — `LD_LIBRARY_PATH` plus the standard ldconfig cache. When
+  SDL2 is installed via Homebrew on Linux,
+  `export LD_LIBRARY_PATH=$(brew --prefix)/lib:$LD_LIBRARY_PATH` is
+  required.
+- **macOS** — `DYLD_LIBRARY_PATH`, the rpath embedded in the binary,
+  and the framework search path. Homebrew users typically need
+  `export DYLD_LIBRARY_PATH=$(brew --prefix)/lib:$DYLD_LIBRARY_PATH`.
+- **Windows** — the directory containing the executable, the standard
+  Windows SDK search paths, and any `%PATH%` entries. The MSVC build
+  bundles `SDL2.dll` from `third_party/` next to `duke3d.exe`.
+
+The same discovery logic is exercised in `tests/test_sdl_driver.py`,
+which gates itself with a SDL2 availability check and skips with a
+clear message when SDL2 is not installed.
+
 ### Audio System (Runtime)
 
 - **SDL2_mixer** loads WAV files from GRP at runtime
