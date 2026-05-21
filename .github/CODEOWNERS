@@ -16,6 +16,9 @@
 # Cryptographic primitives (SHA256 implementations)
 /compat/sha256.*               @SchwartzKamel
 
+# Audio stub with cryptographic-relevance assertions (struct ABIs)
+/compat/audio_stub.*           @SchwartzKamel
+
 # HMAC and networking implementations (potential security impact)
 /SRC/MMULTI.C                  @SchwartzKamel
 /compat/net_socket*            @SchwartzKamel

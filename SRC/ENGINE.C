@@ -7551,6 +7551,8 @@ makepalookup(long palnum, char *remapbuf, signed char r, signed char g, signed c
 
 	if (paletteloaded == 0) return;
 
+	if (palnum < 0 || palnum >= MAXPALOOKUPS) return;
+
 	if (palookup[palnum] == NULL)
 	{
 			/* Allocate palookup buffer */

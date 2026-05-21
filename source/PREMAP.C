@@ -1227,6 +1227,7 @@ void genspriteremaps(void)
     for(j=0;j < numl;j++)
     {
         kread(fp,(signed char *)&look_pos,1);
+        if (look_pos < 0 || look_pos >= MAXPALOOKUPS) continue;
         kread(fp,tempbuf,256);
         makepalookup((long)look_pos,tempbuf,0,0,0,1);
     }

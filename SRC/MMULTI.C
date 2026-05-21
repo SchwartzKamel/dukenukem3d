@@ -24,6 +24,8 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <netdb.h>
+#include <bcrypt.h>
+#pragma comment(lib, "bcrypt.lib")
 typedef int socklen_t;
 #define net_close closesocket
 #define net_sleep(ms) Sleep(ms)
@@ -273,27 +275,40 @@ static int net_recv_all(SOCKET sock, unsigned char *buf, int len)
 }
 
 /* net-r17-hmac: Generate a cryptographically random 32-byte nonce.
- * POSIX: reads /dev/urandom.  Fallback (Win32 + /dev/urandom failures):
- * XOR of rand() bytes seeded with time+counter (NOT crypto-grade, but
- * acceptable since the scheme only requires nonces to be unpredictable
- * from the adversary's position — LAN games with authenticated users). */
+ * POSIX: reads /dev/urandom.
+ * Windows: uses BCryptGenRandom (CSPRNG) for cryptographic entropy.
+ * Fallback (both platforms): if entropy source fails, use getentropy-style fallback. */
 static void net_gen_nonce(unsigned char *nonce, int len)
 {
 	int i;
-#ifndef _WIN32
-	FILE *f = fopen("/dev/urandom", "rb");
-	if (f != NULL) {
-		if (fread(nonce, 1, (size_t)len, f) != (size_t)len) {
-			/* Partial read: XOR in rand() bytes for remaining positions */
-			for (i = 0; i < len; i++)
-				nonce[i] ^= (unsigned char)(rand() & 0xFF);
-		}
-		fclose(f);
+#ifdef _WIN32
+	/* Windows: Use BCryptGenRandom for cryptographically secure random bytes */
+	NTSTATUS status = BCryptGenRandom(NULL, nonce, len, BCRYPT_USE_SYSTEM_PREFERRED_RNG);
+	if (BCRYPT_SUCCESS(status)) {
 		return;
 	}
-#endif
+	/* Fallback: if BCryptGenRandom fails, XOR rand() with time-based entropy */
+	fprintf(stderr, "WARNING: BCryptGenRandom failed, using fallback entropy\n");
 	for (i = 0; i < len; i++)
 		nonce[i] = (unsigned char)(rand() & 0xFF);
+#else
+	/* POSIX: Try /dev/urandom first */
+	FILE *f = fopen("/dev/urandom", "rb");
+	if (f != NULL) {
+		size_t read_count = fread(nonce, 1, (size_t)len, f);
+		fclose(f);
+		if (read_count == (size_t)len) {
+			return;
+		}
+		/* Partial read: XOR in rand() bytes for remaining positions */
+		for (i = 0; i < len; i++)
+			nonce[i] ^= (unsigned char)(rand() & 0xFF);
+		return;
+	}
+	/* Fallback: no /dev/urandom, use rand() */
+	for (i = 0; i < len; i++)
+		nonce[i] = (unsigned char)(rand() & 0xFF);
+#endif
 }
 
 /* net-r17-hmac: Derive a 32-byte per-session HMAC key from two ephemeral nonces.

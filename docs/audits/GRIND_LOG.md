@@ -4961,3 +4961,40 @@ engine-r27-file-io-bounds-validation, engine-r27-allocache-null-guard, engine-r2
 - compat-r9-r6-carryover-refinement (BLOCKED, re-dispatch)
 - asset-r13-procedural-fixture-tests-escalated (BLOCKED, re-dispatch)
 
+
+## Cycle 111 + 111b — 2026-05-21 (grind drain + audit-mine tick)
+
+**Dispatched:** 6 grind agents (cap honored after c109 race lesson)
+
+### Grind agents (6/6 LANDED ✅ — all files survived; race-cap discipline works)
+- ✅ sec-codeowners (sentinel a7f3c291): .github/CODEOWNERS +3L, /compat/audio_stub.* added (cycle-107 crypto-relevance struct ABIs now reviewer-protected)
+- ✅ compat-r6-recovery (sentinel d3f8a6c2): docs/audits/compat-layer-r6-carryover-disposition-r25.md recreated (369L). r6-stubs-logging CLOSED-COVERED by SILENT_STUBS.md; r6-size-cast REQUEUE; proposed fx_device + UserInput _Static_asserts
+- ✅ engine-makepalookup (sentinel a7f2b1e9): **P0 OOB FIXED**. SRC/ENGINE.C:7554 makepalookup() gets `if (palnum < 0 || palnum >= MAXPALOOKUPS) return;` guard; source/PREMAP.C:1230 caller adds `if (look_pos < 0 || look_pos >= MAXPALOOKUPS) continue;` defense-in-depth at lookup.dat read site. gnu89-clean. Build green.
+- ✅ asset-procedural-restore (sentinel af4d70e8): tests/test_procedural_textures.py recreated with **+400 NEW TESTS** (exceeds c109 target of 223). Categories: determinism (60), dimension (60), format (60), non-empty (60), size variants (120), quantization round-trip (40), quantization determinism (5), sprite placeholder (6), color range (5), callable verification (2), exception handling (20), integration (1). All pass.
+- ✅ net-bcryptgenrandom (sentinel 17e18397): SRC/MMULTI.C net_gen_nonce() now uses BCryptGenRandom() on Windows (BCRYPT_USE_SYSTEM_PREFERRED_RNG) with /dev/urandom POSIX path unchanged. CMakeLists.txt links bcrypt.lib. MSVC #pragma comment(lib, "bcrypt.lib") auto-link.
+- ✅ docs-audits-index (sentinel 3253e7fe): docs/audits/index.md (391L) — chronological manifest of 247 revisions across 11 personas + baselines + deep-dives + RUN docs; cross-linked to SUMMARY.md + GRIND_LOG.md
+
+### Cycle 111b — audit-mine tick (mid-cycle, manual, no agents)
+While grind agents were in flight, manually mined 10 follow-ups from c110 STAGING docs (skill cap honored):
+- asset-r27-flux-endpoint-validation-startup (MED), asset-r27-http-429-retry-after-header (MED), asset-r27-grp-determinism-cross-reference (LOW)
+- compat-r26-audio-callback-type-safety (MED), compat-r26-joystick-sdl2-wiring (MED), compat-r26-msvc-native-build-validation (MED)
+- docs-r26-readme-recent-improvements-sync (LOW), docs-r26-notice-cycle-refs-update (LOW)
+- test-r26-sound-manifest-edge-coverage (LOW), test-r26-net-socket-error-path-coverage (LOW)
+
+### Validation
+- make: green (release build complete)
+- pytest -q -m "not slow": **1926 passed** / 3 skipped / 17 warnings (~25s)
+  - Net gain: 1526 → 1926 (+400 from procedural restoration)
+
+### Closures: 7 todos done
+sec-r26-codeowners-audio-stub-coverage, compat-r9-r6-carryover-refinement,
+engine-r26-makepalookup-bounds-CRITICAL, engine-r26-premap-lookup-dat-validation,
+asset-r13-procedural-fixture-tests-escalated (BLOCKED → DONE),
+test-r26-procedural-textures-restoration-CRITICAL,
+net-r24-windows-csprng-bcryptgenrandom,
+docs-r26-audits-index-md-manifest
+
+### Lessons
+- 6-agent cap with distinct-file-domain discipline = 0 file-loss races (c109 had 3 vanish with 8 agents)
+- Manual mid-cycle audit-mining (cycle 111b) is a safe parallelism mode when grind already at cap
+
