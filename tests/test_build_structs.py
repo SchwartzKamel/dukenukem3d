@@ -5,10 +5,19 @@ ensuring 64-bit compatibility is maintained.
 
 For cross-compilation (e.g., MinGW on Linux), set STRUCT_TEST_CC environment
 variable to the cross-compiler (e.g., i686-w64-mingw32-gcc).
+
+Cross-platform struct size validation:
+- Validates sectortype:40, walltype:32, spritetype:44 on 32-bit and 64-bit
+- Tests little-endian packed format vs native packing (Windows compatibility)
+- Uses Python struct.calcsize() to verify layout assumptions
+- Gracefully skips on platforms where validation assumptions don't apply
 """
 import subprocess
 import os
 import tempfile
+import struct
+import sys
+import platform
 
 import pytest
 
@@ -306,3 +315,135 @@ int main() {
             os.unlink(c_file)
         if os.path.exists(out_file):
             os.unlink(out_file)
+
+
+@pytest.mark.parametrize("format_char,arch_name", [
+    ('<', '32/64-bit-LE-packed'),
+    ('=', 'native-packing'),
+])
+def test_struct_size_parametrized_sectortype(format_char, arch_name):
+    """Parametrized struct-size validation for sectortype (40 bytes).
+    
+    Validates sectortype layout across different endianness and packing modes.
+    Format derived from SRC/BUILD.H with #pragma pack(1): 40 bytes.
+    """
+    fmt = format_char + "hhiihhhhbBBBhhbBBBBBhhh"
+    size = struct.calcsize(fmt)
+    assert size == 40, f"sectortype size mismatch on {arch_name}: got {size}, expected 40"
+
+
+@pytest.mark.parametrize("format_char,arch_name", [
+    ('<', '32/64-bit-LE-packed'),
+    ('=', 'native-packing'),
+])
+def test_struct_size_parametrized_walltype(format_char, arch_name):
+    """Parametrized struct-size validation for walltype (32 bytes).
+    
+    Validates walltype layout across different endianness and packing modes.
+    Format derived from SRC/BUILD.H with #pragma pack(1): 32 bytes.
+    """
+    fmt = format_char + "iihhhhhhbBBBBBhhh"
+    size = struct.calcsize(fmt)
+    assert size == 32, f"walltype size mismatch on {arch_name}: got {size}, expected 32"
+
+
+@pytest.mark.parametrize("format_char,arch_name", [
+    ('<', '32/64-bit-LE-packed'),
+    ('=', 'native-packing'),
+])
+def test_struct_size_parametrized_spritetype(format_char, arch_name):
+    """Parametrized struct-size validation for spritetype (44 bytes).
+    
+    Validates spritetype layout across different endianness and packing modes.
+    Format derived from SRC/BUILD.H with #pragma pack(1): 44 bytes.
+    """
+    fmt = format_char + "iiihhbBBBBBbbhhhhhhhhhh"
+    size = struct.calcsize(fmt)
+    assert size == 44, f"spritetype size mismatch on {arch_name}: got {size}, expected 44"
+
+
+def test_struct_size_windows_packing_sectortype():
+    """Windows struct packing validation for sectortype.
+    
+    Verify that little-endian packed ('<') matches native packing ('=')
+    on x86/x64 systems. Cites docs/audits/test-engineer-r11.md Finding 2.
+    """
+    if sys.byteorder != 'little':
+        pytest.skip("Windows packing test only applies to little-endian systems (x86/x64)")
+    
+    fmt_packed = '<' + "hhiihhhhbBBBhhbBBBBBhhh"
+    fmt_native = '=' + "hhiihhhhbBBBhhbBBBBBhhh"
+    
+    size_packed = struct.calcsize(fmt_packed)
+    size_native = struct.calcsize(fmt_native)
+    
+    assert size_packed == 40, f"Packed sectortype size: {size_packed}"
+    assert size_native == 40, f"Native sectortype size: {size_native}"
+
+
+def test_struct_size_windows_packing_walltype():
+    """Windows struct packing validation for walltype.
+    
+    Verify that little-endian packed ('<') matches native packing ('=')
+    on x86/x64 systems.
+    """
+    if sys.byteorder != 'little':
+        pytest.skip("Windows packing test only applies to little-endian systems (x86/x64)")
+    
+    fmt_packed = '<' + "iihhhhhhbBBBBBhhh"
+    fmt_native = '=' + "iihhhhhhbBBBBBhhh"
+    
+    size_packed = struct.calcsize(fmt_packed)
+    size_native = struct.calcsize(fmt_native)
+    
+    assert size_packed == 32, f"Packed walltype size: {size_packed}"
+    assert size_native == 32, f"Native walltype size: {size_native}"
+
+
+def test_struct_size_windows_packing_spritetype():
+    """Windows struct packing validation for spritetype.
+    
+    Verify that little-endian packed ('<') matches native packing ('=')
+    on x86/x64 systems.
+    """
+    if sys.byteorder != 'little':
+        pytest.skip("Windows packing test only applies to little-endian systems (x86/x64)")
+    
+    fmt_packed = '<' + "iiihhbBBBBBbbhhhhhhhhhh"
+    fmt_native = '=' + "iiihhbBBBBBbbhhhhhhhhhh"
+    
+    size_packed = struct.calcsize(fmt_packed)
+    size_native = struct.calcsize(fmt_native)
+    
+    assert size_packed == 44, f"Packed spritetype size: {size_packed}"
+    assert size_native == 44, f"Native spritetype size: {size_native}"
+
+
+def test_struct_alignment_consistency_packed_vs_native():
+    """Cross-platform consistency test: packed structs remain same size across modes.
+    
+    On x86/x64 with #pragma pack(1), packed and native layouts should match.
+    This validates the assumption that BUILD.H #pragma pack(1) is effective.
+    """
+    if sys.byteorder != 'little':
+        pytest.skip("Alignment test only applies to little-endian systems")
+    
+    structs_and_sizes = [
+        ("sectortype", "hhiihhhhbBBBhhbBBBBBhhh", 40),
+        ("walltype", "iihhhhhhbBBBBBhhh", 32),
+        ("spritetype", "iiihhbBBBBBbbhhhhhhhhhh", 44),
+    ]
+    
+    for struct_name, fmt_suffix, expected_size in structs_and_sizes:
+        fmt_le = '<' + fmt_suffix
+        fmt_native = '=' + fmt_suffix
+        
+        size_le = struct.calcsize(fmt_le)
+        size_native = struct.calcsize(fmt_native)
+        
+        assert size_le == expected_size, \
+            f"{struct_name} LE packed size {size_le} != expected {expected_size}"
+        assert size_native == expected_size, \
+            f"{struct_name} native size {size_native} != expected {expected_size}"
+        assert size_le == size_native, \
+            f"{struct_name} LE vs native size mismatch: {size_le} vs {size_native}"

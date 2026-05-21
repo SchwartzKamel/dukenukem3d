@@ -4907,3 +4907,32 @@ Operator scheduled audit prompt. Stalest after c107 were audio/build/perf (all l
 ### Cleanup
 - `.coverage.*` files dropped by pytest --cov in audio audit; `.gitignore` extended; files removed from working tree pre-commit.
 
+
+## Cycle 109 + 109b — 2026-05-20 (combined grind+audit)
+
+**Dispatched:** 6 grind agents + 2 audit-pass agents (8 total, parallel)
+
+### Grind agents (4/6 landed, 2/6 vanished post-completion)
+- ✅ docs-arch-cycles-39-42-append (sentinel a7f2c1d9): docs/ARCHITECTURE.md +65L, cycles 39-40 (Engine Bounds Cascade & MAXTILES Stage 1) + cycles 41-42 (MAXTILES Unification & Critical Fixes) inserted chronologically
+- ✅ engine-r23-palette-bounds-comprehensive-audit (sentinel 7F9A2B5C): docs/audits/engine-r22-palette-bounds-audit.md created (11.5KB). 18 palette sites enumerated; 13 SAFE; **1 CRITICAL** at SRC/ENGINE.C:7554-7558 makepalookup() — unchecked palnum from PREMAP.C:1231 reading untrusted lookup.dat. 2 follow-up todos mined (engine-r26-makepalookup-bounds-CRITICAL, engine-r26-premap-lookup-dat-validation)
+- ✅ perf-r19-contributing-split-scheduling (sentinel c7d3f2a9): CONTRIBUTING.md 1039→922L (-117L); NEW docs/GRP_DETERMINISM.md (122L self-contained)
+- ✅ test-r11-struct-size-arch (sentinel 938c6e8e): tests/test_build_structs.py +141L, +8 parametrized struct tests (sectortype 40B / walltype 32B / spritetype 44B across `<` LE-packed and `=` native)
+- ❌ asset-r13-procedural-fixture-tests-escalated (sentinel 398da409): tests/test_procedural_textures.py +223 tests, all passed in agent's pytest run, .pyc still in __pycache__ — but .py SOURCE FILE VANISHED post-completion (parallel race). Marked BLOCKED for re-dispatch.
+- ❌ compat-r9-r6-carryover-refinement (sentinel 9e7f2c5a): docs/audits/compat-layer-r6-carryover-disposition-r25.md (15.3KB) claimed-written but VANISHED. Marked BLOCKED for re-dispatch.
+
+### Audit-pass agents (1/2 landed, 1/2 vanished)
+- ✅ network-multiplayer r24 (sentinel a7f2c8d1): cycle-107 ABI no-impact on net structs verified; 185 net tests green; mined 4 follow-ups (Windows BCryptGenRandom, keepalive logging, 3-player integration harness)
+- ❌ security-and-secrets r26 (sentinel a7f2c394): STAGING_security-and-secrets_r26.md (391L) claimed-written but VANISHED. Found CODEOWNERS gap for `/compat/audio_stub.*`, mined 4 follow-ups before disappearing.
+
+### Human-attention items (CRITICAL)
+1. **Parallel-race file-loss bug**: 3 of 8 agents had their final file outputs disappear between sub-agent completion and orchestrator git status. Hypothesis: parallel `make clean` race or task-tool sandbox cleanup race when 8 agents run concurrently. **Mitigation: cap to 6 agents max next cycle, add post-dispatch file-existence verification.**
+2. **CRITICAL VULN found** (engine palette audit): SRC/ENGINE.C makepalookup() L7554-7558 — unchecked palnum allows OOB read via malformed lookup.dat. Top P0 priority for next grind cycle.
+3. **CODEOWNERS gap** (sec audit): /compat/audio_stub.* missing despite cycle-107 cryptographic _Static_asserts. 1-line fix.
+
+### Validation
+- make: green (single-threaded after cycle-108 LTO race noted)
+- pytest -q -m "not slow": ~1524 passed (1516 baseline + 8 struct-size; procedural +223 lost with vanished file)
+
+### Mined this cycle
+9 new todos: engine-r26-makepalookup-bounds-CRITICAL, engine-r26-premap-lookup-dat-validation, sec-r26-codeowners-audio-stub-coverage, sec-r26-gh-actions-secret-masking-audit, sec-r26-precommit-shellcheck-yamllint, net-r24-windows-csprng-bcryptgenrandom, net-r24-keepalive-failure-diagnostics, net-r24-multiplayer-integration-harness, compat-r25-fx-device-userinput-static-asserts
+
