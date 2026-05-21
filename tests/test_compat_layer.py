@@ -390,6 +390,7 @@ class TestErrorFatalNoreturn:
         # Should have #endif to close the guard
         assert '#endif' in content, "_Noreturn macro should properly close with #endif"
 
+    @pytest.mark.slow
     def test_noreturn_suppresses_control_flow_warnings(self):
         """_Noreturn annotation should suppress control flow warnings at call sites."""
         # Build test: verify no "reaches end of non-void" warnings

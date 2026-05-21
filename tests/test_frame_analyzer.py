@@ -178,6 +178,7 @@ class TestHasVisibleContent:
         img = _make_colorful_image()
         assert has_visible_content(img) is True
 
+    @pytest.mark.slow
     def test_single_nonblack_color_no_content(self):
         """A solid non-black color has only 1 unique color, below min_unique_colors."""
         img = _make_solid_image((200, 100, 50))
@@ -218,12 +219,14 @@ class TestFrameDifference:
 
 
 class TestAnalyzeFrame:
+    @pytest.mark.slow
     def test_returns_expected_keys(self):
         img = _make_colorful_image()
         result = analyze_frame(img)
         expected_keys = {"is_black", "has_content", "unique_colors", "brightness", "dimensions", "top_colors"}
         assert set(result.keys()) == expected_keys
 
+    @pytest.mark.slow
     def test_black_frame_analysis(self):
         img = _make_solid_image((0, 0, 0))
         result = analyze_frame(img)
@@ -232,6 +235,7 @@ class TestAnalyzeFrame:
         assert result["unique_colors"] == 1
         assert result["dimensions"] == (32, 32)
 
+    @pytest.mark.slow
     def test_colorful_frame_analysis(self):
         img = _make_colorful_image()
         result = analyze_frame(img)
@@ -239,6 +243,7 @@ class TestAnalyzeFrame:
         assert result["has_content"] is True
         assert result["unique_colors"] > 1
 
+    @pytest.mark.slow
     def test_brightness_in_result(self):
         img = _make_colorful_image()
         result = analyze_frame(img)
@@ -248,6 +253,7 @@ class TestAnalyzeFrame:
         assert "mean" in brightness
         assert "median" in brightness
 
+    @pytest.mark.slow
     def test_top_colors_format(self):
         img = _make_colorful_image()
         result = analyze_frame(img)

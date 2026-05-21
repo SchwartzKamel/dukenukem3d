@@ -392,6 +392,7 @@ Manifest integrity is verified on load (`tools/manifest_verification.py`) to cat
 - **Unit tests**: `tests/test_grp_format.py` (56 lines) validates GRP structure, magic, file counts, and filename padding
 - **Integration tests**: `tests/test_grp_manifest.py` (282 lines) validates deterministic emission, checksums, and manifest integrity
 - **CI/CD**: The build system regenerates GRP archives from source on every commit and verifies checksums against the manifest
+- **Parametrization contracts**: See `tests/PARAMETRIZATION_CONTRACTS.md` for canonical test parametrization patterns and guidelines
 
 This ensures that any unintended deviation from the determinism contract is caught immediately.
 
