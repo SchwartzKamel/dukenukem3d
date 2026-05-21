@@ -496,6 +496,144 @@ See audit reports for full context:
 - `docs/audits/audio-engineer-r15.md` — Finding 1.1: Manifest Loader Migration
 - `docs/audits/security-and-secrets-r15.md` — Asset pipeline integrity validation
 
+### Schema Version Migration
+
+Manifest files use a `schema_version` field to track breaking changes and ensure forward/backward compatibility. This section documents the versioning policy, loader contract, and migration strategy.
+
+**Current Schema Version**: `1.0` (introduced Cycle 34, commit 39afbc4 "cycle-34: audio manifest schema + recovered sec/compat stash work")
+
+#### Versioning Policy
+
+- **Bump schema_version ONLY for breaking changes**:
+  - Field removal: `entries[i].voice` deleted → bump version
+  - Type change: `entries[i].status` string → enum → bump version
+  - Semantic change: `manifest_checksum` algorithm changed → bump version
+  - Example: changing `check` to `checksum` is a breaking change
+  
+- **Do NOT bump for additive changes**:
+  - New optional field: `entries[i].confidence_score` added → **no bump**, but document in this section
+  - New manifest-level field: `generator_version` added → **no bump**, but document
+  - DO update CHANGELOG.md to note the new optional field (see "Release Notes" below)
+
+#### Loader Contract (All Three Verifiers)
+
+All manifest loaders in `tools/manifest_verification.py` (`load_and_verify_audio_manifest()`, `load_and_verify_grp_manifest()`, `load_and_verify_tables_manifest()`) must enforce:
+
+| Condition | Behavior | Code Reference |
+|-----------|----------|-----------------|
+| `manifest_data["schema_version"] < "1.0"` | Load and warn (legacy compat); log `UserWarning` | `manifest_verification.py` lines 45–51 (tables), 254–259 (GRP) |
+| `manifest_data["schema_version"] == "1.0"` | Load and verify checksums (normal path) | `generate_audio.py` lines 250–255; all three verifiers |
+| `manifest_data["schema_version"] > "1.0"` | **REJECT**; raise `ValueError` with version mismatch message | `generate_audio.py` lines 250–255: `if schema_version != "1.0": raise ValueError(...)` |
+| `schema_version` field missing | Assume "legacy" (v0 implicit); warn and continue | `manifest_verification.py` lines 45–51 |
+
+**Key Invariant**: Loaders **MUST NOT** silently ignore or load a schema_version newer than the code supports. An operator upgrading asset manifests to schema v2.0 without upgrading code will get an explicit error, preventing silent data corruption.
+
+#### Backwards Compatibility Policy (N-2 Support)
+
+- **Current supported versions**: `1.0` (primary), and any `< 1.0` (legacy with warnings)
+- **Future policy** (when v2.0 is released): support v2.0 (primary) and v1.0 (N-1); v0.x → RuntimeError with migration message
+- **Deprecation timeline**:
+  - When v2.0 released: emit `UserWarning` on all v1.0 loads suggesting migration path
+  - After 2 release cycles: treat v1.0 as legacy (same as current v0.x handling)
+  - After 4 release cycles: reject v1.0 with explicit migration error
+
+#### Migration Helper Pattern (Example for v1.0→v2.0)
+
+When schema_version must be bumped, add a migration adapter in `tools/generate_audio.py` (or dedicated `tools/manifest_migration.py`):
+
+```python
+def _migrate_v1_to_v2(entry_v1: dict) -> dict:
+    """Migrate a v1.0 manifest entry to v2.0.
+    
+    Handles field renames, type conversions, and new required fields.
+    
+    Example: If v2.0 removes 'voice' and replaces with 'voice_id' enum,
+    map the old string 'alloy' → voice_id 1.
+    """
+    entry_v2 = dict(entry_v1)  # shallow copy
+    
+    # Example migration: rename 'voice' → 'voice_id' with enum mapping
+    if "voice" in entry_v2:
+        voice_str = entry_v2.pop("voice")
+        voice_id_map = {"alloy": 1, "echo": 2, "onyx": 3}
+        entry_v2["voice_id"] = voice_id_map.get(voice_str, 0)
+    
+    # Example: add new required field with sensible default
+    if "confidence_score" not in entry_v2:
+        entry_v2["confidence_score"] = 0.95
+    
+    return entry_v2
+
+
+def _validate_and_migrate_manifest(manifest_data: dict, source_path: str) -> dict:
+    """Load manifest and migrate if needed.
+    
+    Returns manifest in current schema_version.
+    Raises ValueError if schema_version is unsupported (> current).
+    """
+    schema_version = manifest_data.get("schema_version", "0")
+    
+    if schema_version not in ["1.0"]:  # Update when v2.0 added
+        raise ValueError(
+            f"{source_path}: Unsupported schema_version '{schema_version}' "
+            f"(expected '1.0' or earlier)"
+        )
+    
+    if schema_version == "1.0":
+        return manifest_data  # no migration needed
+    
+    # Legacy v0: migrate silently with warning
+    if schema_version < "1.0":
+        warnings.warn(
+            f"Manifest {source_path} uses legacy schema_version {schema_version}; "
+            f"recommend migration to v1.0",
+            category=UserWarning
+        )
+        # Minimal v0→v1.0 migration (depends on actual v0 format)
+        manifest_data["schema_version"] = "1.0"
+        return manifest_data
+    
+    # Should not reach here due to ValueError above
+    return manifest_data
+```
+
+#### Release Notes & CHANGELOG Updates
+
+When **bumping schema_version**:
+- Add entry to `CHANGELOG.md` under "Breaking Changes" section:
+  ```markdown
+  - **Audio manifest schema v2.0** (cycle N): Removed `voice` field (replaced by `voice_id` enum). 
+    See CONTRIBUTING.md § Schema Version Migration for migration guide.
+  ```
+
+When **adding optional fields** (no version bump):
+- Add entry to `CHANGELOG.md` under "New Features" or "Improvements":
+  ```markdown
+  - Audio manifest entries now support optional `confidence_score` field (defaults to 0.95 if omitted).
+  ```
+
+#### Testing Schema Version Changes
+
+When introducing a new schema_version:
+1. **Add test** in `tests/test_audio_pipeline.py`:
+   ```python
+   def test_manifest_loader_rejects_future_schema_version(self):
+       """Loaders must reject schema_version > current."""
+       bad_manifest = {
+           "schema_version": "2.0",  # Hypothetical future version
+           "entries": [...]
+       }
+       with pytest.raises(ValueError) as exc_info:
+           generate_audio.load_manifest(temp_path)
+       assert "schema_version" in str(exc_info.value).lower()
+   ```
+   See `tests/test_audio_pipeline.py` lines 214–232 for existing test example.
+
+2. **Run full test suite** to ensure no silent migration bugs:
+   ```bash
+   pytest -q tests/test_audio_pipeline.py tests/test_manifest_checksum_verification.py
+   ```
+
 ## Continuous Integration & Caching
 
 The GitHub Actions workflows in `.github/workflows/` use `actions/setup-python`

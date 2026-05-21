@@ -3,6 +3,50 @@
 
 Analyzes BMP frame captures from the game's headless mode to validate
 that rendering is working correctly.
+
+Test Parametrization Contract (perf-r16-frame-analyzer-parametrization):
+═════════════════════════════════════════════════════════════════════════
+
+The test suite for frame_analyzer uses a consolidated parametrization strategy
+to ensure determinism and catch race conditions in ThreadPoolExecutor-based
+batch processing. DO NOT add ad-hoc or scattered parametrization variants.
+
+Canonical Frame Count Test Matrix: [1, 3, 5]
+────────────────────────────────────────────
+  - num_frames=1: Boundary case (minimal parallelization, linear execution path)
+  - num_frames=3: Small realistic workload (light parallelization)
+  - num_frames=5: Medium workload (more contention, exercises thread pool)
+
+Purpose:
+  • Verify determinism of analyze_frame_sequence() across multiple runs
+  • Catch non-determinism and race conditions in parallel frame loading
+  • Validate ThreadPoolExecutor correctness without excessive test iterations
+
+Current Test Implementation:
+  • tests/test_frame_analyzer.py::TestAnalyzeFrameSequence::test_analyze_frame_sequence_deterministic
+    - @pytest.mark.parametrize("num_frames", [1, 3, 5])
+    - Creates N synthetic BMP frames, analyzes 3× in sequence, verifies identical outputs
+    - Ensures bitwise-identical results (frame order independence)
+
+Future Additions:
+  1. If you need to test analyze_frame_sequence with different frame counts:
+     → Extend the existing parametrized test or add a comment explaining deviation
+  
+  2. If you're adding parametrization to a NEW function:
+     → Document intent clearly in test docstring
+     → Reference this convention
+     → Coordinate via tests/conftest.py conventions section
+  
+  3. If you find a bug that ONLY appears at specific frame counts:
+     → Add the count to this docstring's "Known Sensitivities" section below
+     → Explain the root cause and why it matters
+
+Known Sensitivities:
+  (none currently documented; add as needed)
+
+See also:
+  - tests/conftest.py (test parametrization conventions section)
+  - tests/test_frame_analyzer.py (parametrized test docstring)
 """
 from pathlib import Path
 from typing import Optional, Tuple, List, Dict

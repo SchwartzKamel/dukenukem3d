@@ -330,6 +330,25 @@ class TestAnalyzeFrameSequence:
         produce bitwise-identical outputs, confirming no race conditions or
         non-determinism introduced by parallel loading.
         
+        Parametrization contract (perf-r16-frame-analyzer-parametrization-consolidation):
+        ────────────────────────────────────────────────────────────────────────────
+        This test uses @pytest.mark.parametrize("num_frames", [1, 3, 5]) to verify
+        the analyzer's determinism across different frame counts. The [1, 3, 5] values
+        are the canonical test sizes and SHOULD NOT be duplicated or extended ad-hoc
+        in other tests. Future additions of frame-count parametrization should:
+        
+          1. Reuse this test if testing analyze_frame_sequence determinism
+          2. Coordinate any new parametrized tests via tests/conftest.py so the
+             convention is explicit and discoverable
+          3. Document parametrization intent in the test docstring
+          4. Include a comment referencing this parametrization contract
+        
+        This consolidation ensures:
+        - Single source of truth for frame count test matrix [1, 3, 5]
+        - Consistent parametrization semantics across tests
+        - Clear intent for maintainers and reviewers
+        
+        Reference: tools/frame_analyzer.py module docstring for test contract details.
         # perf-r13-frame-analyzer-parametrization: shard across xdist workers
         """
         # Create fixture of N frames (colorful, so they have variation)

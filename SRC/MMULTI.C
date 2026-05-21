@@ -42,7 +42,7 @@ typedef int SOCKET;
 
 #define MAXPLAYERS 16
 #define MAXPACKETSIZE 2048
-#define NET_HEADER_SIZE 4   /* [1B sender][1B dest][2B payload length] */
+#define NET_HEADER_SIZE 5   /* net-r15-seqnum: [1B sender][1B dest][1B seq][2B payload length LE] */
 #define RECV_BUF_SIZE 65536
 #define DEFAULT_PORT 23513
 /* TCP connection timeout (seconds).
@@ -99,6 +99,12 @@ static int pq_head = 0, pq_tail = 0;
 static int pq_count = 0;
 static int pq_dropped_packets = 0;
 
+/* net-r15-seqnum: Per-peer sequence number tracking */
+/* Sender: monotonically incrementing sequence for each destination */
+static unsigned char sender_sequence[MAXPLAYERS];
+/* Receiver: last-seen sequence from each peer (for gap/reorder detection) */
+static unsigned char last_seen_sequence[MAXPLAYERS];
+
 /* ---- Endianness Convention & Wire Format ----
  *
  * WIRE FORMAT SPECIFICATION: ALL MULTI-BYTE INTEGERS ARE LITTLE-ENDIAN
@@ -109,7 +115,8 @@ static int pq_dropped_packets = 0;
  * must be documented for future ports.
  *
  * Byte-packing sites (always use mm_pack_u16_le / mm_unpack_u16_le):
- *   - Payload length field in packet header: buf[2] (lo), buf[3] (hi)
+ *   - Sequence field in packet header: buf[2] (1 byte, no packing needed) [net-r15-seqnum]
+ *   - Payload length field in packet header: buf[3] (lo), buf[4] (hi) [net-r15-seqnum]
  *   - Protocol version in handshake: msg[2] (lo), msg[3] (hi)
  *
  * This ensures explicit endianness handling and enables cross-platform
@@ -261,7 +268,8 @@ static void net_poll_sockets(void)
 		while (recv_bufs[i].len >= NET_HEADER_SIZE) {
 			int from_player = recv_bufs[i].buf[0];
 			int dest        = recv_bufs[i].buf[1];
-			int payload_len = mm_unpack_u16_le(recv_bufs[i].buf + 2);
+			int sequence    = recv_bufs[i].buf[2];  /* net-r15-seqnum: extract sequence */
+			int payload_len = mm_unpack_u16_le(recv_bufs[i].buf + 3);  /* net-r15-seqnum: offset +3 for seq field */
 			int total_len;
 
 			/* Validate from_player bounds (CRITICAL: from_player is wire-supplied, attacker-controlled) */
@@ -272,6 +280,17 @@ static void net_poll_sockets(void)
 				if (recv_bufs[i].len > 0)
 					memmove(recv_bufs[i].buf, recv_bufs[i].buf + NET_HEADER_SIZE, recv_bufs[i].len);
 				continue;
+			}
+
+			/* net-r15-seqnum: Log sequence gaps/reorders without dropping */
+			{
+				int expected_seq = (last_seen_sequence[from_player] + 1) & 0xFF;
+				int is_first = (last_seen_sequence[from_player] == 0xFF);
+				if (!is_first && sequence != expected_seq) {
+					printf("NET: Sequence gap/reorder from player %d: expected %d, got %d\n",
+						from_player, expected_seq, sequence);
+				}
+				last_seen_sequence[from_player] = sequence;
 			}
 
 			/* Validate bounds before relay-forwarding */
@@ -387,6 +406,8 @@ initmultiplayers(char damultioption, char dacomrateoption, char dapriority)
 		player_sockets[i] = INVALID_SOCKET;
 		recv_bufs[i].len = 0;
 		lastsendtime[i] = 0;
+		sender_sequence[i] = 0;  /* net-r15-seqnum: init to 0 */
+		last_seen_sequence[i] = 0xFF;  /* net-r15-seqnum: init to 0xFF as sentinel (no packet yet) */
 	}
 	pq_head = pq_tail = 0;
 	pq_count = 0;
@@ -646,8 +667,9 @@ uninitmultiplayers()
 	/* Send DISCONNECT (marker=0xFF) to all known peers before closing sockets */
 	disconnect_pkt[0] = (unsigned char)myconnectindex;
 	disconnect_pkt[1] = 255;  /* broadcast */
-	mm_pack_u16_le(disconnect_pkt + 2, 1);  /* payload length = 1 */
-	disconnect_pkt[4] = 0xFF; /* disconnect marker */
+	disconnect_pkt[2] = sender_sequence[0];  /* net-r15-seqnum: include sequence number */
+	mm_pack_u16_le(disconnect_pkt + 3, 1);  /* net-r15-seqnum: payload length = 1 at offset +3 */
+	disconnect_pkt[5] = 0xFF; /* disconnect marker */
 	
 	for (i = 0; i < MAXPLAYERS; i++) {
 		if (player_sockets[i] != INVALID_SOCKET) {
@@ -722,7 +744,9 @@ sendpacket(int32_t other, char *bufptr, int32_t messleng)
 
 	header[0] = (unsigned char)(myconnectindex & 0xFF);
 	header[1] = (unsigned char)(other & 0xFF);
-	mm_pack_u16_le(header + 2, (uint16_t)messleng);
+	header[2] = sender_sequence[other];  /* net-r15-seqnum: include sequence number */
+	mm_pack_u16_le(header + 3, (uint16_t)messleng);  /* net-r15-seqnum: offset +3 for seq field */
+	sender_sequence[other]++;  /* net-r15-seqnum: increment and wrap at 256 */
 
 	if (is_host) {
 		sock = player_sockets[other];

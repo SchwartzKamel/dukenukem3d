@@ -16,6 +16,28 @@ from manifest_verification import load_and_verify_audio_manifest, load_and_verif
 
 
 # ============================================================================
+# Test Parametrization Conventions (perf-r16-frame-analyzer-parametrization)
+# ============================================================================
+# 
+# Frame Analyzer Test Contract:
+# ────────────────────────────
+# The frame_analyzer module parametrizes tests across [1, 3, 5] frame counts to:
+#   1. Ensure determinism under ThreadPoolExecutor parallelization (single, small, medium)
+#   2. Catch race conditions in batch frame processing
+#   3. Validate behavior at boundary cases (N=1) and realistic workloads (N=3,5)
+#
+# Convention: DO NOT add ad-hoc frame-count parametrization elsewhere. Instead:
+#   - If testing analyze_frame_sequence behavior: extend the canonical test
+#   - If testing a new function: add a comment referencing this convention
+#   - If parametrization intent differs (not [1,3,5]): document why in the test
+#
+# See: tests/test_frame_analyzer.py::TestAnalyzeFrameSequence::test_analyze_frame_sequence_deterministic
+#      tools/frame_analyzer.py (module docstring section on test parametrization)
+#
+# ============================================================================
+
+
+# ============================================================================
 # Pydantic Model for Sound Manifest Entry Validation
 # ============================================================================
 

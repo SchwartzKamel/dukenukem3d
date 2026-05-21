@@ -2853,7 +2853,7 @@ loadtile (short tilenume)
 	long i, dasiz;
 
 	if ((unsigned)tilenume >= (unsigned)MAXTILES) return;
-	dasiz = tilesizx[tilenume]*tilesizy[tilenume];
+	dasiz = (long)((size_t)tilesizx[tilenume] * (size_t)tilesizy[tilenume]); /* engine-r17-tile-mult-overflow-guard */
 	if (dasiz <= 0) return;
 
 	i = tilefilenum[tilenume];
@@ -2977,7 +2977,7 @@ loadpics(char *filename)
 			{
 				tilefilenum[i] = k;
 				tilefileoffs[i] = offscount;
-				dasiz = (long)(tilesizx[i]*tilesizy[i]);
+				dasiz = (long)((size_t)tilesizx[i] * (size_t)tilesizy[i]); /* engine-r17-tile-mult-overflow-guard */
 				offscount += dasiz;
 				artsize += ((dasiz+15)&0xfffffff0);
 			}

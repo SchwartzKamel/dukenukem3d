@@ -53,6 +53,13 @@ set(COMPAT_SRCS
     compat/maxtiles_guard.c
 )
 
+# Platform-specific socket abstraction layer (net-r15-socket-compat)
+if(WIN32)
+    list(APPEND COMPAT_SRCS compat/net_socket_win32.c)
+else()
+    list(APPEND COMPAT_SRCS compat/net_socket_posix.c)
+endif()
+
 # Force C language for uppercase .C files (GCC treats .C as C++)
 set_source_files_properties(${ENGINE_SRCS} ${GAME_SRCS} PROPERTIES LANGUAGE C)
 

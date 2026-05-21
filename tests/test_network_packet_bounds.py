@@ -1500,3 +1500,206 @@ class TestNetR14RandomseedSync:
             "docs/audits/network-multiplayer-r14.md Closure must document sentinel locations"
         )
 
+
+class TestNetR15SequenceNumbers:
+    """Verify cycle-65 net-r15 sequence number support in MMULTI.C."""
+
+    def test_header_size_increased(self, repo_root):
+        """NET_HEADER_SIZE must be increased from 4 to 5 for sequence field."""
+        mmulti_c = repo_root / "SRC" / "MMULTI.C"
+        if not mmulti_c.exists():
+            pytest.skip(f"{mmulti_c} not found")
+        
+        content = mmulti_c.read_text(errors="replace")
+        
+        # Must define NET_HEADER_SIZE as 5
+        assert "#define NET_HEADER_SIZE 5" in content, (
+            "SRC/MMULTI.C must define NET_HEADER_SIZE as 5 (was 4 before sequence field)"
+        )
+        
+        # Should have sentinel indicating net-r15-seqnum
+        assert "net-r15-seqnum" in content, (
+            "SRC/MMULTI.C NET_HEADER_SIZE must have net-r15-seqnum sentinel"
+        )
+    
+    def test_sender_sequence_tracking(self, repo_root):
+        """Sender must have per-peer sequence number tracking."""
+        mmulti_c = repo_root / "SRC" / "MMULTI.C"
+        if not mmulti_c.exists():
+            pytest.skip(f"{mmulti_c} not found")
+        
+        content = mmulti_c.read_text(errors="replace")
+        
+        # Must have sender_sequence array
+        assert "sender_sequence[MAXPLAYERS]" in content or \
+               "sender_sequence[" in content, (
+            "SRC/MMULTI.C must have sender_sequence array for per-peer outgoing sequence tracking"
+        )
+        
+        # Must have sentinel at declaration
+        assert "net-r15-seqnum" in content, (
+            "SRC/MMULTI.C sender_sequence must have net-r15-seqnum sentinel"
+        )
+    
+    def test_receiver_sequence_tracking(self, repo_root):
+        """Receiver must have per-peer last-seen sequence number tracking."""
+        mmulti_c = repo_root / "SRC" / "MMULTI.C"
+        if not mmulti_c.exists():
+            pytest.skip(f"{mmulti_c} not found")
+        
+        content = mmulti_c.read_text(errors="replace")
+        
+        # Must have last_seen_sequence array
+        assert "last_seen_sequence[MAXPLAYERS]" in content or \
+               "last_seen_sequence[" in content, (
+            "SRC/MMULTI.C must have last_seen_sequence array for per-peer incoming sequence tracking"
+        )
+        
+        # Must have sentinel at declaration
+        assert "net-r15-seqnum" in content, (
+            "SRC/MMULTI.C last_seen_sequence must have net-r15-seqnum sentinel"
+        )
+    
+    def test_sequence_initialization(self, repo_root):
+        """Sequence numbers must be initialized in initmultiplayers()."""
+        mmulti_c = repo_root / "SRC" / "MMULTI.C"
+        if not mmulti_c.exists():
+            pytest.skip(f"{mmulti_c} not found")
+        
+        content = mmulti_c.read_text(errors="replace")
+        
+        # Must initialize sender_sequence to 0
+        assert "sender_sequence[i] = 0" in content, (
+            "SRC/MMULTI.C must initialize sender_sequence to 0 in initmultiplayers()"
+        )
+        
+        # Must initialize last_seen_sequence to 0xFF (sentinel for "no packet yet")
+        assert "last_seen_sequence[i] = 0xFF" in content, (
+            "SRC/MMULTI.C must initialize last_seen_sequence to 0xFF (no packet yet sentinel)"
+        )
+        
+        # Must have sentinel at initialization
+        assert content.count("net-r15-seqnum") >= 5, (
+            "SRC/MMULTI.C must have at least 5 net-r15-seqnum sentinels across code"
+        )
+    
+    def test_sendpacket_includes_sequence(self, repo_root):
+        """sendpacket() must include sequence number in header."""
+        mmulti_c = repo_root / "SRC" / "MMULTI.C"
+        if not mmulti_c.exists():
+            pytest.skip(f"{mmulti_c} not found")
+        
+        content = mmulti_c.read_text(errors="replace")
+        
+        # Must assign sequence number in sendpacket()
+        assert "header[2] = sender_sequence[other]" in content, (
+            "SRC/MMULTI.C sendpacket() must assign sequence number to header[2]"
+        )
+        
+        # Must increment sequence number (wraps at 256)
+        assert "sender_sequence[other]++" in content, (
+            "SRC/MMULTI.C sendpacket() must increment sender_sequence (wraps at 256)"
+        )
+        
+        # Must use correct payload length offset (buf+3 instead of buf+2)
+        assert "mm_pack_u16_le(header + 3" in content, (
+            "SRC/MMULTI.C sendpacket() must use offset +3 for payload length (seq is at +2)"
+        )
+    
+    def test_packet_extraction_reads_sequence(self, repo_root):
+        """net_poll_sockets() must read sequence number from received packets."""
+        mmulti_c = repo_root / "SRC" / "MMULTI.C"
+        if not mmulti_c.exists():
+            pytest.skip(f"{mmulti_c} not found")
+        
+        content = mmulti_c.read_text(errors="replace")
+        
+        # Must extract sequence from buf[2]
+        assert "recv_bufs[i].buf[2]" in content and \
+               "sequence" in content, (
+            "SRC/MMULTI.C must extract sequence number from buf[2]"
+        )
+        
+        # Must use correct payload length offset (buf+3 instead of buf+2)
+        assert "mm_unpack_u16_le(recv_bufs[i].buf + 3)" in content, (
+            "SRC/MMULTI.C must use offset +3 for payload length in packet extraction"
+        )
+    
+    def test_sequence_gap_detection(self, repo_root):
+        """Receiver must log (not drop) packets with missing/reordered sequence."""
+        mmulti_c = repo_root / "SRC" / "MMULTI.C"
+        if not mmulti_c.exists():
+            pytest.skip(f"{mmulti_c} not found")
+        
+        content = mmulti_c.read_text(errors="replace")
+        
+        # Must have logic to detect expected sequence
+        assert "expected_seq" in content and "(last_seen_sequence" in content, (
+            "SRC/MMULTI.C must compute expected_seq based on last_seen_sequence"
+        )
+        
+        # Must log (not drop) on gap
+        assert "Sequence gap" in content or "sequence" in content.lower(), (
+            "SRC/MMULTI.C must log sequence gaps without dropping packets"
+        )
+        
+        # Must have sentinel at gap detection
+        assert "net-r15-seqnum: Log sequence gaps" in content, (
+            "SRC/MMULTI.C gap detection must have net-r15-seqnum sentinel"
+        )
+    
+    def test_disconnect_packet_includes_sequence(self, repo_root):
+        """Disconnect packet must include sequence number."""
+        mmulti_c = repo_root / "SRC" / "MMULTI.C"
+        if not mmulti_c.exists():
+            pytest.skip(f"{mmulti_c} not found")
+        
+        content = mmulti_c.read_text(errors="replace")
+        
+        # Must assign sequence in disconnect packet
+        assert "disconnect_pkt[2] = sender_sequence[0]" in content, (
+            "SRC/MMULTI.C must include sequence in disconnect packet"
+        )
+        
+        # Must use correct payload length offset in disconnect packet
+        assert "mm_pack_u16_le(disconnect_pkt + 3" in content, (
+            "SRC/MMULTI.C disconnect packet must use offset +3 for payload length"
+        )
+        
+        # Disconnect marker must be at byte 5 (not 4)
+        assert "disconnect_pkt[5] = 0xFF" in content, (
+            "SRC/MMULTI.C disconnect marker must be at offset 5 (not 4)"
+        )
+    
+    def test_sequence_sentinel_count(self, repo_root):
+        """Must have at least 5 net-r15-seqnum sentinels across MMULTI.C."""
+        mmulti_c = repo_root / "SRC" / "MMULTI.C"
+        if not mmulti_c.exists():
+            pytest.skip(f"{mmulti_c} not found")
+        
+        content = mmulti_c.read_text(errors="replace")
+        
+        sentinel_count = content.count("net-r15-seqnum")
+        assert sentinel_count >= 5, (
+            f"SRC/MMULTI.C must have at least 5 net-r15-seqnum sentinels, found {sentinel_count}"
+        )
+    
+    def test_backward_compat_note(self, repo_root):
+        """Sequence number feature must document forward-compatibility status."""
+        mmulti_c = repo_root / "SRC" / "MMULTI.C"
+        if not mmulti_c.exists():
+            pytest.skip(f"{mmulti_c} not found")
+        
+        content = mmulti_c.read_text(errors="replace")
+        
+        # Ensure that NET_HEADER_SIZE definition is clearly marked
+        assert "NET_HEADER_SIZE 5" in content, (
+            "SRC/MMULTI.C NET_HEADER_SIZE must be 5"
+        )
+        
+        # Net-r15-seqnum should be documented in comments
+        assert "net-r15-seqnum" in content, (
+            "SRC/MMULTI.C must document sequence number feature with net-r15-seqnum markers"
+        )
+
+

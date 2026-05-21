@@ -7,6 +7,7 @@ converting true-colour images to paletted pixel data.
 
 import struct
 import math
+import warnings
 
 
 def _ramp(start_rgb, end_rgb, steps):
@@ -120,6 +121,70 @@ def build_palette():
     return pal
 
 
+def _validate_palette_input(palette):
+    """Validate palette input for create_palette_dat.
+
+    Enforces:
+      - Exactly 256 entries
+      - Each entry is a tuple with exactly 3 components (R, G, B)
+      - Each component is an integer in range [0, 255]
+      - Warns if duplicate index 0 (reserved transparency marker) appears
+        outside indices 0 and 255 (255 is also reserved for transparency)
+
+    Args:
+        palette: List/tuple of RGB tuples to validate
+
+    Raises:
+        ValueError: If palette does not meet requirements
+    """
+    if not isinstance(palette, (list, tuple)):
+        raise ValueError(
+            f"Palette must be a list or tuple, got {type(palette).__name__}"
+        )
+
+    if len(palette) != 256:
+        raise ValueError(
+            f"Palette must contain exactly 256 entries, got {len(palette)}"
+        )
+
+    seen_zero = False
+    for idx, entry in enumerate(palette):
+        if not isinstance(entry, (list, tuple)):
+            raise ValueError(
+                f"Palette[{idx}]: Expected RGB tuple, got {type(entry).__name__}"
+            )
+
+        if len(entry) != 3:
+            raise ValueError(
+                f"Palette[{idx}]: RGB tuple must have exactly 3 components, "
+                f"got {len(entry)}"
+            )
+
+        for comp_idx, component in enumerate(entry):
+            if not isinstance(component, int):
+                raise ValueError(
+                    f"Palette[{idx}][{comp_idx}]: RGB component must be int, "
+                    f"got {type(component).__name__} value {component!r}"
+                )
+
+            if not (0 <= component <= 255):
+                raise ValueError(
+                    f"Palette[{idx}][{comp_idx}]: RGB component must be in "
+                    f"range [0, 255], got {component}"
+                )
+
+        # Warn on duplicate black at indices other than 0 and 255
+        if idx not in (0, 255) and entry == (0, 0, 0):
+            if not seen_zero:
+                warnings.warn(
+                    f"Palette[{idx}] = (0, 0, 0) duplicates the transparent "
+                    f"key at index 0. This may be unintended.",
+                    UserWarning,
+                    stacklevel=3
+                )
+                seen_zero = True
+
+
 def create_palette_dat(palette_rgb=None):
     """Create a PALETTE.DAT file for Duke3D.
 
@@ -129,11 +194,24 @@ def create_palette_dat(palette_rgb=None):
         - numpalookups * 256 bytes: shade tables (palookup)
         - 65536 bytes: translucency table
 
+    Args:
+        palette_rgb: Optional list of 256 (r, g, b) tuples with components
+                     in [0, 255]. Each tuple must have exactly 3 integer
+                     components. Defaults to build_palette() if not provided.
+                     See _validate_palette_input for exact requirements.
+
     Returns:
         bytes of the complete PALETTE.DAT.
+
+    Raises:
+        ValueError: If palette_rgb does not meet input validation requirements
+                    (exactly 256 entries, each with 3 integer components
+                    in range [0, 255]).
     """
     if palette_rgb is None:
         palette_rgb = build_palette()
+    else:
+        _validate_palette_input(palette_rgb)
 
     # VGA palette: 6-bit per component (0-63)
     pal_bytes = bytearray()
