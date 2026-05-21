@@ -4559,3 +4559,22 @@ Re-verify all r21 audit-pass items (cycles 77–84 closures) remain live across 
 **Personas: sec r21→r22; engine r22→r23 (via grind closures).** Cycle 95 stalest: asset r22 @ c90, compat r21 @ c91, audio r21 @ c91, test r21 @ c88. **3 palette CRITICAL sites closed; HMAC RFC-audited.**
 
 ---
+
+## Cycle 95 — 2026-05-21 (audit-pass, 2 sub-agents, persona refresh — DOC-ONLY)
+
+**Personas audited (2 of 10):**
+- **test-engineer r21→r22** (`test-engineer-r22.md`, ~500L): Cycles 89–95 stability + cycle-93 hypothesis explosion verification. **Baseline:** 1503 collected, 1445 passed, 58 skipped, 2 xfailed (stable), 0 failures, 24.8s xdist runtime. **Cycle 93 hypothesis expansion VERIFIED:** test_hypothesis_pure_functions.py 443→1183L, 51 @given decorators, 73 tests collected, 2550+ generated cases zero flakiness. **Cycle 93 auth-spoofing VERIFIED:** 34 RFC KAT tests, all passing, 0.4s suite. **Cycle 94 fixture maturation VERIFIED:** temp_captures_dir function-scoped tmp_path; playtest xdist -n 4 in 5.23s no contention. **Markers:** slow 52→55 (+3), serial 8→9 (+1), playtest 9→8 (-1, investigate). **xfail debt:** 3-cycle carry-forward (r20→r22), escalate for r23. Grade **A+** (upgraded from A). 4 NEW todos: hypothesis-expansion-verification, fixture-scope-audit, xfail-resolution-track CRITICAL, marker-gap-investigation. Sentinel `7b2e3a9f`.
+- **asset-pipeline r22→r23** (`asset-pipeline-r23.md`, ~20KB): 5-cycle stability pass (r22 closures 100% verified, cycles 91–94 zero regressions). Hypothesis cross-audit: 70 passed / 3 skipped, no property violations on palette/grp/voc/anm/manifest properties. FLUX/Azure env-only loading verified (cross-check with sec-r22 cycle 94). Atomic write fsync+replace pattern uniform across 3 tools (generate_audio, generate_assets, manifest_verification). Manifest schema_version "1.0" deterministic contract stable. `--no-ai` deterministic fallback paths operational. Palette[0-1] duplication LOW finding documented intentional (transparency keying). 0 CRITICAL/HIGH/MEDIUM; 1 LOW; 5 deferred. 5 NEW todos: palette-duplication-audit, hypothesis-palette-property-expansion, generate-audio-manifest-round-trip, grp-manifest-determinism-revalidation, voc-format-hypothesis-coverage-gap. Sentinel `951cc0b8`.
+
+**Verification protocol:** STAGING pattern (`STAGING_test_r22.md` + `STAGING_asset_r23.md`) used cleanly; zero sibling-write race. Orchestrator merged SUMMARY rows post-hoc; STAGING files deleted post-merge.
+
+**Build:** Clean release. **Tests:** 1445 passed, 58 skipped, 0 xfailed, 0 failed (no source mods this cycle — audit-pass only).
+
+**Personas: test r21→r22, asset r22→r23.** Cycle 96 stalest: compat r21 @ c91 (5 cycles), audio r21 @ c91 (5 cycles), engine r22 @ c90 (6 cycles — partially refreshed by c94 grind closures); next audit-pass should target test r22→r23 if xfail debt requires CRITICAL action, OR compat-r22 / audio-r22.
+
+**Carry-forward HIGH/CRITICAL items for cycle 96 grind:**
+- test-r22-xfail-resolution-track (CRITICAL: 3-cycle xfail debt at displayweapon/addweapon)
+- perf-r22-profiling-hooks-implementation (2-3d, may need Sonnet)
+- net-r19/r20 follow-ups (HMAC replay-gap audit, nonce collision KAT tests)
+
+---
