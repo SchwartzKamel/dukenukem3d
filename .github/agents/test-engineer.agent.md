@@ -140,7 +140,7 @@ def test_struct_sizes():
 ```
 
 **When engine struct layouts change**:
-1. Update SRC/BUILD.H (or compat/BUILD.h)
+1. Update SRC/BUILD.H (and compat/BUILD.h if it exists; otherwise verify struct mirrors in compat/compat.h match)
 2. Run `pytest tests/test_build_structs.py -v` — it will recompile
 3. If assertion fails, investigate packing (check #pragma pack, alignment)
 4. Once fixed, commit both the struct change AND the passing test
@@ -353,7 +353,7 @@ pytest tests/test_build_structs.py -v  # Full compile + run
 pytest tests/test_compat_layer.py -v   # Python struct layout
 ```
 If mismatch, check:
-- SRC/BUILD.H vs compat/BUILD.h field order/types
+- SRC/BUILD.H vs struct definitions in compat/ (compat.h or compat/compat.h; note: compat/BUILD.h does not currently exist)
 - Padding/alignment (use `#pragma pack(1)` if needed)
 
 ### Frame capture failed (playtest)

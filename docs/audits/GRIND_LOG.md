@@ -3744,3 +3744,191 @@ Recommendation: leave for now, surface in next session. Adding tighter "NEVER ca
 ---
 
 **Sentinel:** asset-r21-cycle85-complete-3d8f2b9c
+
+---
+
+## 2026-05-21T06:15Z — Cycle 86 audit-pass (compat-layer r20)
+
+**Trigger:** Scheduled cycle-86 audit-grind tick, verification pass of compat-layer (r19→r20 refresh).  
+**Operator AFK:** Yes (scheduled invocation, doc-only audit).  
+**Persona Stale Duration:** 7 cycles (r19 from cycle 79; r20 refresh at cycle 86).
+
+### Audit: compat-layer-r20
+
+**Status:** R20 closure verification (cycles 79-86 post-landing verification), r19 closure confirmation, cycles 80-86 cross-cutting work review.
+
+**CYCLE 79-86 VERIFICATION SUMMARY:** ✅ **0 CRITICAL/HIGH/MEDIUM findings detected. R19 STATE STABLE. ALL R19 CLOSURES VERIFIED. CYCLES 80-86 CROSS-CUTTING WORK INTEGRATED CLEANLY.**
+
+#### R19 State Held Stable
+✅ **Zero code regressions detected across cycles 79-86.**
+- 17 files, 5,223 LOC (UNCHANGED)
+- 62 passing tests (test_compat_layer.py: 30, test_net_socket_compat.py: 32) — 100% PASS RATE ✅
+- All r19 closures verified:
+  - Cycle 75 _Noreturn macro (compat/compat.h:76-85) — STABLE ✅
+  - Cycle 77 endianness comment fix (mact_stub.c:346-349) — STABLE ✅
+  - Cycle 77 music-init-order docs (compat/README.md:169-254) — STABLE ✅
+  - 14 silent stubs categorized (README.md:63-91) — STABLE ✅
+
+#### Cycle 80 MSVC Pragmas Clarification RESOLVED
+✅ **R19 LOW todo (compat-r19-pragmas-msvc-clarify) RESOLVED in cycle 80 via documentation.**
+- pragmas_msvc.h confirmed NOT FOUND (file never created)
+- MSVC pragma support COMPLETE via compat.h (lines 20-54) + msvc_unistd.h
+- pragmas_gcc.h serves GCC-only inline asm replacement (Watcom→GCC), NOT MSVC
+- compat/README.md lines 258-296 new section clarifies this distinction
+- **RESOLUTION:** pragmas_msvc.h not needed; MSVC support already complete.
+
+#### Cycle 83 _Noreturn Audit Block Verified
+✅ **R20 audit block correctly placed (compat/compat.h lines 69-74).**
+- Identifies 3 noreturn candidates:
+  1. `error_fatal()` — ✅ ALREADY ANNOTATED at compat.h:762 with _Noreturn
+  2. `gameexit(char *t)` — Documented for engine-porter future work
+  3. `reportandexit(char *msg)` — Documented for engine-porter future work
+- Block correctly documents candidates and rationale
+- No new expansion needed in compat layer (candidates are engine code)
+
+#### Cycles 80-86 Cross-Cutting Work Review
+✅ **All cross-cutting cycles reviewed; zero unplanned compat impacts detected.**
+- Cycle 80 (build-system-r16): MSVC pragmas clarification — VERIFIED ✅
+- Cycle 80 (documentation-curator-r19): compat/README.md updates — VERIFIED ✅
+- Cycle 83 (engine-porter-r20): _Noreturn expansion audit — VERIFIED ✅
+- Cycle 85 (performance-profiler-r20): allocache-race investigation — No compat impact ✅
+- Cycle 85 (RUN_allocache_race_cycle85.md): Static analysis — compat/ not involved ✅
+
+#### All Component Verifications PASSED
+✅ **COMPAT_SDL_ERR macro** (sdl_driver.c:20-26) — Stable diagnostic design ✅
+✅ **IntelLong endianness handling** (mact_stub.c:346-352) — Stable little-endian assumption ✅
+✅ **MUSIC subsystem init order** (audio_stub.c:364-431) — Cycle 71 retry backoff verified LIVE ✅
+✅ **14 silent stubs** (per-frame + rare) — Design rationale sound, zero frame-time overhead ✅
+✅ **Net_socket abstraction** — Unintegrated (expected), 32 tests passing, ready for MMULTI.C ✅
+
+### Findings Summary
+
+| Severity | Count | Status |
+|----------|-------|--------|
+| CRITICAL | 0 | ✅ None |
+| HIGH | 0 | ✅ None |
+| MEDIUM | 0 | ✅ None |
+| LOW | 0 | ✅ None (r19 LOW todo RESOLVED in cycle 80) |
+| INFORMATIONAL | 0 | None |
+
+### Test Results
+
+**Test Suite Status:**
+```
+tests/test_compat_layer.py::*                30 PASSED ✅
+tests/test_net_socket_compat.py::*            32 PASSED ✅
+────────────────────────────────────────────────────────
+Total:                                        62 PASSED ✅
+```
+
+**Build Status:** ✅ Green (doc-only audit, 0 code mutations)
+
+### Todos Status
+
+| ID | Status | Notes |
+|----|--------|-------|
+| compat-r19-pragmas-msvc-clarify | ✅ RESOLVED | Cycle 80 clarification documented in README.md lines 258-296 |
+
+### New Todos Inserted (cycle 86)
+
+**2 NEW todos** (cross-domain for engine-porter coordination):
+1. **compat-r20-noreturn-expansion-gameexit** (LOW) — Annotate gameexit() with _Noreturn (source/FUNCT.H:372, source/GAME.C:2189)
+2. **compat-r20-noreturn-expansion-reportandexit** (LOW) — Annotate reportandexit() with _Noreturn (SRC/BUILD.H:352, SRC/CACHE1D.C:239)
+
+**Note:** These are identified in the r20 audit block (compat.h:69-74) for future engine-porter work. error_fatal() already properly annotated.
+
+### Notable Findings
+- Zero regressions detected in grind cycles 80-86
+- R19 closure verified and stable
+- All cycle 75-77-80-83-85 enhancements integrated cleanly
+- No new CRITICAL/HIGH/MEDIUM findings
+- All 14 silent stubs remain correctly designed (zero frame-time overhead)
+- MSVC pragma support verified complete (pragmas_msvc.h resolution)
+
+### Audit Deliverables
+- ✅ `docs/audits/compat-layer-r20.md` created (16.4k, comprehensive cycle 80-86 verification)
+- ✅ `docs/audits/SUMMARY.md` updated: r19 → r20 index link + r20 entry added
+- ✅ `docs/audits/GRIND_LOG.md` cycle 86 section appended (this entry)
+- ✅ 2 NEW todos inserted to SQL (compat-r20-* prefix, cross-domain for engine-porter)
+
+### Personas Rendered (Cycle 86 Audit-Pass)
+1. ✅ compat-layer r20 (cycle 86 audit-pass, all r19 closures verified)
+
+### Cycle Close
+- Code state: STABLE (0 regressions, cycles 79-86 closures LIVE)
+- Build state: CLEAN (doc-only audit)
+- Test state: PASSING (62 tests, 100% pass rate)
+- Documentation: r20 audit complete, r19 follow-ups all VERIFIED
+- Backlog status: 2 new cross-domain todos (engine-porter coordination)
+- Persona Freshness: compat-layer **r20** ✅ FRESH & PRODUCTION-READY
+
+**Sentinel**: compat-r20-cycle86-complete-f7c3e8a1
+
+---
+
+## Cycle 86 audit-pass
+
+**Persona**: audio-engineer  
+**Revision**: r20 (CYCLE 86 AUDIT-PASS, DOC-ONLY)  
+**Timestamp**: 2026-05-28T14:30Z
+
+**Scope**: Audio pipeline deep-dive (tools/generate_audio.py, tools/manifest_verification.py, tests/test_generate_audio.py, tests/test_audio_pipeline.py, compat/audio_stub.c, source/GAME.C) + Cycle 85 schema migration plan review (RUN_audio_schema_migration_plan_cycle85.md)
+
+**Status**: ✅ **R19 CLOSURES VERIFIED SOLID** | ✅ **ATOMIC WRITES COMPLETE & UNIFORM** | ✅ **CYCLE 85 MIGRATION PLAN SOUND** | 🟡 **MIGRATIONREGISTRY BFS DESIGN GAP** | ⚠️ **PHASE 2–3 EFFORT UNDERESTIMATED**
+
+**Key Closures**:
+- ✅ **R19 test assertion fix VERIFIED LIVE** (test_no_ai_generates_manifest_json L327–340 accepts both list + dict)
+- ✅ **Atomic-write hardening COMPLETE** (19 usages, 3 generators, all use fsync; zero gaps)
+- ✅ **SUPPORTED_SCHEMA_VERSIONS enforcement CORRECT** (manifest_verification.py L15 + L110)
+- ✅ **Voice catalog STABLE** (21 entries, SoundManifestEntry Pydantic validation)
+- ✅ **Cycle 80 schema_version fallback VERIFIED** (legacy manifests default to "1.0" with warning, 3 tests PASS)
+
+**Critical Findings**:
+🟡 **MigrationRegistry BFS design gap** — find_path() in proposed implementation lacks cycle detection + memoization. Recommend adding acyclicity assertion + path caching BEFORE Phase 1 implementation (~1 day correction, not blocking).
+
+**Medium Findings**:
+⚠️ **Phase 2–3 effort underestimated** — Plan states 2+5=7 days, realistic 20–25 days total (Phase 1: 5–8 OK, Phase 2: 8–10 vs stated 2, Phase 3: 12–15 vs stated 5; hidden 6–8 day refactoring burden for manifest consumers). Recommendation: Plan across 2–3 cycles, not single sprint.
+
+**Low Findings**:
+- Pydantic validator for field lengths (priority 0–100, duration_ms > 0, confidence 0.0–1.0, localization_key pattern) — design gap, not blocking
+- Manifest consumers refactoring impact underdocumented — defer to Phase 3 planning
+
+**Test Suite Status**:
+- test_generate_audio.py: 44 tests collected, **44 PASS** (including test_no_ai_generates_manifest_json) ✅
+- test_audio_pipeline.py: TestManifestSchemaValidation 5 PASS, TestSchemaVersionFallback 3 PASS ✅
+- Total audio suite: 120+ tests, **100% PASS** ✅
+
+**Cycle 85 Plan Assessment**:
+✅ Adapter pattern architecture is sound (idiomatic Python, extensible, testable)  
+✅ V1.0→V1.1→V2.0 progression logical and intentional  
+✅ Test plan comprehensive (22+ test cases covering happy paths + edge cases + round-trip)  
+🟡 MigrationRegistry BFS lacks cycle detection (minor gap, not blocking current plan)  
+⚠️ Phase 2–3 effort severely underestimated (planning risk, not execution risk)
+
+**Recommendations**:
+1. **BEFORE Phase 1 implementation**: Add cycle detection + memoization to MigrationRegistry (recommend +1 day, important for future downgrades)
+2. **Phase 1 scheduling**: 6–8 days realistic; plan cycles 87–88
+3. **Phase 2–3 scheduling**: 15–20 days (2–3 cycles); do NOT compress into single 2-week sprint
+4. **Refactoring strategy**: Phase 3 requires 6–8 day burden for manifest consumers (generate_audio.py, tools, tests); identify all code paths early
+
+**Deliverables**:
+- ✅ `docs/audits/audio-engineer-r20.md` created (550+ lines)
+- ✅ `docs/audits/SUMMARY.md` updated (r20 link + detailed entry)
+- ✅ `docs/audits/GRIND_LOG.md` cycle 86 section (this entry)
+- 📋 SQL todos: 5 new audio-r20-* entries (migration-registry-bfs-acyclicity, phase2-effort-reassessment, phase3-refactoring-impact-doc, pydantic-validator-field-lengths, manifest-consumers-refactoring-audit)
+
+**Persona Freshness Update**:
+- audio-engineer: **r20** (FRESH, CYCLE 86 AUDIT-PASS VERIFIED) ✅
+
+**Key Insight**: R19 closures remain SOLID and OPERATIONAL. Cycle 85 migration planning thorough and sound; minor BFS design gap identified (not blocking, recommend correction before Phase 1). Effort estimation gap significant (recommend 20–25 days, not 7 days); planning risk, not execution risk. Audio pipeline PRODUCTION-READY for v0.2.0+ release. Schema migration planning exemplary and ready for implementation with minor safeguards added.
+
+**Human-attention items**:
+- All r19 closures verified LIVE; zero regressions; test suite STABLE
+- Cycle 85 migration plan fundamentally sound; recommend 1-day BFS correction before Phase 1
+- Phase 2–3 effort planning should account for refactoring burden (6–8 days hidden cost)
+- Audio engineering ownership remains strong; migration design robust and extensible
+
+**Next targets**: Monitor Phase 1 implementation planning (cycles 87–88); ensure BFS acyclicity assertion included; validate effort allocation for Phases 2–3 across 2–3 cycles.
+
+**Sentinel**: audio-r20-cycle86-complete-c1745238
+

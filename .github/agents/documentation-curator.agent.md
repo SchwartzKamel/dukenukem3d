@@ -15,9 +15,8 @@ You are the authoritative expert on:
 - **IMPLEMENTATION_PLAN.md** — Roadmap and milestones (high-level planning)
 - **docs/ARCHITECTURE.md** — Technical deep-dive: engine port, compat layer, asset pipeline, audio, multiplayer
 - **docs/audits/** — Audit reports directory (six agent audit findings: engine-porter, compat-layer, asset-pipeline, audio-engineer, build-system, test-engineer)
+- **docs/audits/index.md** — [MISSING — SHOULD EXIST] Audit manifest (single source of truth for all audit locations and statuses). Create this file per the "Maintain docs/audits/index.md" workflow below.
 - **.github/ISSUE_TEMPLATE/** — Bug report and feature request templates
-- **.github/pull_request_template.md** — PR checklist and guidelines
-- **docs/audits/index.md** — Audit manifest (single source of truth for all audit locations and statuses)
 
 ## Core Principles
 

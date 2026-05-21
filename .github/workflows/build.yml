@@ -215,13 +215,37 @@ jobs:
           python -m pip install --upgrade pip
           pip install pytest
 
+      - name: Parse SDL2 version
+        id: sdlver
+        shell: bash
+        run: |
+          version=$(grep -E '^SDL2_VERSION' build.mk | head -1 | cut -d= -f2 | tr -d ' ')
+          echo "version=$version" >> $GITHUB_OUTPUT
+
+      - name: Cache SDL2 VC devel
+        id: cache-sdl2-vc
+        uses: actions/cache@0c45773b623bea8c8e75f6c82b208c3cf94ea4f9 # v4
+        with:
+          path: SDL2-${{ steps.sdlver.outputs.version }}
+          key: sdl2-vc-${{ runner.os }}-${{ steps.sdlver.outputs.version }}
+          restore-keys: |
+            sdl2-vc-${{ runner.os }}-
+
       - name: Install SDL2
         run: |
           $SDL2_VERSION = (Select-String -Path build.mk -Pattern '^SDL2_VERSION' | ForEach-Object { $_.Line -replace '.*=\s*', '' })
           Write-Host "SDL2 version: $SDL2_VERSION"
-          Invoke-WebRequest -Uri "https://github.com/libsdl-org/SDL/releases/download/release-$SDL2_VERSION/SDL2-devel-$SDL2_VERSION-VC.zip" -OutFile SDL2-VC.zip
-          Expand-Archive SDL2-VC.zip -DestinationPath .
-          echo "SDL2_DIR=$PWD\SDL2-$SDL2_VERSION" >> $env:GITHUB_ENV
+          $cachePath = "SDL2-$SDL2_VERSION"
+          if (-Not (Test-Path "$cachePath/cmake")) {
+            Write-Host "Cache miss or first run - downloading SDL2 VC..."
+            Invoke-WebRequest -Uri "https://github.com/libsdl-org/SDL/releases/download/release-$SDL2_VERSION/SDL2-devel-$SDL2_VERSION-VC.zip" -OutFile SDL2-VC.zip
+            Expand-Archive SDL2-VC.zip -DestinationPath .
+            Remove-Item SDL2-VC.zip
+            Write-Host "SDL2 VC extracted to $cachePath"
+          } else {
+            Write-Host "Using cached SDL2 VC from $cachePath"
+          }
+          echo "SDL2_DIR=$PWD\$cachePath" >> $env:GITHUB_ENV
         shell: pwsh
 
       - name: Configure with CMake (32-bit)

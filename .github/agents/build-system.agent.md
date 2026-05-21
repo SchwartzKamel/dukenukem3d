@@ -126,7 +126,7 @@ The BUILD engine uses packed structs (32-bit ints, not longs):
 These are verified at test time via compile + runtime check (compat/ headers).
 
 **When you change engine struct layouts** (in SRC/BUILD.H):
-1. Update `compat/BUILD.h` mirror (portable, int32_t fields)
+1. Update `compat/BUILD.h` mirror (portable, int32_t fields) — **NOTE**: This file does not currently exist. Check if it should be created or if references should point to an existing file (e.g., compat/compat.h).
 2. Run `pytest tests/test_build_structs.py -v` to verify
 3. If sizes change, update test assertions in test_build_structs.py:22-28
 
