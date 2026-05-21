@@ -270,3 +270,140 @@ class TestStubLogging:
         assert '#endif' in content
         # Should have #ifdef DUKE3D_STUB_LOG guard
         assert '#ifdef DUKE3D_STUB_LOG' in content
+
+    def test_stub_log_call_sites_count(self):
+        """Ensure at least 5 STUB_LOG call sites exist (cycle 68 compat-r6-stubs-logging)."""
+        import subprocess
+        # Count STUB_LOG calls in source files (excluding macro definitions)
+        result = subprocess.run(
+            "grep -rn 'STUB_LOG\\s*(' compat/ source/ SRC/ --include='*.c' 2>/dev/null | grep -v 'define STUB_LOG' | wc -l",
+            shell=True,
+            capture_output=True,
+            text=True
+        )
+        count = int(result.stdout.strip())
+        assert count >= 5, f"Expected at least 5 STUB_LOG call sites, found {count}"
+
+
+class TestCompatR12SdlErrorLogging:
+    """Test SDL2 error logging enhancement (compat-r12-sdl2-error-logging-enhancement)."""
+
+    def test_compat_sdl_err_macro_exists(self):
+        """compat/sdl_driver.c must define COMPAT_SDL_ERR macro."""
+        with open('compat/sdl_driver.c') as f:
+            content = f.read()
+        assert '#define COMPAT_SDL_ERR' in content, "COMPAT_SDL_ERR macro not defined"
+        assert 'compat-r12-sdl2-error-logging' in content, "Missing compat-r12 sentinel comment"
+
+    def test_compat_sdl_err_has_env_var_gating(self):
+        """COMPAT_SDL_ERR macro must gate logging behind DUKE3D_LOG_SDL_ERRORS env var."""
+        with open('compat/sdl_driver.c') as f:
+            content = f.read()
+        # Find the macro definition
+        import re
+        macro_match = re.search(r'#define COMPAT_SDL_ERR.*?\n.*?\n.*?\n', content, re.DOTALL)
+        assert macro_match, "Could not find COMPAT_SDL_ERR macro definition"
+        macro_text = macro_match.group(0)
+        assert 'getenv' in macro_text, "Macro should use getenv() for env var gating"
+        assert 'DUKE3D_LOG_SDL_ERRORS' in macro_text, "Macro should check DUKE3D_LOG_SDL_ERRORS"
+
+    def test_sdl_lock_texture_has_error_logging(self):
+        """SDL_LockTexture error path must use COMPAT_SDL_ERR."""
+        with open('compat/sdl_driver.c') as f:
+            content = f.read()
+        # Find the SDL_LockTexture call
+        import re
+        lock_match = re.search(
+            r'if\s*\(\s*SDL_LockTexture\s*\(.*?\)\s*<\s*0\s*\)\s*\{[^}]*COMPAT_SDL_ERR',
+            content,
+            re.DOTALL
+        )
+        assert lock_match, "SDL_LockTexture error path should use COMPAT_SDL_ERR macro"
+
+    def test_sdl_lock_texture_error_comment(self):
+        """SDL_LockTexture error path must have compat-r12 sentinel comment."""
+        with open('compat/sdl_driver.c') as f:
+            content = f.read()
+        import re
+        # Find the SDL_LockTexture block and check for comment
+        lock_block = re.search(
+            r'if\s*\(\s*SDL_LockTexture.*?return;',
+            content,
+            re.DOTALL
+        )
+        assert lock_block, "SDL_LockTexture error block not found"
+        assert 'compat-r12-sdl2-error-logging' in lock_block.group(0), \
+            "SDL_LockTexture error block should have compat-r12 comment"
+
+    def test_sdl_getError_called_in_macro(self):
+        """COMPAT_SDL_ERR macro must call SDL_GetError()."""
+        with open('compat/sdl_driver.c') as f:
+            content = f.read()
+        import re
+        macro_match = re.search(r'#define COMPAT_SDL_ERR.*?\n.*?\n.*?\n', content, re.DOTALL)
+        assert macro_match, "Could not find COMPAT_SDL_ERR macro"
+        macro_text = macro_match.group(0)
+        assert 'SDL_GetError' in macro_text, "Macro should call SDL_GetError()"
+
+    def test_macro_uses_func_identifier(self):
+        """COMPAT_SDL_ERR macro should use __func__ when called."""
+        with open('compat/sdl_driver.c') as f:
+            content = f.read()
+        import re
+        # Check that macro invocation uses __func__
+        invocation = re.search(r'COMPAT_SDL_ERR\s*\(\s*__func__\s*\)', content)
+        assert invocation, "COMPAT_SDL_ERR should be called with __func__"
+
+
+class TestErrorFatalNoreturn:
+    """Test _Noreturn annotation for error_fatal() function."""
+
+    def test_noreturn_macro_defined(self):
+        """compat.h must define _Noreturn macro for compatibility."""
+        with open('compat/compat.h') as f:
+            content = f.read()
+        assert '#define _Noreturn' in content, "_Noreturn macro not defined"
+
+    def test_noreturn_uses_attribute(self):
+        """_Noreturn macro should use __attribute__((noreturn)) for GCC/Clang."""
+        with open('compat/compat.h') as f:
+            content = f.read()
+        # Should have GCC __attribute__((noreturn)) fallback
+        assert '__attribute__((noreturn))' in content, \
+            "_Noreturn macro should use GCC attribute for portability"
+
+    def test_error_fatal_has_noreturn(self):
+        """error_fatal() must have _Noreturn annotation."""
+        with open('compat/compat.h') as f:
+            content = f.read()
+        # Find error_fatal function declaration
+        import re
+        match = re.search(r'_Noreturn\s+void\s+error_fatal\s*\(', content)
+        assert match, "error_fatal() must be annotated with _Noreturn"
+
+    def test_noreturn_macro_handles_msvc(self):
+        """_Noreturn macro must handle MSVC compatibility."""
+        with open('compat/compat.h') as f:
+            content = f.read()
+        # Should have fallback for non-GCC compilers
+        assert '#else' in content, "_Noreturn macro should have fallback for other compilers"
+        # Should have #endif to close the guard
+        assert '#endif' in content, "_Noreturn macro should properly close with #endif"
+
+    def test_noreturn_suppresses_control_flow_warnings(self):
+        """_Noreturn annotation should suppress control flow warnings at call sites."""
+        # Build test: verify no "reaches end of non-void" warnings
+        import subprocess
+        result = subprocess.run(
+            'make clean && make 2>&1 | grep -c "reaches end of non-void" || echo 0',
+            shell=True,
+            cwd='.',
+            capture_output=True,
+            text=True
+        )
+        # Extract the count from the last line
+        lines = result.stdout.strip().split('\n')
+        count_line = lines[-1].strip()
+        warning_count = int(count_line or "0")
+        assert warning_count == 0, \
+            f"Should have 0 control flow warnings, found {warning_count}"

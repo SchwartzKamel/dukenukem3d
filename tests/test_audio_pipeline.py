@@ -1695,24 +1695,20 @@ class TestAtomicWriteHardening:
 class TestSoundManifestSchemaVersion:
     """Test load_and_verify_audio_manifest() schema_version handling.
     
-    asset-r19-sound-manifest-schema-version-rejection-test: Documents current behavior.
+    asset-r19-sound-manifest-schema-version-enforcement: Enforces schema_version validation.
     
-    NOTE: As of cycle 68, load_and_verify_audio_manifest() in manifest_verification.py
-    does NOT validate schema_version. These tests document the current permissive behavior
-    and serve as a baseline for future schema_version enforcement work.
-    
-    Explicit error rejection is deferred to the follow-up todo:
-    asset-r19-sound-manifest-schema-version-enforcement (MED)
+    All manifests must have a top-level schema_version field set to one of SUPPORTED_SCHEMA_VERSIONS.
+    This test suite validates that:
+    - Missing schema_version raises ValueError
+    - Unsupported schema_version values raise ValueError
+    - Matching/supported schema_version='1.0' is accepted
     """
     
-    def test_load_and_verify_audio_manifest_missing_schema_version_currently_accepted(self):
-        """load_and_verify_audio_manifest() currently accepts manifests without schema_version.
+    def test_load_and_verify_audio_manifest_missing_schema_version_raises(self):
+        """load_and_verify_audio_manifest() raises ValueError for missing schema_version.
         
-        CURRENT BEHAVIOR: No validation or error (legacy compat).
-        This test documents the status quo for future enforcement work.
-        
-        FUTURE: When asset-r19-sound-manifest-schema-version-enforcement is implemented,
-        this should raise an explicit error instead.
+        asset-r19-sound-manifest-schema-version-enforcement: Enforce schema_version validation.
+        Manifests without a top-level schema_version field must raise ValueError.
         """
         with tempfile.TemporaryDirectory() as tmpdir:
             manifest_path = os.path.join(tmpdir, "MANIFEST.json")
@@ -1730,22 +1726,15 @@ class TestSoundManifestSchemaVersion:
             with open(manifest_path, "w") as f:
                 json.dump(manifest, f)
             
-            # Currently, this should NOT raise an error
-            result = load_and_verify_audio_manifest(manifest_path)
-            
-            # Verify the manifest was loaded
-            assert isinstance(result, dict)
-            assert "entries" in result
-            assert len(result["entries"]) == 1
+            # Should raise ValueError for missing schema_version
+            with pytest.raises(ValueError, match="manifest missing required field 'schema_version'"):
+                load_and_verify_audio_manifest(manifest_path)
     
-    def test_load_and_verify_audio_manifest_mismatched_schema_version_currently_accepted(self):
-        """load_and_verify_audio_manifest() currently accepts schema_version='2.0'.
+    def test_load_and_verify_audio_manifest_unsupported_schema_version_raises(self):
+        """load_and_verify_audio_manifest() raises ValueError for unsupported schema_version.
         
-        CURRENT BEHAVIOR: No validation or error on mismatched schema_version.
-        This test documents the status quo for future enforcement work.
-        
-        FUTURE: When asset-r19-sound-manifest-schema-version-enforcement is implemented,
-        this should raise an explicit error instead.
+        asset-r19-sound-manifest-schema-version-enforcement: Enforce schema_version validation.
+        Manifests with unsupported schema_version values must raise ValueError.
         """
         with tempfile.TemporaryDirectory() as tmpdir:
             manifest_path = os.path.join(tmpdir, "MANIFEST.json")
@@ -1764,22 +1753,15 @@ class TestSoundManifestSchemaVersion:
             with open(manifest_path, "w") as f:
                 json.dump(manifest, f)
             
-            # Currently, this should NOT raise an error even with mismatched version
-            result = load_and_verify_audio_manifest(manifest_path)
-            
-            # Verify the manifest was loaded despite version mismatch
-            assert isinstance(result, dict)
-            assert result.get("schema_version") == "2.0"
-            assert "entries" in result
+            # Should raise ValueError for unsupported version
+            with pytest.raises(ValueError, match="unsupported schema_version: 2.0"):
+                load_and_verify_audio_manifest(manifest_path)
     
-    def test_load_and_verify_audio_manifest_downgrade_attempt_currently_accepted(self):
-        """load_and_verify_audio_manifest() currently accepts schema_version downgrade.
+    def test_load_and_verify_audio_manifest_downgrade_attempt_raises(self):
+        """load_and_verify_audio_manifest() raises ValueError for schema_version downgrade.
         
-        CURRENT BEHAVIOR: No validation or error on unexpected schema_version values.
-        This test documents the status quo for future enforcement work.
-        
-        FUTURE: When asset-r19-sound-manifest-schema-version-enforcement is implemented,
-        this should raise an explicit error instead.
+        asset-r19-sound-manifest-schema-version-enforcement: Enforce schema_version validation.
+        Manifests with unexpected schema_version values (e.g., '0.9' downgrade) must raise ValueError.
         """
         with tempfile.TemporaryDirectory() as tmpdir:
             manifest_path = os.path.join(tmpdir, "MANIFEST.json")
@@ -1798,13 +1780,9 @@ class TestSoundManifestSchemaVersion:
             with open(manifest_path, "w") as f:
                 json.dump(manifest, f)
             
-            # Currently, this should NOT raise an error on downgrade attempt
-            result = load_and_verify_audio_manifest(manifest_path)
-            
-            # Verify the manifest was loaded despite version mismatch
-            assert isinstance(result, dict)
-            assert result.get("schema_version") == "0.9"
-            assert "entries" in result
+            # Should raise ValueError for unsupported downgrade version
+            with pytest.raises(ValueError, match="unsupported schema_version: 0.9"):
+                load_and_verify_audio_manifest(manifest_path)
     
     def test_load_and_verify_audio_manifest_matching_schema_version_accepted(self):
         """load_and_verify_audio_manifest() accepts schema_version='1.0' (correct version).

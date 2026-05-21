@@ -60,6 +60,36 @@ make DUKE3D_STUB_LOG=1
 
 See [log_stub.h](log_stub.h) for implementation details.
 
+### Stubs Without Logging (Intentionally Silent)
+
+The following stub functions **deliberately do NOT log**, to avoid debug spam. They fall into two categories:
+
+#### Per-Frame Polling (High Frequency)
+These functions are called repeatedly during game loops and must remain silent:
+
+| Function | File | Reason |
+|----------|------|--------|
+| `FX_GetVolume()` | audio_stub.c | Frequently called to read volume state |
+| `FX_GetMaxReverbDelay()` | audio_stub.c | Frequently called to query reverb limit |
+| `TS_LockMemory()`, `TS_UnlockMemory()` | audio_stub.c | Task scheduler memory locks (per-frame) |
+| `inittimer1mhz()`, `uninittimer1mhz()` | mact_stub.c | Timer initialization (called once, but silent by design) |
+| `deltatime1mhz()` | mact_stub.c | Per-frame delta time query |
+| `CONTROL_PrintAxes()` | audio_stub.c | Developer-only debug output (intentionally no-op) |
+
+#### Configuration / Rare Calls
+These functions are called during setup or configuration, not during gameplay:
+
+| Function | File | Reason |
+|----------|------|--------|
+| `MUSIC_SetMaxFMMidiChannel()` | audio_stub.c | FM synth channel setup (legacy DOS-only) |
+| `MUSIC_SetMidiChannelVolume()` | audio_stub.c | MIDI channel control (legacy DOS-only) |
+| `MUSIC_ResetMidiChannelVolumes()` | audio_stub.c | MIDI reset (legacy DOS-only) |
+| `MUSIC_SetSongTick()`, `MUSIC_SetSongTime()`, `MUSIC_SetSongPosition()` | audio_stub.c | MIDI position seek (rarely called, silent by design) |
+| `MUSIC_RegisterTimbreBank()` | audio_stub.c | Timbre registration (legacy DOS-only) |
+| `testcallback()` | mact_stub.c | Internal test callback (no-op for stub mode) |
+
+**Design:** If high-frequency stubs need logging in the future, they should be gated by a separate `DUKE3D_VERBOSE_STUBS` define to avoid frame-time overhead.
+
 ---
 
 ## Networking Abstraction (Cycle 65 net_socket)
@@ -133,6 +163,95 @@ When porting a DOS/Watcom API to modern platforms:
    - `build.mk` (line 132) — ensure COMPAT_STD = -std=gnu11
    - `CMakeLists.txt` (lines 81–82) — add to `COMPAT_SRCS`, set `LANGUAGE C`
 5. **Document in this README** — add file to File Index table
+
+---
+
+## MUSIC Subsystem Initialization Order (Cycles 73 / compat-r12-r13)
+
+**CRITICAL:** SDL2_mixer requires a strict initialization sequence. Violating this order causes silent failures, crashes, or corrupted audio state. This requirement is flagged by audit cycles 34, 12, 13, and verified in the compat layer initialization.
+
+### Required Call Sequence (Strict Order)
+
+```
+1. SDL_InitSubSystem(SDL_INIT_AUDIO)  ← Platform audio device initialization
+2. Mix_Init(MIX_INIT_OGG | MIX_INIT_MP3)  ← Register format decoders
+3. Mix_OpenAudio(rate, format, channels, bufsize)  ← Open audio device, allocate buffers
+4. Mix_AllocateChannels(numvoices)  ← Allocate mixer channels for SFX playback
+5. [Load music files via Mix_LoadMUS_RW() - must happen AFTER steps 1-4]
+6. Mix_PlayMusic(music_obj, loops)  ← Play music (now safe to call)
+```
+
+### Why Order Matters
+
+- **`SDL_InitSubSystem(SDL_INIT_AUDIO)`** — Initializes the SDL audio subsystem on the current platform (ALSA/PulseAudio on Linux, CoreAudio on macOS, DirectSound on Windows). Must be first.
+- **`Mix_Init(MIX_INIT_OGG | MIX_INIT_MP3)`** — Registers dynamic loader plugins for OGG Vorbis and MP3 formats. Failure here doesn't fatal-error; WAV still works, but OGG/MP3 are unavailable. This is **not** the same as opening the audio device.
+- **`Mix_OpenAudio()`** — **This is the critical function.** It claims the OS audio device, allocates ring buffers, starts the audio thread, and prepares the mixer. `Mix_OpenAudio()` MUST come after `Mix_Init()`, or it may fail silently or hang trying to initialize already-claimed device handles.
+- **`Mix_AllocateChannels()`** — Preallocates mixer channels for sound effects. Must happen after `Mix_OpenAudio()`. If called before, the call is ignored (no mixer is active yet).
+- **Load/Play Music** — `Mix_LoadMUS_RW()` and `Mix_PlayMusic()` only work if steps 1–4 have completed and the mixer is live (`mixer_initialized == 1` in compat/audio_stub.c).
+
+### Code Path in compat/
+
+| Phase | Function | File:Line | Called From | Details |
+|-------|----------|-----------|------------|---------|
+| 1–4   | `FX_Init()` | compat/audio_stub.c:364 | source/SOUNDS.C:79, 83 | Executes all 4 steps in sequence. Sets `mixer_initialized = 1` on success. |
+| 2     | `Mix_Init()` | compat/audio_stub.c:374 | → FX_Init | Registers OGG/MP3 decoders. Non-fatal if it fails. |
+| 3     | `Mix_OpenAudio()` w/ retry | compat/audio_stub.c:385 | → FX_Init | 3-attempt exponential backoff (100ms, 200ms, 400ms) for transient device failures. Returns FX_Error if all retries exhausted. |
+| 4     | `Mix_AllocateChannels()` | compat/audio_stub.c:405 | → FX_Init | Allocates channels for SFX. |
+| —     | `MUSIC_Init()` | compat/audio_stub.c:843 | source/SOUNDS.C:165 | **Currently a no-op stub.** Does not call Mix_* functions. Real initialization is deferred to FX_Init. |
+| 5–6   | `MUSIC_PlaySong()` | compat/audio_stub.c:915 | source/SOUNDS.C:256 (playmusic) | Checks `mixer_initialized` (line 918). If 0, returns silently. Calls `Mix_LoadMUS_RW()` and `Mix_PlayMusic()` iff `mixer_initialized && song`. |
+
+### Engine Call Sites
+
+```
+source/SOUNDS.C:79 or 83     ← FX_Init( FXDevice, NumVoices, NumChannels, NumBits, MixRate )
+source/SOUNDS.C:165          ← MUSIC_Init( MusicDevice, MidiPort )
+source/SOUNDS.C:256          ← playmusic( char *fn ) → MUSIC_PlaySong()
+source/MENUES.C:612, 2698    ← playmusic() calls at runtime (menus)
+source/PREMAP.C:992, 1450    ← playmusic() calls at runtime (game level init)
+source/GAME.C:6519           ← playmusic() calls at runtime (gameplay)
+```
+
+All music playback paths funnel through `playmusic()` in source/SOUNDS.C:256, which calls `MUSIC_PlaySong()` from compat/audio_stub.c:915.
+
+### Common Failure Modes If Order Violated
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| Music plays silently (no audio) | `Mix_PlayMusic()` called before `Mix_OpenAudio()` | Ensure `FX_Init()` completes successfully before any `MUSIC_PlaySong()` call. Check `mixer_initialized == 1`. |
+| `Mix_OpenAudio()` returns -1 | Audio device busy, or `Mix_Init()` failed to register required format decoders | (a) Add retry with exponential backoff (already implemented at compat/audio_stub.c:384–398). (b) Check `Mix_GetError()` for OS-specific audio errors. |
+| `MUSIC_PlaySong()` returns error silently | `mixer_initialized == 0` because `FX_Init()` was not called or failed | Verify FX_Init return value. Ensure game startup order is: SoundStartup() → MusicStartup() → playmusic(). |
+| Crash on `Mix_LoadMUS_RW()` or `Mix_PlayMusic()` | Mixer channels not allocated (step 4 skipped) | Call `Mix_AllocateChannels()` after `Mix_OpenAudio()`. |
+| Format loader plugin missing (OGG/MP3 unavailable) | `Mix_Init()` failed or format libs not linked | Non-fatal; WAV still works. See stderr warning at compat/audio_stub.c:377. |
+
+### Cleanup Order (Reverse Sequence)
+
+When shutting down, reverse the init order:
+
+```c
+// In FX_Shutdown (compat/audio_stub.c:417):
+1. Mix_HaltMusic()  ← Stop playback first
+2. Mix_CloseAudio()  ← Close audio device (deallocates channels, stops audio thread)
+3. Mix_Quit()  ← Unload format plugins
+4. SDL_QuitSubSystem(SDL_INIT_AUDIO)  ← Release OS audio resources
+5. mixer_initialized = 0  ← Signal mixer is inactive
+```
+
+See compat/audio_stub.c:417–431 for implementation.
+
+### SDL2_mixer Version Notes
+
+- **SDL2_mixer 2.0.x:** `Mix_Init()` was optional for basic WAV playback; OGG/MP3 decoders were built-in or optional at compile-time. `Mix_OpenAudio()` could be called before `Mix_Init()` (order not enforced).
+- **SDL2_mixer 2.4+:** `Mix_Init()` became mandatory; format loaders are now plugins loaded at runtime. If `Mix_Init()` is not called before `Mix_OpenAudio()`, some format decoders will not be available, and `Mix_LoadMUS()` may fail for OGG/MP3.
+- **SDL2_mixer 3.0+ (future):** Strict order enforcement may be tightened further; `Mix_Init()` must precede `Mix_OpenAudio()` or the call will fail with an error code instead of silently missing decoders.
+
+**Current build uses SDL2_mixer 2.x.** See build.mk for exact version. If upgrading to 3.0, verify compat/audio_stub.c:374–388 works unchanged, or add conditional version detection.
+
+### Cross-Reference: Audit Cycles
+
+- **compat-r9-mix-init-recovery-test** (cycle 34): Tests `Mix_OpenAudio()` retry semantics and recovery from transient device failures.
+- **compat-r11-mix-init-retry-backoff** (cycle 71): Implements 3-attempt exponential backoff in FX_Init (compat/audio_stub.c:384–398).
+- **compat-r12-verify-music-subsystem-init-order** (cycle 73): Verify strict init order in engine startup sequence.
+- **compat-r13-music-subsystem-init-docs** (cycle 73): Document init order (this section).
 
 ---
 

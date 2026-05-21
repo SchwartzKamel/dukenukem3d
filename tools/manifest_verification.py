@@ -11,6 +11,9 @@ import json
 import os
 import warnings
 
+# asset-r19-sound-manifest-schema-version-enforcement: Define supported versions
+SUPPORTED_SCHEMA_VERSIONS = ("1.0",)
+
 
 def _sha256_of_file(path: str) -> str:
     """Compute SHA256 checksum of a file."""
@@ -68,6 +71,9 @@ def load_and_verify_audio_manifest(manifest_path: str, base_dir: str = None) -> 
     For each entry with a 'checksum' field, recomputes SHA256 of the referenced WAV file
     and raises RuntimeError on mismatch.
     
+    asset-r19-sound-manifest-schema-version-enforcement: Enforce top-level schema_version.
+    Manifests must have a schema_version field set to one of SUPPORTED_SCHEMA_VERSIONS.
+    
     Args:
         manifest_path: Path to MANIFEST.json file
         base_dir: Directory to resolve WAV paths relative to. Defaults to manifest's directory.
@@ -77,7 +83,7 @@ def load_and_verify_audio_manifest(manifest_path: str, base_dir: str = None) -> 
         
     Raises:
         IOError: If manifest file not found
-        ValueError: If manifest JSON is invalid
+        ValueError: If manifest JSON is invalid or schema_version missing/unsupported
         RuntimeError: If checksum verification fails (sentinel: manifest-checksum-verify-on-load)
     """
     if not os.path.exists(manifest_path):
@@ -88,6 +94,20 @@ def load_and_verify_audio_manifest(manifest_path: str, base_dir: str = None) -> 
     
     with open(manifest_path, "r") as f:
         manifest = json.load(f)
+    
+    # Enforce schema_version validation
+    schema_version = manifest.get("schema_version")
+    if schema_version is None:
+        supported_versions = ", ".join(SUPPORTED_SCHEMA_VERSIONS)
+        raise ValueError(
+            f"manifest missing required field 'schema_version' (expected one of: {supported_versions})"
+        )
+    
+    if schema_version not in SUPPORTED_SCHEMA_VERSIONS:
+        supported_versions = ", ".join(SUPPORTED_SCHEMA_VERSIONS)
+        raise ValueError(
+            f"unsupported schema_version: {schema_version}, expected one of: {supported_versions}"
+        )
     
     # Verify manifest-level checksum (if present)
     verify_manifest_checksum(manifest)

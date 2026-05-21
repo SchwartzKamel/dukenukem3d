@@ -606,6 +606,112 @@ Loads the lookup tables manifest and verifies:
 - **Manifest-level checksum**: Top-level SHA256
 - **Tables file checksum**: SHA256 of TABLES.DAT
 
+### Legacy Manifest Checksum Deprecation
+
+Audio manifests originally supported legacy entries lacking per-WAV `sha256` checksums. This section documents the deprecation timeline and migration path.
+
+**Current State (Cycle 74+)**
+
+- Checksum field is **optional** in manifest entries
+- Missing checksums emit a `UserWarning` during load (tools/manifest_verification.py, lines 103–107)
+- Warning text: `"Manifest entry[N] lacks checksum field (legacy compat mode)"`
+- Manifests load successfully (backward compatible)
+
+**Deprecation Timeline**
+
+| Cycle | Status | Behavior |
+|-------|--------|----------|
+| 74+ | Current | Warn on missing checksums; accept legacy entries without verification |
+| 80 (proposed) | **Soft deadline** | Begin treating missing checksums as errors in new manifests; older entries remain accepted with warnings (~8 cycles from cycle 74) |
+| 90 (proposed) | Hard deadline | Remove legacy compat path entirely; all entries MUST have `sha256` field or load will fail |
+
+**Rationale**
+
+- **Determinism guarantee**: WAV file checksums enable bit-identical verification across runs and platforms, preventing silent asset corruption
+- **Integrity boundary**: Checksums are computed at generation time and verified at load time, closing the gap between `generate_audio.py` and runtime code
+- **Forward compatibility**: Schema v1.0 already defines checksums as a required concept; the deprecation simply enforces it
+
+**Migration Path**
+
+To migrate legacy manifests lacking checksums:
+
+1. **Re-run audio generation** (checksums are computed automatically):
+   ```bash
+   python3 tools/generate_audio.py [--no-ai]
+   ```
+   This regenerates `generated_assets/sounds/MANIFEST.json` with up-to-date checksums for all WAV files.
+
+2. **Verify checksums are present** in the manifest:
+   ```bash
+   python3 -c "import json; m = json.load(open('generated_assets/sounds/MANIFEST.json')); \
+     print('Entries with sha256:', sum(1 for e in m.get('entries', []) if 'sha256' in e))"
+   ```
+
+3. **Load and verify** using the standard verifier:
+   ```python
+   from manifest_verification import load_and_verify_audio_manifest
+   manifest = load_and_verify_audio_manifest(
+       "generated_assets/sounds/MANIFEST.json",
+       "generated_assets/sounds"
+   )
+   ```
+
+**Citations**
+
+- Warning emission: `tools/manifest_verification.py`, lines 103–107
+- Checksum computation: `tools/generate_audio.py`, lines 83–97
+- Manifest model: `tools/sound_manifest.py`, lines 13–120 (SoundManifestEntry schema; checksum implicitly required for verification)
+
+### Voice Generation Determinism
+
+Duke3D audio uses multiple voice generation backends with varying reproducibility guarantees. This section documents each path, the determinism contract, and policy for PR vs. release builds.
+
+**Three Voice Generation Paths**
+
+1. **Local Path (`--no-ai` flag)**
+   - Implementation: `tools/generate_audio.py`, lines 548–602 (`_generate_audio_parallel_local()`)
+   - Output: Silence placeholders (22 KB per WAV)
+   - Determinism: **Fully deterministic** — same input always produces bit-identical WAV bytes
+   - Reproducibility: Re-running generates identical files (identical struct packing, same silence waveform, fixed epoch timestamp `1970-01-01T00:00:00Z`)
+
+2. **Azure Speech API Path** (default when `AUDIO_ENDPOINT` and `AUDIO_API_KEY` are set)
+   - Implementation: `tools/generate_audio.py`, lines 605–700+ (`_generate_audio_parallel_api()` / `_generate_audio_async_main()`)
+   - Output: Real voice lines from Azure Cognitive Services Text-to-Speech or GPT Audio API
+   - Determinism: **Deterministic for fixed parameters** — same `(voice_id, text, locale, SSML_params)` tuple produces identical audio from Azure on repeated requests
+   - Caveat: API updates or model versioning may change output; document API version in manifest metadata
+   - Reproducibility: Sufficient for release builds when API contract is pinned
+
+3. **FLUX/Procedural Path** (not currently active; for future expansion)
+   - Model: FLUX or similar diffusion-based voice synthesis
+   - Determinism: **Not reproducible** — even with identical seed, model updates or floating-point variations cause bit-level differences
+   - Reproducibility: Not suitable for release builds; appropriate for exploratory generation only
+
+**Policy**
+
+- **PR builds and CI**: Use `--no-ai` mode (silence placeholders)
+  - Reason: No API keys in CI; enables reproducible builds
+  - Effect: Audio generation is fast, fully deterministic, and does not require credentials
+  - Testing: Validates audio hooks and pipeline without API calls
+
+- **Release builds and distribution**: Use Azure API path with pinned model/API version
+  - Reason: Real voice lines for game distribution
+  - Reproducibility requirement: Document `AUDIO_MODEL` (e.g., `gpt-audio-1.5`) and API version in `GRP_MANIFEST.json` under `generation_metadata`
+  - Seed management: If using seeded synthesis, document seed in manifest (currently not applicable; future extension)
+
+**Reproducibility Guarantee**
+
+Given a fixed `MANIFEST.json` and `--no-ai` mode:
+- Re-running `python3 tools/generate_audio.py --no-ai` must produce **bit-identical WAV files**
+- Verified by: `sha256sum generated_assets/sounds/*.WAV` (checksums must match manifest entries)
+- Test: `tests/test_audio_pipeline.py` includes determinism validation (compare silence WAV byte streams across runs)
+
+**Citations**
+
+- Local generation: `tools/generate_audio.py`, lines 548–602
+- Async API generation: `tools/generate_audio.py`, lines 605–700+
+- Deterministic timestamp: `tools/generate_audio.py`, lines 553–556, 615–618
+- Manifest metadata: `tools/sound_manifest.py`, lines 72–75 (`generation_metadata` field)
+
 ### Behavior Contracts
 
 All three verifiers follow the same contract:

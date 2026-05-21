@@ -16,6 +16,14 @@
 #include <stdlib.h>
 #include <signal.h>
 #include <sys/types.h>
+
+/* compat-r12-sdl2-error-logging: Helper macro for SDL error logging
+ * Logs SDL_GetError() to stderr when DUKE3D_LOG_SDL_ERRORS env var is set.
+ * This allows production binaries to stay quiet while enabling diagnostics. */
+#define COMPAT_SDL_ERR(fn) do { \
+    if (getenv("DUKE3D_LOG_SDL_ERRORS")) \
+        fprintf(stderr, "SDL2 error in %s: %s\n", fn, SDL_GetError()); \
+} while (0)
 #ifdef __SSE2__
 #include <emmintrin.h>
 #endif
@@ -428,7 +436,11 @@ void sdl_nextpage(void)
 
 	if (!renderer || !texture || !screenbuf) return;
 
-	if (SDL_LockTexture(texture, NULL, &pixels, &pitch) < 0) return;
+	if (SDL_LockTexture(texture, NULL, &pixels, &pitch) < 0) {
+		/* compat-r12-sdl2-error-logging */
+		COMPAT_SDL_ERR(__func__);
+		return;
+	}
 
 	uint32_t * restrict dst = (uint32_t *)pixels;
 	int dst_stride = pitch / 4; /* pitch is in bytes, we need uint32 stride */

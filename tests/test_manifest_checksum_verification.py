@@ -44,6 +44,7 @@ class TestAudioManifestChecksum:
         
         # Create manifest
         manifest = {
+            "schema_version": "1.0",
             "entries": [
                 {
                     "wav": "TEST01.WAV",
@@ -77,6 +78,7 @@ class TestAudioManifestChecksum:
         wrong_checksum = "0000000000000000000000000000000000000000000000000000000000000000"
         
         manifest = {
+            "schema_version": "1.0",
             "entries": [
                 {
                     "wav": "TEST01.WAV",
@@ -110,6 +112,7 @@ class TestAudioManifestChecksum:
         
         # Create manifest without checksum field
         manifest = {
+            "schema_version": "1.0",
             "entries": [
                 {
                     "wav": "TEST01.WAV",
@@ -140,6 +143,7 @@ class TestAudioManifestChecksum:
         wav_checksum = "0000000000000000000000000000000000000000000000000000000000000000"
         
         manifest = {
+            "schema_version": "1.0",
             "entries": [
                 {
                     "wav": "NONEXISTENT.WAV",

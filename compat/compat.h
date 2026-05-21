@@ -54,6 +54,30 @@
 #endif
 
 /* ======================================================================
+ * C11 feature compatibility
+ * ====================================================================== */
+
+/* _Noreturn: Mark functions that never return. Enables compiler to:
+ *   - Suppress false "control reaches end of non-void function" warnings
+ *   - Optimize away dead code after noreturn function calls
+ *   - Generate better stack traces
+ *
+ * Available in C11, but we support older standards via GCC __attribute__.
+ * Use __attribute__((noreturn)) instead of _Noreturn for maximum portability,
+ * as it works on both GCC and GCC-compatible compilers across all C standards.
+ */
+#ifndef _Noreturn
+  #ifdef __GNUC__
+    #define _Noreturn __attribute__((noreturn))
+  #elif defined(__clang__)
+    #define _Noreturn __attribute__((noreturn))
+  #else
+    /* Fallback: define as nothing for unsupported compilers */
+    #define _Noreturn
+  #endif
+#endif
+
+/* ======================================================================
  * Standard headers that replace DOS equivalents
  * ====================================================================== */
 
