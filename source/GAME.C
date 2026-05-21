@@ -7459,12 +7459,17 @@ void Startup(void)
    if(networkmode == 255)
        networkmode = 1;
 
-   startup_log("  MusicStartup()");
-   puts("Checking music inits.");
-   MusicStartup();
-   startup_log("  SoundStartup()");
-   puts("Checking sound inits.");
-   SoundStartup();
+    /* SDL2_mixer requires strict init order per compat/README.md § MUSIC Subsystem:
+       SoundStartup() must precede MusicStartup(). SoundStartup() calls FX_Init,
+       which executes Mix_Init → Mix_OpenAudio → Mix_AllocateChannels. MusicStartup()
+       then calls MUSIC_Init (stub) and later playmusic() loads/plays music via the
+       already-initialized mixer. Violating this order causes silent music failures. */
+    startup_log("  SoundStartup()");
+    puts("Checking sound inits.");
+    SoundStartup();
+    startup_log("  MusicStartup()");
+    puts("Checking music inits.");
+    MusicStartup();
    startup_log("  loadtmb()");
    loadtmb();
    startup_log("  Startup() complete");

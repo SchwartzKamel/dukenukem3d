@@ -34,6 +34,27 @@ if not defined SDL2_DIR (
 
 echo SDL2 found at: %SDL2_DIR%
 
+REM Validate SDL2_DIR structure contains required subdirectories
+if not exist "%SDL2_DIR%\include\SDL2" (
+    echo.
+    echo ERROR: SDL2_DIR validation failed!
+    echo Missing directory: %SDL2_DIR%\include\SDL2
+    echo SDL2_DIR is currently set to: %SDL2_DIR%
+    exit /b 1
+)
+if not exist "%SDL2_DIR%\lib\x64\SDL2.lib" (
+    echo.
+    echo ERROR: SDL2_DIR validation failed!
+    echo Missing library: %SDL2_DIR%\lib\x64\SDL2.lib
+    echo SDL2_DIR is currently set to: %SDL2_DIR%
+    exit /b 1
+)
+if not exist "%SDL2_DIR%\i686-w64-mingw32\include\SDL2" (
+    echo.
+    echo WARNING: MinGW SDL2 path not found: %SDL2_DIR%\i686-w64-mingw32\include\SDL2
+    echo This is only required if building with MinGW compiler.
+)
+
 set COMPILER=%1
 if "%COMPILER%"=="" (
     REM Auto-detect

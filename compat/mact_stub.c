@@ -343,7 +343,10 @@ void Shutdown(void) {
 void Music_SetVolume(int volume) { STUB_LOG("Music_SetVolume(%d)", volume); (void)volume; }
 void PlayMusic(char *fn) { STUB_LOG("PlayMusic(%s)", fn ? fn : "<NULL>"); (void)fn; }
 
-/* IntelLong: byte-swap for big-endian. On little-endian (x86), no-op */
+/* IntelLong: Convert from little-endian file format to native byte order.
+   Currently a no-op since all supported build targets (Linux x86, Windows x86)
+   are little-endian. On big-endian systems, this would need byte-swapping.
+   WAD file format uses little-endian for multi-byte integers (DooM/Duke3D spec). */
 int32_t IntelLong(int32_t val) { /* build-r16-lto-type: aligned to legacy K&R caller decl */
     return val;
 }

@@ -12,6 +12,10 @@ ifeq ($(BUILD_TYPE),debug)
   LTO_FLAGS =
 else
   OPT_FLAGS = -O2 -DNDEBUG
+  # build-r5: Release uses -w (suppress warnings) because K&R codebase (1996) produces 1267+ warnings.
+  # Engine/game (SRC/*.C, source/*.C) have many false positives (-Wreturn-type, -Wstringop-overflow).
+  # Compat layer (compat/*.c) already uses -Wall with modern C11 code (clean compile).
+  # TODO build-r5: Re-evaluate when engine/game sources are modernized.
   WARN_FLAGS = -w
   LTO_FLAGS = -flto
 endif

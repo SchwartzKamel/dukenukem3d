@@ -155,6 +155,8 @@ long = 32-bit     →    int32_t in structs        64-bit safe
   API. A future SDL2_mixer backend will replace this.
 - **`mact_stub.c`** replaces the MACT input/config library with minimal stubs.
 
+⚠️ **MUSIC Subsystem Initialization Order:** Audio initialization has strict ordering requirements. See [compat/README.md § MUSIC Subsystem Initialization Order](../compat/README.md#music-subsystem-initialization-order-cycles-73--compat-r12-r13) for the required call sequence and failure modes when porting audio to SDL2_mixer.
+
 **For detailed implementation and cross-references, see [compat/README.md](../compat/README.md) — the definitive subsystem index.**
 
 ---
