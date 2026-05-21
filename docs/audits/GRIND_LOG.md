@@ -4883,3 +4883,27 @@ Pending count: 408 → ~424. Critical: 1 (architecture cross-ref breakage). Medi
 - Build: clean.
 - Tests: 1516 passed -m "not slow" / 3 skipped / 17 warnings (~25-30s).
 
+
+## Cycle 108 (2026-05-21 10:42 UTC) — Audit-only fleet (3 audit-pass on stalest personas)
+
+Operator scheduled audit prompt. Stalest after c107 were audio/build/perf (all last refreshed in c105).
+
+### Audit-Pass Results
+
+- **audio-engineer r24→r25** (`audio-engineer-r25.md`, sentinel `a7f3e2c1`): Cycle-107 `_Static_assert` ABI fixes verified non-disruptive — songposition 20B uint32_t, task struct int32_t, fx_blaster_config 28B all confirmed at audio_stub.h:30-35,130,241,297. 239 audio tests pass (≥187 baseline). generation_method (cycle-104) lifecycle stable across ai|silence|fallback. Exp backoff + jitter + Mix_Init forward-compat all green. 4 todos mined (Mix_Init failure-path test, jitter dist analysis, sound ID registry validation, FLAC streaming).
+- **build-system r25→r26** (`build-system-r26.md`, sentinel `c7f4e2a9`): Grade A, 10/10 invariants stable. **ERRATA protocol re-affirmed** — totalclocklock NOT investigated (build-system would mark 3rd false-flag if re-touched). LANGUAGE C property + SDL2_VERSION single-source + secret-scan SHA-pin all live. LTO+parallel-make race noted (single-threaded fallback works). 3 todos mined (LTO race hardening, win PS1 ASCII enforcement, NOTICE cycle-update).
+- **performance-profiler r25→r26** (`performance-profiler-r26.md`, sentinel `f6e4c1b8`): **All 10/10 invariants PASS post cycle-107 _Static_assert ABI fixes** (struct alignment fix produced ZERO regression). Fast suite 24.85s / full 95.59s / coverage 50.5% (above 50.4% floor) / numpy persistent / SO_KEEPALIVE 1µs / 63 @slow markers / frame analyzer 39/39 zero flakes. 2 todos mined (profiling-hooks Phase 2 ready-to-implement, full-suite wallclock optimization to <90s).
+
+### Backlog Mining: +9 New Todos (capped at 10 per skill rule)
+
+### Notable Wins
+- **Cycle-107 `_Static_assert` ABI fix VALIDATED** — caught 3 load-bearing 64-bit struct-size bugs (`unsigned long`→`uint32_t`); cycle-108 perf+audio audits independently confirm zero perf regression and zero functional regression.
+- **ERRATA protocol working** — build-system persona honored the totalclocklock skip-instruction (would have been the 3rd false-positive otherwise).
+
+### Build/Test (audit baseline — no source/test modifications)
+- Build: clean.
+- Tests: 1516 passed -m "not slow" / 3 skipped (~25s); 239 audio tests pass.
+
+### Cleanup
+- `.coverage.*` files dropped by pytest --cov in audio audit; `.gitignore` extended; files removed from working tree pre-commit.
+
