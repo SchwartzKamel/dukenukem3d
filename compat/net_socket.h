@@ -104,6 +104,17 @@ void net_socket_close(net_socket_t sock);
 int net_socket_last_error(void);
 int net_socket_is_transient_error(int err);
 
+/**
+ * @brief Check if error is keepalive-related (ETIMEDOUT or ECONNRESET).
+ * 
+ * Used to distinguish keepalive-induced disconnects from other recv errors.
+ * Returns non-zero if error indicates a dead peer detected by keepalive.
+ * 
+ * POSIX: ETIMEDOUT, ECONNRESET
+ * Windows: WSAETIMEDOUT, WSAECONNRESET
+ */
+int net_socket_is_keepalive_error(int err);
+
 #ifdef __cplusplus
 }
 #endif

@@ -33,6 +33,33 @@ The TCP/IP multiplayer implementation (`SRC/MMULTI.C`) accepts network connectio
 - Never commit `.env` or hardcode API keys in source files
 - The asset generation tools load credentials from `.env` at runtime only
 
+### Securing Local .env Files
+
+The `.env` file contains sensitive credentials and must be protected with proper file permissions to prevent unauthorized access.
+
+**Verification**: `.env` is in `.gitignore` and will not be committed. Verify with:
+```bash
+git check-ignore .env
+```
+
+**File Permissions** (set on first creation or after adding credentials):
+
+**POSIX/Linux/macOS:**
+```bash
+chmod 600 .env
+```
+This restricts read and write access to the owner only (no group or world access).
+
+**Windows (PowerShell):**
+```powershell
+icacls .env /inheritance:r /grant:r "$env:USERNAME:F"
+```
+This removes inherited permissions and grants Full Control (F) to the current user only. Run as Administrator if necessary.
+
+**Verification**: After setting permissions, verify with:
+- **POSIX**: `ls -l .env` should show `-rw-------` (600)
+- **Windows**: `icacls .env` should show only your username with `(F)` rights
+
 ### Legacy Code
 This is a port of 1996-era C code. Known limitations:
 - Many fixed-size buffers without bounds checking
@@ -52,7 +79,30 @@ SDL2_mixer is an **OPTIONAL** runtime dependency loaded in QUIET mode (CMakeList
 - Review cadence: 90 days. File an issue using `.github/ISSUE_TEMPLATE/key-rotation.md` (adapted) if a HIGH or CRITICAL CVE is identified.
 - If SDL2_mixer is unavailable or removed from system, audio output gracefully falls back to `compat/audio_stub` (silent path). Build and test pipelines are unaffected.
 
-**Audit trail**: cycles 101 (CODEOWNERS), 104 (NOTICE), 105 (key rotation); cycle-66 fake-author commits 0296200 + 6c236443 remain in history per operator decision.
+### SDL2_mixer Windows DLL Search Path Hardening
+
+**Issue**: On Windows, the default DLL search order (documented in [Microsoft DLL Search Order](https://docs.microsoft.com/en-us/windows/win32/dlls/dynamic-link-library-search-order)) can be exploited via DLL planting if `SafeDllSearchMode` is disabled or in untrusted working directories. An attacker with write access to the application directory or certain system paths can substitute a malicious `SDL2_mixer.dll`.
+
+**Recommendations**:
+
+1. **Restrict DLL Search Directories (Recommended for Windows builds)**:
+   - Call `SetDefaultDllDirectories()` early in `WinMain()` to restrict DLL searches to safe locations only:
+     ```c
+     SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_APPLICATION_DIR | LOAD_LIBRARY_SEARCH_SYSTEM32);
+     ```
+   - This prevents DLL planting attacks by excluding the current working directory and user paths from the search order.
+   - Requires Windows 8+ (or KB2533623 on Windows Vista SP1/7).
+
+2. **Static Linking (Alternative)**:
+   - If applicable, configure CMake to statically link SDL2_mixer (see `CMakeLists.txt` for conditional linking options) to eliminate runtime DLL dependency.
+   - Trade-off: increases binary size but eliminates the DLL search order risk entirely.
+
+3. **Deployment Best Practices**:
+   - Place SDL2_mixer.dll in the application directory (same folder as the executable) or rely on system package managers.
+   - Verify DLL integrity (e.g., signed binaries) before distribution.
+   - Document deployment instructions in release notes if a custom DLL is supplied.
+
+**Audit trail**: cycles 101 (CODEOWNERS), 104 (NOTICE), 105 (key rotation); cycle-66 fake-author commits 0296200 + 6c23644 remain in history per operator decision.
 
 ## Known Issues (v0.1.0)
 

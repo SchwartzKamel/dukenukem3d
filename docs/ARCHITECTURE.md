@@ -87,6 +87,8 @@ A simple flat archive format designed by Ken Silverman.
 
 No compression, no directories — just a linear pack of files.
 
+See [docs/GRP_DETERMINISM.md](../docs/GRP_DETERMINISM.md) for the GRP archive determinism contract.
+
 ### ART (Tile Atlas)
 
 Stores tile/texture pixel data.

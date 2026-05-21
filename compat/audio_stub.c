@@ -42,7 +42,7 @@ static int  fx_volume      = 255;
 static int  fx_reverb      = 0;
 static int  fx_reverb_delay = 0;
 static int  fx_reverse_stereo = 0;
-static void (*fx_callback)(unsigned long) = NULL;
+static void (*fx_callback)(uint32_t) = NULL;
 
 /* ── SDL2_mixer state and helpers ────────────────────────────────── */
 
@@ -63,7 +63,7 @@ static void (*fx_callback)(unsigned long) = NULL;
 
 static int            mixer_initialized = 0;
 static Mix_Chunk     *mixer_channel_chunk[MIXER_MAX_CHANNELS];
-static unsigned long  mixer_channel_cbval[MIXER_MAX_CHANNELS];
+static uint32_t  mixer_channel_cbval[MIXER_MAX_CHANNELS];
 
 /* Called by SDL2_mixer when a channel finishes playback.
  *
@@ -80,8 +80,8 @@ static unsigned long  mixer_channel_cbval[MIXER_MAX_CHANNELS];
 static void mixer_channel_done(int channel)
 {
     Mix_Chunk *chunk_snap;
-    unsigned long cbval_snap;
-    void (*cb_snap)(unsigned long);
+    uint32_t cbval_snap;
+    void (*cb_snap)(uint32_t);
 
     if (channel < 0 || channel >= MIXER_MAX_CHANNELS) return;
 
@@ -110,7 +110,7 @@ static void mixer_channel_done(int channel)
  */
 #define MAX_SOUND_FILE_SIZE (512 * 1024)
 
-static unsigned long voc_file_size(const unsigned char *p)
+static uint32_t voc_file_size(const unsigned char *p)
 {
     unsigned short data_off;
     const unsigned char *cur, *limit;
@@ -128,20 +128,20 @@ static unsigned long voc_file_size(const unsigned char *p)
     cur   = p + data_off;
     limit = p + MAX_SOUND_FILE_SIZE;
     while (cur < limit) {
-        unsigned long blen;
+        uint32_t blen;
         if (cur[0] == 0) { cur++; break; }       /* type 0 = terminator */
         if (cur + 4 > limit) { cur = limit; break; }
-        blen = (unsigned long)cur[1]
-             | ((unsigned long)cur[2] << 8)
-             | ((unsigned long)cur[3] << 16);
+        blen = (uint32_t)cur[1]
+             | ((uint32_t)cur[2] << 8)
+             | ((uint32_t)cur[3] << 16);
         cur += 4 + blen;
     }
-    return (unsigned long)(cur - p);
+    return (uint32_t)(cur - p);
 }
 
-static unsigned long wav_file_size(const unsigned char *p)
+static uint32_t wav_file_size(const unsigned char *p)
 {
-    unsigned long sz;
+    uint32_t sz;
     
     /* Validate RIFF header: bytes 0..3 must be "RIFF" */
     if (p[0] != 'R' || p[1] != 'I' || p[2] != 'F' || p[3] != 'F') {
@@ -149,8 +149,8 @@ static unsigned long wav_file_size(const unsigned char *p)
     }
     
     /* Extract chunk size from bytes 4..7 (little-endian) */
-    sz = (unsigned long)p[4] | ((unsigned long)p[5] << 8)
-       | ((unsigned long)p[6] << 16) | ((unsigned long)p[7] << 24);
+    sz = (uint32_t)p[4] | ((uint32_t)p[5] << 8)
+       | ((uint32_t)p[6] << 16) | ((uint32_t)p[7] << 24);
     
     /* Sanity check: chunk size must be >= 12 (for minimal WAVE format) */
     if (sz < 12) {
@@ -174,9 +174,9 @@ static unsigned long wav_file_size(const unsigned char *p)
     return sz + 8;
 }
 
-static unsigned long sound_file_size(const char *ptr)
+static uint32_t sound_file_size(const char *ptr)
 {
-    unsigned long sz;
+    uint32_t sz;
     if (!ptr) return 0;
     sz = voc_file_size((const unsigned char *)ptr);
     if (sz == 0) sz = wav_file_size((const unsigned char *)ptr);
@@ -186,9 +186,9 @@ static unsigned long sound_file_size(const char *ptr)
 
 /* Play a VOC/WAV from memory.  Returns channel (≥ 0) or -1. */
 static int mixer_play(const char *ptr, int loops, int vol,
-                      int left, int right, unsigned long cbval)
+                      int left, int right, uint32_t cbval)
 {
-    unsigned long size;
+    uint32_t size;
     SDL_RWops *rw;
     Mix_Chunk *chunk;
     int channel;
@@ -244,9 +244,9 @@ static int mixer_play(const char *ptr, int loops, int vol,
 
 /* Play a VOC/WAV with 3-D positional audio.  Returns channel or -1. */
 static int mixer_play_3d(const char *ptr, int angle, int distance,
-                         unsigned long cbval)
+                         uint32_t cbval)
 {
-    unsigned long size;
+    uint32_t size;
     SDL_RWops *rw;
     Mix_Chunk *chunk;
     int channel;
@@ -442,7 +442,7 @@ int FX_Shutdown(void)
     return FX_Ok;
 }
 
-int FX_SetCallBack(void (*function)(unsigned long))
+int FX_SetCallBack(void (*function)(uint32_t))
 {
     /* See mixer_channel_done: the audio thread reads fx_callback without
      * a lock, so we have to serialize the write through the audio device
@@ -587,7 +587,7 @@ int FX_SetFrequency(int handle, int frequency)
 #endif
 
 int FX_PlayVOC(char *ptr, int pitchoffset, int vol, int left, int right,
-               int priority, unsigned long callbackval)
+               int priority, uint32_t callbackval)
 {
     (void)pitchoffset; (void)priority;
 #ifdef HAVE_SDL2_MIXER
@@ -600,7 +600,7 @@ int FX_PlayVOC(char *ptr, int pitchoffset, int vol, int left, int right,
 
 int FX_PlayLoopedVOC(char *ptr, long loopstart, long loopend,
                      int pitchoffset, int vol, int left, int right,
-                     int priority, unsigned long callbackval)
+                     int priority, uint32_t callbackval)
 {
     (void)loopstart; (void)loopend; (void)pitchoffset; (void)priority;
 #ifdef HAVE_SDL2_MIXER
@@ -612,7 +612,7 @@ int FX_PlayLoopedVOC(char *ptr, long loopstart, long loopend,
 }
 
 int FX_PlayWAV(char *ptr, int pitchoffset, int vol, int left, int right,
-               int priority, unsigned long callbackval)
+               int priority, uint32_t callbackval)
 {
     (void)pitchoffset; (void)priority;
 #ifdef HAVE_SDL2_MIXER
@@ -625,7 +625,7 @@ int FX_PlayWAV(char *ptr, int pitchoffset, int vol, int left, int right,
 
 int FX_PlayLoopedWAV(char *ptr, long loopstart, long loopend,
                      int pitchoffset, int vol, int left, int right,
-                     int priority, unsigned long callbackval)
+                     int priority, uint32_t callbackval)
 {
     (void)loopstart; (void)loopend; (void)pitchoffset; (void)priority;
 #ifdef HAVE_SDL2_MIXER
@@ -637,7 +637,7 @@ int FX_PlayLoopedWAV(char *ptr, long loopstart, long loopend,
 }
 
 int FX_PlayVOC3D(char *ptr, int pitchoffset, int angle, int distance,
-                 int priority, unsigned long callbackval)
+                 int priority, uint32_t callbackval)
 {
     (void)pitchoffset; (void)priority;
 #ifdef HAVE_SDL2_MIXER
@@ -649,7 +649,7 @@ int FX_PlayVOC3D(char *ptr, int pitchoffset, int angle, int distance,
 }
 
 int FX_PlayWAV3D(char *ptr, int pitchoffset, int angle, int distance,
-                 int priority, unsigned long callbackval)
+                 int priority, uint32_t callbackval)
 {
     (void)pitchoffset; (void)priority;
 #ifdef HAVE_SDL2_MIXER
@@ -660,9 +660,9 @@ int FX_PlayWAV3D(char *ptr, int pitchoffset, int angle, int distance,
 #endif
 }
 
-int FX_PlayRaw(char *ptr, unsigned long length, unsigned rate,
+int FX_PlayRaw(char *ptr, uint32_t length, unsigned rate,
                int pitchoffset, int vol, int left, int right,
-               int priority, unsigned long callbackval)
+               int priority, uint32_t callbackval)
 {
     (void)ptr; (void)length; (void)rate; (void)pitchoffset;
     (void)vol; (void)left; (void)right; (void)priority; (void)callbackval;
@@ -673,10 +673,10 @@ int FX_PlayRaw(char *ptr, unsigned long length, unsigned rate,
 #endif
 }
 
-int FX_PlayLoopedRaw(char *ptr, unsigned long length, char *loopstart,
+int FX_PlayLoopedRaw(char *ptr, uint32_t length, char *loopstart,
                      char *loopend, unsigned rate, int pitchoffset,
                      int vol, int left, int right, int priority,
-                     unsigned long callbackval)
+                     uint32_t callbackval)
 {
     (void)ptr; (void)length; (void)loopstart; (void)loopend; (void)rate;
     (void)pitchoffset; (void)vol; (void)left; (void)right;
@@ -745,9 +745,9 @@ int FX_StopAllSounds(void)
     return FX_Ok;
 }
 
-int FX_StartDemandFeedPlayback(void (*function)(char **ptr, unsigned long *length),
+int FX_StartDemandFeedPlayback(void (*function)(char **ptr, uint32_t *length),
                                int rate, int pitchoffset, int vol, int left,
-                               int right, int priority, unsigned long callbackval)
+                               int right, int priority, uint32_t callbackval)
 {
     (void)function; (void)rate; (void)pitchoffset; (void)vol;
     (void)left; (void)right; (void)priority; (void)callbackval;
@@ -787,20 +787,20 @@ static SDL_RWops *current_music_rw = NULL;
  * Determine total MIDI file size by parsing the MThd + MTrk chunks.
  * Falls back to max_size if the header looks invalid.
  */
-static unsigned long midi_file_size(const unsigned char *data,
-                                    unsigned long max_size)
+static uint32_t midi_file_size(const unsigned char *data,
+                               uint32_t max_size)
 {
-    unsigned long header_len, num_tracks, pos, i;
+    uint32_t header_len, num_tracks, pos, i;
 
     if (max_size < 14) return max_size;
     if (data[0] != 'M' || data[1] != 'T' ||
         data[2] != 'h' || data[3] != 'd')
         return max_size;
 
-    header_len = ((unsigned long)data[4]  << 24) |
-                 ((unsigned long)data[5]  << 16) |
-                 ((unsigned long)data[6]  << 8)  | data[7];
-    num_tracks = ((unsigned long)data[10] << 8)  | data[11];
+    header_len = ((uint32_t)data[4]  << 24) |
+                 ((uint32_t)data[5]  << 16) |
+                 ((uint32_t)data[6]  << 8)  | data[7];
+    num_tracks = ((uint32_t)data[10] << 8)  | data[11];
     
     /* Bounds check: header_len should be between 6 and reasonable upper bound */
     if (header_len < 6 || header_len > max_size - 8) {
@@ -817,13 +817,13 @@ static unsigned long midi_file_size(const unsigned char *data,
     pos = 8 + header_len;
 
     for (i = 0; i < num_tracks && pos + 8 <= max_size; i++) {
-        unsigned long track_len;
+        uint32_t track_len;
         if (data[pos] != 'M' || data[pos+1] != 'T' ||
             data[pos+2] != 'r' || data[pos+3] != 'k')
             break;
-        track_len = ((unsigned long)data[pos+4] << 24) |
-                    ((unsigned long)data[pos+5] << 16) |
-                    ((unsigned long)data[pos+6] << 8)  | data[pos+7];
+        track_len = ((uint32_t)data[pos+4] << 24) |
+                    ((uint32_t)data[pos+5] << 16) |
+                    ((uint32_t)data[pos+6] << 8)  | data[pos+7];
         pos += 8 + track_len;
     }
     return pos > max_size ? max_size : pos;
@@ -930,7 +930,7 @@ int MUSIC_PlaySong(unsigned char *song, int loopflag)
 {
 #ifdef HAVE_SDL2_MIXER
     if (mixer_initialized && song) {
-        unsigned long size = midi_file_size(song, 72000);
+        uint32_t size = midi_file_size(song, 72000);
         free_current_music();
         if (size > (uint32_t)INT_MAX) return MUSIC_Error;  /* prevent narrowing UB */
         current_music_rw = SDL_RWFromConstMem(song, (int)size);
@@ -1020,7 +1020,7 @@ volatile int TS_InInterrupt = 0;
 
 static task  task_pool[MAX_TASKS];
 static int   task_pool_used[MAX_TASKS];
-static unsigned long timer_last_tick = 0;
+static uint32_t timer_last_tick = 0;
 static int           timer_initialized = 0;
 
 void TS_Shutdown(void)
@@ -1095,7 +1095,7 @@ int  TS_LockMemory(void)   { return TASK_Ok; }
  */
 void timer_update(void)
 {
-    unsigned long now, elapsed, ms_per_tick;
+    uint32_t now, elapsed, ms_per_tick;
     int i;
 
     now = SDL_GetTicks();
@@ -1113,7 +1113,7 @@ void timer_update(void)
             task *t = &task_pool[i];
             int rate = t->rate;
             if (rate <= 0) rate = 120;
-            ms_per_tick = 1000 / (unsigned long)rate;
+            ms_per_tick = 1000 / (uint32_t)rate;
             if (ms_per_tick == 0) ms_per_tick = 1;
 
             t->count += elapsed;

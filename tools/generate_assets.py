@@ -13,6 +13,7 @@ import argparse
 import base64
 import binascii
 import datetime
+import email.utils
 import hashlib
 import io
 import json
@@ -22,9 +23,11 @@ import multiprocessing
 import os
 import random
 import shutil
+import socket
 import struct
 import sys
 import time
+import urllib.parse
 
 try:
     import numpy as np
@@ -387,6 +390,88 @@ def _is_retryable_error(status_code=None, error=None):
     return False
 
 
+def _validate_flux_config(endpoint: str, api_key: str) -> tuple:
+    """Validate FLUX endpoint and API key at startup.
+    
+    Returns:
+        (ok: bool, reason: str) - (True, "") if valid, (False, reason) otherwise
+    
+    Checks:
+    - Endpoint URL: well-formed (urllib.parse.urlparse), https scheme, non-empty hostname
+    - DNS resolvability (socket.gethostbyname with 3s timeout)
+    - API key: non-empty, minimum 16 chars
+    """
+    # Check API key
+    if not api_key:
+        return False, "FLUX_API_KEY not set"
+    if len(api_key) < 16:
+        return False, f"FLUX_API_KEY too short (min 16 chars, got {len(api_key)})"
+    
+    # Check endpoint URL format
+    if not endpoint:
+        return False, "FLUX_ENDPOINT not set"
+    
+    try:
+        parsed = urllib.parse.urlparse(endpoint)
+    except Exception as e:
+        return False, f"FLUX_ENDPOINT URL parse failed: {e}"
+    
+    if parsed.scheme != "https":
+        return False, f"FLUX_ENDPOINT must use https (got {parsed.scheme})"
+    
+    if not parsed.hostname:
+        return False, "FLUX_ENDPOINT has no hostname"
+    
+    # Check DNS resolvability
+    try:
+        socket.gethostbyname(parsed.hostname)
+    except socket.gaierror as e:
+        return False, f"FLUX_ENDPOINT hostname not resolvable ({parsed.hostname}): {e}"
+    except socket.timeout:
+        return False, f"FLUX_ENDPOINT DNS lookup timed out ({parsed.hostname})"
+    except Exception as e:
+        return False, f"FLUX_ENDPOINT DNS check failed: {e}"
+    
+    return True, ""
+
+
+def _parse_retry_after_header(header_value: str, max_wait: float = 60.0) -> float:
+    """Parse Retry-After header value.
+    
+    Supports:
+    - Integer seconds: "120"
+    - HTTP-date format: "Fri, 31 Dec 1999 23:59:59 GMT"
+    - Capped at max_wait (default 60s) to avoid pathological server values
+    
+    Returns:
+        Wait time in seconds (float), capped at max_wait
+    """
+    if not header_value:
+        return None
+    
+    header_value = header_value.strip()
+    
+    # Try parsing as integer (seconds)
+    try:
+        seconds = int(header_value)
+        return min(float(seconds), max_wait)
+    except ValueError:
+        pass
+    
+    # Try parsing as HTTP-date
+    try:
+        dt = email.utils.parsedate_to_datetime(header_value)
+        if dt:
+            wait_seconds = (dt - datetime.datetime.now(datetime.timezone.utc)).total_seconds()
+            if wait_seconds > 0:
+                return min(wait_seconds, max_wait)
+    except (TypeError, ValueError):
+        pass
+    
+    # If parsing fails, return None (caller will fall back to exponential backoff)
+    return None
+
+
 def generate_texture_ai(prompt, width, height, endpoint, api_key, model="FLUX.2-pro"):
     """Call FLUX.2-pro to generate a texture with exponential backoff retry.
     
@@ -423,11 +508,23 @@ def generate_texture_ai(prompt, width, height, endpoint, api_key, model="FLUX.2-
                 
                 if _is_retryable_error(status_code=resp.status_code):
                     if attempt < MAX_RETRIES:
-                        jitter = random.uniform(0, 0.5 * backoff)
-                        sleep_time = backoff + jitter
-                        logger.info(f"Retry attempt {attempt + 1}/{MAX_RETRIES}: {error_msg}. Sleeping {sleep_time:.2f}s")
-                        time.sleep(sleep_time)
-                        backoff = min(backoff * 2, MAX_BACKOFF)
+                        # For 429 (rate limit), try to parse Retry-After header
+                        sleep_time = None
+                        if resp.status_code == 429:
+                            retry_after_header = resp.headers.get("Retry-After", "")
+                            sleep_time = _parse_retry_after_header(retry_after_header)
+                            if sleep_time is not None:
+                                logger.info(f"Retry attempt {attempt + 1}/{MAX_RETRIES}: {error_msg}. Using Retry-After: {sleep_time:.2f}s")
+                                time.sleep(sleep_time)
+                                continue
+                        
+                        # Fall back to exponential backoff
+                        if sleep_time is None:
+                            jitter = random.uniform(0, 0.5 * backoff)
+                            sleep_time = backoff + jitter
+                            logger.info(f"Retry attempt {attempt + 1}/{MAX_RETRIES}: {error_msg}. Sleeping {sleep_time:.2f}s")
+                            time.sleep(sleep_time)
+                            backoff = min(backoff * 2, MAX_BACKOFF)
                         continue
                 else:
                     # Non-retryable error - fail fast
@@ -2320,6 +2417,13 @@ def main():
     flux_api_key = env.get("FLUX_API_KEY", "")
     flux_model = env.get("FLUX_MODEL", "FLUX.2-pro")
     use_ai = not args.no_ai and flux_endpoint and flux_api_key
+    
+    # Validate FLUX configuration if AI mode is requested (asset-r27-flux-endpoint-validation-startup)
+    if use_ai:
+        valid, reason = _validate_flux_config(flux_endpoint, flux_api_key)
+        if not valid:
+            logger.warning(f"FLUX config validation failed: {reason}. Falling back to procedural (--no-ai) mode.")
+            use_ai = False
 
     # Use custom output directory if specified
     output_dir = args.output if args.output else OUTPUT_DIR

@@ -2511,6 +2511,9 @@ loadpalette()
 
 	kread(fil,palette,768);
 	kread(fil,&numpalookups,2);
+	/* engine-r27-numpalookups-bounds: validate palette count from untrusted palette.dat file */
+	if (numpalookups < 0 || numpalookups > 256) { kclose(fil); return; }
+
 
 	if ((palookup[0] = (char *)kkmalloc(numpalookups<<8)) == NULL)
 		allocache(&palookup[0],numpalookups<<8,&permanentlock);
@@ -2965,6 +2968,17 @@ loadpics(char *filename)
 				kread(fil,&tmp,4); localtileend = tmp;
 			}
 			startup_log("  loadpics: numtiles=%ld, start=%ld, end=%ld", numtiles, localtilestart, localtileend);
+			
+			/* engine-r27-art-tile-bounds: validate tile indices from untrusted ART file */
+			if (localtilestart < 0 || localtilestart >= MAXTILES ||
+				localtileend < 0 || localtileend >= MAXTILES ||
+				localtilestart > localtileend)
+			{
+				printf("ART file error: invalid tile range start=%ld end=%ld\n", localtilestart, localtileend);
+				kclose(fil);
+				return(-1);
+			}
+			
 			kread(fil,&tilesizx[localtilestart],(localtileend-localtilestart+1)<<1);
 			kread(fil,&tilesizy[localtilestart],(localtileend-localtilestart+1)<<1);
 			{

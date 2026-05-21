@@ -337,6 +337,15 @@ initgroupfile(char *filename)
 		/* Read 4-byte LE integer (not long* which is 8 bytes on LP64) */
 		gnumfiles[numgroupfiles] = (long)(*(int32_t *)&buf[12]);
 
+		/* engine-r27-grp-numfiles-bounds: validate GRP header numfiles from untrusted file */
+		if (gnumfiles[numgroupfiles] < 0 || gnumfiles[numgroupfiles] > 32768)
+		{
+			printf("GRP file error: invalid numfiles=%ld\n", gnumfiles[numgroupfiles]);
+			close(groupfil[numgroupfiles]);
+			groupfil[numgroupfiles] = -1;
+			return(-1);
+		}
+
 		if ((gfilelist[numgroupfiles] = (char *)kmalloc(gnumfiles[numgroupfiles]<<4)) == 0)
 			{ printf("Not enough memory for file grouping system\n"); exit(0); }
 		if ((gfileoffs[numgroupfiles] = (long *)kmalloc((gnumfiles[numgroupfiles]+1)*sizeof(long))) == 0)

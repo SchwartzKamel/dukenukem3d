@@ -5023,3 +5023,40 @@ net-r25: ipv6-scopeid-validation, keepalive-error-semantics-MED
 ### Coverage observation
 After c112: ALL 11 personas now have current revisions within last 5 cycles. Audit corpus is hot. Next /audit-grind tick should focus on grind execution, not audit-mining.
 
+
+---
+
+## 2026-05-21 — Cycle 113 grind (6 sub-agents, 6/6 LANDED)
+
+**Mode:** `/audit-grind` dispatch, 6 Haiku general-purpose sub-agents, distinct file domains.
+
+**Baseline:** make green; pytest 1926 passed / 3 skipped (-m "not slow").
+**Post-grind:** make green; pytest **1940 passed** / 3 skipped (+14 from new asset tests).
+
+### Todos closed (9)
+| Persona | Todo | Files | Sentinel |
+|---|---|---|---|
+| engine-porter | engine-r27-file-io-bounds-validation (MED) | SRC/CACHE1D.C, SRC/ENGINE.C, source/PREMAP.C | `d4c79ef2` |
+| audio-engineer | audio-r26-callback-uint32-consolidation (MED) | compat/audio_stub.{c,h} | `146f3b62` |
+| asset-pipeline | asset-r27-flux-endpoint-validation-startup (MED) | tools/generate_assets.py, tests/test_generate_assets.py | `70cdaec2` |
+| asset-pipeline | asset-r27-http-429-retry-after-header (MED) | (same diff as above) | `70cdaec2` |
+| network-multiplayer | net-r25-keepalive-error-semantics (MED) | SRC/MMULTI.C, compat/net_socket{.h,_posix.c,_win32.c} | `a5d7c2f9` |
+| documentation-curator | asset-r27-grp-determinism-cross-reference (LOW) | docs/ARCHITECTURE.md | `a7f3b1c9` |
+| documentation-curator | docs-r26-readme-recent-improvements-sync (LOW) | README.md | `a7f3b1c9` |
+| security-and-secrets | sec-r26-env-file-permissions-doc (LOW) | SECURITY.md | `a7c4e2b9` |
+| security-and-secrets | sec-r26-sdl2-mixer-dll-injection-advisory (LOW) | SECURITY.md (same diff) | `a7c4e2b9` |
+
+### Landmark deliverables
+- **4 fresh OOB hardenings in engine** (GRP gnumfiles, ART tile indices, palette numpalookups, lookup.dat numl) — defense-in-depth alongside c111 makepalookup() fix; all gnu89, early-return on untrusted file data.
+- **64 callback sites migrated** `unsigned long → uint32_t` in compat/audio_stub.{c,h} — completes the cycle-107 ABI consolidation thread; 1 USRHOOKS_GetMem deferred (source/ scope conflict). 114 audio pipeline tests still pass.
+- **FLUX hardening**: startup endpoint+DNS+API-key validator with `--no-ai` fallback (no more late crashes on bad config); HTTP 429 `Retry-After` parser (int + HTTP-date, 60s cap); +14 tests.
+- **Keepalive teardown semantics**: per-player peer-addr tracking + structured ETIMEDOUT/ECONNRESET (POSIX) / WSAETIMEDOUT/WSAECONNRESET (Win32) diagnostic on recv() failure; clean break + log carries IP:port + error code.
+- **Docs discoverability**: GRP_DETERMINISM.md now cross-linked from ARCHITECTURE.md GRP section; README Recent Improvements synced through c112 (CVE hardening, _Static_asserts, GRP determinism, +400 procedural tests, makepalookup P0, BCryptGenRandom).
+- **Security posture docs**: .env chmod 600 / icacls guidance + SDL2_mixer DLL search-path hardening advisory (SetDefaultDllDirectories) added to SECURITY.md with cycle-66 attribution preserved.
+
+### Race outcome
+6/6 staged files survived. ≤6-agent cap with distinct file domains continues to hold (c110: 5/5; c111: 6/6; c112: 5/5; c113: 6/6 across 14 source files). c109 8-agent vanish-race remains the only failure on record.
+
+### Audit-tick (interleaved with grind)
+10 fresh todos mined into queue (build-r28 ×5, asset-r27 ×1, audio-r26 ×2, compat-r26 ×1, perf-r27 ×1) — pulled from build-system-r27, asset-pipeline-r27, audio-engineer-r26, compat-layer-r26, performance-profiler-r27 STAGING content not yet captured in queue. Backlog now 446 pending / 490 done / 23 blocked.
+

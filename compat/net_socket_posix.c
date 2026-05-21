@@ -203,3 +203,9 @@ int net_socket_is_transient_error(int err)
 {
 	return (err == EAGAIN || err == EWOULDBLOCK || err == EINTR);
 }
+
+/* Check if error is keepalive-related (dead peer detected) */
+int net_socket_is_keepalive_error(int err)
+{
+	return (err == ETIMEDOUT || err == ECONNRESET);
+}

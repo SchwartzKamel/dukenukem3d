@@ -124,6 +124,10 @@ static unsigned char session_key[MAXPLAYERS][HMAC_SHA256_SIZE];
 static int  session_key_valid[MAXPLAYERS];  /* 1 after HKDF derivation */
 static unsigned char local_nonce[HMAC_SHA256_SIZE]; /* our ephemeral nonce */
 
+/* net-r25-keepalive-error-semantics: Per-player peer address for diagnostic logging */
+static struct sockaddr_storage player_peer_addr[MAXPLAYERS];
+static int player_peer_addr_valid[MAXPLAYERS];
+
 /* ---- Endianness Convention & Wire Format ----
  *
  * WIRE FORMAT SPECIFICATION: ALL MULTI-BYTE INTEGERS ARE LITTLE-ENDIAN
@@ -372,8 +376,22 @@ static void net_poll_sockets(void)
 					continue;
 				}
 #endif
-				break;
+			/* net-r25-keepalive-error-semantics: Log diagnostic when keepalive detects dead peer */
+			if (net_socket_is_keepalive_error(err)) {
+				const char *peer_str = "unknown";
+				if (player_peer_addr_valid[i]) {
+					peer_str = net_format_addr(&player_peer_addr[i]);
+				}
+#ifdef _WIN32
+				printf("NET: Player %d [%s] disconnected: TCP keepalive detected dead peer (WSAERROR=%d)\n",
+					i, peer_str, err);
+#else
+				printf("NET: Player %d [%s] disconnected: TCP keepalive detected dead peer (%s)\n",
+					i, peer_str, err == ETIMEDOUT ? "ETIMEDOUT" : "ECONNRESET");
+#endif
 			}
+			break;
+		}
 		}
 
 		/* Extract complete packets */
@@ -678,6 +696,9 @@ initmultiplayers(char damultioption, char dacomrateoption, char dapriority)
 				int flag = 1;
 
 				player_sockets[idx] = client;
+				/* net-r25-keepalive-error-semantics: Store peer address for diagnostic logging */
+				memcpy(&player_peer_addr[idx], &client_addr, sizeof(client_addr));
+				player_peer_addr_valid[idx] = 1;
 				/* net-r16-tcp-keepalive: enable TCP keepalive on accepted client socket */
 				net_socket_enable_keepalive(client);
 				setsockopt(client, IPPROTO_TCP, TCP_NODELAY,
@@ -810,6 +831,10 @@ initmultiplayers(char damultioption, char dacomrateoption, char dapriority)
 
 		/* net-r16-tcp-keepalive: enable TCP keepalive on client socket */
 		net_socket_enable_keepalive(sock);
+
+		/* net-r25-keepalive-error-semantics: Store peer address (host) for diagnostic logging */
+		memcpy(&player_peer_addr[0], &addr, addrlen);
+		player_peer_addr_valid[0] = 1;
 
 		flag = 1;
 		setsockopt(sock, IPPROTO_TCP, TCP_NODELAY,

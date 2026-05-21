@@ -1224,6 +1224,9 @@ void genspriteremaps(void)
     else
         gameexit("\nERROR: File 'LOOKUP.DAT' not found.");
 
+    /* engine-r27-lookup-dat-numl-bounds: validate loop count from untrusted lookup.dat file */
+    if (numl < 0 || numl > 256) { kclose(fp); return; }
+
     for(j=0;j < numl;j++)
     {
         kread(fp,(signed char *)&look_pos,1);
