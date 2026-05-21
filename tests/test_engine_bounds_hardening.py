@@ -668,7 +668,6 @@ class TestPlayerWeaponAmmoBounds:
             "Engine-r9 player-weapon-ammo-bounds fix may have been reverted."
         )
 
-    @pytest.mark.xfail(strict=False, reason="engine-r9-player-weapon-ammo-bounds: cycle-30 attempt reverted; awaiting re-dispatch")
     def test_player_c_displayweapon_bounds_check(self, repo_root):
         """PLAYER.C displayweapon() must bounds-check curr_weapon before use."""
         player_c = repo_root / "source" / "PLAYER.C"
@@ -711,7 +710,6 @@ class TestPlayerWeaponAmmoBounds:
             "Engine-r9 player-weapon-ammo-bounds fix may have been reverted."
         )
 
-    @pytest.mark.xfail(strict=False, reason="engine-r9-player-weapon-ammo-bounds: cycle-30 attempt reverted; awaiting re-dispatch")
     def test_player_c_addweapon_call_bounds_check(self, repo_root):
         """PLAYER.C addweapon calls must bounds-check weapon index."""
         player_c = repo_root / "source" / "PLAYER.C"

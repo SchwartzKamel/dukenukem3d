@@ -622,18 +622,13 @@ extern int  sdl_input_getkeystate(int scancode);
 extern void sdl_audio_init(int rate, int channels, int bufsize);
 extern void sdl_audio_shutdown(void);
 
-/* Determine VOC file size from header (see audio_stub.c).
- * PRECONDITION: buf must point to ≥22 readable bytes (we read buf[20..21]).
- * RETURN: parsed size on success, 0 on malformed/short buffer.
- * NOTE: cycle-88 commit 5f44efb added upper-bound check (audio_stub.c L123-128).
+/** Precondition: buf size must be >= 22 bytes; behavior undefined otherwise.
+ *  Returns 0 on malformed header.
  */
 extern unsigned long voc_file_size(const unsigned char *buf);
 
-/* Determine WAV file size from header (see audio_stub.c).
- * PRECONDITION: buf must point to ≥22 readable bytes (we read buf[0..11]).
- * RETURN: parsed size on success, 0 on malformed/short buffer.
- * NOTE: cycle-88 commit 5f44efb added upper-bound check (audio_stub.c L123-128).
- * AUDIT: wav-bounds-doc-82151c31 (R5 precondition documentation)
+/** Precondition: buf size must be >= 22 bytes; behavior undefined otherwise.
+ *  Returns 0 on malformed header.
  */
 extern unsigned long wav_file_size(const unsigned char *buf);
 

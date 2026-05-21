@@ -97,18 +97,16 @@ static void mixer_channel_done(int channel)
         cb_snap(cbval_snap);
 }
 
-/*
- * Determine the file size from a VOC or WAV header.  The FX_Play*
- * API only passes a pointer, not a length, so we have to derive it.
+/* Determine the file size from a VOC or WAV header (see compat/compat.h).
  *
- * SAFETY: callers must pass a buffer that is at least 22 bytes for a
- * VOC header (we read p[20..21] for the data offset) or at least 8
- * bytes for a WAV header (we read p[4..7] for the chunk size).  In
- * practice game-asset blobs are always >> 22 bytes; the only callers
- * are FX_Play* and mixer_play in this same translation unit, so the
- * pre-condition is enforced by the asset pipeline rather than this
- * function.  Do NOT call these helpers on attacker-controlled data
- * without first validating buffer length.
+ * PRECONDITION: Both functions require buf >= 22 bytes. Behavior is undefined
+ * if callers pass smaller buffers. VOC parsing reads p[20..21]; WAV parsing
+ * reads p[4..7] for chunk size and p[8..11] for WAVE marker.
+ *
+ * In practice, game assets are always >> 22 bytes; the only callers are
+ * FX_Play* and mixer_play in this file, so the pre-condition is enforced
+ * by the asset pipeline. Do NOT call these helpers on untrusted/attacker-
+ * controlled data without first validating buffer length.
  */
 #define MAX_SOUND_FILE_SIZE (512 * 1024)
 

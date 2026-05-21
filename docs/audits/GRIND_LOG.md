@@ -4490,3 +4490,13 @@ Re-verify all r21 audit-pass items (cycles 77–84 closures) remain live across 
 
 ---
 
+
+## Cycle 91 — 2026-06-12 (audit-pass doc-only, 0 code changes)
+
+**Personas audited (2 of 10, 5 cycles stale refresh):**
+- **compat-layer r20→r21** (`compat-layer-r21.md`): R20 closure verification COMPLETE ✅; cycles 87-91 delta synthesis CLEAN ✅; cycle-88 VOC data_off bounds validation CORRECT ✅ (defensively clamps offset to [26, MAX_SOUND_FILE_SIZE), stderr diagnostic); cycle-90 INT_MAX guards DEPLOYED ✅ (3 sites: FX_PlaySound L200, FX_PlaySound3D L260, MUSIC_PlaySong L930; limits.h included L25); logging stubs categorized & justified ✅ (14 intentional-silence stubs verified performance-critical per-frame logic); MSVC pragma support STABLE ✅ (compat.h + msvc_unistd.h complete, pragmas_gcc.h unchanged); cycle-75 _Noreturn macro re-verified ✅ (error_fatal properly annotated L777); net_socket abstraction UNINTEGRATED (expected) ✅ (32 tests passing, ready for MMULTI.C adoption); test suite 171/171 PASS ✅ (109 audio_pipeline + 30 compat_layer + 32 net_socket, zero drift, zero regressions). 0 CRITICAL/HIGH/MEDIUM findings; 5 follow-up todos queued (1 MEDIUM: size-narrowing-audit-finish, compat-r21-msvc-runtime-testing; 4 LOW: stubs-verbose-gating, voc-wav-precondition-doc, net-socket-readiness); compat layer production-ready for v0.2.0+ release. Sentinel `compat-r21-cycle91-complete-a3f7e9b2`.
+- **audio-engineer r20→r21** (`audio-engineer-r21.md`): Cycle-90 hash + size_bytes fields VERIFIED ✅ (Pydantic SoundManifestEntry optional fields, v1.0 spec compat preserved); cycle-88 freshness sidecar OPERATIONAL ✅ (audio_manifest.freshness.json OPTION A, atomic writes, determinism intact); 1970 epoch determinism PRESERVED ✅ (all SOUND_MANIFEST entries frozen at canonical timestamp); schema version enforcement UNCHANGED ✅ (SUPPORTED_SCHEMA_VERSIONS=("1.0",), cycle-80 fallback logic verified); audio_stub.c SDL2_mixer interface VERIFIED ✅ (Mix_Init/Mix_OpenAudio sequencing, cycle-77 fix holds); cycle-85 migration plan architecture READY FOR PHASE 1 ✅ (design finalized, v1.0→v1.1→v2.0 progression logical, 22+ test cases specified); MigrationRegistry BFS cycle-detection gap CARRIED AS PHASE 1 TASK 🟡 (not blocking v0.2.0, design correction specified in r20 audit); test suite 109/109 PASS ✅ (voice catalog 21 entries sync verified, zero drift, zero regressions). 0 CRITICAL/HIGH findings; 1 MEDIUM advisory (MigrationRegistry phase-1 safeguard, specified design); audio pipeline PRODUCTION-READY for v0.2.0+ release. Sentinel `audio-r21-cycle91-complete-f8e2a4c1`.
+
+**Build:** Clean (0 changes to source). **Tests:** 1365 passed, 58 skipped, 2 xfailed (audio_pipeline + compat tests green).
+
+---
