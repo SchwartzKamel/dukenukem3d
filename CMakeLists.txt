@@ -51,6 +51,7 @@ set(COMPAT_SRCS
     compat/maxtiles_engine_value.c
     compat/maxtiles_game_value.c
     compat/maxtiles_guard.c
+    compat/sha256.c
 )
 
 # Platform-specific socket abstraction layer (net-r15-socket-compat)

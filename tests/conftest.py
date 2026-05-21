@@ -506,6 +506,167 @@ def compiled_keepalive_error_harness(tmp_path_factory):
     
     yield exe_file
 
+
+@pytest.fixture(scope="session")
+def compiled_sha256_harness(tmp_path_factory):
+    """Session-scoped fixture that compiles SHA256 test harness once.
+    
+    Compiles a C test harness that links against compat/sha256.c and compat/sha256.h,
+    testing SHA-256, HMAC-SHA256, and HKDF-SHA256 functions.
+    
+    Yields:
+        Path to the compiled executable (auto-cleaned by pytest tmp_path cleanup)
+    """
+    test_code = textwrap.dedent(r'''
+    #include <stdio.h>
+    #include <stdint.h>
+    #include <string.h>
+    #include "sha256.h"
+    
+    /* Test 1: SHA-256 of "abc" (NIST test vector) */
+    static int test_sha256_abc(void) {
+        uint8_t digest[SHA256_DIGEST_SIZE];
+        const uint8_t test_dummy_key_abc[] = "abc";
+        
+        /* Expected: ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad */
+        const uint8_t expected[SHA256_DIGEST_SIZE] = {
+            0xba, 0x78, 0x16, 0xbf, 0x8f, 0x01, 0xcf, 0xea,
+            0x41, 0x41, 0x40, 0xde, 0x5d, 0xae, 0x22, 0x23,
+            0xb0, 0x03, 0x61, 0xa3, 0x96, 0x17, 0x7a, 0x9c,
+            0xb4, 0x10, 0xff, 0x61, 0xf2, 0x00, 0x15, 0xad
+        };
+        
+        sha256_oneshot(test_dummy_key_abc, 3, digest);
+        
+        if (memcmp(digest, expected, SHA256_DIGEST_SIZE) == 0) {
+            printf("PASS: SHA256(abc) matches NIST test vector\n");
+            return 1;
+        } else {
+            printf("FAIL: SHA256(abc) mismatch\n");
+            return 0;
+        }
+    }
+    
+    /* Test 2: HMAC-SHA256 (RFC 4231, Test Case 1) */
+    static int test_hmac_sha256_rfc4231_tc1(void) {
+        /* Key: 0x0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b (20 bytes) */
+        uint8_t key[20];
+        int i;
+        for (i = 0; i < 20; i++) key[i] = 0x0b;
+        
+        /* Message: "Hi There" */
+        const uint8_t msg[] = "Hi There";
+        
+        /* Expected output (RFC 4231 Test Case 1):
+         * b0344c61d8db38535ca8afceaf0bf12b881dc200c9833da726e9376c2e32cff7 */
+        const uint8_t expected[HMAC_SHA256_SIZE] = {
+            0xb0, 0x34, 0x4c, 0x61, 0xd8, 0xdb, 0x38, 0x53,
+            0x5c, 0xa8, 0xaf, 0xce, 0xaf, 0x0b, 0xf1, 0x2b,
+            0x88, 0x1d, 0xc2, 0x00, 0xc9, 0x83, 0x3d, 0xa7,
+            0x26, 0xe9, 0x37, 0x6c, 0x2e, 0x32, 0xcf, 0xf7
+        };
+        
+        uint8_t hmac[HMAC_SHA256_SIZE];
+        hmac_sha256(key, sizeof(key), msg, sizeof(msg) - 1, hmac);
+        
+        if (memcmp(hmac, expected, HMAC_SHA256_SIZE) == 0) {
+            printf("PASS: HMAC-SHA256 (RFC 4231 TC1) matches expected output\n");
+            return 1;
+        } else {
+            printf("FAIL: HMAC-SHA256 (RFC 4231 TC1) mismatch\n");
+            return 0;
+        }
+    }
+    
+    /* Test 3: HKDF-SHA256 (RFC 5869 Test Case 1) */
+    static int test_hkdf_sha256_rfc5869_tc1(void) {
+        /* RFC 5869 Test Case 1 (SHA-256) */
+        /* IKM (Input Keying Material): 0x0b... (22 bytes) */
+        uint8_t ikm[22];
+        int i;
+        for (i = 0; i < 22; i++) ikm[i] = 0x0b;
+        
+        /* Salt: 0x000102... (13 bytes) */
+        uint8_t salt[13];
+        for (i = 0; i < 13; i++) salt[i] = (uint8_t)i;
+        
+        /* Info: 0xf0f1... (10 bytes) */
+        uint8_t info[10];
+        for (i = 0; i < 10; i++) info[i] = (uint8_t)(0xf0 + i);
+        
+        /* L = 42 (42-byte output) */
+        uint8_t okm[42];
+        
+        /* Expected OKM (RFC 5869, first 42 bytes):
+         * 3cb25f25faacd57a90434f64d0362f2a2d2d0a90cf1a5a4c5db02d56ecc4c5bf34007208d5b887185865 */
+        const uint8_t expected[42] = {
+            0x3c, 0xb2, 0x5f, 0x25, 0xfa, 0xac, 0xd5, 0x7a,
+            0x90, 0x43, 0x4f, 0x64, 0xd0, 0x36, 0x2f, 0x2a,
+            0x2d, 0x2d, 0x0a, 0x90, 0xcf, 0x1a, 0x5a, 0x4c,
+            0x5d, 0xb0, 0x2d, 0x56, 0xec, 0xc4, 0xc5, 0xbf,
+            0x34, 0x00, 0x72, 0x08, 0xd5, 0xb8, 0x87, 0x18,
+            0x58, 0x65
+        };
+        
+        hkdf_sha256(salt, sizeof(salt), ikm, sizeof(ikm), info, sizeof(info), okm, sizeof(okm));
+        
+        if (memcmp(okm, expected, 42) == 0) {
+            printf("PASS: HKDF-SHA256 (RFC 5869 TC1) matches expected output\n");
+            return 1;
+        } else {
+            printf("FAIL: HKDF-SHA256 (RFC 5869 TC1) mismatch\n");
+            return 0;
+        }
+    }
+    
+    int main(void) {
+        int pass = 0, fail = 0;
+        
+        printf("=== SHA256 Integration Tests ===\n\n");
+        
+        if (test_sha256_abc()) pass++; else fail++;
+        if (test_hmac_sha256_rfc4231_tc1()) pass++; else fail++;
+        if (test_hkdf_sha256_rfc5869_tc1()) pass++; else fail++;
+        
+        printf("\n=== Results: %d passed, %d failed ===\n", pass, fail);
+        return (fail == 0) ? 0 : 1;
+    }
+    ''')
+    
+    tmpdir = tmp_path_factory.mktemp("sha256_harness")
+    src_file = tmpdir / 'test_sha256.c'
+    exe_file = tmpdir / 'test_sha256'
+    
+    # Write test source
+    src_file.write_text(test_code)
+    
+    # Compile with compat/sha256.c
+    project_root = Path(PROJECT_ROOT)
+    sha256_src = project_root / 'compat' / 'sha256.c'
+    sha256_hdr_dir = project_root / 'compat'
+    
+    compile_cmd = [
+        'gcc',
+        '-std=gnu11',
+        '-I', str(sha256_hdr_dir),
+        '-o', str(exe_file),
+        str(src_file),
+        str(sha256_src),
+        '-Wall', '-Wextra', '-pedantic',
+    ]
+    
+    result = subprocess.run(
+        compile_cmd,
+        capture_output=True,
+        text=True
+    )
+    
+    if result.returncode != 0:
+        raise RuntimeError(f"SHA256 harness compilation failed:\nstdout: {result.stdout}\nstderr: {result.stderr}")
+    
+    yield exe_file
+
+
 def pytest_addoption(parser):
     """Add --runslow option to pytest CLI."""
     parser.addoption(
@@ -518,9 +679,13 @@ def pytest_addoption(parser):
 
 def pytest_collection_modifyitems(config, items):
     """Skip slow tests unless --runslow is passed."""
-    if config.getoption("--runslow"):
-        # Run all tests
-        return
+    try:
+        if config.getoption("--runslow"):
+            # Run all tests
+            return
+    except ValueError:
+        # Option not registered yet (can happen with early pytest initialization)
+        pass
     
     # Skip all tests marked as slow
     skip_slow = pytest.mark.skip(reason="need --runslow option to run")

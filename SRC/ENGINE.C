@@ -2978,6 +2978,19 @@ loadpics(char *filename)
 				kclose(fil);
 				return(-1);
 			}
+
+		/* engine-r29-art-tile-overlap-defensive-check: defense-in-depth bounds check.
+		 * Individual tile indices are validated above (c113, c118 audits).
+		 * This check ensures the range size does not exceed MAXTILES, protecting
+		 * against buffer overflows in array access if the loader logic is refactored.
+		 * While current bounds make this logically impossible, explicit validation
+		 * here improves maintainability and catches regressions. */
+		if (localtileend - localtilestart + 1 > MAXTILES)
+		{
+			printf("ART file error: tile range size start=%ld end=%ld > MAXTILES=%d\n", localtilestart, localtileend, MAXTILES);
+			kclose(fil);
+			return(-1);
+		}
 			
 			kread(fil,&tilesizx[localtilestart],(localtileend-localtilestart+1)<<1);
 			kread(fil,&tilesizy[localtilestart],(localtileend-localtilestart+1)<<1);

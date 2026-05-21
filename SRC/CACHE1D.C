@@ -516,6 +516,7 @@ kclose(long handle)
 
   /* Internal LZW variables */
 #define LZWSIZE 16384  /* Watch out for shorts! */
+#define LZW_LENG_WARN_THRESHOLD 16384
 static char *lzwbuf1, *lzwbuf4, *lzwbuf5, lzwbuflock[5];
 static short *lzwbuf2, *lzwbuf3;
 
@@ -542,6 +543,10 @@ kdfread(void *buffer, size_t dasizeof, size_t count, long fil)
 		printf("LZW decompress error: invalid leng=%d\n", leng);
 		return;
 	}
+	if (leng > LZW_LENG_WARN_THRESHOLD)
+	{
+		printf("LZW: warning, leng=%d approaching limit (%d) — possibly malformed input\n", leng, LZWSIZE+(LZWSIZE>>4));
+	}
 	kread(fil,lzwbuf5,(long)leng);
 	k = 0; kgoal = uncompress(lzwbuf5,(long)leng,lzwbuf4);
 
@@ -558,6 +563,10 @@ kdfread(void *buffer, size_t dasizeof, size_t count, long fil)
 			{
 				printf("LZW decompress error: invalid leng=%d\n", leng);
 				return;
+			}
+			if (leng > LZW_LENG_WARN_THRESHOLD)
+			{
+				printf("LZW: warning, leng=%d approaching limit (%d) — possibly malformed input\n", leng, LZWSIZE+(LZWSIZE>>4));
 			}
 			kread(fil,lzwbuf5,(long)leng);
 			k = 0; kgoal = uncompress(lzwbuf5,(long)leng,lzwbuf4);
@@ -592,6 +601,10 @@ dfread(void *buffer, size_t dasizeof, size_t count, FILE *fil)
 		printf("LZW decompress error: invalid leng=%d\n", leng);
 		return;
 	}
+	if (leng > LZW_LENG_WARN_THRESHOLD)
+	{
+		printf("LZW: warning, leng=%d approaching limit (%d) — possibly malformed input\n", leng, LZWSIZE+(LZWSIZE>>4));
+	}
 	fread(lzwbuf5,(long)leng,1,fil);
 	k = 0; kgoal = uncompress(lzwbuf5,(long)leng,lzwbuf4);
 
@@ -608,6 +621,10 @@ dfread(void *buffer, size_t dasizeof, size_t count, FILE *fil)
 			{
 				printf("LZW decompress error: invalid leng=%d\n", leng);
 				return;
+			}
+			if (leng > LZW_LENG_WARN_THRESHOLD)
+			{
+				printf("LZW: warning, leng=%d approaching limit (%d) — possibly malformed input\n", leng, LZWSIZE+(LZWSIZE>>4));
 			}
 			fread(lzwbuf5,(long)leng,1,fil);
 			k = 0; kgoal = uncompress(lzwbuf5,(long)leng,lzwbuf4);

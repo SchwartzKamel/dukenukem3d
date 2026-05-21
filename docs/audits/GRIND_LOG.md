@@ -5251,3 +5251,48 @@ Backlog: 468 pending / 493 done / 23 blocked.
 ### Notable
 - STAGING contract scaled cleanly to 4 parallel agents with zero file collisions; demonstrates safe pattern for doc-only audit batches.
 - Cycle-117 lesson (pre-commit hook self-quote FP on check_secrets.sh patterns) was honored — no agent included literal `service_account`/`private_key` strings.
+
+---
+
+## Cycle 119 — 2026-05-21T13:55Z — Grind sextet + Audit-pass duo (8 agents, all landed)
+
+**Dispatch**: 6 grind + 2 audit-pass DOC-ONLY STAGING (mid-grind audit tick deferred via STAGING contract).
+
+### Grind landings (6/6)
+
+| Agent | Todo(s) | Sentinel | Key change |
+|-------|---------|----------|------------|
+| sha256-cmake-fix | build-r28-source-file-sync-critical (CRITICAL) + compat-r28-sha256-integration-test (HIGH) | 3c9f42e7 | **TRIPLE-TRIANGULATED CRITICAL CLOSED**: compat/sha256.c added to CMakeLists.txt:54 COMPAT_SRCS. CMake builds now include HMAC-SHA256 auth module. +4 RFC-vector integration tests (SHA256 NIST + HMAC-SHA256 RFC 4231 + HKDF-SHA256 RFC 5869 + consolidated). New compiled_sha256_harness session-scoped fixture in tests/conftest.py. |
+| mmulti-recvbuf | net-r27-recv-buf-near-full-logged-keepalive-reset (LOW) + engine-r29-mmulti-recv-buf-capacity-codify (MED) | e8ea31b0 | SRC/MMULTI.C: defense-in-depth `if (recv_bufs[i].len > RECV_BUF_SIZE)` guard pre-memmove with diagnostic+reset; recv_buf_near_full_logged[i]=0 cleared in uninitmultiplayers() teardown path. |
+| audio-main-integration-test | audio-r28-test-main-integration (MED) | 83020209 | tests/test_generate_audio.py: TestAudioMainEndpointIntegration with 2 main() integration tests (unresolvable endpoint + invalid-key fallback); marked @pytest.mark.slow. **Also fixed missing pytest_addoption(--runslow) in conftest.py** — root cause of the "2 failures" sibling agents observed during dispatch window. |
+| engine-lzw-diag | engine-r29-lzw-leng-near-max-diagnostic (MED) | 50d9700f | SRC/CACHE1D.C: `LZW_LENG_WARN_THRESHOLD=16384` define + warning printf at 4 LZW sites (kdfread L546/L567, dfread L604/L625). Additive only; hard bounds unchanged. |
+| engine-art-defensive | engine-r29-art-tile-overlap-defensive-check (LOW) | a7f2c9e5 | SRC/ENGINE.C loadpics(): `(localtileend-localtilestart+1) > MAXTILES` defense-in-depth guard before kread() with kclose+return(-1); cites c113 + c118 audits in comment block. |
+| docs-index-backfill | docs-r27-audit-index-r27-r28-backfill (MED) | 83d09409 | docs/audits/index.md: +15 entries (8 r27 + 6 r28 + 1 r29) for audit reports landed c116-c118 that were missing from chronological manifest. |
+
+### Audit-pass landings (2/2 DOC-ONLY STAGING)
+
+| Persona | Round | Sentinel | Headline |
+|---------|-------|----------|----------|
+| asset-pipeline | r29 | a45d4bc0 | All c113 FLUX hardening + audio endpoint parity + manifest freshness sidecar VERIFIED. Mature/stable persona. 2 todos mined (retry-after-zero edge case LOW, win_build.ps1 scope clarification INFO). |
+| test-engineer | r28 | 7c42f1e6 | All c117 session-scoped fixtures + c119 new compiled_sha256_harness VERIFIED. +29 tests landed. test_dummy_key_ convention intact. 3 todos mined (parametrized endpoint validators, SHA256 HMAC boundary, audio manifest consistency fixture). |
+
+### Test count progression
+- c118: 1962 fast / collected 2031
+- c119: **1962 fast / collected 2040 (+9 sha256+audio integration; integration tests marked slow → excluded from fast-suite count)**
+- Wallclock fast-suite: **25.33s** (down from c117's 26.52s — slight improvement)
+
+### Convergence wins this cycle
+- **CRITICAL sha256.c CMake gap CLOSED** (triple-triangulated by c117 build-r28 + c118 compat-r28 + c118 engine-r29 — fixed once, satisfies all three)
+- **9-cycle totalclocklock ERRATA streak** carries forward (no agent proposed removal this cycle either)
+- **STAGING contract scales cleanly to 8 simultaneous agents** (6 grind + 2 doc-only audit) with zero file collisions — second consecutive cycle proving this
+
+### New todos mined (5 total this cycle's audit-pass)
+- asset-r29-retry-after-zero-edge-case (LOW)
+- asset-r29-windows-bootstrap-clarification (INFO)
+- test-r28-endpoint-validator-parametrized (LOW)
+- test-r28-sha256-hmac-boundary-cases (LOW)
+- test-r28-audio-manifest-consistency-fixture (LOW)
+
+### Notable
+- Cycle 117 lesson on pre-commit hook self-quote FP honored — no agent included literal `service_account`/`private_key` patterns.
+- Audio integration test agent revealed and fixed a latent conftest.py defect (`--runslow` option not registered) — explains the transient "2 failures" reported by mmulti and lzw agents during their pytest runs mid-cycle. Final tree post-c119: clean 1962/3-skip.

@@ -937,3 +937,134 @@ class TestAudioEndpointValidation:
         assert len(result) == 2
         assert isinstance(result[0], bool)
         assert isinstance(result[1], str)
+
+
+class TestAudioMainEndpointIntegration:
+    """Integration tests for main() endpoint validation and graceful fallback.
+    
+    Tests that the main() function's _validate_audio_endpoint wiring correctly
+    falls back to --no-ai (silence WAV generation) when endpoint validation fails,
+    and logs appropriate warnings without crashing.
+    """
+    
+    @pytest.mark.slow
+    def test_main_unreachable_endpoint_graceful_fallback(self):
+        """Invoke main() with unresolvable AUDIO_ENDPOINT; verify graceful fallback.
+        
+        When AUDIO_ENDPOINT is unresolvable (DNS fails):
+        - main() should return exit code 0 (graceful, not crash)
+        - A warning should be logged about validation failure
+        - At least one WAV file should be generated via silence fallback
+        """
+        env_file = os.path.join(PROJECT_ROOT, ".env")
+        
+        # Backup original .env file
+        backup_content = None
+        if os.path.exists(env_file):
+            with open(env_file, "r") as f:
+                backup_content = f.read()
+        
+        try:
+            # Write temporary .env with unreachable endpoint
+            with open(env_file, "w") as f:
+                f.write(
+                    "AUDIO_ENDPOINT=https://nonexistent.invalid.test/\n"
+                    "AUDIO_API_KEY=test_dummy_key_long_enough_16chars\n"
+                    "AUDIO_MODEL=gpt-audio-1.5\n"
+                )
+            
+            result = subprocess.run(
+                [sys.executable, os.path.join(PROJECT_ROOT, "tools", "generate_audio.py")],
+                cwd=PROJECT_ROOT,
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            
+            # Exit code must be 0 (graceful fallback, not crash)
+            assert result.returncode == 0, \
+                f"main() crashed on unresolvable endpoint:\nstdout: {result.stdout}\nstderr: {result.stderr}"
+            
+            # Warning about validation failure should be logged to stderr
+            assert "AUDIO config validation failed" in result.stderr or \
+                   "not resolvable" in result.stderr, \
+                f"Warning about endpoint validation failure not found in stderr:\n{result.stderr}"
+            
+            # At least one WAV file should be generated (silence fallback)
+            output_dir = os.path.join(PROJECT_ROOT, "generated_assets", "sounds")
+            assert os.path.exists(output_dir), f"Output directory not created: {output_dir}"
+            
+            wav_files = sorted([f for f in os.listdir(output_dir) if f.endswith(".WAV")])
+            assert len(wav_files) > 0, f"No WAV files generated in fallback mode at {output_dir}"
+            assert len(wav_files) == 21, \
+                f"Expected 21 WAV files in full generation, got {len(wav_files)}"
+        finally:
+            # Restore original .env file
+            if backup_content is not None:
+                with open(env_file, "w") as f:
+                    f.write(backup_content)
+            else:
+                # Remove the file if it didn't exist before
+                if os.path.exists(env_file):
+                    os.remove(env_file)
+    
+    @pytest.mark.slow
+    def test_main_invalid_api_key_graceful_fallback(self):
+        """Invoke main() with short AUDIO_API_KEY; verify graceful fallback.
+        
+        When AUDIO_API_KEY is too short (< 16 chars):
+        - main() should return exit code 0 (graceful, not crash)
+        - A warning should be logged about validation failure
+        - At least one WAV file should be generated via silence fallback
+        """
+        env_file = os.path.join(PROJECT_ROOT, ".env")
+        
+        # Backup original .env file
+        backup_content = None
+        if os.path.exists(env_file):
+            with open(env_file, "r") as f:
+                backup_content = f.read()
+        
+        try:
+            # Write temporary .env with invalid API key
+            with open(env_file, "w") as f:
+                f.write(
+                    "AUDIO_ENDPOINT=https://api.openai.com/v1/audio\n"
+                    "AUDIO_API_KEY=short_key\n"
+                    "AUDIO_MODEL=gpt-audio-1.5\n"
+                )
+            
+            result = subprocess.run(
+                [sys.executable, os.path.join(PROJECT_ROOT, "tools", "generate_audio.py")],
+                cwd=PROJECT_ROOT,
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            
+            # Exit code must be 0 (graceful fallback, not crash)
+            assert result.returncode == 0, \
+                f"main() crashed on invalid API key:\nstdout: {result.stdout}\nstderr: {result.stderr}"
+            
+            # Warning about validation failure should be logged
+            assert "AUDIO config validation failed" in result.stderr or \
+                   "too short" in result.stderr, \
+                f"Warning about API key validation failure not found in stderr:\n{result.stderr}"
+            
+            # At least one WAV file should be generated (silence fallback)
+            output_dir = os.path.join(PROJECT_ROOT, "generated_assets", "sounds")
+            assert os.path.exists(output_dir), f"Output directory not created: {output_dir}"
+            
+            wav_files = sorted([f for f in os.listdir(output_dir) if f.endswith(".WAV")])
+            assert len(wav_files) > 0, f"No WAV files generated in fallback mode at {output_dir}"
+            assert len(wav_files) == 21, \
+                f"Expected 21 WAV files in full generation, got {len(wav_files)}"
+        finally:
+            # Restore original .env file
+            if backup_content is not None:
+                with open(env_file, "w") as f:
+                    f.write(backup_content)
+            else:
+                # Remove the file if it didn't exist before
+                if os.path.exists(env_file):
+                    os.remove(env_file)

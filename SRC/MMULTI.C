@@ -424,6 +424,14 @@ static void net_poll_sockets(void)
 			/* net-r17-hmac: socket index i identifies the actual sender */
 			int has_hmac = session_key_valid[i];
 
+			/* engine-r29-mmulti-recv-buf-capacity-codify: Defense-in-depth check on recv buffer size */
+			if (recv_bufs[i].len > RECV_BUF_SIZE) {
+				printf("NET: Player %d recv buffer overflow detected: %d / %d bytes. Resetting.\n",
+					i, recv_bufs[i].len, RECV_BUF_SIZE);
+				recv_bufs[i].len = 0;
+				break;
+			}
+
 			/* net-r26-recv-buf-near-full-diagnostic: Hysteresis clear when buffer drops below threshold/2 */
 			if (recv_buf_near_full_logged[i] && recv_bufs[i].len < (RECV_BUF_SIZE - 4096) / 2) {
 				recv_buf_near_full_logged[i] = 0;
@@ -1000,6 +1008,7 @@ uninitmultiplayers()
 			/* net-r17-hmac: wipe session key on disconnect */
 			memset(session_key[i], 0, HMAC_SHA256_SIZE);
 			session_key_valid[i] = 0;
+			recv_buf_near_full_logged[i] = 0;
 			net_close(player_sockets[i]);
 			player_sockets[i] = INVALID_SOCKET;
 		}

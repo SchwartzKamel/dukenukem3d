@@ -54,6 +54,7 @@
 | r25 | [asset-pipeline-r25.md](asset-pipeline-r25.md) |
 | r26 | [asset-pipeline-r26.md](asset-pipeline-r26.md) |
 | r27 | [asset-pipeline-r27.md](asset-pipeline-r27.md) |
+| r28 | [asset-pipeline-r28.md](asset-pipeline-r28.md) |
 
 ## Audio Engineer
 {#audio-engineer}
@@ -84,6 +85,8 @@
 | r23 | [audio-engineer-r23.md](audio-engineer-r23.md) |
 | r24 | [audio-engineer-r24.md](audio-engineer-r24.md) |
 | r25 | [audio-engineer-r25.md](audio-engineer-r25.md) |
+| r27 | [audio-engineer-r27.md](audio-engineer-r27.md) |
+| r28 | [audio-engineer-r28.md](audio-engineer-r28.md) |
 
 ## Build System
 {#build-system}
@@ -114,6 +117,8 @@
 | r24 | [build-system-r24.md](build-system-r24.md) |
 | r25 | [build-system-r25.md](build-system-r25.md) |
 | r26 | [build-system-r26.md](build-system-r26.md) |
+| r27 | [build-system-r27.md](build-system-r27.md) |
+| r28 | [build-system-r28.md](build-system-r28.md) |
 
 ## Compat Layer
 {#compat-layer}
@@ -145,6 +150,8 @@
 | r24 | [compat-layer-r24.md](compat-layer-r24.md) |
 | r25 | [compat-layer-r25.md](compat-layer-r25.md) |
 | r26 | [compat-layer-r26.md](compat-layer-r26.md) |
+| r27 | [compat-layer-r27.md](compat-layer-r27.md) |
+| r28 | [compat-layer-r28.md](compat-layer-r28.md) |
 
 ## Documentation Curator
 {#documentation-curator}
@@ -175,6 +182,7 @@
 | r24 | [documentation-curator-r24.md](documentation-curator-r24.md) |
 | r25 | [documentation-curator-r25.md](documentation-curator-r25.md) |
 | r26 | [documentation-curator-r26.md](documentation-curator-r26.md) |
+| r27 | [documentation-curator-r27.md](documentation-curator-r27.md) |
 
 ## Engine Porter
 {#engine-porter}
@@ -207,6 +215,8 @@
 | r25 | [engine-porter-r25.md](engine-porter-r25.md) |
 | r26 | [engine-porter-r26.md](engine-porter-r26.md) |
 | r27 | [engine-porter-r27.md](engine-porter-r27.md) |
+| r28 | [engine-porter-r28.md](engine-porter-r28.md) |
+| r29 | [engine-porter-r29.md](engine-porter-r29.md) |
 
 ## Network Multiplayer
 {#network-multiplayer}
@@ -236,6 +246,7 @@
 | r22 | [network-multiplayer-r22.md](network-multiplayer-r22.md) |
 | r23 | [network-multiplayer-r23.md](network-multiplayer-r23.md) |
 | r24 | [network-multiplayer-r24.md](network-multiplayer-r24.md) |
+| r27 | [network-multiplayer-r27.md](network-multiplayer-r27.md) |
 
 ## Performance Profiler
 {#performance-profiler}
@@ -267,6 +278,8 @@
 | r24 | [performance-profiler-r24.md](performance-profiler-r24.md) |
 | r25 | [performance-profiler-r25.md](performance-profiler-r25.md) |
 | r26 | [performance-profiler-r26.md](performance-profiler-r26.md) |
+| r27 | [performance-profiler-r27.md](performance-profiler-r27.md) |
+| r28 | [performance-profiler-r28.md](performance-profiler-r28.md) |
 
 ## Performance Profiler Allocache
 {#performance-profiler-allocache}
@@ -304,6 +317,7 @@
 | r23 | [security-and-secrets-r23.md](security-and-secrets-r23.md) |
 | r24 | [security-and-secrets-r24.md](security-and-secrets-r24.md) |
 | r25 | [security-and-secrets-r25.md](security-and-secrets-r25.md) |
+| r27 | [security-and-secrets-r27.md](security-and-secrets-r27.md) |
 
 ## Test Engineer
 {#test-engineer}
@@ -335,6 +349,7 @@
 | r24 | [test-engineer-r24.md](test-engineer-r24.md) |
 | r25 | [test-engineer-r25.md](test-engineer-r25.md) |
 | r26 | [test-engineer-r26.md](test-engineer-r26.md) |
+| r27 | [test-engineer-r27.md](test-engineer-r27.md) |
 
 ---
 
