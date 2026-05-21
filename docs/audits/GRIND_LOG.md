@@ -3121,3 +3121,121 @@ Recommendation: leave for now, surface in next session. Adding tighter "NEVER ca
 - All prior-cycle sentinels LIVE and FUNCTIONAL (0 regressions detected)
 
 **Sentinel:** engine-r20-cycle78-complete-f7c4b2a1
+
+---
+
+## Cycle 79 — Audit-Pass: Compat Layer r19
+
+**Date:** 2026-06-03  
+**Persona:** Compat Layer  
+**Scope:** R18 state verification (0 regressions); cycle 75 _Noreturn macro verification; cycle 77 endianness comment fix; cycle 77 music-init-order fix; 14 intentionally-silent stubs inventory; net_socket unintegrated status (expected); pragmas_msvc.h status  
+**Status:** ✅ AUDIT COMPLETE (DOC-ONLY, 0 code changes)
+
+**Key Findings:**
+
+1. ✅ **R18 State Held Stable**
+   - 17 files, 5,223 LOC (UNCHANGED)
+   - 62 tests: 100% PASS RATE (30 compat_layer + 32 net_socket)
+   - Zero code regressions across cycles 75–79
+
+2. ✅ **Cycle 75 _Noreturn Macro Verified**
+   - Location: compat/compat.h:56-78
+   - Implementation: GCC/Clang __attribute__((noreturn)) + fallback
+   - Coverage: Integrated into master compat.h, used by error_fatal()
+   - **NEW FINDING:** Macro underutilized (1 site only); candidate for expansion to exit_game(), shutdown_engine() (LOW enhancement)
+
+3. ✅ **Cycle 77 Endianness Comment Fix Verified**
+   - Location: compat/mact_stub.c:346-349
+   - Improvement: Comment now explains why IntelLong is no-op (all targets little-endian)
+   - Clarity: References WAD file format spec, documents big-endian scenario
+   - Status: Exemplary documentation
+
+4. ✅ **Cycle 77 Music-Init-Order Documentation Verified**
+   - Location: compat/README.md:169-254 (86 lines, comprehensive)
+   - Coverage: 6-step initialization sequence, failure modes, cleanup order, version notes
+   - Status: Excellent; GAME.C:7463-7472 sequencing verified correct
+
+5. ✅ **14 Intentionally-Silent Stubs Documented**
+   - Per-frame polling (6): FX_GetVolume, FX_GetMaxReverbDelay, TS_LockMemory, TS_UnlockMemory, deltatime1mhz, CONTROL_PrintAxes
+   - Configuration/rare (8): inittimer1mhz, uninittimer1mhz, MUSIC_SetMaxFMMidiChannel, MUSIC_SetMidiChannelVolume, MUSIC_ResetMidiChannelVolumes, MUSIC_SetSongTick/Time/Position, MUSIC_RegisterTimbreBank, testcallback
+   - Design rationale: Avoid frame-time overhead; future DUKE3D_VERBOSE_STUBS enhancement noted
+   - Status: All documented in README.md lines 63-91
+
+6. ✅ **Net_Socket Remains Unintegrated (Expected)**
+   - Status: 3 files (net_socket.h + posix/win32 impls), 408 LOC
+   - Tests: 32 tests, 100% PASS RATE
+   - Integration: Still pending MMULTI.C refactoring (out-of-scope)
+
+7. ⚠️ **Pragmas_MSVC.h Status — TBD**
+   - Finding: File NOT FOUND in repository
+   - Context: Mentioned in compat-r10 backlog; MSVC compat IS addressed elsewhere (compat.h, msvc_unistd.h)
+   - **NEW TODO:** Clarify whether pragmas_msvc.h is obsolete or still needed (LOW priority)
+
+**New Audit Report:**
+- ✅ docs/audits/compat-layer-r19.md CREATED (11.5 KB, 7 sections, comprehensive closure analysis)
+
+**SUMMARY.md Updated:**
+- ✅ compat-layer main link line: [r19](compat-layer-r19.md) link added
+- ✅ compat-layer r19 sub-bullet entry added with detailed findings summary
+
+**Build:** Green (doc-only audit, 0 code changes).
+
+**New Todos Seeded:** 1 (compat-r19-pragmas-msvc-clarify LOW)
+
+**Human-attention items:**
+- pragmas_msvc.h status needs clarification (LOW priority, can defer to r20)
+- _Noreturn macro expansion opportunity identified (LOW priority, nice-to-have hardening)
+- All prior-cycle sentinels LIVE and FUNCTIONAL (0 regressions detected)
+
+**Persona Freshness:** compat-layer r19 ✅ COMPLETE
+
+**Sentinel:** compat-r19-cycle79-complete-a8f2d4c7
+
+---
+
+## Cycle 79: Audit-Pass Tick (R19 Round)
+
+### audio-engineer (Cycle 79 Tick #1)
+
+**Type:** Documentation-only audit-pass (no code changes)
+
+**Scope:** Perf-r19 CRITICAL root-cause analysis: audio manifest schema alignment
+
+**Key Findings:**
+
+1. **CRITICAL (IDENTIFIED & ROOT CAUSE DOCUMENTED)**: `perf-r19-audio-schema-alignment`
+   - Test `test_no_ai_generates_manifest_json` fails (line 326): assertion expects JSON list but manifest is now dict with "entries" key + "manifest_checksum" (schema changed cycle 75-76)
+   - Root cause: Schema evolution not reflected in test assertion
+   - Fix path: Update 1 line in test + optional fixture refactor
+   - Schema enforcement layer (`tools/manifest_verification.py:15`) working correctly
+   - Manifest generation correct, verification correct, test assertion out-of-bounds
+
+2. **Schema Enforcement Verified**: `tools/manifest_verification.py:99–110` correctly enforces `SUPPORTED_SCHEMA_VERSIONS=("1.0",)`
+
+3. **R18 Follow-Ups Status**: 3 items remain OPEN (legacy-checksum-timeline, schema-migration-adapter, voice-determinism-doc) — deferred to r20 (LOW priority)
+
+4. **Voice Catalog**: 21 entries stable, synced, no orphans ✅
+
+5. **Slow Test Suite Impact**: 43/44 PASS (1 FAIL due to stale assertion) = 2.3% failure rate
+
+**Recommendations:**
+- Dispatch `audio-r19-manifest-assertion-update` CRITICAL to next grind cycle (5 min fix)
+- Defer r18 open items to r20 audit
+- Document manifest schema migration path for future versions
+
+**New Todos Seeded:**
+- `audio-r19-manifest-assertion-update` (CRITICAL, 5 min)
+- `audio-r19-manifest-fixture-refactor` (OPTIONAL, 20 min)
+- `audio-r19-schema-migration-planning` (MEDIUM, defer to r20)
+
+**Deliverables:**
+- ✅ `docs/audits/audio-engineer-r19.md` created (350+ lines)
+- ✅ 3 NEW todos inserted to SQL (SELECT-after-INSERT proof provided)
+- ✅ SUMMARY.md r18→r19 row updated
+- ✅ GRIND_LOG.md cycle 79 section appended
+
+**Test Impact:** Slow test suite 39.92s with 1 FAIL (vs baseline 44 tests)
+
+**Persona Freshness:** audio-engineer r19 ✅ COMPLETE
+
+**Sentinel:** audio-r19-cycle79-complete-f7e3a2b1
