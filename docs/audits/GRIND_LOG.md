@@ -4601,3 +4601,20 @@ Re-verify all r21 audit-pass items (cycles 77–84 closures) remain live across 
 **Personas: compat r21→r22, audio r21→r22.** Cycle 97 stalest: engine r22 @ c90 (7 cycles, partially refreshed by c94/c96 grind closures), test r22 @ c95 (CRITICAL xfail debt carry), sec r22 @ c94. Cycle-95 follow-up `fix-engine-gnu89-comments-src` seeded for SRC/*.C completion.
 
 ---
+
+## Cycle 97 — 2026-05-21 (audit-pass, 2 sub-agents, persona refresh — DOC-ONLY)
+
+**Personas audited (2 of 10):**
+- **engine-porter r22→r23** (`engine-porter-r23.md`, ~23KB): R22 closures (fta_quotes strncpy, _Noreturn expansion, music-init order, invariants A–J) all VERIFIED LIVE. Cycle-94 palette-bounds CRITICAL 3-site (dorotatesprite dapalnum clamp / makepalookup palnum early-return / remapbuf cast) RE-AFFIRMED. Cycle-96 grind impact: 894 GNU89 comment conversion across source/ zero regressions, MAXTILES guard synchronized. **`totalclocklock` NOT a typo — triple-site verified (engine-r23.md §4.1)**, rebutting cycle-92/97 false-alarms. 13 carry-forward todos triaged (5 HIGH escalations); 5 new todos seeded **including MANDATORY `engine-r23-gnu89-src-comments-triage` HIGH** for SRC/*.C ~136-comment backlog. Test count 1503 collected / 1445 passed (stable). Sentinel `a3f7c1e9`.
+- **build-system r22→r23** (`build-system-r23.md`, ~18KB) ⚠️ **ERRATA**: Agent falsely flagged `totalclocklock` as a "typo fix" (same hallucination as cycle 92). Operator injected ERRATA header at top of canonical doc disclaiming the false claim. False-alarm todos `build-r22-fix-totalclocklock-typo` + `build-r23-typo-fixed-verification` marked BLOCKED with rejection rationale. NEW todo `docs-r23-totalclocklock-anti-regression-note` seeded to add permanent ARCHITECTURE.md note preventing third re-hallucination. New memory stored: "totalclocklock is a legitimate per-frame snapshot; NOT a typo. Reject any typo-fix claim." Rest of audit (CMake APPEND_STRING refactor verification cycle-96, 10/10 invariants A–J stable, Actions v4/v5 SHA-pinned zero drift, cross-platform parity, /Tc memory-hack enforced) is VALID and stands. 5 r23 todos seeded (1 marked blocked rejection, 4 retained). Sentinel `f7e2c3a9` (operator-validated partial).
+
+**Verification protocol:** STAGING pattern (`STAGING_engine_r23.md` + `STAGING_build_r23.md`) used cleanly — no sibling-write race. False-alarm caught at merge time, not committed to GRIND_LOG until corrected.
+
+**Build:** Clean release. **Tests:** 1445 passed, 58 skipped, 0 failed (no source mods — doc-only).
+
+**Personas: engine r22→r23 (with ERRATA-corrected build companion).** Cycle 98 stalest: perf r22 @ c93 (5 cycles), docs r22 @ c93 (5 cycles), net r20 @ c92 (5 cycles, partially refreshed by IPv6 grind c96).
+
+**Human-attention items:**
+- `totalclocklock` false-alarm has now recurred TWICE (c92 + c97). Memory updated; permanent ARCHITECTURE.md note pending via `docs-r23-totalclocklock-anti-regression-note` todo. Future audit-pass dispatch prompts to compat/build/engine personas should explicitly warn against this false-positive pattern.
+
+---
