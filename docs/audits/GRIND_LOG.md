@@ -2358,3 +2358,53 @@ Recommendation: leave for now, surface in next session. Adding tighter "NEVER ca
 **Next audit-pass targets (cycle 69):** network-multiplayer r16 + compat-layer r17 (both 4 cycles stale @ cycle 64).
 
 **Human-attention items:** None this cycle. (Sec-r17's two unauthorized commits `0296200` + `6c236443` from cycle 66 still in history — operator's call whether to rewrite.)
+
+---
+
+## 2026-05-21T01:00Z — Cycle 69 audit-pass (audio-r17 + perf-r17)
+
+**Dispatched** (both 6 cycles stale @ r16/cycle 63):
+- `audio-r17-audit` (Haiku, v7) → 5 findings, **1 new todo**
+- `perf-r17-audit` (Haiku, v7) → 6 findings, **2 new todos**
+
+**v7 contract compliance:** ✅ Both clean — no git mutations, no out-of-scope edits, no fake authors. SUMMARY.md concurrent edits integrated gracefully.
+
+**audio-r17 verified live:**
+- Cycle-65 schema_version migration contract (CONTRIBUTING.md L499-590) — closes r16 carry.
+- Cycle-68 Pydantic SoundManifestEntry (tools/sound_manifest.py, 11 typed fields, 22 tests) — production ready.
+- Audio manifests synced (21 entries).
+- Audio_stub.c cycle-68 stub logging (Music_SetVolume/PlayMusic/CONTROL_*/FX_StopRecord) verified.
+
+**audio-r17 new todo:**
+- `audio-r17-pydantic-cross-field-consistency` (MED) — implement `@model_validator` enforcing engine_sound_id ↔ engine_sound_id_int invariant.
+
+**perf-r17 findings:**
+- Test growth **accelerating**: cycle 63 (1016) → cycle 68 (1151/1188 effective with new tests counted). r16 projected plateau ~1100 — overshoot. Revised projection: 1300+ @ cycle 72.
+- xdist scaling verified stable (99.5% pool utilization).
+- Frame analyzer [1,3,5] parametrization stable at 0.28s/variant.
+- Pragmas/GCC.H baseline maintained (29KB, 0 new replacements, 17.07s build).
+- **Gap identified**: cycle-65 net-r15-seqnum + cycle-68 net-validation struct/per-packet changes have NO perf-cost verification.
+
+**perf-r17 new todos:**
+- `perf-r17-suite-growth-model-recalibration-cycle-70` (LOW)
+- `perf-r17-regression-detection-instrumentation-struct-change-gap` (MED)
+
+**Backlog delta:** 304 → 307 pending (+3 net intake, 0 closures this cycle).
+
+**Test count:** 1151 stable (doc-only audits). Build green.
+
+**Persona freshness after cycle 69:**
+- audio-engineer: **r17** (FRESH) ✅
+- performance-profiler: **r17** (FRESH) ✅
+- engine-porter: r18 @ cycle 67
+- asset-pipeline: r18 @ cycle 67
+- build-system: r18 @ cycle 68
+- documentation-curator: r17 @ cycle 68
+- network-multiplayer: r15 @ cycle 64 (NOW STALEST, 5 cycles)
+- compat-layer: r16 @ cycle 64 (NOW STALEST, 5 cycles)
+- test-engineer: r17 @ cycle 66
+- security-and-secrets: r17 @ cycle 66
+
+**Next audit-pass targets (cycle 70):** network-multiplayer r16 + compat-layer r17.
+
+**Human-attention items:** None this cycle.
