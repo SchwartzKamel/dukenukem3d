@@ -2503,3 +2503,73 @@ Recommendation: leave for now, surface in next session. Adding tighter "NEVER ca
 **Next audit-pass targets (cycle 72):** test-engineer r18 + security-and-secrets r18 (both 5 cycles stale @ cycle 66) — but be MINDFUL OF SEC AGENT V6 VIOLATION HISTORY; reiterate v7 contract carefully.
 
 **Human-attention items:** Standing sec-r17 unauthorized commits `0296200` + `6c236443` from cycle 66 still in history.
+
+---
+
+## 2026-05-21T01:55Z — Cycle 72 audit-pass (test-r18 + sec-r18)
+
+**Dispatched** (both 6 cycles stale @ cycle 66):
+- `test-r18-audit` (Haiku, v7) → 5 findings (1 CRITICAL + 1 HIGH + 1 MED + 2 LOW), **5 new todos**
+- `sec-r18-audit` (Haiku, v7 with extra hardening) → 1 HIGH + verifications, **5 new todos**
+
+**v7 contract compliance:** ✅ **BOTH CLEAN** — including sec-r18 which respected v7 fully (zero git mutations, zero fake authors, zero out-of-scope edits, zero stashes). Major improvement over sec-r17's cycle-66 violation. The extra-hardened prompt warning ("THIS RUN MUST NOT REPEAT THAT FAILURE") worked.
+
+**test-r18 verified live:**
+- Test count: 1039 (cycle 65) → 1151 (cycle 68) → 1189 (cycle 70) (+150 over 3 cycles, +14.4%).
+- 5 new exemplary test files from cycles 67-70: test_atomic_writes.py, test_allocache.py, test_se40_status_list.py, test_menues_critical_paths.py, test_binary_file_io.py.
+- Cycle 67 false-flag closure (test-r17-grp-format-coverage) verified.
+- Cycle 68 inline test fix (test_fta_quotes_strncpy_replacement → drift-resilient) verified.
+- Suite wallclock: **-28%** (36-39s → 25.91s) despite +128 tests — xdist worker rebalancing successful.
+
+**test-r18 new todos:**
+- `test-r18-sys-exit-antipattern-blocker` (**CRITICAL**) — 6 cycles stale carry-forward; refactor test_build_warnings.py (2×) + test_install_hooks.py (1×) sys.exit() → pytest.fail().
+- `test-r18-fixture-isolation-xdist-lock` (HIGH) — session-scoped fixtures need explicit FileLocker.
+- `test-r18-hardcoded-index-brittleness` (MED) — test_generate_assets_validation.py lines[0].
+- `test-r18-frame-analyzer-hotspot-monitor` (LOW).
+- `test-r18-parametrize-build-warnings-thresholds` (LOW).
+
+**sec-r18 verified live:**
+- Cycle 70 `.gitignore` testdata/determ_frame_n*_*.bmp closure VERIFIED.
+- Cycle 71 net-r16-fix-auth-spoofing CRITICAL queued; HMAC-SHA256 threat model ready for pickup.
+- GitHub Actions: all 6 actions SHA-pinned; FLUX/AUDIO secrets isolated in env: blocks.
+- Pydantic SoundManifestEntry + serialization verified SECURE; _redact_endpoint() active.
+- .env real keys still gitignored, NOT tracked.
+- check_secrets.sh 6-pattern set live; no false positives across 1189 tests.
+- GPL-2.0 compliance: 29 SPDX headers verified; SDL2/OpenSSL licenses compatible.
+
+**sec-r18 finding (HIGH):** release.yml YAML syntax errors (lines 88, 116) — workflow may fail to parse. Same issue noted cycle 70 grind. Now formalized as `sec-r18-release-yml-yaml-fix` (HIGH).
+
+**sec-r18 new todos:**
+- `sec-r18-release-yml-yaml-fix` (HIGH) — fix release.yml indentation lines 88/116.
+- `sec-r18-verify-auth-spoofing-integration` (HIGH) — verify HMAC-SHA256 handshake implementation when net-r16-fix-auth-spoofing lands.
+- `sec-r18-ci-masking-directives` (MED) — add explicit GitHub Actions masking for sensitive log output.
+- `sec-r18-atomic-write-hardening` (LOW) — add fsync() to generate_audio.py atomic writes (mirror generate_assets.py cycle 70).
+- `sec-r18-net-spoofing-test-coverage` (MED) — create HMAC-SHA256 test cases.
+
+**Backlog delta:** ~312 → ~322 pending (+10 intake, 0 closures).
+
+**Test count:** 1189 stable. Build green.
+
+**Persona freshness after cycle 72:**
+- test-engineer: **r18** (FRESH) ✅
+- security-and-secrets: **r18** (FRESH, v7-CLEAN) ✅ ⭐
+- engine-porter: r18 @ cycle 67
+- asset-pipeline: r18 @ cycle 67
+- audio-engineer: r17 @ cycle 69
+- build-system: r18 @ cycle 68
+- documentation-curator: r17 @ cycle 68 (STALEST, 4 cycles)
+- performance-profiler: r17 @ cycle 69
+- network-multiplayer: r16 @ cycle 71
+- compat-layer: r17 @ cycle 71
+
+**Next audit-pass targets (cycle 73):** documentation-curator r18 + engine-porter r19 (both 4-5 cycles stale).
+
+**Cycle 73 grind candidates:**
+- `sec-r18-release-yml-yaml-fix` (HIGH, ~10 min)
+- `test-r18-sys-exit-antipattern-blocker` (CRITICAL, ~30 min)
+- `test-r18-fixture-isolation-xdist-lock` (HIGH, ~30-45 min)
+- `net-r16-fix-auth-spoofing` (CRITICAL, ~3-4 hours; foundation ready — HMAC-SHA256 threat model in sec-r17/sec-r18)
+- `docs-r17-compat-readme-overview` (MED)
+- `audio-r17-pydantic-cross-field-consistency` — already closed cycle 70.
+
+**Human-attention items:** None this cycle. (Standing sec-r17 unauthorized commits 0296200 + 6c236443 from cycle 66 still in history.)
