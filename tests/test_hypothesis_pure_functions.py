@@ -24,7 +24,7 @@ from tables import create_tables_dat, _generate_basic_font, _generate_small_font
 from manifest_verification import _sha256_of_manifest, verify_manifest_checksum
 from grp_format import create_grp
 from voc_format import _generate_tone_samples, _generate_noise_samples, _generate_click_samples
-from frame_analyzer import unique_color_count, color_histogram, brightness_stats, is_black_screen, frame_difference, region_crop
+from frame_analyzer import unique_color_count, color_histogram, brightness_stats, is_black_screen, frame_difference, region_crop, analyze_frame, has_visible_content
 
 
 # ============================================================================
@@ -1180,4 +1180,244 @@ def test_region_crop_deterministic(width, height):
     
     # Check dimensions match
     assert cropped1.size == cropped2.size, "Crop dimensions should be deterministic"
+
+
+# ============================================================================
+# New @given Tests — Hypothesis Expansion (Cycle 88+)
+# ============================================================================
+
+
+@given(
+    width=st.integers(1, 50),
+    height=st.integers(1, 50),
+    seed=st.integers(0, 2**31 - 1)
+)
+@settings(max_examples=25, deadline=1500)
+def test_quantize_image_deterministic(width, height, seed):
+    """Property: quantize_image is deterministic — same inputs always yield same bytes.
+    
+    Tests surface #10: Texture quantization determinism.
+    Given seed S and input I, two runs produce byte-identical output.
+    """
+    pal = build_palette()
+    
+    # Create image from seed for reproducibility
+    np.random.seed(seed)
+    rgb_data = np.random.randint(0, 256, (height, width, 3), dtype=np.uint8)
+    img = Image.fromarray(rgb_data, mode='RGB')
+    
+    # Quantize twice with same inputs
+    q1 = quantize_image(img, pal)
+    q2 = quantize_image(img, pal)
+    
+    assert isinstance(q1, bytes), "quantize_image should return bytes"
+    assert q1 == q2, "quantize_image must be deterministic for same input"
+
+
+@given(
+    width=st.integers(1, 50),
+    height=st.integers(1, 50)
+)
+@settings(max_examples=25, deadline=1500)
+def test_quantize_image_preserves_pixel_count(width, height):
+    """Property: quantize_image output byte count equals width × height (1 byte/pixel).
+    
+    Tests surface #10: Texture quantization consistency.
+    Quantized output should have exactly one byte per pixel.
+    """
+    pal = build_palette()
+    img = Image.new('RGB', (width, height), color=(100, 150, 200))
+    
+    quantized = quantize_image(img, pal)
+    
+    assert isinstance(quantized, bytes), "quantize_image returns bytes"
+    assert len(quantized) == width * height, (
+        f"Quantized size {len(quantized)} != width*height {width * height}"
+    )
+
+
+@given(
+    width=st.integers(1, 50),
+    height=st.integers(1, 50)
+)
+@settings(max_examples=20, deadline=2000)
+def test_analyze_frame_has_required_keys(width, height):
+    """Property: analyze_frame always returns all required keys in output dict.
+    
+    Tests surface for frame analysis invariants.
+    The output must contain: brightness, dimensions, has_content, is_black, top_colors, unique_colors.
+    """
+    img = Image.new('RGB', (width, height), color=(128, 128, 128))
+    
+    result = analyze_frame(img)
+    
+    assert isinstance(result, dict), "analyze_frame must return dict"
+    
+    required_keys = {'brightness', 'dimensions', 'has_content', 'is_black', 'top_colors', 'unique_colors'}
+    assert required_keys.issubset(result.keys()), (
+        f"Missing keys: {required_keys - set(result.keys())}"
+    )
+
+
+@given(
+    width=st.integers(1, 50),
+    height=st.integers(1, 50)
+)
+@settings(max_examples=20, deadline=2000)
+def test_analyze_frame_value_types_correct(width, height):
+    """Property: analyze_frame returns correct types for each field.
+    
+    Tests surface for frame analysis value type consistency.
+    Validates that dimensions is a tuple, brightness is dict, etc.
+    """
+    img = Image.new('RGB', (width, height), color=(128, 128, 128))
+    
+    result = analyze_frame(img)
+    
+    assert isinstance(result['dimensions'], tuple), "dimensions should be tuple"
+    assert len(result['dimensions']) == 2, "dimensions should be (width, height)"
+    assert result['dimensions'][0] == width, "dimensions[0] should match image width"
+    assert result['dimensions'][1] == height, "dimensions[1] should match image height"
+    
+    assert isinstance(result['brightness'], dict), "brightness should be dict"
+    assert isinstance(result['has_content'], bool), "has_content should be bool"
+    assert isinstance(result['is_black'], bool), "is_black should be bool"
+    assert isinstance(result['unique_colors'], int), "unique_colors should be int"
+    assert isinstance(result['top_colors'], list), "top_colors should be list"
+
+
+@given(
+    width=st.integers(1, 50),
+    height=st.integers(1, 50),
+    min_colors=st.integers(1, 10),
+    max_black=st.floats(0.5, 1.0)
+)
+@settings(max_examples=20, deadline=1500)
+def test_has_visible_content_deterministic(width, height, min_colors, max_black):
+    """Property: has_visible_content is deterministic — returns same result on repeated calls.
+    
+    Tests surface for frame analysis consistency.
+    Given same image and parameters, result should always be the same.
+    """
+    img = Image.new('RGB', (width, height), color=(128, 128, 128))
+    
+    result1 = has_visible_content(img, min_unique_colors=min_colors, max_black_ratio=max_black)
+    result2 = has_visible_content(img, min_unique_colors=min_colors, max_black_ratio=max_black)
+    
+    assert isinstance(result1, bool), "has_visible_content should return bool"
+    assert result1 == result2, "has_visible_content must be deterministic"
+
+
+@given(
+    payload=st.binary(min_size=1, max_size=1000)
+)
+@settings(max_examples=50, deadline=1500)
+def test_sha256_hex_format_invariant(payload):
+    """Property: _sha256_of_manifest produces exactly 64 lowercase hex characters.
+    
+    Tests surface #5: Manifest sha256 stability.
+    Given any byte payload, sha256 hex is 64 lowercase chars matching [0-9a-f]{64}.
+    """
+    manifest = {
+        "version": "1.0",
+        "source": "test",
+        "data": payload.hex()  # Convert bytes to hex string
+    }
+    
+    hash_val = _sha256_of_manifest(manifest)
+    
+    assert isinstance(hash_val, str), "Hash must be string"
+    assert len(hash_val) == 64, f"Hash length {len(hash_val)} != 64"
+    assert all(c in '0123456789abcdef' for c in hash_val), (
+        f"Hash contains non-hex or non-lowercase chars: {hash_val}"
+    )
+
+
+@given(
+    width=st.integers(5, 100),
+    height=st.integers(5, 100)
+)
+@settings(max_examples=15, deadline=2000)
+def test_analyze_frame_brightness_bounds(width, height):
+    """Property: analyze_frame brightness stats are bounded within [0, 255].
+    
+    Tests surface for frame analysis bounds invariant.
+    All brightness metrics (min, max, mean, median, stddev) should be reasonable.
+    """
+    img = Image.new('RGB', (width, height), color=(128, 128, 128))
+    
+    result = analyze_frame(img)
+    brightness = result['brightness']
+    
+    assert isinstance(brightness, dict), "brightness should be dict"
+    assert 'min' in brightness and 'max' in brightness, "Missing min/max"
+    assert 'mean' in brightness, "Missing mean"
+    
+    assert 0 <= brightness['min'] <= 255, f"min={brightness['min']} out of bounds"
+    assert 0 <= brightness['max'] <= 255, f"max={brightness['max']} out of bounds"
+    assert 0 <= brightness['mean'] <= 255, f"mean={brightness['mean']} out of bounds"
+    assert brightness['min'] <= brightness['max'], "min should be <= max"
+
+
+@given(
+    num_colors=st.integers(1, 256)
+)
+@settings(max_examples=30, deadline=1000)
+def test_build_palette_color_count_invariant(num_colors):
+    """Property: build_palette always returns exactly 256 RGB tuples.
+    
+    Tests surface for palette generation invariant.
+    The palette size must always be 256 regardless of requests; this tests that assertion.
+    """
+    pal = build_palette()
+    
+    assert len(pal) == 256, f"Palette size {len(pal)} != 256"
+    
+    for i, color in enumerate(pal):
+        assert isinstance(color, tuple), f"Color {i} is not tuple"
+        assert len(color) == 3, f"Color {i} is not 3-tuple"
+        r, g, b = color
+        assert all(isinstance(c, int) for c in (r, g, b)), f"Color {i} components not all int"
+        assert all(0 <= c <= 255 for c in (r, g, b)), f"Color {i} component out of bounds"
+
+
+@given(
+    files_dict=st.dictionaries(
+        st.text(
+            min_size=1,
+            max_size=12,
+            alphabet=st.characters(
+                min_codepoint=ord('A'),
+                max_codepoint=ord('Z'),
+                blacklist_characters='\x00'
+            )
+        ),
+        st.binary(min_size=1, max_size=100),
+        min_size=1,
+        max_size=5
+    )
+)
+@settings(max_examples=25, deadline=2000)
+def test_create_grp_size_consistency(files_dict):
+    """Property: create_grp output size is consistent and bounded.
+    
+    Tests surface for GRP format invariant.
+    GRP size = 12 (magic) + 4 (count) + 16*N (entries) + payload.
+    """
+    grp = create_grp(files_dict)
+    
+    assert isinstance(grp, bytes), "create_grp should return bytes"
+    
+    # Verify minimum size: magic (12) + count (4) + directory entries (16*N)
+    min_size = 12 + 4 + (len(files_dict) * 16)
+    assert len(grp) >= min_size, (
+        f"GRP size {len(grp)} < minimum {min_size}"
+    )
+    
+    # Verify reasonable maximum (shouldn't be excessively large)
+    total_payload = sum(len(data) for data in files_dict.values())
+    max_reasonable = min_size + total_payload + 1000  # +1000 for overhead
+    assert len(grp) <= max_reasonable, (
+        f"GRP size {len(grp)} unreasonably large (expected <= {max_reasonable})"
+    )
 

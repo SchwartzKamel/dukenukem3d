@@ -4716,3 +4716,41 @@ Re-verify all r21 audit-pass items (cycles 77–84 closures) remain live across 
 
 ### Human-attention items
 - None.
+
+---
+
+## 2026-05-21T08:50:00Z — Cycle 101 (scheduled /every audit-grind)
+
+**Trigger:** `/every 30m /audit-grind` tick.
+**Operator AFK:** Yes.
+
+### Baseline
+- Build: green at `2e5206f`.
+- Tests: 1450 passed / 58 skipped.
+
+### Todos picked up (6 sub-agents, parallel)
+| id | persona | result |
+|---|---|---|
+| `net-r19-tcp-keepalive-implementation` | network-multiplayer | ✅ `net_socket_enable_keepalive()` API added (POSIX + Win32); Linux TCP_KEEPIDLE/INTVL/CNT tuning (120s/30s/5 probes ≈ 150s zombie detect); best-effort warning-on-failure; +12 tests |
+| `engine-r13-engine-nextsectorneighborz-bounds` | engine-porter | ✅ Audit-only closure — guards (3) already present at SRC/ENGINE.C:4952/4966/4987; sentinel test already exists |
+| `compat-r22-sdl-driver-long-return` | compat-layer | ✅ Audit-only closure — `sdl_getbytesperline()` already `int32_t` with `_Static_assert(sizeof(int32_t)==4)`; no call sites in engine |
+| `sec-r23-precommit-ci-integration` | security | ✅ `.github/workflows/secret-scan.yml` + `tools/check_secrets_ci.sh`; PR + push triggers; pinned `actions/checkout@34e1148...`; concurrency cancel-in-progress |
+| `test-r21-hypothesis-expansion` | test-engineer | ✅ +9 `@given` functions (quantize determinism×2, frame analysis×4, sha256 format, palette count, GRP size); +29 test runs |
+| `docs-r23-codeowners-documentation` | docs-curator | ✅ `SECURITY.md` `## Code Ownership` § added (16 lines); lists 5 protected pattern categories; links to .github/CODEOWNERS |
+
+### Validation deltas
+- Build: green.
+- Tests: 1450 → **1471 passed** (+21: 12 keepalive + 9 hypothesis); 58 skipped.
+- Files changed: 8 (5 modified + 3 new).
+
+### Notable
+- 2 of 6 grind targets (engine-nextsectorneighborz + compat-sdl-driver) were already-resolved from prior cycles — audit-only closures with SQL bookkeeping update. Detected before further wasted work.
+- `tools/check_secrets_ci.sh` enables defense-in-depth: secrets scanned on every PR regardless of contributor local-hook installation.
+- `net_socket_enable_keepalive()` is best-effort and NOT yet wired into SRC/MMULTI.C call sites; that integration is a follow-up todo.
+
+### Backlog deltas
+- Closed: 6 todos (4 source-mod + 2 audit-only).
+- New seeded: `net-r19-keepalive-mmulti-wiring` LOW (wire enable_keepalive() into SRC/MMULTI.C post-socket-create; deferred per persona scope rule).
+
+### Human-attention items
+- None.

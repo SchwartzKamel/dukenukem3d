@@ -5,11 +5,13 @@
  */
 
 #include "net_socket.h"
+#include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <netdb.h>
+#include <netinet/tcp.h>
 
 /* POSIX: socket initialization is a no-op */
 void net_socket_init(void)
@@ -110,6 +112,50 @@ int net_socket_set_nonblocking(net_socket_t sock)
 int net_socket_set_option(net_socket_t sock, int level, int optname, const void *optval, int optlen)
 {
 	return setsockopt(sock, level, optname, optval, (socklen_t)optlen);
+}
+
+/* Enable TCP keepalive with optional tunable knobs (best-effort) */
+int net_socket_enable_keepalive(net_socket_t sock)
+{
+	int on = 1;
+	int ret;
+
+	/* Enable SO_KEEPALIVE */
+	ret = setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE, &on, sizeof(on));
+	if (ret < 0) {
+		fprintf(stderr, "WARNING: net_socket_enable_keepalive: SO_KEEPALIVE failed (%s)\n", strerror(errno));
+		return ret;
+	}
+
+	/* Optional: Set keepalive timers on Linux if available */
+#ifdef TCP_KEEPIDLE
+	/* TCP_KEEPIDLE: time before first keepalive probe (2 hours default) */
+	int keepidle = 120;  /* 2 minutes for faster dead connection detection */
+	ret = setsockopt(sock, IPPROTO_TCP, TCP_KEEPIDLE, &keepidle, sizeof(keepidle));
+	if (ret < 0) {
+		fprintf(stderr, "WARNING: net_socket_enable_keepalive: TCP_KEEPIDLE failed (%s)\n", strerror(errno));
+	}
+#endif
+
+#ifdef TCP_KEEPINTVL
+	/* TCP_KEEPINTVL: interval between keepalive probes (75 sec default) */
+	int keepintvl = 30;  /* 30 seconds for faster detection */
+	ret = setsockopt(sock, IPPROTO_TCP, TCP_KEEPINTVL, &keepintvl, sizeof(keepintvl));
+	if (ret < 0) {
+		fprintf(stderr, "WARNING: net_socket_enable_keepalive: TCP_KEEPINTVL failed (%s)\n", strerror(errno));
+	}
+#endif
+
+#ifdef TCP_KEEPCNT
+	/* TCP_KEEPCNT: number of keepalive probes before giving up (9 default) */
+	int keepcnt = 5;  /* 5 probes × 30 sec = 150 sec total before timeout */
+	ret = setsockopt(sock, IPPROTO_TCP, TCP_KEEPCNT, &keepcnt, sizeof(keepcnt));
+	if (ret < 0) {
+		fprintf(stderr, "WARNING: net_socket_enable_keepalive: TCP_KEEPCNT failed (%s)\n", strerror(errno));
+	}
+#endif
+
+	return 0;  /* SO_KEEPALIVE succeeded; optional tuning failures are logged but not fatal */
 }
 
 /* Close socket */

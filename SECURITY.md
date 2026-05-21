@@ -52,3 +52,19 @@ The following issues have been identified and documented. Critical and high-seve
 - **Path traversal** — `find_game_file()` and CON `include` directive don't sanitize `../` sequences. Low risk since inputs come from local game data files, not user/network input.
 - **Port parsing** — `atoi()` used for port numbers without range validation (1-65535).
 - **Legacy C patterns** — Various fixed-size buffers throughout 1996-era code. Comprehensive audit would require rewriting significant portions of the original engine.
+
+## Code Ownership
+
+Certain security-sensitive paths in this repository are protected by automated code ownership rules (`.github/CODEOWNERS`). These paths require review by the project maintainer before changes are approved:
+
+- **CI/CD & Workflows** — `.github/workflows/`
+- **Secrets Detection** — `tools/check_secrets.sh`
+- **Dependencies** — `requirements.txt`
+- **Cryptographic Primitives** — `compat/sha256.*` (SHA256 implementations)
+- **Network & HMAC Code** — `SRC/MMULTI.C`, `compat/net_socket*`
+
+For the complete and authoritative list of protected paths, see [`.github/CODEOWNERS`](.github/CODEOWNERS).
+
+### Contributing to Protected Paths
+
+If you need to modify a security-sensitive path, open a pull request with your changes. The maintainer will review and merge when appropriate. To propose changes to code ownership rules themselves, create a pull request editing `.github/CODEOWNERS` directly — such changes also require maintainer review.

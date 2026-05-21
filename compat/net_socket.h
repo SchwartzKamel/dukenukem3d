@@ -64,6 +64,9 @@ int net_socket_resolve_address(const char *host, const char *port, struct sockad
 int net_socket_set_nonblocking(net_socket_t sock);
 int net_socket_set_option(net_socket_t sock, int level, int optname, const void *optval, int optlen);
 
+/* TCP keepalive configuration (best-effort: logs warnings on failure, does not abort) */
+int net_socket_enable_keepalive(net_socket_t sock);
+
 /* Socket close */
 void net_socket_close(net_socket_t sock);
 

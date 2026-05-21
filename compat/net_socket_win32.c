@@ -5,6 +5,7 @@
  */
 
 #include "net_socket.h"
+#include <stdio.h>
 #include <string.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>
@@ -116,6 +117,24 @@ int net_socket_set_nonblocking(net_socket_t sock)
 int net_socket_set_option(net_socket_t sock, int level, int optname, const void *optval, int optlen)
 {
 	return setsockopt(sock, level, optname, (const char *)optval, optlen);
+}
+
+/* Enable TCP keepalive (best-effort: logs warnings on failure, does not abort) */
+int net_socket_enable_keepalive(net_socket_t sock)
+{
+	int on = 1;
+	int ret;
+
+	/* Enable SO_KEEPALIVE */
+	ret = setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE, (const char *)&on, sizeof(on));
+	if (ret == SOCKET_ERROR) {
+		fprintf(stderr, "WARNING: net_socket_enable_keepalive: SO_KEEPALIVE failed (error %d)\n", WSAGetLastError());
+		return ret;
+	}
+
+	/* Windows tuning knobs (optional, skipped for now per v7-HARDENED constraints) */
+
+	return 0;  /* SO_KEEPALIVE succeeded */
 }
 
 /* Close socket */
