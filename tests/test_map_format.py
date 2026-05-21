@@ -96,9 +96,18 @@ def test_map_wall_size():
     assert len(data) == expected_size
 
 
-# ---- create_level_map tests ---------------------------------------------
+# ---- create_level_map tests with parametrization -------------------------
 
 _ALL_LEVELS = [(ep, lv) for ep in range(1, 5) for lv in range(1, 12)]
+
+# Parametrized episode range test
+@pytest.mark.parametrize("episode", [1, 2, 3, 4])
+def test_level_map_episodes_have_levels(episode):
+    """Each episode generates valid maps."""
+    for level in range(1, 12):
+        data = create_level_map(episode, level)
+        version = struct.unpack_from("<i", data, 0)[0]
+        assert version == 7
 
 
 @pytest.mark.parametrize("episode,level", _ALL_LEVELS)
@@ -147,6 +156,18 @@ def test_level_map_player_position_reasonable(episode, level):
     _, px, py, pz, _, _ = _parse_map_header(data)
     assert -500000 <= px <= 500000
     assert -500000 <= py <= 500000
+
+
+# Additional parametrized tests for level variation
+@pytest.mark.parametrize("level", range(1, 12))
+def test_level_complexity_increases_per_level(level):
+    """Level complexity increases through episode 1."""
+    if level < 11:
+        curr = create_level_map(1, level)
+        next_lv = create_level_map(1, level + 1)
+        ns_curr = struct.unpack_from("<h", curr, 20)[0]
+        ns_next = struct.unpack_from("<h", next_lv, 20)[0]
+        assert ns_next >= ns_curr, "later levels should have at least as many sectors"
 
 
 def test_level_maps_all_unique():

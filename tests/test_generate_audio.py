@@ -635,3 +635,141 @@ class TestAsyncTimeoutRegression:
         for entry in entries:
             assert "status" in entry, f"Missing status in {entry.get('wav')}"
             assert "generated_at" in entry, f"Missing generated_at in {entry.get('wav')}"
+
+
+class TestManifestFreshnessSidecar:
+    """Tests for audio-r5-manifest-freshness-tracking: freshness sidecar file."""
+
+    def test_freshness_sidecar_created(self):
+        """Verify that --no-ai generates freshness sidecar alongside manifest."""
+        result = subprocess.run(
+            [sys.executable, os.path.join(PROJECT_ROOT, "tools", "generate_audio.py"), "--no-ai"],
+            cwd=PROJECT_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+        
+        assert result.returncode == 0, f"--no-ai failed: {result.stderr}"
+        
+        sidecar_path = os.path.join(PROJECT_ROOT, "generated_assets", "sounds", "audio_manifest.freshness.json")
+        assert os.path.exists(sidecar_path), \
+            f"Freshness sidecar not created at {sidecar_path}"
+
+    def test_freshness_sidecar_structure(self):
+        """Verify sidecar JSON has required fields: generated_at, manifest_checksum."""
+        result = subprocess.run(
+            [sys.executable, os.path.join(PROJECT_ROOT, "tools", "generate_audio.py"), "--no-ai"],
+            cwd=PROJECT_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+        
+        assert result.returncode == 0, f"--no-ai failed: {result.stderr}"
+        
+        sidecar_path = os.path.join(PROJECT_ROOT, "generated_assets", "sounds", "audio_manifest.freshness.json")
+        with open(sidecar_path) as f:
+            freshness_data = json.load(f)
+        
+        assert "generated_at" in freshness_data, "Freshness sidecar missing 'generated_at' field"
+        assert "manifest_checksum" in freshness_data, "Freshness sidecar missing 'manifest_checksum' field"
+
+    def test_freshness_sidecar_iso8601_timestamp(self):
+        """Verify generated_at field is valid ISO8601 format."""
+        result = subprocess.run(
+            [sys.executable, os.path.join(PROJECT_ROOT, "tools", "generate_audio.py"), "--no-ai"],
+            cwd=PROJECT_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+        
+        assert result.returncode == 0, f"--no-ai failed: {result.stderr}"
+        
+        sidecar_path = os.path.join(PROJECT_ROOT, "generated_assets", "sounds", "audio_manifest.freshness.json")
+        with open(sidecar_path) as f:
+            freshness_data = json.load(f)
+        
+        generated_at = freshness_data["generated_at"]
+        # ISO8601 format: should be parseable and contain 'T' separator
+        assert "T" in generated_at, f"generated_at not ISO8601: {generated_at}"
+        assert "Z" in generated_at or "+" in generated_at or "-" in generated_at[-6:], \
+            f"generated_at missing timezone: {generated_at}"
+
+    def test_manifest_determinism_preserved(self):
+        """Verify manifest contains hardcoded 1970-01-01 epoch (determinism preserved)."""
+        result = subprocess.run(
+            [sys.executable, os.path.join(PROJECT_ROOT, "tools", "generate_audio.py"), "--no-ai"],
+            cwd=PROJECT_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+        
+        assert result.returncode == 0, f"--no-ai failed: {result.stderr}"
+        
+        manifest_path = os.path.join(PROJECT_ROOT, "generated_assets", "sounds", "MANIFEST.json")
+        with open(manifest_path) as f:
+            manifest = json.load(f)
+        
+        entries = manifest.get("entries", []) if isinstance(manifest, dict) else manifest
+        for entry in entries:
+            # Manifest should still have deterministic 1970 timestamp
+            assert entry["generated_at"] == "1970-01-01T00:00:00Z", \
+                f"Manifest entry {entry.get('wav')} not deterministic: {entry['generated_at']}"
+
+    def test_sidecar_checksum_matches_manifest(self):
+        """Verify sidecar's manifest_checksum matches the manifest's checksum."""
+        result = subprocess.run(
+            [sys.executable, os.path.join(PROJECT_ROOT, "tools", "generate_audio.py"), "--no-ai"],
+            cwd=PROJECT_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+        
+        assert result.returncode == 0, f"--no-ai failed: {result.stderr}"
+        
+        manifest_path = os.path.join(PROJECT_ROOT, "generated_assets", "sounds", "MANIFEST.json")
+        sidecar_path = os.path.join(PROJECT_ROOT, "generated_assets", "sounds", "audio_manifest.freshness.json")
+        
+        with open(manifest_path) as f:
+            manifest = json.load(f)
+        
+        with open(sidecar_path) as f:
+            freshness_data = json.load(f)
+        
+        manifest_checksum = manifest.get("manifest_checksum")
+        sidecar_checksum = freshness_data.get("manifest_checksum")
+        
+        assert manifest_checksum is not None, "Manifest missing manifest_checksum"
+        assert sidecar_checksum is not None, "Sidecar missing manifest_checksum"
+        assert sidecar_checksum == manifest_checksum, \
+            f"Checksum mismatch: manifest={manifest_checksum}, sidecar={sidecar_checksum}"
+
+    def test_sidecar_is_separate_file(self):
+        """Verify sidecar is a distinct file, not embedded in manifest."""
+        result = subprocess.run(
+            [sys.executable, os.path.join(PROJECT_ROOT, "tools", "generate_audio.py"), "--no-ai"],
+            cwd=PROJECT_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+        
+        assert result.returncode == 0, f"--no-ai failed: {result.stderr}"
+        
+        manifest_path = os.path.join(PROJECT_ROOT, "generated_assets", "sounds", "MANIFEST.json")
+        sidecar_path = os.path.join(PROJECT_ROOT, "generated_assets", "sounds", "audio_manifest.freshness.json")
+        
+        with open(manifest_path) as f:
+            manifest = json.load(f)
+        
+        # Manifest should NOT have a "freshness" key at top level
+        assert "freshness" not in manifest, "Freshness data embedded in manifest (should be sidecar)"
+        assert "generated_at" not in manifest or manifest.get("generated_at") == "1970-01-01T00:00:00Z", \
+            "Manifest should not have actual generated_at timestamp"
+        
+        # Sidecar must exist as separate file
+        assert os.path.exists(sidecar_path), f"Sidecar not found at {sidecar_path}"

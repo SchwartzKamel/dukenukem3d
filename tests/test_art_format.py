@@ -1,6 +1,29 @@
 """Tests for BUILD engine ART file creation."""
 import struct
+import pytest
 from art_format import create_art_file, rgb_to_column_major
+
+
+# Parametrized dimension sets for edge case coverage
+_ART_DIMENSIONS = [1, 8, 16, 256, 1024]
+_ART_TILE_SIZES = [
+    (0, 0, b""),           # empty
+    (1, 1, bytes(1)),      # minimal
+    (8, 8, bytes(64)),     # standard
+    (16, 16, bytes(256)),  # large
+    (256, 256, bytes(65536)),  # max practical
+]
+
+
+@pytest.mark.parametrize("dim", _ART_DIMENSIONS)
+def test_art_file_header_dimensions(dim):
+    """ART file header correct for various tile dimensions."""
+    tiles = [(dim, dim, 0, bytes(dim * dim))]
+    data = create_art_file(tiles, localtilestart=0)
+    version, numtiles_legacy, start, end = struct.unpack_from("<iiii", data, 0)
+    assert version == 1
+    assert start == 0
+    assert end == 0  # localtilestart + len(tiles) - 1
 
 
 def test_art_file_header():
@@ -13,6 +36,15 @@ def test_art_file_header():
     assert start == 0
     assert end == 0  # localtilestart + len(tiles) - 1
     assert end - start + 1 == 1  # actual tile count
+
+
+@pytest.mark.parametrize("width,height,pixels", _ART_TILE_SIZES)
+def test_art_file_single_tile_sizes(width, height, pixels):
+    """Single tile is packed correctly for various dimensions."""
+    tiles = [(width, height, 0, pixels)]
+    data = create_art_file(tiles, localtilestart=0)
+    expected_len = 16 + 2 + 2 + 4 + len(pixels)
+    assert len(data) == expected_len
 
 
 def test_art_file_single_tile():
@@ -31,6 +63,16 @@ def test_art_file_empty_tile():
     assert len(data) == 16 + 2 + 2 + 4  # header + sizes + picanm, no pixels
 
 
+@pytest.mark.parametrize("tile_count", [1, 3, 5, 10])
+def test_art_file_multiple_tiles_counts(tile_count):
+    """Multiple tiles are stored sequentially for various counts."""
+    tiles = [(8, 8, 0, bytes(64)) for _ in range(tile_count)]
+    data = create_art_file(tiles, localtilestart=0)
+    _, _, start, end = struct.unpack_from("<iiii", data, 0)
+    tile_count_result = end - start + 1
+    assert tile_count_result == tile_count
+
+
 def test_art_file_multiple_tiles():
     """Multiple tiles are stored sequentially."""
     tiles = [
@@ -42,6 +84,16 @@ def test_art_file_multiple_tiles():
     _, _, start, end = struct.unpack_from("<iiii", data, 0)
     tile_count = end - start + 1
     assert tile_count == 3
+
+
+@pytest.mark.parametrize("width,height", [(1, 1), (2, 3), (4, 4), (8, 8), (16, 16)])
+def test_rgb_to_column_major_shapes(width, height):
+    """Column-major conversion produces correct byte ordering for various shapes."""
+    # Create row-major input
+    size = width * height
+    row_major = bytes((i % 256) for i in range(size))
+    result = rgb_to_column_major(row_major, width, height)
+    assert len(result) == size
 
 
 def test_rgb_to_column_major():

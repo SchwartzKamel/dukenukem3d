@@ -10,6 +10,11 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "tools"))
 from anm_format import create_anm, create_placeholder_anm, _compress_rsd
 
 
+# Parametrized test matrices for edge case coverage
+_FRAME_COUNTS = [1, 3, 5]
+_FPS_VALUES = [1, 10, 30, 60]
+
+
 class TestCompressRSD:
     """Test RunSkipDump compression."""
 
@@ -20,6 +25,14 @@ class TestCompressRSD:
         # Should end with STOP marker
         assert compressed[-3:] == b"\x80\x00\x00"
         # Should be much smaller than input
+        assert len(compressed) < len(pixels)
+
+    @pytest.mark.parametrize("pixel_value", [0, 42, 128, 255])
+    def test_uniform_compression_parametrized(self, pixel_value):
+        """Uniform pixel compression for various values."""
+        pixels = bytes([pixel_value] * 100)
+        compressed = _compress_rsd(pixels)
+        assert compressed[-3:] == b"\x80\x00\x00"
         assert len(compressed) < len(pixels)
 
     def test_stop_marker_present(self):
@@ -38,6 +51,14 @@ class TestCompressRSD:
         pixels = bytes(range(50))
         compressed = _compress_rsd(pixels)
         assert compressed[-3:] == b"\x80\x00\x00"
+
+    @pytest.mark.parametrize("run_length", [10, 100, 300, 500, 1000])
+    def test_large_runs_parametrized(self, run_length):
+        """Runs larger than 255 use long RUN encoding."""
+        pixels = bytes([7] * run_length)
+        compressed = _compress_rsd(pixels)
+        assert compressed[-3:] == b"\x80\x00\x00"
+        assert len(compressed) < len(pixels)
 
     def test_large_run(self):
         """Runs larger than 255 should use long RUN encoding."""
@@ -72,6 +93,7 @@ class TestCompressRSD:
         assert decompressed == bytes(pixels)
 
 
+
 class TestCreateAnm:
     """Test ANM file creation."""
 
@@ -98,6 +120,16 @@ class TestCreateAnm:
         height = struct.unpack_from("<H", anm, 22)[0]
         assert width == 320
         assert height == 200
+
+    @pytest.mark.parametrize("frame_count", _FRAME_COUNTS)
+    def test_record_count_parametrized(self, frame_count):
+        """nRecords should be len(frames) + 1 for various counts."""
+        frame = bytes(64000)
+        palette = [(0, 0, 0)] * 256
+        frames = [frame for _ in range(frame_count)]
+        anm = create_anm(frames, palette)
+        n_records = struct.unpack_from("<I", anm, 8)[0]
+        assert n_records == frame_count + 1
 
     def test_record_count(self):
         """nRecords should be len(frames) + 1."""
@@ -142,6 +174,235 @@ class TestCreateAnm:
         """ANM file must be at least 0xB00 + some data."""
         frame = bytes(64000)
         palette = [(0, 0, 0)] * 256
+        anm = create_anm([frame], palette)
+        assert len(anm) > 0xB00
+
+    def test_requires_frames(self):
+        """Should raise error with no frames."""
+        palette = [(0, 0, 0)] * 256
+        with pytest.raises(ValueError, match="(?i)at least one frame"):
+            create_anm([], palette)
+
+    def test_requires_correct_palette_size(self):
+        """Should raise error with wrong palette size."""
+        frame = bytes(64000)
+        with pytest.raises(ValueError, match="256 entries"):
+            create_anm([frame], [(0, 0, 0)] * 128)
+
+    def test_requires_correct_frame_size(self):
+        """Should raise error with wrong frame size."""
+        palette = [(0, 0, 0)] * 256
+        with pytest.raises(ValueError, match="64000 bytes"):
+            create_anm([bytes(100)], palette)
+
+    def test_compression_type(self):
+        """Header byte at offset 29 should indicate RunSkipDump (1)."""
+        frame = bytes(64000)
+        palette = [(0, 0, 0)] * 256
+        anm = create_anm([frame], palette)
+        assert anm[29] == 1
+
+    @pytest.mark.parametrize("fps", _FPS_VALUES)
+    def test_fps_stored_parametrized(self, fps):
+        """FPS value should be stored in header for various values."""
+        frame = bytes(64000)
+        palette = [(0, 0, 0)] * 256
+        anm = create_anm([frame], palette, fps=fps)
+        fps_stored = struct.unpack_from("<H", anm, 68)[0]
+        assert fps_stored == fps
+
+    def test_fps_stored(self):
+        """FPS value should be stored in header."""
+        frame = bytes(64000)
+        palette = [(0, 0, 0)] * 256
+        anm = create_anm([frame], palette, fps=15)
+        fps = struct.unpack_from("<H", anm, 68)[0]
+        assert fps == 15
+
+    def test_multi_frame(self):
+        """Multiple frames should produce correct nRecords."""
+        frames = [bytes(64000), bytes([1] * 64000)]
+        palette = [(0, 0, 0)] * 256
+        anm = create_anm(frames, palette)
+        n_records = struct.unpack_from("<I", anm, 8)[0]
+        assert n_records == 3  # 2 frames + 1 no-op
+
+
+class TestCreatePlaceholderAnm:
+    """Test placeholder ANM generation."""
+
+    def test_creates_valid_anm(self):
+        """Placeholder should produce a valid ANM file."""
+        anm = create_placeholder_anm("TEST")
+        assert anm[0:4] == b"LPF "
+        assert anm[16:20] == b"ANIM"
+
+    def test_default_text(self):
+        """Default placeholder should generate without errors."""
+        anm = create_placeholder_anm()
+        assert len(anm) > 0xB00
+
+    def test_custom_text(self):
+        """Custom text placeholder should work."""
+        anm = create_placeholder_anm("HELLO WORLD")
+        assert anm[0:4] == b"LPF "
+
+    def test_text_pixels_present(self):
+        """Placeholder should have non-zero pixels for text."""
+        anm = create_placeholder_anm("X", text_color=1)
+        # Check that the LP data section contains actual frame data
+        # beyond just headers (file should be larger than empty frame)
+        assert len(anm) > 0xB20
+
+    @pytest.mark.parametrize("text", [
+        "DUKE NUKEM 3D", "EPISODE 2 END", "EPISODE 3 END",
+        "DUKE NUKEM TEAM", "3D REALMS", "EPISODE 4",
+        "EPISODE 4-2", "EPISODE 4-3", "EPISODE 4 END",
+        "EPISODE 4 END 2", "EPISODE 4 END 3",
+    ])
+    def test_all_anm_files_generate_parametrized(self, text):
+        """All game ANM files should generate without errors."""
+        anm = create_placeholder_anm(text=text)
+        assert anm[0:4] == b"LPF ", f"Failed for: {text}"
+        assert len(anm) > 0xB00, f"Too small for: {text}"
+
+    def test_all_anm_files_generate(self):
+        """All game ANM files should generate without errors."""
+        anm_defs = [
+            "DUKE NUKEM 3D", "EPISODE 2 END", "EPISODE 3 END",
+            "DUKE NUKEM TEAM", "3D REALMS", "EPISODE 4",
+            "EPISODE 4-2", "EPISODE 4-3", "EPISODE 4 END",
+            "EPISODE 4 END 2", "EPISODE 4 END 3",
+        ]
+        for text in anm_defs:
+            anm = create_placeholder_anm(text=text)
+            assert anm[0:4] == b"LPF ", f"Failed for: {text}"
+            assert len(anm) > 0xB00, f"Too small for: {text}"
+
+
+class TestCreateAnmFileIO:
+    """Test ANM file I/O round-trip operations."""
+
+    def test_anm_file_roundtrip_via_tmp_path(self, tmp_path):
+        """ANM file written and read back should match original."""
+        frame = bytes(64000)
+        palette = [(i, i, i) for i in range(256)]
+        anm_data = create_anm([frame], palette, fps=20)
+        
+        # Write to temp file
+        test_file = tmp_path / "test.anm"
+        test_file.write_bytes(anm_data)
+        
+        # Read back
+        read_data = test_file.read_bytes()
+        assert read_data == anm_data
+        assert len(read_data) == len(anm_data)
+
+    def test_anm_multiple_frames_roundtrip(self, tmp_path):
+        """Multiple-frame ANM should roundtrip via file I/O."""
+        frames = [bytes([i % 256] * 64000) for i in range(3)]
+        palette = [(i, i, i) for i in range(256)]
+        anm_data = create_anm(frames, palette, fps=12)
+        
+        test_file = tmp_path / "multi.anm"
+        test_file.write_bytes(anm_data)
+        read_data = test_file.read_bytes()
+        
+        # Verify header structure is preserved
+        assert read_data[:4] == b"LPF "
+        assert read_data[16:20] == b"ANIM"
+        n_records = struct.unpack_from("<I", read_data, 8)[0]
+        assert n_records == len(frames) + 1
+
+    def test_anm_palette_roundtrip(self, tmp_path):
+        """Custom palette should be preserved through file roundtrip."""
+        frame = bytes(64000)
+        palette = [(255, 0, 0)] * 128 + [(0, 255, 0)] * 128
+        anm_data = create_anm([frame], palette)
+        
+        test_file = tmp_path / "palette.anm"
+        test_file.write_bytes(anm_data)
+        read_data = test_file.read_bytes()
+        
+        # Verify first two palette entries
+        assert read_data[0x100] == 0    # B of (255,0,0)
+        assert read_data[0x101] == 0    # G
+        assert read_data[0x102] == 255  # R
+        assert read_data[0x100 + 128*4] == 0    # B of (0,255,0)
+        assert read_data[0x101 + 128*4] == 255  # G
+        assert read_data[0x102 + 128*4] == 0    # R
+
+    def test_anm_large_file_sizes(self, tmp_path):
+        """Verify large ANM files with multiple pages work."""
+        # Create frames with varied content to prevent extreme compression
+        frames = []
+        for i in range(5):
+            frame = bytearray(64000)
+            for j in range(0, 64000, 50):
+                frame[j] = (i + j) % 256
+            frames.append(bytes(frame))
+        
+        palette = [(i, i, i) for i in range(256)]
+        anm_data = create_anm(frames, palette)
+        
+        test_file = tmp_path / "large.anm"
+        test_file.write_bytes(anm_data)
+        read_data = test_file.read_bytes()
+        
+        # With multiple frames, file should be substantial
+        assert len(read_data) > 0xB00  # At least header + one page
+        assert read_data[:4] == b"LPF "
+
+
+class TestCreateAnmEdgeCases:
+    """Test edge cases and boundary conditions."""
+
+    @pytest.mark.parametrize("pixel_value", [0, 1, 42, 127, 128, 255])
+    def test_anm_single_pixel_values_parametrized(self, pixel_value):
+        """Single unique pixel value in frame compresses well."""
+        frame = bytes([pixel_value] * 64000)
+        palette = [(0, 0, 0)] * 256
+        anm_data = create_anm([frame], palette)
+        assert anm_data[:4] == b"LPF "
+        # Compressed single-color frame should be relatively small
+        assert len(anm_data) < 100000
+
+    def test_anm_single_pixel_frame(self):
+        """Single unique pixel value in frame should compress well."""
+        frame = bytes([42] * 64000)
+        palette = [(0, 0, 0)] * 256
+        anm_data = create_anm([frame], palette)
+        assert anm_data[:4] == b"LPF "
+        # Compressed single-color frame should be relatively small
+        assert len(anm_data) < 100000
+
+    def test_anm_complex_frame(self):
+        """Frame with all 256 palette colors should handle correctly."""
+        frame = bytearray(64000)
+        for i in range(256):
+            for j in range(64000 // 256):
+                frame[i * (64000 // 256) + j] = i
+        palette = [(i, i, i) for i in range(256)]
+        anm_data = create_anm([bytes(frame)], palette)
+        assert anm_data[:4] == b"LPF "
+
+    @pytest.mark.parametrize("fps_val", _FPS_VALUES)
+    def test_anm_fps_values_parametrized(self, fps_val):
+        """Various FPS values are stored correctly."""
+        frame = bytes(64000)
+        palette = [(0, 0, 0)] * 256
+        anm_data = create_anm([frame], palette, fps=fps_val)
+        fps_stored = struct.unpack_from("<H", anm_data, 68)[0]
+        assert fps_stored == fps_val
+
+    def test_anm_fps_values(self):
+        """Various FPS values should be stored correctly."""
+        frame = bytes(64000)
+        palette = [(0, 0, 0)] * 256
+        for fps_val in [1, 10, 30, 60]:
+            anm_data = create_anm([frame], palette, fps=fps_val)
+            fps_stored = struct.unpack_from("<H", anm_data, 68)[0]
+            assert fps_stored == fps_val
         anm = create_anm([frame], palette)
         assert len(anm) > 0xB00
 

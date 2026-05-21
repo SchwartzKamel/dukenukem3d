@@ -120,6 +120,12 @@ static unsigned long voc_file_size(const unsigned char *p)
     /* SAFETY: p[20..21] unchecked — caller pre-condition (see header). */
     data_off = (unsigned short)(p[20] | ((unsigned)p[21] << 8));
     if (data_off < 26) data_off = 26;
+    /* Validate upper bound: data_off must be within file buffer */
+    if (data_off >= MAX_SOUND_FILE_SIZE) {
+        fprintf(stderr, "voc_file_size: data offset %u exceeds max (%u bytes)\n",
+                (unsigned)data_off, MAX_SOUND_FILE_SIZE);
+        return 0;
+    }
     cur   = p + data_off;
     limit = p + MAX_SOUND_FILE_SIZE;
     while (cur < limit) {

@@ -1,7 +1,13 @@
 """Tests for VOC format generator."""
 import struct
+import pytest
 
 from voc_format import create_voc_stub, create_voc_from_samples, HEADER_MAGIC
+
+
+# Parametrized duration and size sets for edge case coverage
+_VOC_DURATIONS = [10, 50, 100, 500, 2000]
+_VOC_SAMPLE_SIZES = [1, 10, 100, 1000, 10000, 44100]
 
 
 def test_voc_magic():
@@ -39,6 +45,17 @@ def test_voc_data_block_type():
     assert data[26] == 1
 
 
+@pytest.mark.parametrize("duration_ms", _VOC_DURATIONS)
+def test_voc_block_length_parametrized(duration_ms):
+    """Block length matches actual payload for various durations."""
+    data = create_voc_stub("test.voc", duration_ms=duration_ms)
+    # Block starts at offset 26
+    block_len_bytes = data[27:30] + b"\x00"
+    block_len = struct.unpack("<I", block_len_bytes)[0]
+    # Total = header(26) + type(1) + len(3) + payload(block_len) + terminator(1)
+    assert len(data) == 26 + 1 + 3 + block_len + 1
+
+
 def test_voc_block_length():
     """Block length matches actual payload."""
     data = create_voc_stub("test.voc", duration_ms=100)
@@ -69,11 +86,30 @@ def test_voc_different_names():
     assert a != b
 
 
+@pytest.mark.parametrize("duration1,duration2", [(50, 500), (100, 1000), (200, 2000)])
+def test_voc_duration_scales_parametrized(duration1, duration2):
+    """Longer duration produces larger file for various ranges."""
+    short = create_voc_stub("test.voc", duration_ms=duration1)
+    long = create_voc_stub("test.voc", duration_ms=duration2)
+    assert len(long) > len(short)
+
+
 def test_voc_duration_scales():
     """Longer duration produces larger file."""
     short = create_voc_stub("test.voc", duration_ms=50)
     long = create_voc_stub("test.voc", duration_ms=500)
     assert len(long) > len(short)
+
+
+@pytest.mark.parametrize("sample_size", _VOC_SAMPLE_SIZES)
+def test_voc_from_samples_sizes(sample_size):
+    """create_voc_from_samples produces valid VOC with various sample sizes."""
+    samples = bytes([128] * sample_size)  # silence
+    data = create_voc_from_samples(samples, sample_rate=11025)
+    assert data[:20] == HEADER_MAGIC
+    assert data[-1] == 0
+    # Samples should appear inside the block payload
+    assert samples in data
 
 
 def test_voc_from_samples():
@@ -91,6 +127,18 @@ def test_voc_compression_byte():
     data = create_voc_stub("test.voc")
     # After header(26) + type(1) + len(3) + sr_byte(1) -> compression at offset 31
     assert data[31] == 0
+
+
+@pytest.mark.parametrize("sound_name", [
+    "pistol.voc", "shotgun7.voc", "chaingun.voc", "rpgfire.voc",
+    "kickhit.voc", "roam06.voc", "DMDEATH.VOC", "switch.voc",
+    "bubblamb.voc", "bonus.voc", "secret.voc", "teleport.voc",
+])
+def test_voc_all_duke_sound_names_parametrized(sound_name):
+    """Generate VOC stub for Duke3D sound without error."""
+    data = create_voc_stub(sound_name)
+    assert data[:20] == HEADER_MAGIC, f"Failed for {sound_name}"
+    assert len(data) > 30, f"Too small for {sound_name}"
 
 
 def test_voc_all_duke_sound_names():

@@ -448,6 +448,36 @@ def _add_checksums_to_manifest(manifest_dict, output_dir):  # asset-r13-manifest
     return manifest_dict
 
 
+def _write_freshness_sidecar(manifest_dict, output_dir):
+    """Write a freshness sidecar alongside the deterministic manifest.
+    
+    The manifest itself contains hardcoded 1970-01-01T00:00:00Z timestamps for
+    determinism. This sidecar file captures actual generation time without
+    breaking byte-for-byte manifest reproducibility.
+    
+    # audio-r5-manifest-freshness-tracking: sidecar freshness tracking
+    
+    The sidecar contains:
+    - generated_at: ISO8601 timestamp of actual generation
+    - manifest_checksum: manifest's SHA256 for audit trail correlation
+    
+    Args:
+        manifest_dict: Dict with manifest_checksum field
+        output_dir: Directory where sidecar will be written
+    """
+    freshness_data = {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "manifest_checksum": manifest_dict.get("manifest_checksum", ""),
+    }
+    
+    sidecar_path = os.path.join(output_dir, "audio_manifest.freshness.json")
+    try:
+        _atomic_write_json(sidecar_path, freshness_data, indent=2, sort_keys=True)
+    except OSError as exc:
+        print(f"[WARN] Failed to write freshness sidecar at {sidecar_path}: {exc}",
+              file=sys.stderr)
+
+
 def main():
     parser = argparse.ArgumentParser(description="Generate audio assets for Duke3D")
     parser.add_argument(
@@ -539,6 +569,10 @@ def main():
         print(f"\n[ERROR] Failed to write manifest at {manifest_path}: {exc}",
               file=sys.stderr)
         return 1
+    
+    # Write freshness sidecar (tracks actual generation time without breaking determinism)
+    # # audio-r5-manifest-freshness-tracking: sidecar freshness tracking
+    _write_freshness_sidecar(manifest_to_write, OUTPUT_DIR)
 
     print(f"=== Done! Generated {len(generated)} audio files in {elapsed:.2f}s ===")
     print(f"  Output: {OUTPUT_DIR}/")
