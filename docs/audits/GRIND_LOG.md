@@ -2447,3 +2447,59 @@ Recommendation: leave for now, surface in next session. Adding tighter "NEVER ca
 **Next audit-pass targets (cycle 71):** network-multiplayer r16 + compat-layer r17.
 
 **Human-attention items:** None this cycle. Pre-existing release.yml YAML parse quirk noted (line 30/88) — separate todo if desired.
+
+---
+
+## 2026-05-21T01:40Z — Cycle 71 audit-pass (net-r16 + compat-r17)
+
+**Dispatched** (both 7 cycles stale @ cycle 64):
+- `net-r16-audit` (Haiku, v7) → 5 findings (1 CRITICAL + 1 HIGH + 2 MED + 1 LOW), **5 new todos**
+- `compat-r17-audit` (Haiku, v7) → 3 MED + verification findings, **5 new todos**
+
+**v7 contract compliance:** ✅ Both clean — no git mutations, no out-of-scope edits, no fake authors. Concurrent SUMMARY.md edits integrated gracefully.
+
+**net-r16 verified live:**
+- Cycle 65 NET_HEADER_SIZE 4→5 + per-peer seqnum (14 sentinels, 10 tests).
+- Cycle 68 peer_game_mode coop/DM validation (4 sentinels, 7 tests).
+- Cycle 68 docs/ARCHITECTURE.md L721/837 NET_HEADER=5 doc update.
+
+**net-r16 new todos:**
+- `net-r16-fix-auth-spoofing` (**CRITICAL**) — player-ID spoofing (from_player not authenticated). Foundation now ready (cycle 65 seqnums + cycle 59 randomseed handshake + cycle 68 peer_game_mode). HMAC threat model exists in sec-r17 audit.
+- `net-r16-mmulti-adopt-net-socket-compat` (MED) — integrate cycle-65 compat/net_socket.* into MMULTI.C.
+- `net-r16-ipv6-support-scope` (MED) — AF_INET hardcoded; dual-stack AF_INET6 needed.
+- `net-r16-tcp-keepalive` (MED) — no TCP keepalive (silent half-open).
+- `net-r16-tcp-send-failures-alerting` (LOW) — tcp_send_failures counter is set but never read/alerted.
+
+**compat-r17 verified live:**
+- Cycle 65 compat/net_socket.h + posix.c + win32.c (408 LOC, well-structured c11, unintegrated — see net-r16-mmulti-adopt sibling todo).
+- Cycle 68 compat/log_stub.h + DUKE3D_STUB_LOG once-per-call-site macro wired into 5 stubs (Music_SetVolume, PlayMusic, CONTROL_WaitRelease, CONTROL_Ack, FX_StopRecord), 11 tests.
+- 30+ SDL2 input path tests verified.
+- IntelLong endianness pattern documented at mact_stub.c:337.
+- 0 CRITICAL findings; production-grade quality maintained.
+
+**compat-r17 new todos:**
+- `docs-r17-compat-readme-overview` (MED) — compat/README.md stub still missing (docs-r17 cycle 68 raised; not yet addressed).
+- `docs-r17-architecture-net-socket-integration-status` (MED) — docs/ARCHITECTURE.md doesn't document the cycle-65 net_socket abstraction status.
+- `docs-r17-compat-log-stub-integration-verification` (LOW) — formalize DUKE3D_STUB_LOG=1 CI run.
+- `audit-compat-endianness-big-endian-test` (LOW) — test IntelLong on big-endian sim (qemu or unit-level mock).
+- `net-r17-socket-error-mapping-unification` (MED) — unify POSIX errno + Winsock WSAGetLastError() into a single shared `compat_socket_error` enum.
+
+**Backlog delta:** ~302 → ~312 pending (+10 intake, 0 closures this cycle).
+
+**Test count:** 1189 stable. Build green.
+
+**Persona freshness after cycle 71:**
+- network-multiplayer: **r16** (FRESH) ✅
+- compat-layer: **r17** (FRESH) ✅
+- engine-porter: r18 @ cycle 67
+- asset-pipeline: r18 @ cycle 67
+- audio-engineer: r17 @ cycle 69
+- build-system: r18 @ cycle 68
+- documentation-curator: r17 @ cycle 68 (NOW STALEST, 3 cycles)
+- performance-profiler: r17 @ cycle 69
+- test-engineer: r17 @ cycle 66 (NOW STALEST, 5 cycles)
+- security-and-secrets: r17 @ cycle 66 (NOW STALEST, 5 cycles)
+
+**Next audit-pass targets (cycle 72):** test-engineer r18 + security-and-secrets r18 (both 5 cycles stale @ cycle 66) — but be MINDFUL OF SEC AGENT V6 VIOLATION HISTORY; reiterate v7 contract carefully.
+
+**Human-attention items:** Standing sec-r17 unauthorized commits `0296200` + `6c236443` from cycle 66 still in history.
