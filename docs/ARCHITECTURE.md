@@ -330,6 +330,35 @@ platforms), `long` is 8 bytes. This breaks:
 
 ---
 
+## Known Idioms & Anti-Regression Notes
+
+### `totalclocklock` — Legitimate Animation Snapshot (NOT a Typo)
+
+**What it is:** A per-frame snapshot of the global `totalclock` variable, captured once per
+`display()` call (see `SRC/ENGINE.C:853`).
+
+**Why it exists:** Provides a stable clock value for animation frame indexing across
+multiple draw calls within the same frame. This prevents animation tearing if `totalclock`
+ticks mid-frame during rendering.
+
+**How it's used:** The animation frame index is computed as:
+```c
+frame = (totalclocklock >> ((picanm[tilenum] >> 24) & 15))
+```
+This formula appears at `SRC/BUILD.H:379`, `SRC/ENGINE.C:4766`, and `SRC/ENGINE.C:9163`.
+
+**Definitions & assignments:**
+- `SRC/BUILD.H:151` — extern declaration: `EXTERN long totalclocklock;`
+- `SRC/ENGINE.C:311` — global definition: `long totalclocklock;`
+- `SRC/ENGINE.C:853` — per-frame assignment: `totalclocklock = totalclock;`
+
+**⚠️ Anti-regression warning:** Past audit agents (engine-porter cycles 92, 97) have twice
+hallucinated `totalclocklock` as a typo for `totalclock` and attempted to "fix" it.
+**The variable IS deliberate. Do NOT remove or rename it.** See `docs/audits/engine-porter-r23.md`
+§ 4.1 "totalclocklock NOT a Typo — Triple-Verification" for detailed verification.
+
+---
+
 ## Audit Infrastructure
 
 The project maintains a comprehensive audit system run by 10 specialized Copilot agent personas. Audit reports are stored in `docs/audits/` and track technical health, compliance, and quality metrics.
