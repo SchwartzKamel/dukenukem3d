@@ -4998,3 +4998,28 @@ docs-r26-audits-index-md-manifest
 - 6-agent cap with distinct-file-domain discipline = 0 file-loss races (c109 had 3 vanish with 8 agents)
 - Manual mid-cycle audit-mining (cycle 111b) is a safe parallelism mode when grind already at cap
 
+
+## Cycle 112 — 2026-05-21 (audit-only fleet, post-c111 verification)
+
+**Dispatched:** 5 audit-pass agents on stalest personas (post-c111 source changes verification)
+
+- ✅ security-and-secrets r26 (sentinel a2f7b1c9): ALL 4 c111 wins VERIFIED — makepalookup() P0 bounds guard PASS, PREMAP.C defense-in-depth PASS, CODEOWNERS /compat/audio_stub.* PASS, BCryptGenRandom Windows CSPRNG PASS; standing v7-HARDENED posture re-confirmed; cycle-66 fake-author attribution honored; 0 HIGH/0 MED, 5 LOW mineables
+- ✅ network-multiplayer r25 (sentinel 49881a64): c111 BCryptGenRandom net_gen_nonce wire-format byte-exact preservation PASS; ABI/keepalive 3-site wiring re-confirmed; 231 net+hmac tests / 1926 full suite green; 5 mineables
+- ✅ build-system r27 (sentinel 3f8c7b41): c111 CMakeLists.txt bcrypt link Windows-guarded (lines 127-131) PASS; **7th totalclocklock ERRATA re-affirmation** (skip honored); SDL2_VERSION single-source + LANGUAGE C / no /Tc memory hacks intact; 10/10 invariants stable; 5 mineables
+- ✅ audio-engineer r26 (sentinel 3e7b4a2f): cycle-107 ABI integrity re-confirmed (26 _Static_asserts hold); c111 CODEOWNERS audio_stub coverage verified; **66 unsigned long callback sites enumerated** for uint32_t consolidation (MED follow-up); 114 audio tests + 1926 full suite green; 5 mineables
+- ✅ performance-profiler r27 (sentinel 39f821e6): c111 perf-adjacent changes ZERO-COST (BCryptGenRandom <1µs/call, makepalookup guard ~0.5 cycles, PREMAP load-time only); test suite +410 tests absorbed by caching (25.08s = exact r26 baseline); 8/8 invariants; phase-2 profiling hooks ready for c113+
+
+### Mined this cycle: 10 new todos (skill cap honored)
+sec-r26: env-var-error-scrubbing, env-file-permissions-doc, workflow-envvar-log-audit, check-secrets-pattern-freshness-q2, sdl2-mixer-dll-injection-advisory
+build-r27: cmake-bcrypt-target-compile-defs
+audio-r26: callback-uint32-consolidation-MED, mix-init-failure-test
+net-r25: ipv6-scopeid-validation, keepalive-error-semantics-MED
+
+### Validation
+- All 5 agents independently re-validated: pytest 1926 passed / 3 skipped / 17 warnings
+- make: green
+- 7th totalclocklock re-affirmation (build-system honored ERRATA)
+
+### Coverage observation
+After c112: ALL 11 personas now have current revisions within last 5 cycles. Audit corpus is hot. Next /audit-grind tick should focus on grind execution, not audit-mining.
+
