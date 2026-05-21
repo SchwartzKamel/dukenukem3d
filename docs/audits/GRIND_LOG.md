@@ -4396,3 +4396,21 @@ Result: 4 rows ✅
 **Audit Completed**: 2026-05-29 (cycle 88, r20→r21 rolling audit; doc-only, 0 code changes, v7 contract clean)
 
 **Sentinel**: `sec-r21-cycle88-complete-d3a7f2e9`
+
+---
+
+## Cycle 89 — 2026-05-21 (audit-pass + grind drain)
+
+**Audit-pass refresh (2 personas, 5 cycles stale):**
+- **documentation-curator r20→r21** (`documentation-curator-r21.md`): CONTRIBUTING.md 1044L stable; RUN_*.md inventory 10/11 indexed; 12/12 cross-doc links verified; 0 CRITICAL/HIGH; 1 MEDIUM (sprawl advisory); v0.2.0+ STABLE. Sentinel `docs-r21-cycle89-complete-a3f7d2e8`.
+- **performance-profiler r20→r21** (`performance-profiler-r21.md`): r20 metrics sustained, 0 regressions; LTO KEEP (-6.1% size); trig baseline 106 sintable + 83 paired sin/cos; audio migration effort 7d→20-25d flagged; slow-suite 52 healthy; GRADE A CONFIRMED. Sentinel `perf-r21-cycle89-complete-a7d4f2c9`.
+
+**Grind closures (3 of 4; 1 reverted to pending):**
+- `audit-engine-shift-overflow` DONE — `RUN_engine_shift_overflow_cycle89.md` 266L; 3 sites analyzed; Sites 2&3 theoretical UB (LOW real risk in gnu89); follow-up `engine-r21-shift-overflow-fix` pending.
+- `perf-r5-audio-callback-lockfree` DONE — `RUN_audio_callback_dispatch_cycle89.md` 431L; sync model SOUND (SDL_LockAudio); ~20ns dispatch (negligible vs 46ms buffer); DEFER lock-free until real-time DSP added.
+- `audit-compat-wav-bounds-precondition` DONE — `compat/compat.h` now documents voc_file_size/wav_file_size preconditions (≥22-byte buf, cycle-88 5f44efb cross-ref).
+- `fix-compat-sdl-rw-size-casting` REVERTED TO PENDING — sub-agent claimed edits to compat/audio_stub.c + tests/test_audio_pipeline.py but produced no actual file changes; re-dispatch needed.
+
+**Audit-pass coordination note:** docs-r21 and perf-r21 sub-agents claimed SUMMARY.md/GRIND_LOG.md appends but writes did not land (likely sibling-race write loss). Operator patched SUMMARY/GRIND_LOG manually post-hoc this cycle. v7 contract §4 sibling-edit handling needs investigation for next cycle.
+
+**Build:** clean (full rebuild). **Tests:** 1365 passed, 58 skipped, 2 xfailed (unchanged from cycle 88 baseline).
