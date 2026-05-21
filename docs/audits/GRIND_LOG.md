@@ -2268,3 +2268,46 @@ Recommendation: leave for now, surface in next session. Adding tighter "NEVER ca
 
 **Backlog delta:** 292 → 301 pending (+9 intake from test-r17 +5 + sec-r17 +4). Tests stable at 1039.
 
+
+---
+
+## 2026-05-21T00:30Z — Cycle 67 audit-pass (engine-r18 + asset-r18)
+
+**Dispatched** (both stalest @ r17/cycle 61):
+- `engine-r18-audit` (Haiku, v7 contract) → 5 verification findings, **0 new todos** (all carry-forward)
+- `asset-r18-audit` (Haiku, v7 contract) → 4 findings, **5 new todos** (1 MED, 3 LOW + 1 carry)
+
+**v7 contract compliance:** ✅ Both agents respected — no git mutations, no out-of-scope edits, no fake authors.
+
+**engine-r18 verified live:**
+- Cycle 60 `engine-r17-numwalls-load-clamp` (5 sentinels, SRC/ENGINE.C 2400/2405/6447 + source/MENUES.C 329/340)
+- Cycle 65 `engine-r17-tile-mult-overflow-guard` (2 sentinels, SRC/ENGINE.C 2856/2980)
+- Cycle 65 `net-r15-seqnum` (11 sentinels in SRC/MMULTI.C, no engine interaction)
+- 6th numwalls site at SRC/SECTOR.C:1343 → forward iteration, SAFE.
+- K&R `//` comment counter: 1062 (stable; no drift).
+
+**asset-r18 verified live:**
+- Cycle 65 CONTRIBUTING.md schema-version migration (closes r16 carry).
+- Cycle 60 artifact validator wired into 5 CI jobs.
+- Cycle 65 palette `_validate_palette_input()` (21 tests).
+- Cycle 60 voice manifest sync validator (6 tests).
+
+**asset-r18 contradicted test-r17:** test-r17 listed `test-r17-grp-format-coverage` as missing, but `tests/test_grp_format.py` exists (14+ tests). Closed that todo as already-satisfied.
+
+**Backlog delta:** 301 → 306 pending (+5 from asset-r18, -1 closure = net +4). Tests stable at **1039 passed, 35 skipped, 2 xfailed**. Build green.
+
+**Persona freshness after cycle 67:**
+- engine-porter: **r18** (FRESH) ✅
+- asset-pipeline: **r18** (FRESH) ✅
+- audio-engineer: r16 @ cycle 63
+- build-system: r17 @ cycle 62 (stalest, target cycle 68)
+- network-multiplayer: r15 @ cycle 64
+- compat-layer: r16 @ cycle 64
+- documentation-curator: r16 @ cycle 62 (stalest, target cycle 68)
+- performance-profiler: r16 @ cycle 63
+- test-engineer: r17 @ cycle 66
+- security-and-secrets: r17 @ cycle 66
+
+**Next audit-pass targets (cycle 68):** build-system r18 + documentation-curator r17 (both 5 cycles stale).
+
+**Human-attention items:** None this cycle. (Sec-r17's two unauthorized commits `0296200` + `6c236443` from cycle 66 still in history — operator's call whether to rewrite.)
