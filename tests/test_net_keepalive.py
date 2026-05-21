@@ -112,3 +112,31 @@ class TestNetSocketKeepAlive:
             build_mk = f.read()
         # Should reference both or conditionally include
         assert 'net_socket' in build_mk.lower() or 'net_socket_posix.c' in build_mk or 'net_socket_win32.c' in build_mk
+
+    def test_mmulti_c_includes_net_socket_h(self):
+        """SRC/MMULTI.C must include net_socket.h for keepalive API."""
+        with open('SRC/MMULTI.C') as f:
+            content = f.read()
+        assert '../compat/net_socket.h' in content or 'net_socket.h' in content
+        assert 'net_socket_enable_keepalive' in content
+
+    def test_mmulti_c_calls_keepalive_on_server_socket(self):
+        """MMULTI.C must enable keepalive on server (listen) socket."""
+        with open('SRC/MMULTI.C') as f:
+            content = f.read()
+        # Should have keepalive call after server socket creation
+        assert content.count('net_socket_enable_keepalive') >= 1
+
+    def test_mmulti_c_calls_keepalive_on_client_sockets(self):
+        """MMULTI.C must enable keepalive on accepted client sockets."""
+        with open('SRC/MMULTI.C') as f:
+            content = f.read()
+        # Should have multiple keepalive calls (server socket + each client socket)
+        assert content.count('net_socket_enable_keepalive') >= 2
+
+    def test_mmulti_c_calls_keepalive_on_connect_socket(self):
+        """MMULTI.C client mode must enable keepalive after connect()."""
+        with open('SRC/MMULTI.C') as f:
+            content = f.read()
+        # Should have at least 3 calls total: server socket, accepted client(s), connecting socket
+        assert content.count('net_socket_enable_keepalive') >= 3

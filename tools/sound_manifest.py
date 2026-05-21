@@ -91,6 +91,11 @@ class SoundManifestEntry(BaseModel):
         description="ISO 8601 timestamp of generation (e.g., '1970-01-01T00:00:00Z')"
     )
     
+    generation_method: Literal['ai', 'silence', 'fallback'] = Field(
+        'ai',
+        description="Generation method: 'ai' for AI-generated, 'silence' for silence stubs, 'fallback' for failed fallback"
+    )
+    
     schema_version: Literal['1.0'] = Field(
         '1.0',
         description="Entry schema version (currently '1.0')"

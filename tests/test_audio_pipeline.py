@@ -265,6 +265,65 @@ class TestSilencePlaceholderGeneration:
             except wave.Error as e:
                 pytest.fail(f"{os.path.basename(wav_file)}: invalid WAV format: {e}")
 
+    @pytest.mark.slow
+    @pytest.mark.serial
+    def test_manifest_has_generation_method_field_silence_run(self):
+        """Manifest entries from --no-ai run must have generation_method='silence' (audio-r8-manifest-generation-method)."""
+        # Run generate_audio.py --no-ai
+        result = subprocess.run(
+            [sys.executable, os.path.join(PROJECT_ROOT, "tools", "generate_audio.py"), "--no-ai"],
+            cwd=PROJECT_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+        
+        assert result.returncode == 0, f"generate_audio.py --no-ai failed: {result.stderr}"
+        
+        # Load and verify the manifest
+        manifest_path = os.path.join(PROJECT_ROOT, "generated_assets", "sounds", "MANIFEST.json")
+        assert os.path.exists(manifest_path), f"Manifest not found: {manifest_path}"
+        
+        with open(manifest_path, "r") as f:
+            manifest = json.load(f)
+        
+        # Verify manifest structure
+        assert "entries" in manifest, "Manifest must have 'entries' key"
+        assert len(manifest["entries"]) == 21, f"Expected 21 entries, got {len(manifest['entries'])}"
+        
+        # Verify each entry has generation_method='silence'
+        for i, entry in enumerate(manifest["entries"]):
+            assert "generation_method" in entry, f"Entry {i} ({entry.get('wav')}): missing generation_method field"
+            assert entry["generation_method"] == "silence", \
+                f"Entry {i} ({entry.get('wav')}): expected generation_method='silence', got '{entry['generation_method']}'"
+
+    @pytest.mark.slow
+    @pytest.mark.serial
+    def test_manifest_generation_method_validation(self):
+        """Manifest entries must have generation_method from {ai, silence, fallback}."""
+        # Run generate_audio.py --no-ai
+        result = subprocess.run(
+            [sys.executable, os.path.join(PROJECT_ROOT, "tools", "generate_audio.py"), "--no-ai"],
+            cwd=PROJECT_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+        
+        assert result.returncode == 0, f"generate_audio.py --no-ai failed: {result.stderr}"
+        
+        # Load the manifest
+        manifest_path = os.path.join(PROJECT_ROOT, "generated_assets", "sounds", "MANIFEST.json")
+        with open(manifest_path, "r") as f:
+            manifest = json.load(f)
+        
+        # Verify each entry has a valid generation_method value
+        valid_methods = {"ai", "silence", "fallback"}
+        for i, entry in enumerate(manifest["entries"]):
+            wav_file = entry.get("wav", f"unknown_{i}")
+            assert entry["generation_method"] in valid_methods, \
+                f"Entry {i} ({wav_file}): generation_method '{entry['generation_method']}' not in {valid_methods}"
+
 
 class TestNoSecretLeak:
     """Verify generate_audio.py contains no hardcoded API keys."""

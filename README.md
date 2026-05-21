@@ -430,6 +430,8 @@ Audit reports for each agent are stored in [docs/audits/](docs/audits/) with a c
 | Generated assets | Created by AI / procedural generation, included in builds |
 | BUILD engine | Created by Ken Silverman |
 
+For third-party dependency attributions (SDL2, Python deps, etc.), see [NOTICE](NOTICE).
+
 ---
 
 ## 🏆 Credits

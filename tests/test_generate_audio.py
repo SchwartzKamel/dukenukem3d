@@ -396,6 +396,16 @@ class TestSoundManifestValidation:
             assert wav and wav.endswith(".WAV"), \
                 f"Entry {i}: invalid WAV filename '{wav}'"
 
+    def test_sound_manifest_generation_method_field(self):
+        """Each SOUND_MANIFEST entry must have generation_method from {ai, silence, fallback} (audio-r8-manifest-generation-method)."""
+        valid_methods = {"ai", "silence", "fallback"}
+        for i, entry in enumerate(generate_audio.SOUND_MANIFEST):
+            assert "generation_method" in entry, \
+                f"Entry {i} ({entry.get('wav')}): missing generation_method field"
+            method = entry.get("generation_method")
+            assert method in valid_methods, \
+                f"Entry {i} ({entry.get('wav')}): generation_method '{method}' must be one of {valid_methods}"
+
     def test_voice_lines_have_manifest_entries(self, generated_audio_artifacts):
         """Every VOICE_LINES entry must have a corresponding MANIFEST entry with valid WAV."""
         manifest = generated_audio_artifacts["manifest"]

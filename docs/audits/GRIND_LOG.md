@@ -4796,3 +4796,22 @@ Re-verify all r21 audit-pass items (cycles 77–84 closures) remain live across 
 
 **Build/Test**: 1471 passed / 58 skipped / 0 failed. Test count stable since cycle 101.
 
+
+## Cycle 104 (2026-05-21) — /audit-grind tick (6 grind agents) + audit-pass tick (4 personas)
+
+### Grind (6 todos drained, 1471→1549 tests, +78)
+- **audio-r8-manifest-generation-method** (audio-engineer, sentinel `c4a2f1e9`): Added `generation_method: Literal['ai','silence','fallback']` to SoundManifestEntry. Updated 21 manifest entries (ai default). Generation paths now set silence/ai/fallback contextually. +3 tests (test_audio_pipeline.py, test_generate_audio.py, test_sound_manifest.py). Manifest SHA256 determinism preserved.
+- **asset-r9-flux-retry-backoff** (asset-pipeline, sentinel `a7f2c9e1`): tools/generate_assets.py — added MAX_RETRIES=3 + MAX_BACKOFF=8.0s + jitter [0,0.5×backoff) mirroring cycle 98 audio pattern. Retryable: 5xx/429/Timeout/ConnectionError. Fail-fast on 4xx. +13 tests in tests/test_asset_retry_backoff.py.
+- **asset-r9-base64-error-handling** (asset-pipeline, sentinel `a7f2b4e9`): tools/generate_assets.py — binascii.Error specific catch with sanitized 80-char prefix diagnostic. Non-retryable. +3 tests in tests/test_generate_assets.py.
+- **sec-r9-notice-third-party** (security-and-secrets, sentinel `13da3076`): Created NOTICE (208L, 8.7KB) consolidating Build Engine GPL2 + Duke3D GPL2 + SDL2 zlib + SDL2_mixer zlib + Python deps + vendored compat. Linked from SECURITY.md (Third-Party License Compliance §) + README.md License §. CC0/no-copyright posture for generated assets confirmed.
+- **perf-r24-hypothesis-slow-marker** (test-engineer, sentinel `a7f3b2c9`): tests/test_hypothesis_pure_functions.py — `@pytest.mark.slow` on 9 @given functions from cycle 101. pytest.ini already had marker registered; addopts `--runslow` ensures default run. Documented in tests/README.md (`pytest -m "not slow"` for fast iteration ~24s vs 80s full).
+- **net-r16-tcp-keepalive-MED** (network-multiplayer, sentinel `7F4A92C1`): SRC/MMULTI.C +9L wiring net_socket_enable_keepalive() at 3 socket-creation sites (line 606 server, 667 accepted clients, 797 client connect). `#include "../compat/net_socket.h"` line 20. gnu89 compliant (/* */ only). +4 tests in tests/test_net_keepalive.py. Wire format + HMAC + IPv6 dual-stack invariants preserved.
+
+### Audit-Pass (4 personas, 12 new todos mined)
+- **network-multiplayer r21→r22** (`network-multiplayer-r22.md`, sentinel `7bc4d133`): Grade **A+**. HMAC/IPv6/keepalive all verified LIVE post-cycle-104 wiring (3 sites confirmed). 178/178 net tests passing. Cycle-66 fake-author commits re-cited. 3 todos: net-r22-keepalive-tuning-doc (MED), net-r22-packet-loss-diagnostic-impl (MED), net-r22-ipv6-scope-hardening (LOW).
+- **test-engineer r23→r24** (`test-engineer-r24.md`, sentinel `c7f8b1d2`): Grade **A**. 1552 collected/1483 pre-runslow/1549 with slow. xfail debt = 0 sustained. 66 slow tests (55→66 with +9 cycle 104). tests/README.md flagged outdated (claims 70 tests). TestSDLRWSizeCasting restoration plan proposed. 3 todos.
+- **security-and-secrets r23→r24** (`security-and-secrets-r24.md`, sentinel `965f9455`): All r23 closures persistent. Cycle 101 secret-scan + pre-commit + CODEOWNERS re-verified. Cycle 104 NOTICE verified. Cycle-66 fake-author commits re-cited. 3 todos: sec-r24-notice-readmes-linkage, sec-r24-secret-scan-pr-comment, sec-r24-azure-key-rotation-tracking.
+- **compat-layer r23→r24** (`compat-layer-r24.md`, sentinel `8b2f7c9d`): Production-ready for multiplayer v0.3.0. 5,822 LOC (within 10k split). c11/gnu89 split clean. 14 silent stubs deterministic. 58 compat tests passing. 3 todos: net-socket-dual-stack-ipv6-e2e, compat-audit-silent-stubs-determinism, pragmas-gcc-asm-inline-profile.
+
+**Build/Test**: 1549 passed / 3 skipped (slow opt-out: 1483 passed, 24s). Build clean single-threaded; LTO+parallel-make occasional race observed (transient, non-regression).
+

@@ -11,6 +11,7 @@ Usage:
 
 import argparse
 import base64
+import binascii
 import datetime
 import hashlib
 import io
@@ -63,6 +64,16 @@ GENERATION_LOG_FILE = os.path.join(OUTPUT_DIR, "GENERATION_LOG.jsonl")
 # Log rotation parameters (asset-r16-generation-log-cleanup-policy)
 GENERATION_LOG_MAX_LINES = 1000
 GENERATION_LOG_MAX_BYTES = 5 * 1024 * 1024  # 5 MiB
+
+# Retry constants for FLUX AI requests (asset-r9-flux-retry-backoff)
+MAX_RETRIES = 3
+MAX_BACKOFF = 8.0
+
+# Configure logging for retry attempts
+logger = logging.getLogger(__name__)
+if not logger.handlers:
+    logger.addHandler(logging.StreamHandler(sys.stderr))
+    logger.setLevel(logging.INFO)
 
 # ---------------------------------------------------------------------------
 # Structured Logging for Exception Diagnostics (asset-r13-exception-handling-hardening)
@@ -346,8 +357,43 @@ def _emit_grp_manifest(grp_path: str, grp_contents: dict, manifest_path: str, ge
 # FLUX AI texture generation
 # ---------------------------------------------------------------------------
 
+def _is_retryable_error(status_code=None, error=None):
+    """Determine if an error is retryable (transient).
+    
+    Retryable errors:
+    - HTTP 5xx (server errors)
+    - HTTP 429 (rate limit)
+    - requests.Timeout
+    - requests.ConnectionError
+    
+    Non-retryable errors:
+    - HTTP 4xx (except 429) - client errors (auth, validation, etc.)
+    """
+    # Check HTTP status codes
+    if status_code is not None:
+        if status_code >= 500:  # 5xx server errors
+            return True
+        if status_code == 429:  # Rate limit
+            return True
+        if status_code >= 400:  # Other 4xx - non-retryable
+            return False
+    
+    # Check exception types
+    if error is not None:
+        import requests
+        if isinstance(error, (requests.Timeout, requests.ConnectionError)):
+            return True
+    
+    return False
+
+
 def generate_texture_ai(prompt, width, height, endpoint, api_key, model="FLUX.2-pro"):
-    """Call FLUX.2-pro to generate a texture. Returns a PIL Image or None."""
+    """Call FLUX.2-pro to generate a texture with exponential backoff retry.
+    
+    Implements exponential backoff with jitter for transient failures (asset-r9-flux-retry-backoff).
+    Only retries on 5xx, 429, timeouts, and connection errors.
+    Fails fast on non-retryable errors (4xx except 429).
+    """
     try:
         import requests
     except ImportError:
@@ -366,54 +412,100 @@ def generate_texture_ai(prompt, width, height, endpoint, api_key, model="FLUX.2-
         "steps": 25,
     }
 
-    try:
-        print(f"    Calling FLUX API...")
-        resp = requests.post(endpoint, json=payload, headers=headers, timeout=120)
-        if resp.status_code != 200:
-            print(f"    [!] API returned {resp.status_code}: {resp.text[:200]}")
-            return None
-        result = resp.json()
-
-        image_b64 = None
-        if "image" in result:
-            image_b64 = result["image"]
-        elif "data" in result:
-            image_b64 = result["data"][0]["b64_json"]
-        elif "output" in result:
-            image_b64 = result["output"]
-
-        if not image_b64:
-            print(f"    [!] No image data in response: {list(result.keys())}")
-            return None
-
-        image_bytes = base64.b64decode(image_b64)
-        
+    backoff = 1.0
+    for attempt in range(MAX_RETRIES + 1):
         try:
-            img = Image.open(io.BytesIO(image_bytes))
-            img.load()  # Force load to detect truncation/corruption early
-            img = img.convert("RGB")
-            img = img.resize((width, height), Image.LANCZOS)
-            return img
-        except (OSError, UnidentifiedImageError) as e:
-            print(f"    [!] Image parsing failed (truncated/corrupt data): {type(e).__name__}: {e}", file=sys.stderr)
+            print(f"    Calling FLUX API...")
+            resp = requests.post(endpoint, json=payload, headers=headers, timeout=120)
+            
+            if resp.status_code != 200:
+                error_msg = f"API returned {resp.status_code}: {resp.text[:200]}"
+                
+                if _is_retryable_error(status_code=resp.status_code):
+                    if attempt < MAX_RETRIES:
+                        jitter = random.uniform(0, 0.5 * backoff)
+                        sleep_time = backoff + jitter
+                        logger.info(f"Retry attempt {attempt + 1}/{MAX_RETRIES}: {error_msg}. Sleeping {sleep_time:.2f}s")
+                        time.sleep(sleep_time)
+                        backoff = min(backoff * 2, MAX_BACKOFF)
+                        continue
+                else:
+                    # Non-retryable error - fail fast
+                    print(f"    [!] {error_msg}")
+                    return None
+                
+                # Exhausted retries
+                print(f"    [!] {error_msg}")
+                return None
+            
+            result = resp.json()
+
+            image_b64 = None
+            if "image" in result:
+                image_b64 = result["image"]
+            elif "data" in result:
+                image_b64 = result["data"][0]["b64_json"]
+            elif "output" in result:
+                image_b64 = result["output"]
+
+            if not image_b64:
+                print(f"    [!] No image data in response: {list(result.keys())}")
+                return None
+
+            # Decode base64 with specific error handling for malformed payloads (asset-r9-base64-error-handling)
+            try:
+                image_bytes = base64.b64decode(image_b64)
+            except (binascii.Error, ValueError) as e:
+                # Malformed base64 is a data corruption issue, not a transient network error
+                # Extract sanitized response prefix for diagnostics (first 80 chars)
+                response_str = str(result)[:80]
+                # Sanitize: replace non-printable characters and control codes
+                sanitized_prefix = ''.join(c if c.isprintable() else '?' for c in response_str)
+                logger.error(f"FLUX response malformed base64 ({type(e).__name__}): {sanitized_prefix}... | Error: {e}")
+                print(f"    [!] FLUX response malformed base64: hard failure, not retrying")
+                return None
+            
+            try:
+                img = Image.open(io.BytesIO(image_bytes))
+                img.load()  # Force load to detect truncation/corruption early
+                img = img.convert("RGB")
+                img = img.resize((width, height), Image.LANCZOS)
+                return img
+            except (OSError, UnidentifiedImageError) as e:
+                print(f"    [!] Image parsing failed (truncated/corrupt data): {type(e).__name__}: {e}", file=sys.stderr)
+                return None
+            except (Image.DecompressionBombError, RuntimeError) as e:
+                # asset-r13-exception-handling-hardening: specific exception types
+                print(f"    [!] Image processing error (PIL-specific): {type(e).__name__}: {e}", file=sys.stderr)
+                return None
+            except Exception as e:
+                # asset-r13-exception-handling-hardening: fallback for unexpected errors
+                print(f"    [!] Image processing error (unexpected): {type(e).__name__}: {e}", file=sys.stderr)
+                return None
+
+        except (requests.Timeout, requests.ConnectionError) as e:
+            # Transient network errors - retryable
+            error_msg = f"Network error: {type(e).__name__}: {e}"
+            if attempt < MAX_RETRIES:
+                jitter = random.uniform(0, 0.5 * backoff)
+                sleep_time = backoff + jitter
+                logger.info(f"Retry attempt {attempt + 1}/{MAX_RETRIES}: {error_msg}. Sleeping {sleep_time:.2f}s")
+                time.sleep(sleep_time)
+                backoff = min(backoff * 2, MAX_BACKOFF)
+                continue
+            print(f"    [!] {error_msg}")
             return None
-        except (Image.DecompressionBombError, RuntimeError) as e:
+        
+        except (ValueError, KeyError, AttributeError) as e:
             # asset-r13-exception-handling-hardening: specific exception types
-            print(f"    [!] Image processing error (PIL-specific): {type(e).__name__}: {e}", file=sys.stderr)
+            print(f"    [!] AI generation failed ({type(e).__name__}): {e}")
             return None
         except Exception as e:
             # asset-r13-exception-handling-hardening: fallback for unexpected errors
-            print(f"    [!] Image processing error (unexpected): {type(e).__name__}: {e}", file=sys.stderr)
+            print(f"    [!] AI generation failed (unexpected): {e}")
             return None
 
-    except (ValueError, KeyError, AttributeError) as e:
-        # asset-r13-exception-handling-hardening: specific exception types
-        print(f"    [!] AI generation failed ({type(e).__name__}): {e}")
-        return None
-    except Exception as e:
-        # asset-r13-exception-handling-hardening: fallback for unexpected errors
-        print(f"    [!] AI generation failed (unexpected): {e}")
-        return None
+    return None
 
 # ---------------------------------------------------------------------------
 # Vectorization helpers (perf-r7-procedural-numpy-vectorization)

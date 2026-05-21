@@ -40,6 +40,9 @@ This is a port of 1996-era C code. Known limitations:
 - Integer overflow possible in some math operations
 - The CON script interpreter executes game scripts without sandboxing
 
+### Third-Party License Compliance
+All third-party dependencies are GPL-2.0 compatible. See [NOTICE](NOTICE) at the repository root for a consolidated attribution of SDL2, BUILD engine, Duke3D source, and Python dependencies. Downstream packagers should reference this file for compliance verification.
+
 ## Known Issues (v0.1.0)
 
 The following issues have been identified and documented. Critical and high-severity items are resolved.

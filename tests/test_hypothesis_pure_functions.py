@@ -1193,6 +1193,7 @@ def test_region_crop_deterministic(width, height):
     seed=st.integers(0, 2**31 - 1)
 )
 @settings(max_examples=25, deadline=1500)
+@pytest.mark.slow
 def test_quantize_image_deterministic(width, height, seed):
     """Property: quantize_image is deterministic — same inputs always yield same bytes.
     
@@ -1219,6 +1220,7 @@ def test_quantize_image_deterministic(width, height, seed):
     height=st.integers(1, 50)
 )
 @settings(max_examples=25, deadline=1500)
+@pytest.mark.slow
 def test_quantize_image_preserves_pixel_count(width, height):
     """Property: quantize_image output byte count equals width × height (1 byte/pixel).
     
@@ -1241,6 +1243,7 @@ def test_quantize_image_preserves_pixel_count(width, height):
     height=st.integers(1, 50)
 )
 @settings(max_examples=20, deadline=2000)
+@pytest.mark.slow
 def test_analyze_frame_has_required_keys(width, height):
     """Property: analyze_frame always returns all required keys in output dict.
     
@@ -1264,6 +1267,7 @@ def test_analyze_frame_has_required_keys(width, height):
     height=st.integers(1, 50)
 )
 @settings(max_examples=20, deadline=2000)
+@pytest.mark.slow
 def test_analyze_frame_value_types_correct(width, height):
     """Property: analyze_frame returns correct types for each field.
     
@@ -1293,6 +1297,7 @@ def test_analyze_frame_value_types_correct(width, height):
     max_black=st.floats(0.5, 1.0)
 )
 @settings(max_examples=20, deadline=1500)
+@pytest.mark.slow
 def test_has_visible_content_deterministic(width, height, min_colors, max_black):
     """Property: has_visible_content is deterministic — returns same result on repeated calls.
     
@@ -1312,6 +1317,7 @@ def test_has_visible_content_deterministic(width, height, min_colors, max_black)
     payload=st.binary(min_size=1, max_size=1000)
 )
 @settings(max_examples=50, deadline=1500)
+@pytest.mark.slow
 def test_sha256_hex_format_invariant(payload):
     """Property: _sha256_of_manifest produces exactly 64 lowercase hex characters.
     
@@ -1338,6 +1344,7 @@ def test_sha256_hex_format_invariant(payload):
     height=st.integers(5, 100)
 )
 @settings(max_examples=15, deadline=2000)
+@pytest.mark.slow
 def test_analyze_frame_brightness_bounds(width, height):
     """Property: analyze_frame brightness stats are bounded within [0, 255].
     
@@ -1363,6 +1370,7 @@ def test_analyze_frame_brightness_bounds(width, height):
     num_colors=st.integers(1, 256)
 )
 @settings(max_examples=30, deadline=1000)
+@pytest.mark.slow
 def test_build_palette_color_count_invariant(num_colors):
     """Property: build_palette always returns exactly 256 RGB tuples.
     
@@ -1398,6 +1406,7 @@ def test_build_palette_color_count_invariant(num_colors):
     )
 )
 @settings(max_examples=25, deadline=2000)
+@pytest.mark.slow
 def test_create_grp_size_consistency(files_dict):
     """Property: create_grp output size is consistent and bounded.
     

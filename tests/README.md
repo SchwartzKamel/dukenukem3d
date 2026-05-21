@@ -43,6 +43,7 @@ Tests are auto-discovered by prefix. Primary groupings:
   - GRP format (file packing, determinism, round-trip properties)
   - Frame analysis (color histograms, brightness stats, black screen detection, frame difference)
   - All tests use @settings(max_examples=...) with deterministic seeds
+  - **9 tests marked @pytest.mark.slow** (cycle 101): Heavy property-based tests for frame analysis and palette generation; recommended to skip during iterative development via `pytest -m "not slow"` (~13s suite). Full suite runs by default (~60s total).
 - **compat** (1): Compatibility layer behavior  
 - **build** (3): Build warnings, asset generation validation, binary artifacts
 - **audio** (2): MIDI format, sound encoding

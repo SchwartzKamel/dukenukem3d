@@ -17,6 +17,7 @@
 #include <stdint.h>
 #include "pragmas_gcc.h"
 #include "sha256.h"  /* net-r17-hmac: HMAC-SHA256 + HKDF for player auth */
+#include "../compat/net_socket.h"  /* net-r16-tcp-keepalive: TCP keepalive API */
 
 /* Platform-specific networking */
 #ifdef _WIN32
@@ -601,6 +602,9 @@ initmultiplayers(char damultioption, char dacomrateoption, char dapriority)
 			goto singleplayer;
 		}
 
+		/* net-r16-tcp-keepalive: enable TCP keepalive on server socket */
+		net_socket_enable_keepalive(server_socket);
+
 		setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR,
 		           (const char *)&opt, sizeof(opt));
 
@@ -659,6 +663,8 @@ initmultiplayers(char damultioption, char dacomrateoption, char dapriority)
 				int flag = 1;
 
 				player_sockets[idx] = client;
+				/* net-r16-tcp-keepalive: enable TCP keepalive on accepted client socket */
+				net_socket_enable_keepalive(client);
 				setsockopt(client, IPPROTO_TCP, TCP_NODELAY,
 				           (const char *)&flag, sizeof(flag));
 
@@ -786,6 +792,9 @@ initmultiplayers(char damultioption, char dacomrateoption, char dapriority)
 			printf("NET: Connection to %s:%d failed\n", host, port);
 			goto singleplayer;
 		}
+
+		/* net-r16-tcp-keepalive: enable TCP keepalive on client socket */
+		net_socket_enable_keepalive(sock);
 
 		flag = 1;
 		setsockopt(sock, IPPROTO_TCP, TCP_NODELAY,

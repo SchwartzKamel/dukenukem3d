@@ -211,15 +211,23 @@ class TestManifestFileGeneration:
         # New manifest has entries field
         entries = file_manifest.get("entries", [])
         
-        # Remove checksum fields before comparing (checksums are computed dynamically)
+        # Remove checksum and generation_method fields before comparing
+        # Checksum is computed dynamically, and generation_method varies based on generation method
+        # (audio-r8-manifest-generation-method)
         entries_without_checksums = []
         for entry in entries:
-            entry_copy = {k: v for k, v in entry.items() if k != "checksum"}
+            entry_copy = {k: v for k, v in entry.items() if k not in ("checksum", "generation_method")}
             entries_without_checksums.append(entry_copy)
         
+        # Also remove generation_method from SOUND_MANIFEST for comparison
+        manifest_without_generation_method = []
+        for entry in generate_audio.SOUND_MANIFEST:
+            entry_copy = {k: v for k, v in entry.items() if k != "generation_method"}
+            manifest_without_generation_method.append(entry_copy)
+        
         # Compare entries as JSON strings to avoid comparison issues with null/None
-        assert json.dumps(entries_without_checksums, sort_keys=True) == json.dumps(generate_audio.SOUND_MANIFEST, sort_keys=True), \
-            "MANIFEST.json entries do not match SOUND_MANIFEST constant in generate_audio.py (excluding checksums)"
+        assert json.dumps(entries_without_checksums, sort_keys=True) == json.dumps(manifest_without_generation_method, sort_keys=True), \
+            "MANIFEST.json entries do not match SOUND_MANIFEST constant in generate_audio.py (excluding checksums and generation_method)"
 
 
 class TestManifestMapping:
