@@ -128,6 +128,16 @@ jobs:
             *.zip
           retention-days: 90
 
+  # macOS release job: DEFERRED
+  # See GitHub issue / build-r28-release-workflow-macos-gap audit finding
+  # Context:
+  #   - .github/workflows/build.yml::build-macos uses CMake + native MSVC
+  #   - release.yml::build-release (Linux/Windows) uses Make-based path
+  #   - SDL2 version sourced from build.mk (single source of truth)
+  #   - macOS release packaging requires aligning build system (Make vs CMake)
+  #   - Recommendation: Implement release-macos job once build system is unified
+  #     or validate Make-based macOS build works in test coverage first.
+
   publish-release:
     needs: build-release
     runs-on: ubuntu-latest

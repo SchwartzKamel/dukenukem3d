@@ -1,5 +1,7 @@
 # Security Policy
 
+*This document accretes per-cycle. See docs/audits/security-and-secrets-*.md for full revision history.*
+
 ## Supported Versions
 
 | Version | Supported          |
@@ -34,6 +36,8 @@ The TCP/IP multiplayer implementation (`SRC/MMULTI.C`) accepts network connectio
 - The asset generation tools load credentials from `.env` at runtime only
 
 ### Securing Local .env Files
+
+*(Added cycle 113 — see docs/audits/security-and-secrets-r26.md for context.)*
 
 The `.env` file contains sensitive credentials and must be protected with proper file permissions to prevent unauthorized access.
 
@@ -72,6 +76,8 @@ All third-party dependencies are GPL-2.0 compatible. See [NOTICE](NOTICE) at the
 
 ### Optional Dependency: SDL2_mixer (CVE Monitoring)
 
+*(Added cycle 107 — see docs/audits/security-and-secrets-r25.md for context.)*
+
 SDL2_mixer is an **OPTIONAL** runtime dependency loaded in QUIET mode (CMakeLists.txt). The library is not vendored; system package managers (apt, brew, dnf, pacman, Windows MSYS2, etc.) are responsible for patching.
 
 **Recommended Actions**:
@@ -80,6 +86,8 @@ SDL2_mixer is an **OPTIONAL** runtime dependency loaded in QUIET mode (CMakeList
 - If SDL2_mixer is unavailable or removed from system, audio output gracefully falls back to `compat/audio_stub` (silent path). Build and test pipelines are unaffected.
 
 ### SDL2_mixer Windows DLL Search Path Hardening
+
+*(Added cycle 113 — see docs/audits/security-and-secrets-r26.md for context.)*
 
 **Issue**: On Windows, the default DLL search order (documented in [Microsoft DLL Search Order](https://docs.microsoft.com/en-us/windows/win32/dlls/dynamic-link-library-search-order)) can be exploited via DLL planting if `SafeDllSearchMode` is disabled or in untrusted working directories. An attacker with write access to the application directory or certain system paths can substitute a malicious `SDL2_mixer.dll`.
 
@@ -103,6 +111,7 @@ SDL2_mixer is an **OPTIONAL** runtime dependency loaded in QUIET mode (CMakeList
    - Document deployment instructions in release notes if a custom DLL is supplied.
 
 **Audit trail**: cycles 101 (CODEOWNERS), 104 (NOTICE), 105 (key rotation); cycle-66 fake-author commits 0296200 + 6c23644 remain in history per operator decision.
+*(Cycle 66 attribution; do not remove.)*
 
 ## Known Issues (v0.1.0)
 

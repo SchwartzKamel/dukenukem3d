@@ -5087,3 +5087,43 @@ After c112: ALL 11 personas now have current revisions within last 5 cycles. Aud
 ### Persona staleness post-c114
 All 11 personas now within last 4 cycles. Backlog 458 pending / 490 done / 23 blocked. Next /audit-grind should focus on grind execution — strong queue depth on MED-severity items (lzw-leng-bounds, keepalive-cleanup-immediate, engine-bounds runtime fixtures, FLUX endpoint, joystick-sdl2, msvc-native-validation).
 
+
+---
+
+## 2026-05-21 — Cycle 115 grind (6 sub-agents, 6/6 LANDED)
+
+**Mode:** scheduled `/audit-grind` tick, 6 Haiku general-purpose agents, distinct file domains.
+
+**Baseline:** make green; pytest 1940 passed / 3 skipped.
+**Post-grind:** make green; pytest **1952 passed** / 3 skipped (+12 from new helper/bounds tests).
+
+### Todos closed (6)
+| Persona | Todo | Files | Sentinel |
+|---|---|---|---|
+| engine-porter | engine-r28-lzw-leng-bounds-check (MED) | SRC/CACHE1D.C (4 sites: kdfread×2 + dfread×2) | `4c9f2e1b` |
+| network-multiplayer | net-r26-keepalive-socket-cleanup-immediate (MED) | SRC/MMULTI.C (close+state-clear on ETIMEDOUT/ECONNRESET) | `d0e40851` |
+| test-engineer | test-r27-net-socket-keepalive-helper-coverage (MED) | tests/test_net_socket_is_keepalive_error.py (+11) | `a7f2b3e1` |
+| test-engineer | test-r27-makepalookup-oob-negative-palnum (LOW) | tests/test_makepalookup_bounds.py (+4 pytest, 11 internal C cases) | `a7f3c2e1` |
+| build-system | build-r28-release-workflow-macos-gap (MED) | .github/workflows/release.yml (Option B documented deferral) | (truncated, work landed) |
+| documentation-curator | docs-r26-security-cycle-annotations (MED) | SECURITY.md (4 cycle annotations + top header) | `c7d2e4a9` |
+
+### Landmark deliverables
+- **LZW decompress hardening**: 4 call-sites in SRC/CACHE1D.C kdfread()/dfread() now bounds-check `leng` from compressed stream against `LZWSIZE+(LZWSIZE>>4)` = 20480 max; rejects negative + oversized values. Mirrors c113 gnumfiles pattern; gnu89; early-return.
+- **Keepalive cleanup-immediate**: SRC/MMULTI.C now closes the dead socket + clears player_peer_addr_valid[] + zeros recv_bufs[] + zeros session_key[] inline in the recv() error branch instead of waiting for next state-machine tick. Reuses `net_close()` + `INVALID_SOCKET` conventions already in file. Closes the c114 audit finding (network-multiplayer-r26 sentinel 7f3a9c2e).
+- **Runtime test coverage** for two c111/c113 static guards: makepalookup() OOB negative palnum + net_socket_is_keepalive_error() platform-errno matrix. Both via C harness + pytest subprocess wrapper. +12 tests net.
+- **macOS release job**: documented deferred block in release.yml with explicit Make-vs-CMake unification dependency call-out; sibling follow-up `build-r28-release-macos-impl` mined for the real implementation.
+- **SECURITY.md cycle provenance**: 4 hardening sections now carry `(Added cycle NNN — see docs/audits/...)` annotations; cycle-66 attribution block preserved with explicit "do not remove" guard.
+
+### Audit-mining (folded from scheduled tick @ 12:30)
+Scheduled audit-mining tick arrived mid-c115 grind. Deferred dispatching audit agents (would have pushed concurrent count past safe cap). Instead mined 5 fresh follow-up todos inline from c115 results:
+- engine-r28-lzw-bounds-other-call-sites (LOW)
+- engine-r28-lzw-leng-printf-to-stderr (LOW)
+- net-r26-keepalive-cleanup-integration-test (MED)
+- build-r28-release-macos-impl (MED, follow-up to Option B deferral)
+- docs-r27-grind-log-cycle-114-summary-row (LOW)
+
+Backlog: 468 pending / 493 done / 23 blocked.
+
+### Race outcome
+6/6 distinct-file-domain agents landed. No vanish-race. One in-flight artifact: docs agent reported "1938 + 2 failures" mid-run — confirmed false alarm caused by sibling test agents writing new test files during pytest collection; final tree shows clean 1952 passed.
+

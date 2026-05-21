@@ -535,7 +535,14 @@ kdfread(void *buffer, size_t dasizeof, size_t count, long fil)
 	if (dasizeof > LZWSIZE) { count *= dasizeof; dasizeof = 1; }
 	ptr = (char *)buffer;
 
-	kread(fil,&leng,2); kread(fil,lzwbuf5,(long)leng);
+	kread(fil,&leng,2);
+	/* engine-r28-lzw-leng-bounds-check: validate leng from untrusted compressed stream */
+	if (leng < 0 || leng > (LZWSIZE+(LZWSIZE>>4)))
+	{
+		printf("LZW decompress error: invalid leng=%d\n", leng);
+		return;
+	}
+	kread(fil,lzwbuf5,(long)leng);
 	k = 0; kgoal = uncompress(lzwbuf5,(long)leng,lzwbuf4);
 
 	copybufbyte(lzwbuf4,ptr,(long)dasizeof);
@@ -545,7 +552,14 @@ kdfread(void *buffer, size_t dasizeof, size_t count, long fil)
 	{
 		if (k >= kgoal)
 		{
-			kread(fil,&leng,2); kread(fil,lzwbuf5,(long)leng);
+			kread(fil,&leng,2);
+			/* engine-r28-lzw-leng-bounds-check: validate leng from untrusted compressed stream */
+			if (leng < 0 || leng > (LZWSIZE+(LZWSIZE>>4)))
+			{
+				printf("LZW decompress error: invalid leng=%d\n", leng);
+				return;
+			}
+			kread(fil,lzwbuf5,(long)leng);
 			k = 0; kgoal = uncompress(lzwbuf5,(long)leng,lzwbuf4);
 		}
 		for(j=0;j<dasizeof;j++) ptr[j+dasizeof] = ((ptr[j]+lzwbuf4[j+k])&255);
@@ -571,7 +585,14 @@ dfread(void *buffer, size_t dasizeof, size_t count, FILE *fil)
 	if (dasizeof > LZWSIZE) { count *= dasizeof; dasizeof = 1; }
 	ptr = (char *)buffer;
 
-	fread(&leng,2,1,fil); fread(lzwbuf5,(long)leng,1,fil);
+	fread(&leng,2,1,fil);
+	/* engine-r28-lzw-leng-bounds-check: validate leng from untrusted compressed stream */
+	if (leng < 0 || leng > (LZWSIZE+(LZWSIZE>>4)))
+	{
+		printf("LZW decompress error: invalid leng=%d\n", leng);
+		return;
+	}
+	fread(lzwbuf5,(long)leng,1,fil);
 	k = 0; kgoal = uncompress(lzwbuf5,(long)leng,lzwbuf4);
 
 	copybufbyte(lzwbuf4,ptr,(long)dasizeof);
@@ -581,7 +602,14 @@ dfread(void *buffer, size_t dasizeof, size_t count, FILE *fil)
 	{
 		if (k >= kgoal)
 		{
-			fread(&leng,2,1,fil); fread(lzwbuf5,(long)leng,1,fil);
+			fread(&leng,2,1,fil);
+			/* engine-r28-lzw-leng-bounds-check: validate leng from untrusted compressed stream */
+			if (leng < 0 || leng > (LZWSIZE+(LZWSIZE>>4)))
+			{
+				printf("LZW decompress error: invalid leng=%d\n", leng);
+				return;
+			}
+			fread(lzwbuf5,(long)leng,1,fil);
 			k = 0; kgoal = uncompress(lzwbuf5,(long)leng,lzwbuf4);
 		}
 		for(j=0;j<dasizeof;j++) ptr[j+dasizeof] = ((ptr[j]+lzwbuf4[j+k])&255);

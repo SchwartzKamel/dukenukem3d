@@ -389,6 +389,13 @@ static void net_poll_sockets(void)
 				printf("NET: Player %d [%s] disconnected: TCP keepalive detected dead peer (%s)\n",
 					i, peer_str, err == ETIMEDOUT ? "ETIMEDOUT" : "ECONNRESET");
 #endif
+				/* net-r26-keepalive-socket-cleanup-immediate: Close socket immediately on keepalive error */
+				net_close(player_sockets[i]);
+				player_sockets[i] = INVALID_SOCKET;
+				player_peer_addr_valid[i] = 0;
+				memset(&recv_bufs[i], 0, sizeof(recv_bufs[i]));
+				memset(session_key[i], 0, HMAC_SHA256_SIZE);
+				session_key_valid[i] = 0;
 			}
 			break;
 		}
