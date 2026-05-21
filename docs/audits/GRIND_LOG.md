@@ -5127,3 +5127,32 @@ Backlog: 468 pending / 493 done / 23 blocked.
 ### Race outcome
 6/6 distinct-file-domain agents landed. No vanish-race. One in-flight artifact: docs agent reported "1938 + 2 failures" mid-run — confirmed false alarm caused by sibling test agents writing new test files during pytest collection; final tree shows clean 1952 passed.
 
+
+---
+
+## 2026-05-21 — Cycle 116 audit-pass (4 sub-agents, DOC-ONLY)
+
+**Mode:** scheduled audit-mining tick (12:45); 4 audit-pass agents on stalest personas (asset/audio/docs/perf — all last audit-pass c110–c112).
+
+**Baseline:** post-c115 (commit cce8798); pytest 1952 passed -m "not slow" / 3 skipped.
+
+### Audit-pass deliverables (4/4 landed)
+| Persona | New revision | Sentinel | Notable verification | Fresh mineables |
+|---|---|---|---|---|
+| asset-pipeline | r28 | `a3f7d2e9` | c113 FLUX hardening + test_dummy_key_ sanitization verified live; 7/7 carry-forwards stable | 3 (audio-endpoint-validation-startup MED, retry-after-zero-second-edge LOW, multiprocessing-failure-summary LOW) |
+| audio-engineer | r27 | `a47f3c2b` | c113 64-site uint32_t migration + 26 _Static_asserts intact; 114 audio tests green | 3 (usrhooks-scope-review LOW, demand-feed-callback-validation LOW, midi-voc-hypothesis-fuzz LOW) |
+| documentation-curator | r27 | `8f5a2e7c` | 10/10 c113-c115 doc landings verified; all 11 personas within 5-cycle window | 3 (README c113-c115 sync MED, audit-index r27/r28 backfill LOW, ARCH Network Keepalive subsection LOW) |
+| performance-profiler | r28 | `4c8eddf2` | **REGRESSION FOUND**: fast-suite 49.91s wallclock vs prior 25-28s (per-test 13.5ms→25.56ms) due to c115 subprocess-test harnesses gcc-compile-per-discovery | 3 (subprocess-test-harness-build-cache MED, phase2-implement carry-forward MED, profiling-perf-docs-location LOW) |
+
+### Todos mined (10 net new)
+- asset-r28: audio-endpoint-validation-startup MED, retry-after-zero-second-edge LOW, multiprocessing-failure-summary LOW
+- audio-r27: usrhooks-scope-review LOW, demand-feed-callback-validation LOW, midi-voc-hypothesis-fuzz LOW
+- docs-r27: readme-recent-improvements-c113-c115-sync MED, audit-index-r27-r28-backfill LOW, arch-network-keepalive-section LOW
+- perf-r28: subprocess-test-harness-build-cache MED (HIGH-LEVERAGE: addresses the regression perf-r28 detected)
+
+### Key finding
+**c115 added value (+12 runtime tests for c111/c113 static guards) at a real cost: fast-suite wallclock nearly doubled.** The subprocess-build pattern is correct for now (gives us coverage we didn't have) but must be amortized before being applied to more guards. `perf-r28-subprocess-test-harness-build-cache` is the highest-leverage todo in the freshly-mined batch — should be picked up next /audit-grind tick.
+
+### Race outcome
+4/4 STAGING files survived. No mid-flight test regressions (mid-run "1950 passed" report from docs agent was a transient pytest-collection race with sibling agents; final tree confirmed 1952). Perf agent ran longer than others (15min) due to multiple wallclock measurement passes — expected.
+
