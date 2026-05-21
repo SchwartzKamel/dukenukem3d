@@ -104,6 +104,21 @@ def grp_path(project_root):
     return project_root / "DUKE3D.GRP"
 
 
+@pytest.fixture
+def temp_captures_dir(tmp_path):
+    """Isolated captures/ directory per test (replaces hard-coded captures/ path).
+    
+    Returns Path object; auto-cleaned by pytest tmp_path.
+    
+    This fixture enables test isolation and supports parallel execution (pytest-xdist)
+    by ensuring each test gets its own temporary captures directory instead of
+    sharing a hard-coded project root captures/ path.
+    """
+    d = tmp_path / "captures"
+    d.mkdir(exist_ok=True)
+    return d
+
+
 @pytest.fixture(scope="session")
 def generated_assets_dir(project_root):
     """Return path to generated_assets directory."""

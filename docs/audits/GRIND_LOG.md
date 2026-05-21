@@ -4540,3 +4540,22 @@ Re-verify all r21 audit-pass items (cycles 77–84 closures) remain live across 
 **Personas: docs r21→r22, perf r21→r22.** Cycle 94 stalest: engine r22 @ c90, asset r22 @ c90, sec r21 @ c88, test r21 @ c88. **v0.2.0 release blocker CLOSED. ⭐**
 
 ---
+
+## Cycle 94 — 2026-05-21 (audit-pass + GRIND DRAIN, 5 sub-agents, palette-bounds CRITICAL closure + HMAC post-deploy audit)
+
+**Personas audited (1 of 10):**
+- **security-and-secrets r21→r22** (`security-and-secrets-r22.md`, 407L): HMAC-SHA256 post-deploy audit. RFC 2104 (HMAC) + RFC 5869 (HKDF) compliance VERIFIED on `compat/sha256.{c,h}` (cycle 93 implementation). Constant-time HMAC verification confirmed in SRC/MMULTI.C; ephemeral 32B nonce generation validated; HKDF-SHA256 session key derivation correct (`AUTH_SPOOFING_V1` context). check_secrets.sh `^+` scoping rule re-verified (added-lines only). .env gitignored + untracked. Cycle-66 fake-author commits `0296200` + `6c236443` re-cited (10 references per v7-HARDENED mandate). net-r19/r20 CRITICAL-BLOCKING escalation **RESOLVED** by cycle 93 HMAC deploy. 0 CRITICAL/HIGH; 5 NEW MEDIUM/LOW todos (post-deploy monitoring, replay-gap audit, nonce collision KAT tests, cycle-66 cleanup deferral, GitHub Actions secret audit). Verdict: 🟢 SECURE. Sentinel `sec-r22-final-a7f2c9d4`.
+
+**Grind closures (4):**
+- **engine-r23-rotatesprite-pal-clamp** (SRC/ENGINE.C:7094): `if ((unsigned)dapalnum >= MAXPALOOKUPS) dapalnum = 0;` defensive clamp at `dorotatesprite()` entry. Silent clamp to palookup[0] on out-of-bounds; gnu89 compliant. Sentinel `07200d70`.
+- **engine-r23-sprite-palnum-validation** (SRC/ENGINE.C:7537): `if ((unsigned long)palnum >= MAXPALOOKUPS) return;` at `makepalookup()` entry; rejects network/map untrusted indices. Sentinel `e7f3a21c`.
+- **engine-r23-makepalookup-remapbuf-clamp** (SRC/ENGINE.C:7551, 7565): `(unsigned char)remapbuf[j]` casts on both LOOKUP.DAT-sourced index sites; eliminates negative-signed-char buffer over-read. Sentinel `7c3a9e2f`.
+- **test-r6-isolation-cleanup** (tests/conftest.py + tests/test_visual_playtest.py): NEW `temp_captures_dir` fixture (function-scoped, pytest tmp_path-based); `headless_run` FileLock-coordinated for xdist parallel safety. Eliminates leaked `.headless_run*.done` lock-files; deterministic parallel execution verified `pytest -n 4`.
+
+**Verification protocol:** Three concurrent SRC/ENGINE.C edits at L7094/L7537/L7551-7565 merged cleanly (non-overlapping line ranges, verified post-dispatch). STAGING pattern attempted for sec-r22 but agent wrote canonical `security-and-secrets-r22.md` directly — no race (single audit agent this cycle).
+
+**Build:** Clean release (3 expected gnu89 warnings). **Tests:** 1445 passed, 58 skipped, 0 xfailed (stable; palette guards add 0 tests — defensive runtime-only).
+
+**Personas: sec r21→r22; engine r22→r23 (via grind closures).** Cycle 95 stalest: asset r22 @ c90, compat r21 @ c91, audio r21 @ c91, test r21 @ c88. **3 palette CRITICAL sites closed; HMAC RFC-audited.**
+
+---

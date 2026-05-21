@@ -25,7 +25,6 @@ from frame_analyzer import (
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 BINARY_PATH = os.path.join(PROJECT_ROOT, "duke3d")
 GRP_PATH = os.path.join(PROJECT_ROOT, "DUKE3D.GRP")
-CAPTURES_DIR = os.path.join(PROJECT_ROOT, "captures")
 
 
 # ---------------------------------------------------------------------------
@@ -148,7 +147,7 @@ def headless_run(worker_id):
     
     Under xdist: uses FileLock to ensure only one worker runs the game,
     while others wait for and read the captured frames. This prevents
-    PermissionError from concurrent filesystem writes to CAPTURES_DIR.
+    PermissionError from concurrent filesystem writes to captures directory.
     """
     from filelock import FileLock
     from pathlib import Path
@@ -160,16 +159,18 @@ def headless_run(worker_id):
     if not sdl2_available():
         pytest.skip("libSDL2-2.0.so.0 not found in runtime linker path")
 
-    # Determine lock file location (shared across all xdist workers)
-    captures_dir_path = Path(CAPTURES_DIR)
-    lock_file = captures_dir_path.parent / "headless_run.lock"
-    done_marker = captures_dir_path.parent / "headless_run.done"
+    # Use shared captures directory in PROJECT_ROOT for all workers/sessions
+    # FileLock ensures only one worker runs the game; others read shared frames
+    captures_dir = os.path.join(PROJECT_ROOT, "captures")
+    lock_file = os.path.join(PROJECT_ROOT, ".headless_run.lock")
+    done_marker = os.path.join(PROJECT_ROOT, ".headless_run.done")
     
     def _do_headless_run():
         """Perform the actual headless run and frame capture."""
         # Clean previous captures
-        if os.path.isdir(CAPTURES_DIR):
-            shutil.rmtree(CAPTURES_DIR)
+        if os.path.isdir(captures_dir):
+            shutil.rmtree(captures_dir)
+        os.makedirs(captures_dir, exist_ok=True)
 
         env = os.environ.copy()
         env.update({
@@ -204,7 +205,7 @@ def headless_run(worker_id):
             result = exc
 
         # Collect captured frames (BMP files written by sdl_capture_frame)
-        frame_paths = sorted(glob.glob(os.path.join(CAPTURES_DIR, "*.bmp")))
+        frame_paths = sorted(glob.glob(os.path.join(captures_dir, "*.bmp")))
 
         stdout = getattr(result, "stdout", b"") or b""
         stderr = getattr(result, "stderr", b"") or b""
@@ -216,27 +217,25 @@ def headless_run(worker_id):
             "stderr": stderr.decode(errors="replace"),
         }
     
-    if worker_id == "master":
-        # Not running under xdist: single-threaded execution
-        return _do_headless_run()
-    
-    # Under xdist: coordinate execution across workers
-    with FileLock(str(lock_file)):
-        if not done_marker.exists():
+    # Under xdist or single-threaded: coordinate execution across workers using FileLock
+    with FileLock(lock_file):
+        if not os.path.exists(done_marker):
             # First worker to acquire lock: run the game
-            _do_headless_run()
-            done_marker.touch()
+            result = _do_headless_run()
+            # Create marker file to indicate completion
+            Path(done_marker).touch()
+            return result
     
-    # All workers: read the captured frames
-    frame_paths = sorted(glob.glob(os.path.join(CAPTURES_DIR, "*.bmp")))
+    # All other workers: read the captured frames from shared directory
+    frame_paths = sorted(glob.glob(os.path.join(captures_dir, "*.bmp")))
     
-    # Return a minimal result (actual output not needed for waiting workers)
     return {
         "exit_code": 0,
         "frame_paths": frame_paths,
         "stdout": "",
         "stderr": "",
     }
+
 
 
 # ---------------------------------------------------------------------------

@@ -56,3 +56,5 @@ session.db
 testdata/determ_frame_n*_*.bmp
 headless_run.done
 .coverage
+.headless_run*.done
+headless_run-worker-*.done

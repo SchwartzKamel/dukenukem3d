@@ -7091,6 +7091,9 @@ dorotatesprite (long sx, long sy, long z, short a, short picnum, signed char das
 	long xv, yv, xv2, yv2, obuffermode, qlinemode, y1ve[4], y2ve[4], u4, d4;
 	char bad;
 
+	/* Bounds-check dapalnum to prevent out-of-bounds palookup[] access */
+	if ((unsigned)dapalnum >= MAXPALOOKUPS) dapalnum = 0;
+
 	xsiz = tilesizx[picnum]; ysiz = tilesizy[picnum];
 	if (dastat&16) { xoff = 0; yoff = 0; }
 	else
