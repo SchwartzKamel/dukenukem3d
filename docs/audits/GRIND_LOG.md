@@ -5201,3 +5201,53 @@ Backlog: 468 pending / 493 done / 23 blocked.
 - **Perf regression FULLY RECOVERED** (-27%; per-test 59.67ms → 43.24ms; below c114 baseline). c115 subprocess-test pattern now amortized cleanly via session-scoped pytest fixtures; pattern can scale to future C harness tests safely.
 - 6-agent cap discipline upheld: 8 in flight (6 grind + 2 doc-only audit STAGING) with strict distinct-file-domain assignment; zero race or contention. Confirms STAGING contract enables safe expansion beyond 6 when doc-only.
 - ARCH + README + ARCH-keepalive docs all advanced — operator's "ensure we're updating docs" directive honored.
+
+---
+
+## Cycle 118 — 2026-05-21T13:35Z — Audit-Pass Quad (4 DOC-ONLY STAGING)
+
+**Dispatch**: 4 audit-pass agents on the 4 stalest personas (compat, network, audio, engine). All STAGING contract.
+
+### Audit-pass landings (4/4)
+
+| Persona | Round | Sentinel | Headline |
+|---------|-------|----------|----------|
+| compat-layer | r28 | 7a4f2e1b | All c107-c117 _Static_asserts + audio uint32_t migration + net_socket_is_keepalive_error VERIFIED. **CRITICAL CROSS-DOMAIN**: compat/sha256.c in build.mk:16 but MISSING from CMakeLists.txt:46-54 COMPAT_SRCS (confirms c117 build-system finding). 6 todos mined (1 CRITICAL, 1 HIGH, 2 MED, 2 LOW). |
+| network-multiplayer | r27 | a4f2e9c3 | c111 BCryptGenRandom + c113 keepalive diag + player_peer_addr tracking + c115 cleanup-immediate + c117 recv_buf threshold/hysteresis ALL VERIFIED LIVE. Production-ready. 4 LOW todos mined. |
+| audio-engineer | r28 | 7a2c91f4 | c117 _validate_audio_endpoint() wired in main() with fallback; c107 ABI invariants intact; c113 uint32_t migration complete; 114 audio tests green. 6 mineables (1 MED test, 5 LOW polish). |
+| engine-porter | r29 | 4a9d7c23 | **9th totalclocklock re-affirmation** — SRC/BUILD.H:151 / SRC/ENGINE.C:313 / ENGINE.C:855 — DO NOT propose removal. All c111/c113/c115/c117 bounds guards VERIFIED LIVE. 6 mined (animation snapshots, MMULTI recv_buf codify, LZW diagnostics). |
+
+### Cross-cycle convergence
+- **CRITICAL sha256.c CMake gap** now triangulated by **3 independent audits** (c117 build-system r28, c118 compat-layer r28, c118 engine-porter r29 referenced). Top-priority c119 grind target.
+- **totalclocklock ERRATA** now at **9 cumulative re-affirmations** (c100, c101, c104, c104b, c107b, c110, c112, c114, c118). Persona memory holding.
+
+### Test baseline
+1962 passed (-m "not slow") / 3 skipped — UNCHANGED (DOC-ONLY pass)
+
+### New todos mined (22 total, 1 CRITICAL + 1 HIGH + 5 MED + 15 LOW)
+- compat-r28-cmake-sha256-sync (CRITICAL — duplicate-confirms c117 finding)
+- compat-r28-sha256-integration-test (HIGH)
+- compat-r28-net-socket-adoption-status (MED)
+- compat-r28-msvc-native-build-validation-c118 (MED)
+- audio-r28-test-main-integration (MED)
+- engine-r29-mmulti-recv-buf-capacity-codify (MED)
+- engine-r29-lzw-leng-near-max-diagnostic (MED)
+- engine-r29-totalclocklock-animation-consumer-audit (MED)
+- engine-r29-art-tile-overlap-defensive-check (LOW)
+- engine-r29-palookup-allocation-comment-safety (LOW)
+- engine-r29-struct-layout-assertion-refresh (LOW)
+- compat-r28-keepalive-error-scope-doc (LOW)
+- compat-r28-volatile-int32-task-count-verify (LOW)
+- audio-r28-endpoint-validation-doc (LOW)
+- audio-r28-manifest-freshness-sidecar-audit (LOW)
+- audio-r28-cli-arg-validate-concurrency (LOW)
+- audio-r28-silent-fallback-diagnostics (LOW)
+- audio-r28-test-coverage-async-api-error (LOW)
+- net-r27-ipv6-scope-id-parity-posix (LOW)
+- net-r27-recv-buf-near-full-logged-keepalive-reset (LOW)
+- net-r27-session-key-cleanup-audit (LOW)
+- net-r27-session-key-valid-transition-diagnostics (LOW)
+
+### Notable
+- STAGING contract scaled cleanly to 4 parallel agents with zero file collisions; demonstrates safe pattern for doc-only audit batches.
+- Cycle-117 lesson (pre-commit hook self-quote FP on check_secrets.sh patterns) was honored — no agent included literal `service_account`/`private_key` strings.
