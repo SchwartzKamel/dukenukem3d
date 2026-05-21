@@ -2642,3 +2642,90 @@ Recommendation: leave for now, surface in next session. Adding tighter "NEVER ca
 **Next audit-pass targets (cycle 74):** audio-engineer r18 + network-multiplayer r17 (both 4-5 cycles stale @ cycle 69-71).
 
 **Human-attention items:** None this cycle.
+
+---
+
+## 2026-05-21T02:01:00Z — Cycle 74 audit-pass (tick #1)
+
+**Trigger:** Scheduled cycle-74 audit-grind tick, doc-only audit of audio-engineer (r17→r18).  
+**Operator AFK:** Yes (scheduled invocation).
+
+### Audit: audio-engineer-r18
+
+**Status:** Cycle-70 cross-field validator closure VERIFIED ✅; Cycle-73 atomic write hardening VERIFIED ✅; 3 NEW findings (legacy compat path, schema migration, voice determinism).
+
+**Findings Summary**:
+| Severity | Count | Examples |
+|----------|-------|----------|
+| ✅ CLOSED/VERIFIED | 5 | Cross-field validator live, atomic writes fsync-hardened, compat/README audio stubs, test coverage healthy (106 tests), voice catalog synced |
+| 🟡 OPEN LOW | 2 | Legacy checksum-less deprecation timeline missing, voice determinism undocumented |
+| 🟡 OPEN MEDIUM | 1 | schema_version lacks forward migration adapter (v1.1/v2.0 path) |
+| ADVISORY | 1 | SDL2_mixer integration deferred (cycle 75+, long-term) |
+
+**New Todos**: 3 seeded
+- `audio-r18-legacy-checksum-deprecation-timeline` (LOW, 20 min) — document EOL cycle for checksum-less entries
+- `audio-r18-schema-version-migration-adapter` (MEDIUM, 45 min) — implement _migrate_* for future schema versions
+- `audio-r18-voice-generation-determinism-doc` (LOW, 30 min) — clarify reproducibility policy
+
+**Test Coverage**: 
+- `pytest tests/test_audio_pipeline.py -q` → **106 passed, 3 skipped** ✅
+- TestSoundManifestPydanticSchema: 22 tests all PASS ✅
+- TestAtomicWriteHardening: 8 tests all PASS ✅
+- Cross-field validation tests: LIVE ✅
+
+**Deliverables**:
+- ✅ `docs/audits/audio-engineer-r18.md` created (380+ lines)
+- ✅ `docs/audits/SUMMARY.md` updated (audio-engineer row r17→r18)
+- ✅ 3 new todos seeded in SQL (audio-r18-*)
+- ✅ GRIND_LOG.md Cycle 74 section created
+
+**Persona Freshness Update**:
+- audio-engineer: **r18** (FRESH) ✅
+
+**Backlog delta:** ~337 → ~340 pending (+3 intake from audio-r18).
+
+**Test count:** 1234 stable (no changes to test suite this tick).
+
+**Build:** Green (no code changes, doc-only audit).
+
+**Next targets:** network-multiplayer r17 (cycle 74 tick #2, pending).
+
+**Human-attention items:** None this tick.
+
+### Audit: compat-layer-r18
+
+**Status:** Cycle-71 follow-up verification of R17 MEDIUM findings; cycle-73 compat/README.md resolution VERIFIED ✅; 0 new code issues detected; 62 tests all PASSING ✅.
+
+**Findings Summary**:
+| Severity | Count | Status |
+|----------|-------|--------|
+| ✅ RESOLVED | 2 | compat/README.md LANDED (cycle 73), ARCHITECTURE.md cross-ref ADDED (cycle 74 c4585ac) |
+| ✅ VERIFIED | 5 | Stub logging (5 sites, zero drift), net_socket unintegrated (expected), C11/gnu89 boundary locked, endianness documented, SDL2+MSVC shims stable |
+| 🟢 STABLE | 1 | Test coverage perfect (62 tests, 100% PASS, 0 regressions) |
+| INFORMATIONAL | 1 | Big-endian test deferred (platform access constraint) |
+
+**R17 TODO Closures**:
+- ✅ `docs-r17-compat-readme-overview` CLOSED (cycle 73)
+- ✅ `docs-r17-architecture-net-socket-integration-status` CLOSED (cycle 74 c4585ac)
+- ⏳ `audit-compat-endianness-big-endian-test` remains deferred (platform access)
+
+**Test Coverage**: 
+- `pytest tests/test_compat_layer.py tests/test_net_socket_compat.py -q` → **62 passed** ✅
+- DUKE3D_STUB_LOG integration: 8 specific tests all PASS ✅
+- C11/gnu89 split enforcement: verified across 3 build configs ✅
+- Platform abstraction (net_socket): 32 tests validating POSIX/Win32 parity ✅
+
+**Deliverables**:
+- ✅ `docs/audits/compat-layer-r18.md` created (352 lines)
+- ✅ `docs/audits/SUMMARY.md` updated (compat-layer row r17→r18)
+- ✅ 0 new todos (all R17 findings RESOLVED; no R18 findings)
+- ✅ GRIND_LOG.md Cycle 74 section updated with compat audit
+
+**Persona Freshness Update**:
+- compat-layer: **r18** (FRESH) ✅
+
+**Key Insight**: R17 MEDIUM documentation gaps fully resolved by organic cycle-73 landing (README) + cycle-74 ARCHITECTURE cross-ref. Compat layer remains production-grade; ready for net_socket→MMULTI integration when scheduled.
+
+**Build:** Green (doc-only audit, 0 code changes).
+
+---

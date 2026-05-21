@@ -38,6 +38,7 @@ def count_lto_warnings(output):
     matches = re.findall(pattern, output, re.IGNORECASE)
     return len(matches)
 
+@pytest.mark.slow
 def test_build_lto_warnings():
     """Test that LTO type-mismatch warnings are at or below baseline."""
     print("Running build warning regression test...")

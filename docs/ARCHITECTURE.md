@@ -155,6 +155,8 @@ long = 32-bit     →    int32_t in structs        64-bit safe
   API. A future SDL2_mixer backend will replace this.
 - **`mact_stub.c`** replaces the MACT input/config library with minimal stubs.
 
+**For detailed implementation and cross-references, see [compat/README.md](../compat/README.md) — the definitive subsystem index.**
+
 ---
 
 ## Game Loop
@@ -291,6 +293,8 @@ clear message when SDL2 is not installed.
 - **`MUSIC_PlaySong`** handles MIDI music playback
 - Falls back to silence if SDL2_mixer is not available (current default via
   `audio_stub.c`)
+
+**For a comprehensive index of all asset generation tools, format encoders, and CI integration, see [tools/README.md](../tools/README.md).**
 
 ---
 

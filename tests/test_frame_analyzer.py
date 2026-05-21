@@ -260,6 +260,7 @@ class TestAnalyzeFrame:
 
 
 class TestAnalyzeFrameSequence:
+    @pytest.mark.slow
     def test_sequence_analysis(self):
         paths = []
         for i in range(3):
@@ -302,6 +303,7 @@ class TestAnalyzeFrameSequence:
         for p in paths:
             Path(p).unlink()
 
+    @pytest.mark.slow
     def test_progression_detected(self):
         paths = []
         img1 = _make_solid_image((100, 0, 0), size=(8, 8))
@@ -321,6 +323,7 @@ class TestAnalyzeFrameSequence:
         for p in paths:
             Path(p).unlink()
 
+    @pytest.mark.slow
     @pytest.mark.parametrize("num_frames", [1, 3, 5])
     def test_analyze_frame_sequence_deterministic(self, num_frames):
         """Regression test: analyze_frame_sequence() returns identical results

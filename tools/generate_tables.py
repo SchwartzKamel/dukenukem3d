@@ -24,6 +24,45 @@ OUTPUT_DIR = os.path.join(PROJECT_ROOT, "generated_assets")
 TABLE_NAMES = ["sine", "radar", "brightness", "fonts"]
 
 
+def _atomic_write_bytes(path: str, data: bytes) -> None:
+    """Write bytes to a file atomically using tmp+rename pattern.
+    
+    This ensures that if the process is killed or hits an error mid-write,
+    the original file (if it exists) is left untouched rather than corrupted.
+    Uses POSIX atomic rename within the same filesystem.
+    Includes fsync() for extra durability against power loss / process kill.
+    
+    # asset-r19-atomic-write-tables-dat: fsync for power-loss protection
+    """
+    tmp_path = path + ".tmp"
+    try:
+        with open(tmp_path, "wb") as f:
+            f.write(data)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp_path, path)
+    except OSError:
+        # Clean up temp file on error to avoid leaving stray .tmp files
+        try:
+            os.remove(tmp_path)
+        except OSError:
+            pass
+        raise
+
+
+def _atomic_write_json(path: str, obj: dict, **json_kwargs) -> None:
+    """Write a dict to JSON file atomically.
+    
+    Serializes obj to JSON and writes atomically using tmp+rename pattern
+    with fsync for durability. Any keyword arguments (indent, sort_keys, etc.)
+    are passed to json.dumps().
+    
+    # asset-r19-atomic-write-tables-dat: atomic JSON writes
+    """
+    json_str = json.dumps(obj, **json_kwargs)
+    _atomic_write_bytes(path, json_str.encode("utf-8"))
+
+
 def _sha256_of_file(path):  # asset-r13-manifest-checksums: per-file checksum
     """Compute SHA256 checksum of a file."""
     h = hashlib.sha256()
@@ -148,10 +187,7 @@ def main():
     # Write TABLES.DAT
     tables_path = os.path.join(OUTPUT_DIR, "TABLES.DAT")
     try:
-        tmp_path = tables_path + ".tmp"
-        with open(tmp_path, "wb") as f:
-            f.write(tables_dat)
-        os.replace(tmp_path, tables_path)
+        _atomic_write_bytes(tables_path, tables_dat)
         print(f"  Written to {tables_path}")
     except OSError as exc:
         print(f"[ERROR] Failed to write TABLES.DAT: {exc}", file=sys.stderr)
@@ -163,10 +199,7 @@ def main():
     
     manifest_path = os.path.join(OUTPUT_DIR, "TABLES_MANIFEST.json")
     try:
-        tmp_path = manifest_path + ".tmp"
-        with open(tmp_path, "w") as f:
-            json.dump(manifest, f, indent=2, sort_keys=True)
-        os.replace(tmp_path, manifest_path)
+        _atomic_write_json(manifest_path, manifest, indent=2, sort_keys=True)
         print(f"\n=== Manifest written to {manifest_path} ===")
         print(f"  schema_version: {manifest['schema_version']}")
         print(f"  generated_at: {manifest['generated_at']}")

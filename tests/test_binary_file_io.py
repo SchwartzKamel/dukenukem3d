@@ -167,6 +167,7 @@ class TestGrpRoundTrip:
 class TestPaletteDatRoundTrip:
     """PALETTE.DAT write → read → verify 768-byte RGB header."""
 
+    @pytest.mark.slow
     def test_palette_dat_vga_bytes_round_trip(self, tmp_path):
         """Write PALETTE.DAT, verify first 768 bytes (256 RGB in 6-bit VGA)."""
         pal_path = tmp_path / "PALETTE.DAT"
@@ -188,6 +189,7 @@ class TestPaletteDatRoundTrip:
         for byte in vga_bytes:
             assert 0 <= byte <= 63
 
+    @pytest.mark.slow
     def test_palette_dat_shade_tables_present(self, tmp_path):
         """Verify shade tables present after VGA palette."""
         pal_path = tmp_path / "PALETTE.DAT"
@@ -208,6 +210,7 @@ class TestPaletteDatRoundTrip:
         shade_data = read_data[shade_offset:shade_offset + shade_size]
         assert len(shade_data) == shade_size
 
+    @pytest.mark.slow
     def test_palette_dat_translucency_table_present(self, tmp_path):
         """Verify 65536-byte translucency table at end."""
         pal_path = tmp_path / "PALETTE.DAT"
@@ -228,6 +231,7 @@ class TestPaletteDatRoundTrip:
         for byte in trans_data:
             assert 0 <= byte <= 255
 
+    @pytest.mark.slow
     def test_palette_dat_endianness_little_endian(self, tmp_path):
         """Verify numpalookups is stored little-endian."""
         pal_path = tmp_path / "PALETTE.DAT"
@@ -481,6 +485,7 @@ class TestEndiannessSanity:
         version = struct.unpack_from("<I", art_path.read_bytes(), 0)[0]
         assert version == 1
 
+    @pytest.mark.slow
     def test_palette_numpalookups_is_32_le(self, tmp_path):
         """PALETTE.DAT numpalookups is 32 (little-endian int16)."""
         pal_path = tmp_path / "numpal.dat"

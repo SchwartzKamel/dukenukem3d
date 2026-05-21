@@ -335,6 +335,13 @@ All 20 textures follow the Neon Noir Cyberpunk theme:
 └── .env                  # FLUX API credentials (gitignored, not tracked)
 ```
 
+### Subsystem READMEs
+
+Each major subsystem has a dedicated README:
+
+- **[`compat/README.md`](compat/README.md)** — Compatibility layer index: SDL2 driver, DOS stubs, networking abstraction, and C11/C89 compile flags
+- **[`tools/README.md`](tools/README.md)** — Asset & build pipeline: texture/audio generation, format encoders, CI integration, and schema contracts
+
 ---
 
 ## 🔧 Technical Details — What We Changed

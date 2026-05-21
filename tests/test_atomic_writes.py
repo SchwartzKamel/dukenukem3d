@@ -19,6 +19,10 @@ from generate_assets import (
     _atomic_write_bytes,
     _atomic_write_json,
 )
+from generate_tables import (
+    _atomic_write_bytes as _atomic_write_bytes_tables,
+    _atomic_write_json as _atomic_write_json_tables,
+)
 
 
 class TestAtomicWriteBytes:
@@ -330,3 +334,156 @@ class TestAtomicWriteIntegration:
                 path = os.path.join(tmpdir, name)
                 with open(path, "rb") as f:
                     assert f.read() == expected_data
+
+
+class TestAtomicWritesTables:
+    """Test suite for atomic writes in generate_tables.py.
+    
+    Validates that TABLES.DAT and TABLES_MANIFEST.json writes are atomic
+    and use fsync for power-loss protection.
+    # asset-r19-atomic-write-tables-dat: dedicated test class
+    """
+
+    def test_tables_atomic_write_bytes_creates_file(self):
+        """_atomic_write_bytes (from tables) should create a new file with given data."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = os.path.join(tmpdir, "TABLES.DAT")
+            data = b"TABLES_DATA_V1" + bytes(range(256)) * 10
+            
+            _atomic_write_bytes_tables(path, data)
+            
+            assert os.path.exists(path)
+            with open(path, "rb") as f:
+                assert f.read() == data
+
+    def test_tables_atomic_write_json_creates_manifest(self):
+        """_atomic_write_json (from tables) should create JSON manifest."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = os.path.join(tmpdir, "TABLES_MANIFEST.json")
+            manifest = {
+                "schema_version": "1.0",
+                "generated_at": "2024-01-01T00:00:00Z",
+                "table_names": ["sine", "radar", "brightness", "fonts"],
+            }
+            
+            _atomic_write_json_tables(path, manifest, indent=2, sort_keys=True)
+            
+            assert os.path.exists(path)
+            with open(path, "r") as f:
+                loaded = json.load(f)
+            assert loaded == manifest
+
+    def test_tables_atomic_no_tmp_file_after_success(self):
+        """Tables atomic writes should not leave .tmp file after success."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            data_path = os.path.join(tmpdir, "TABLES.DAT")
+            manifest_path = os.path.join(tmpdir, "TABLES_MANIFEST.json")
+            
+            _atomic_write_bytes_tables(data_path, b"test data")
+            _atomic_write_json_tables(manifest_path, {"key": "value"})
+            
+            assert not os.path.exists(data_path + ".tmp")
+            assert not os.path.exists(manifest_path + ".tmp")
+
+    def test_tables_atomic_preserves_on_failure(self):
+        """Tables atomic write should preserve original file if write fails."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = os.path.join(tmpdir, "TABLES.DAT")
+            
+            # Write initial content
+            initial_data = b"ORIGINAL_TABLES_DATA"
+            _atomic_write_bytes_tables(path, initial_data)
+            
+            # Try to overwrite with read-only dir (will fail)
+            readonly_dir = os.path.join(tmpdir, "readonly")
+            os.makedirs(readonly_dir)
+            os.chmod(readonly_dir, 0o444)
+            
+            bad_path = os.path.join(readonly_dir, "TABLES.DAT")
+            try:
+                with pytest.raises((OSError, PermissionError)):
+                    _atomic_write_bytes_tables(bad_path, b"new data")
+            finally:
+                os.chmod(readonly_dir, 0o755)
+            
+            # Original file should still have initial content
+            with open(path, "rb") as f:
+                assert f.read() == initial_data
+
+    def test_tables_atomic_overwrites_atomically(self):
+        """Tables atomic write should atomically overwrite existing files."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = os.path.join(tmpdir, "TABLES.DAT")
+            
+            # Write initial content
+            old_data = b"OLD_TABLES" + b"\x00" * 100
+            _atomic_write_bytes_tables(path, old_data)
+            
+            # Overwrite with new content
+            new_data = b"NEW_TABLES" + b"\xff" * 200
+            _atomic_write_bytes_tables(path, new_data)
+            
+            # Should have new content
+            with open(path, "rb") as f:
+                assert f.read() == new_data
+            assert os.path.getsize(path) == len(new_data)
+
+    def test_tables_atomic_fsync_invoked(self, monkeypatch):
+        """Verify fsync is called during tables atomic writes.
+        
+        # asset-r19-atomic-write-tables-dat: fsync verification
+        """
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = os.path.join(tmpdir, "TABLES.DAT")
+            
+            fsync_called = []
+            original_fsync = os.fsync
+            
+            def mock_fsync(fd):
+                fsync_called.append(fd)
+                return original_fsync(fd)
+            
+            monkeypatch.setattr(os, "fsync", mock_fsync)
+            
+            _atomic_write_bytes_tables(path, b"data_with_fsync")
+            
+            # fsync should have been called
+            assert len(fsync_called) > 0, "fsync should be called during atomic write"
+
+    def test_tables_manifest_json_correctness(self):
+        """Tables manifest JSON should be correctly formatted and readable."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = os.path.join(tmpdir, "TABLES_MANIFEST.json")
+            
+            manifest = {
+                "schema_version": "1.0",
+                "generated_at": "2024-01-01T00:00:00Z",
+                "table_names": ["sine", "radar", "brightness", "fonts"],
+                "tables_checksum": "abc123def456",
+            }
+            
+            _atomic_write_json_tables(path, manifest, indent=2, sort_keys=True)
+            
+            # Verify JSON is valid and formatted
+            with open(path, "r") as f:
+                content = f.read()
+            
+            # Should have indentation
+            assert "  " in content
+            # Should be valid JSON
+            loaded = json.loads(content)
+            assert loaded == manifest
+
+    def test_tables_atomic_deterministic_on_repeated_writes(self):
+        """Repeated identical writes should produce identical files."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path1 = os.path.join(tmpdir, "TABLES_1.DAT")
+            path2 = os.path.join(tmpdir, "TABLES_2.DAT")
+            
+            data = b"DETERMINISTIC_TABLES_DATA" * 100
+            
+            _atomic_write_bytes_tables(path1, data)
+            _atomic_write_bytes_tables(path2, data)
+            
+            with open(path1, "rb") as f1, open(path2, "rb") as f2:
+                assert f1.read() == f2.read()

@@ -819,6 +819,49 @@ asset-generation entry point in CI; updating CI workflows should call
 into it rather than duplicating `python3 tools/generate_assets.py …`
 invocations.
 
+## Test Markers
+
+This project uses pytest markers to organize test execution. All markers are registered in `pytest.ini` and documented here:
+
+### Slow Marker
+
+**Marker:** `@pytest.mark.slow`
+
+**Definition:** Tests with >1 second wallclock duration. Typically includes:
+- Build system tests (e.g., `test_build_lto_warnings` running `make clean && make`)
+- Asset generation tests (e.g., frame analysis with parametrization)
+- File I/O tests with round-trip validation (e.g., PALETTE.DAT operations)
+
+**Behavior:**
+- **Default (development):** Skipped in local runs. To skip: `pytest -m "not slow"` (explicitly filter them out).
+- **CI:** Always included. CI runs the full test suite including slow tests.
+- **Opt-in:** Run only slow tests with `pytest -m slow`.
+
+**Rationale:** Fast feedback loops in development by excluding slow tests; comprehensive validation in CI before merge.
+
+### Playtest Marker
+
+**Marker:** `@pytest.mark.playtest`
+
+**Definition:** Visual integration tests that launch the game in headless mode and validate captured frame sequences (located in `tests/test_visual_playtest.py`).
+
+**Behavior:**
+- **Default:** Skipped in most runs. To include: `pytest -m playtest`.
+- **CI:** Included in nightly or full regression runs (configured per workflow).
+- **Note:** Playtest tests are typically slow and require X11 or headless display; they are separated to avoid blocking fast feedback.
+
+### Serial Marker
+
+**Marker:** `@pytest.mark.serial`
+
+**Definition:** Tests that must run serially (incompatible with pytest-xdist parallel execution).
+
+**Behavior:**
+- **Effect:** Marked tests run sequentially even with `-n auto` parallel execution.
+- **Use case:** Tests that require exclusive access to shared resources (files, sockets, environment variables).
+
+**Note:** Avoid using `serial` unless absolutely necessary. Prefer test isolation and temporary fixtures (`tmp_path`, `monkeypatch`).
+
 ## Pre-Commit Hook Setup
 
 To prevent accidental commits of API keys and secrets, install the pre-commit hook:

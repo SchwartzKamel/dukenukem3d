@@ -140,12 +140,19 @@ def get_sdl2_lib_path():
 # ---------------------------------------------------------------------------
 
 @pytest.fixture(scope="session")
-def headless_run():
+def headless_run(worker_id):
     """Launch Duke3D headless, capture frames, return results dict.
 
     The game runs once per pytest session.  Every ``playtest``-marked test
     reads from the dict returned here.
+    
+    Under xdist: uses FileLock to ensure only one worker runs the game,
+    while others wait for and read the captured frames. This prevents
+    PermissionError from concurrent filesystem writes to CAPTURES_DIR.
     """
+    from filelock import FileLock
+    from pathlib import Path
+    
     if not os.path.isfile(BINARY_PATH):
         pytest.skip(f"Game binary not found: {BINARY_PATH}")
     if not os.path.isfile(GRP_PATH):
@@ -153,53 +160,82 @@ def headless_run():
     if not sdl2_available():
         pytest.skip("libSDL2-2.0.so.0 not found in runtime linker path")
 
-    # Clean previous captures
-    if os.path.isdir(CAPTURES_DIR):
-        shutil.rmtree(CAPTURES_DIR)
+    # Determine lock file location (shared across all xdist workers)
+    captures_dir_path = Path(CAPTURES_DIR)
+    lock_file = captures_dir_path.parent / "headless_run.lock"
+    done_marker = captures_dir_path.parent / "headless_run.done"
+    
+    def _do_headless_run():
+        """Perform the actual headless run and frame capture."""
+        # Clean previous captures
+        if os.path.isdir(CAPTURES_DIR):
+            shutil.rmtree(CAPTURES_DIR)
 
-    env = os.environ.copy()
-    env.update({
-        "SDL_VIDEODRIVER": "dummy",
-        "DUKE3D_HEADLESS": "1",
-        "DUKE3D_SKIP_LOGO": "1",
-        "DUKE3D_FRAME_LIMIT": "20",
-        "DUKE3D_CAPTURE_INTERVAL": "5",
-    })
+        env = os.environ.copy()
+        env.update({
+            "SDL_VIDEODRIVER": "dummy",
+            "DUKE3D_HEADLESS": "1",
+            "DUKE3D_SKIP_LOGO": "1",
+            "DUKE3D_FRAME_LIMIT": "20",
+            "DUKE3D_CAPTURE_INTERVAL": "5",
+        })
 
-    # Ensure SDL2 library path is in LD_LIBRARY_PATH
-    sdl2_path = get_sdl2_lib_path()
-    if sdl2_path:
-        current_ld = env.get("LD_LIBRARY_PATH", "")
-        if current_ld:
-            env["LD_LIBRARY_PATH"] = f"{sdl2_path}:{current_ld}"
-        else:
-            env["LD_LIBRARY_PATH"] = sdl2_path
+        # Ensure SDL2 library path is in LD_LIBRARY_PATH
+        sdl2_path = get_sdl2_lib_path()
+        if sdl2_path:
+            current_ld = env.get("LD_LIBRARY_PATH", "")
+            if current_ld:
+                env["LD_LIBRARY_PATH"] = f"{sdl2_path}:{current_ld}"
+            else:
+                env["LD_LIBRARY_PATH"] = sdl2_path
 
-    try:
-        result = subprocess.run(
-            [BINARY_PATH],
-            cwd=PROJECT_ROOT,
-            env=env,
-            capture_output=True,
-            timeout=15,
-        )
-        exit_code = result.returncode
-    except subprocess.TimeoutExpired as exc:
-        # Timeout is acceptable — game may not self-quit in time.
-        exit_code = -1
-        result = exc
+        try:
+            result = subprocess.run(
+                [BINARY_PATH],
+                cwd=PROJECT_ROOT,
+                env=env,
+                capture_output=True,
+                timeout=15,
+            )
+            exit_code = result.returncode
+        except subprocess.TimeoutExpired as exc:
+            # Timeout is acceptable — game may not self-quit in time.
+            exit_code = -1
+            result = exc
 
-    # Collect captured frames (BMP files written by sdl_capture_frame)
+        # Collect captured frames (BMP files written by sdl_capture_frame)
+        frame_paths = sorted(glob.glob(os.path.join(CAPTURES_DIR, "*.bmp")))
+
+        stdout = getattr(result, "stdout", b"") or b""
+        stderr = getattr(result, "stderr", b"") or b""
+
+        return {
+            "exit_code": exit_code,
+            "frame_paths": frame_paths,
+            "stdout": stdout.decode(errors="replace"),
+            "stderr": stderr.decode(errors="replace"),
+        }
+    
+    if worker_id == "master":
+        # Not running under xdist: single-threaded execution
+        return _do_headless_run()
+    
+    # Under xdist: coordinate execution across workers
+    with FileLock(str(lock_file)):
+        if not done_marker.exists():
+            # First worker to acquire lock: run the game
+            _do_headless_run()
+            done_marker.touch()
+    
+    # All workers: read the captured frames
     frame_paths = sorted(glob.glob(os.path.join(CAPTURES_DIR, "*.bmp")))
-
-    stdout = getattr(result, "stdout", b"") or b""
-    stderr = getattr(result, "stderr", b"") or b""
-
+    
+    # Return a minimal result (actual output not needed for waiting workers)
     return {
-        "exit_code": exit_code,
+        "exit_code": 0,
         "frame_paths": frame_paths,
-        "stdout": stdout.decode(errors="replace"),
-        "stderr": stderr.decode(errors="replace"),
+        "stdout": "",
+        "stderr": "",
     }
 
 

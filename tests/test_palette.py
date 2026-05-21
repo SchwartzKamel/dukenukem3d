@@ -20,7 +20,6 @@ def test_palette_index_zero_is_black():
     assert pal[0] == (0, 0, 0)
 
 
-@pytest.mark.slow
 def test_palette_dat_starts_with_rgb():
     """PALETTE.DAT begins with 768 bytes of VGA palette (0-63 range)."""
     pal = build_palette()
@@ -230,6 +229,7 @@ def test_create_palette_dat_calls_validation_with_custom_palette():
         create_palette_dat(bad_pal)
 
 
+@pytest.mark.slow
 def test_create_palette_dat_no_validation_for_default_palette():
     """create_palette_dat uses default palette without validation when None."""
     # Should not raise, using default palette
@@ -238,6 +238,7 @@ def test_create_palette_dat_no_validation_for_default_palette():
     assert len(dat) > 768
 
 
+@pytest.mark.slow
 def test_create_palette_dat_accepts_valid_custom_palette():
     """create_palette_dat accepts valid custom 256-entry palette."""
     pal = build_palette()

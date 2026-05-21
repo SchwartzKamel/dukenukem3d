@@ -19,6 +19,7 @@ sys.path.insert(0, os.path.join(PROJECT_ROOT, "tools"))
 
 # Import the audio generation module
 import generate_audio
+from manifest_verification import load_and_verify_audio_manifest
 
 
 class TestVoiceLinesSchema:
@@ -1689,3 +1690,162 @@ class TestAtomicWriteHardening:
                 content = f.read()
             assert content == b"New", \
                 "File should be overwritten atomically"
+
+
+class TestSoundManifestSchemaVersion:
+    """Test load_and_verify_audio_manifest() schema_version handling.
+    
+    asset-r19-sound-manifest-schema-version-rejection-test: Documents current behavior.
+    
+    NOTE: As of cycle 68, load_and_verify_audio_manifest() in manifest_verification.py
+    does NOT validate schema_version. These tests document the current permissive behavior
+    and serve as a baseline for future schema_version enforcement work.
+    
+    Explicit error rejection is deferred to the follow-up todo:
+    asset-r19-sound-manifest-schema-version-enforcement (MED)
+    """
+    
+    def test_load_and_verify_audio_manifest_missing_schema_version_currently_accepted(self):
+        """load_and_verify_audio_manifest() currently accepts manifests without schema_version.
+        
+        CURRENT BEHAVIOR: No validation or error (legacy compat).
+        This test documents the status quo for future enforcement work.
+        
+        FUTURE: When asset-r19-sound-manifest-schema-version-enforcement is implemented,
+        this should raise an explicit error instead.
+        """
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manifest_path = os.path.join(tmpdir, "MANIFEST.json")
+            manifest = {
+                "entries": [
+                    {
+                        "wav": "TAUNT01.WAV",
+                        "voice": "alloy",
+                        "category": "taunt",
+                        "prompt_summary": "gruff mercenary taunt",
+                        "status": "generated"
+                    }
+                ]
+            }
+            with open(manifest_path, "w") as f:
+                json.dump(manifest, f)
+            
+            # Currently, this should NOT raise an error
+            result = load_and_verify_audio_manifest(manifest_path)
+            
+            # Verify the manifest was loaded
+            assert isinstance(result, dict)
+            assert "entries" in result
+            assert len(result["entries"]) == 1
+    
+    def test_load_and_verify_audio_manifest_mismatched_schema_version_currently_accepted(self):
+        """load_and_verify_audio_manifest() currently accepts schema_version='2.0'.
+        
+        CURRENT BEHAVIOR: No validation or error on mismatched schema_version.
+        This test documents the status quo for future enforcement work.
+        
+        FUTURE: When asset-r19-sound-manifest-schema-version-enforcement is implemented,
+        this should raise an explicit error instead.
+        """
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manifest_path = os.path.join(tmpdir, "MANIFEST.json")
+            manifest = {
+                "schema_version": "2.0",
+                "entries": [
+                    {
+                        "wav": "PAIN01.WAV",
+                        "voice": "onyx",
+                        "category": "pain",
+                        "prompt_summary": "grunt of pain",
+                        "status": "generated"
+                    }
+                ]
+            }
+            with open(manifest_path, "w") as f:
+                json.dump(manifest, f)
+            
+            # Currently, this should NOT raise an error even with mismatched version
+            result = load_and_verify_audio_manifest(manifest_path)
+            
+            # Verify the manifest was loaded despite version mismatch
+            assert isinstance(result, dict)
+            assert result.get("schema_version") == "2.0"
+            assert "entries" in result
+    
+    def test_load_and_verify_audio_manifest_downgrade_attempt_currently_accepted(self):
+        """load_and_verify_audio_manifest() currently accepts schema_version downgrade.
+        
+        CURRENT BEHAVIOR: No validation or error on unexpected schema_version values.
+        This test documents the status quo for future enforcement work.
+        
+        FUTURE: When asset-r19-sound-manifest-schema-version-enforcement is implemented,
+        this should raise an explicit error instead.
+        """
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manifest_path = os.path.join(tmpdir, "MANIFEST.json")
+            manifest = {
+                "schema_version": "0.9",
+                "entries": [
+                    {
+                        "wav": "DEATH01.WAV",
+                        "voice": "onyx",
+                        "category": "death",
+                        "prompt_summary": "death scream",
+                        "status": "generated"
+                    }
+                ]
+            }
+            with open(manifest_path, "w") as f:
+                json.dump(manifest, f)
+            
+            # Currently, this should NOT raise an error on downgrade attempt
+            result = load_and_verify_audio_manifest(manifest_path)
+            
+            # Verify the manifest was loaded despite version mismatch
+            assert isinstance(result, dict)
+            assert result.get("schema_version") == "0.9"
+            assert "entries" in result
+    
+    def test_load_and_verify_audio_manifest_matching_schema_version_accepted(self):
+        """load_and_verify_audio_manifest() accepts schema_version='1.0' (correct version).
+        
+        CURRENT BEHAVIOR: Manifests with correct schema_version='1.0' are accepted.
+        This test verifies the baseline success case.
+        """
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manifest_path = os.path.join(tmpdir, "MANIFEST.json")
+            manifest = {
+                "schema_version": "1.0",
+                "entries": [
+                    {
+                        "wav": "PICKUP01.WAV",
+                        "voice": "echo",
+                        "category": "pickup",
+                        "prompt_summary": "pickup notification",
+                        "status": "generated",
+                        "generated_at": "1970-01-01T00:00:00Z"
+                    }
+                ]
+            }
+            with open(manifest_path, "w") as f:
+                json.dump(manifest, f)
+            
+            # This should succeed - the correct schema_version
+            result = load_and_verify_audio_manifest(manifest_path)
+            
+            # Verify the manifest was loaded correctly
+            assert isinstance(result, dict)
+            assert result.get("schema_version") == "1.0"
+            assert "entries" in result
+            assert len(result["entries"]) == 1
+            assert result["entries"][0]["wav"] == "PICKUP01.WAV"
+    
+    def test_load_and_verify_audio_manifest_import_path(self):
+        """Verify load_and_verify_audio_manifest is imported from manifest_verification."""
+        import sys
+        sys.path.insert(0, os.path.join(PROJECT_ROOT, "tools"))
+        from manifest_verification import load_and_verify_audio_manifest as lavam_direct
+        
+        # Verify we can import it directly
+        assert lavam_direct is not None
+        assert callable(lavam_direct)
