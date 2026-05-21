@@ -4936,3 +4936,28 @@ Operator scheduled audit prompt. Stalest after c107 were audio/build/perf (all l
 ### Mined this cycle
 9 new todos: engine-r26-makepalookup-bounds-CRITICAL, engine-r26-premap-lookup-dat-validation, sec-r26-codeowners-audio-stub-coverage, sec-r26-gh-actions-secret-masking-audit, sec-r26-precommit-shellcheck-yamllint, net-r24-windows-csprng-bcryptgenrandom, net-r24-keepalive-failure-diagnostics, net-r24-multiplayer-integration-harness, compat-r25-fx-device-userinput-static-asserts
 
+
+## Cycle 110 — 2026-05-21 (audit-only fleet)
+
+**Dispatched:** 5 audit-pass agents on stalest personas (capped at 5 to avoid c109 8-agent file-persistence race)
+
+- ✅ asset-pipeline r27 (sentinel 39854dd2): all 6 r26 features verified persistent; flagged c109 procedural-tests file-loss; 4 mineables (HIGH proc-tests re-mine, MED FLUX endpoint validation, MED HTTP 429 Retry-After, LOW GRP_DETERMINISM cross-refs)
+- ✅ engine-porter r27 (sentinel d7e4c2a1): **6th totalclocklock re-affirmation**; makepalookup() CRITICAL P0 VERIFIED ACCURATE (PREMAP.C:1229 reads untrusted lookup.dat → ENGINE.C:7554 unchecked palnum OOB); 5 mineables
+- ✅ documentation-curator r26 (sentinel b1e2d4c9): c106 CRITICAL ARCH cross-refs RESOLVED in c107; c109 doc changes (CONTRIBUTING split, GRP_DETERMINISM, ARCH cycles 39-42) all verified; 4 mineables
+- ✅ test-engineer r26 (sentinel b82549df): c109 struct-size tests VERIFIED; c109 procedural-textures REGRESSION CONFIRMED (file vanished, .pyc orphan only); 1595 collected vs expected 1816; 5 mineables incl. CRITICAL recovery
+- ✅ compat-layer r26 (sentinel 8c1f4e7a): c107 ABI fix integrity ALL 26 _Static_asserts hold; c109 r6-carryover doc loss flagged for recovery; 5 mineables
+
+### Mined this cycle: 10 new todos (skill cap honored)
+engine-r27-file-io-bounds-validation, engine-r27-allocache-null-guard, engine-r27-animateoffs-overflow, engine-r27-network-buffer-bounds, test-r26-procedural-textures-restoration-CRITICAL, test-r26-validate-artifacts-edge-cases, test-r26-hypothesis-deadline-audit, docs-r26-security-cycle-annotations, docs-r26-audits-index-md-manifest, compat-r26-mmulti-net-socket-adoption-tracking
+
+### Validation
+- pytest -q -m "not slow": 1526 passed / 3 skipped / 17 warnings (all 5 agents independently re-confirmed)
+- make: clean (no source touched)
+
+### Carry-forward (next /audit-grind tick top priorities)
+- engine-r26-makepalookup-bounds-CRITICAL (P0; engine c110 re-confirmed accuracy)
+- test-r26-procedural-textures-restoration-CRITICAL (P1 recovery)
+- sec-r26-codeowners-audio-stub-coverage (HIGH 1-line)
+- compat-r9-r6-carryover-refinement (BLOCKED, re-dispatch)
+- asset-r13-procedural-fixture-tests-escalated (BLOCKED, re-dispatch)
+
