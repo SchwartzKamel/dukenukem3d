@@ -274,70 +274,112 @@ This is intentional and **must not be changed**. It enforces the principle that:
 
 If you ever see `generated_assets/` or `DUKE3D.GRP` in `git status`, it means you accidentally regenerated them in the repo. Ignore them with `git checkout -- generated_assets/ DUKE3D.GRP` and continue working.
 
-## Audit Grind & Persona Sub-Agents
+## Audit & Grind Workflow
 
 This project uses an **autonomous audit-grind orchestration system** to continuously verify code quality, documentation accuracy, and security posture. Understanding this automation helps you interpret audit reports and contribute effectively.
 
-### How It Works
+### Overview
 
-The audit-grind skill (`.github/skills/audit-grind/SKILL.md`) runs continuously or on-demand:
+**What it is:** A multi-cycle backlog-grinding automation where specialized Copilot personas audit the codebase in parallel, surface findings as structured todos, and iterate toward quality gates (build, tests, docs).
 
-1. **Invocation:** Operators trigger `/audit-grind` via Copilot CLI (or schedule with `/every 30m /audit-grind`).
-2. **Dispatch:** Audit-grind reads pending todos from the SQLite session database and assigns up to 6 specialized personas in parallel.
-3. **Execution:** Each persona (engine-porter, audio-engineer, test-engineer, etc.) audits their domain and generates a markdown report.
-4. **Findings:** Audit reports land in `docs/audits/<persona>-rN.md` with a master index in `docs/audits/SUMMARY.md`.
-5. **Todos:** High-priority findings are automatically seeded as todos in the session DB; contributors pick them up in subsequent cycles.
+**Why it exists:** Manual audits scale poorly; this system enables 10 expert personas to work asynchronously, draining the backlog 6 todos at a time, every 30 minutes. Audit findings are grounded in evidence (not hallucinated) and feed directly into contributor workflows via the session database.
 
 ### The 10 Specialized Personas
 
-Each persona is a `.github/agents/*.agent.md` file that defines scope, expertise, and veto authority:
+Each persona owns a domain and has veto authority on decisions within that domain. See individual `.github/agents/X.agent.md` files for full scope, responsibilities, and workflows.
 
-| Persona | Owns | Domain |
-|---------|------|--------|
-| **Engine Porter** | `SRC/`, `source/` | BUILD engine code, 64-bit safety, struct packing |
-| **Compat Layer** | `compat/` | SDL2 shims, platform compatibility, type safety |
-| **Asset Pipeline** | `tools/generate_*.py` | Texture/map/audio generation, GRP packing |
-| **Audio Engineer** | Audio generation, `audio_stub.c` | Voice lines, WAV synthesis, API key management |
-| **Build System** | `Makefile`, CMakeLists.txt, CI `.yml` | Cross-platform builds, Windows MinGW/MSVC |
-| **Test Engineer** | `tests/`, pytest suite | Test coverage, struct invariants, harness quality |
-| **Documentation Curator** | `README.md`, `CONTRIBUTING.md`, `ARCHITECTURE.md`, `docs/` | Accuracy, links, tone, command verification |
-| **Security & Secrets** | `.env`, credentials, `.github/workflows/` | Secret scanning, dependency audits, SPDX headers |
-| **Network & Multiplayer** | `MMULTI.C`, networking | TCP/IP safety, cross-platform netplay (future) |
-| **Performance Profiler** | Benchmarks, profiling data | Optimization, regression detection, metrics |
+| Persona | File | Domain | Owns |
+|---------|------|--------|------|
+| **Engine Porter** | [engine-porter.agent.md](.github/agents/engine-porter.agent.md) | K&R engine code | `SRC/`, `source/` — BUILD engine, 64-bit safety, struct packing |
+| **Compat Layer** | [compat-layer.agent.md](.github/agents/compat-layer.agent.md) | Platform bridges | `compat/` — SDL2 shims, POSIX/Win32, type safety |
+| **Asset Pipeline** | [asset-pipeline.agent.md](.github/agents/asset-pipeline.agent.md) | Art generation | `tools/generate_*.py` — textures, maps, GRP packing |
+| **Audio Engineer** | [audio-engineer.agent.md](.github/agents/audio-engineer.agent.md) | Voice & WAV | Audio generation, `audio_stub.c` — voice lines, synthesis, API keys |
+| **Build System** | [build-system.agent.md](.github/agents/build-system.agent.md) | Build & CI | `Makefile`, CMakeLists.txt, `build.yml` — cross-platform, MinGW/MSVC |
+| **Test Engineer** | [test-engineer.agent.md](.github/agents/test-engineer.agent.md) | Quality gates | `tests/`, pytest — coverage, struct invariants, harnesses |
+| **Documentation Curator** | [documentation-curator.agent.md](.github/agents/documentation-curator.agent.md) | Docs | `README.md`, `CONTRIBUTING.md`, `ARCHITECTURE.md`, `docs/` — accuracy, links, tone |
+| **Security & Secrets** | [security-and-secrets.agent.md](.github/agents/security-and-secrets.agent.md) | Posture | `.env`, `.gitignore`, workflows — secret scanning, CVE audits, GPL compliance |
+| **Network & Multiplayer** | [network-multiplayer.agent.md](.github/agents/network-multiplayer.agent.md) | Netplay | `SRC/MMULTI.C`, TCP/IP — distributed systems, end-to-end harness |
+| **Performance Profiler** | [performance-profiler.agent.md](.github/agents/performance-profiler.agent.md) | Hotspots | Benchmarks, frame analysis — render-loop regression detection |
 
-### Audit Reports & Todos
+### The Audit-Pass Tick
 
-When audit-grind completes a round:
+When triggered on-demand (or per schedule), audit-grind performs a **read-only audit pass**:
 
-- **Findings** are documented in `docs/audits/` with one report per persona (e.g., `engine-porter-r6.md`, `audio-engineer-r5.md`).
-- **Critical & High findings** generate todos in the session backlog.
-- **SUMMARY.md** maintains a cross-cutting index of all audit reports, personnel, and high-level verdicts.
-- **GRIND_LOG.md** logs each `/audit-grind` invocation with timestamp, persona dispatch list, and final status.
+1. Each of the 10 personas scans their domain independently (in parallel).
+2. Personas write findings to `docs/audits/<persona>-rN.md` (where `N` is the revision level: r1 = first audit, r2 = second, etc.).
+3. **SUMMARY.md** (in `docs/audits/`) is the single source of truth — aggregates all findings across personas, cross-references audit reports, and tracks verdict status (e.g., "CRITICAL in engine-porter-r5 finding #3").
+4. High-priority findings (CRITICAL, HIGH) are seeded as pending todos in the session SQL database (`todos(id, title, description, status='pending')`).
+5. **No code changes** occur during an audit pass — personas only read and report.
 
-See [docs/audits/SUMMARY.md](docs/audits/SUMMARY.md) for the current audit index.
+### The Grind Tick
 
-### Sub-Agent Constraints
+Once audits are complete, `audit-grind` shifts to **execution mode**:
 
-Sub-agents **must follow the no-git-mutation rule**:
-- ✅ Allowed: `git diff`, `git log`, `grep`, `pytest`, code analysis
-- ❌ Forbidden: `git reset`, `git stash`, `git revert`, `git cherry-pick`, or any tree-mutating command
-- **Git state is owned by you (the operator).** Sub-agents propose changes; you apply them.
+1. **Pull pending todos** from the session database (up to 12 ready, take the top 6).
+2. **Assign to personas** by domain (e.g., a "fix struct packing" todo → engine-porter persona).
+3. **Dispatch sub-agents in parallel** (background tasks via Copilot `task` tool, model `haiku-4.5`) — up to 6 per cycle (hard limit prevents race conditions on `make clean`).
+4. **Each sub-agent**:
+   - Makes code changes in its domain
+   - Runs validation gates: `make clean && make`, `pytest -q` (must not regress)
+   - Updates todo status via SQL: `UPDATE todos SET status='done' WHERE id='<todo-id>'` (or `blocked` with rationale)
+   - Returns a short summary (files changed, test delta, any surprises)
+5. **Post-run validation**: Orchestrator re-runs build + tests to catch race conditions between parallel agents.
+6. **GRIND_LOG.md** is updated with cycle metadata: todos picked up, todos completed, todos blocked, build/test delta, notable findings, human-attention items.
 
-**Anti-Hallucination Return Format (Cycle 22):** All audit findings must be grounded in evidence. Sub-agents must include:
-- **Grep output** for code location claims (e.g., `grep -n "function_name" source/*.C | head -5`)
-- **Diff-stat summaries** when citing changes (e.g., `git diff v0.1.33..HEAD -- source/GAME.C | diffstat`)
-- **File existence verification** before citing paths (e.g., `ls -la source/FILE.C`)
-- **Test evidence** when asserting test counts or coverage (e.g., `pytest --collect-only -q`)
-- This prevents agents from inventing findings or citing non-existent code locations.
+### GRIND_LOG.md Log Discipline
 
-### Example: Contributing During an Active Grind
+`docs/audits/GRIND_LOG.md` is an **append-only run log**:
 
-1. You push a feature branch with changes to `source/GAME.C`.
-2. Audit-grind runs and dispatches the **engine-porter** persona to audit your changes.
-3. Engine-porter generates a report (e.g., `engine-porter-r7.md`) with findings.
-4. High-priority findings seed todos (e.g., "Fix struct packing in walltype on 64-bit").
-5. A contributor picks up the todo, implements the fix, and opens a PR.
-6. Audit-grind re-runs, engine-porter verifies the fix, and closes the todo.
+- **One entry per cycle** with ISO 8601 timestamp (e.g., "2026-05-20T05:24:24Z — Cycle 1").
+- **Metadata captured**: Trigger (manual vs. scheduled), operator AFK status, baseline test counts.
+- **Todos table** (per-cycle): id, persona, source finding.
+- **Completion summary**: Completed todos, blocked todos with rationale, build/test delta (before → after pass counts).
+- **Notable findings**: New bugs surfaced, unexpected discoveries, edge cases discovered.
+- **Human-attention items**: Commits made (if authorized), decisions deferred, race condition incidents.
+- **Cycle close**: Final todo backlog state, next cycle recommendations.
+
+Example entries: cycles 1, 2 in `docs/audits/GRIND_LOG.md` (lines 7–100) show the format. Keep entries concise — this log is for the operator's morning standup, not a novel.
+
+### How to Invoke Locally
+
+**Manual trigger** (one-shot):
+```bash
+/audit-grind
+```
+This runs one complete audit-grind cycle (audit pass + grind tick) and exits.
+
+**Recurring schedule** (background):
+```bash
+/every 30m /audit-grind
+```
+This schedules audit-grind to run every 30 minutes while the operator is AFK. Adjust interval as needed:
+- `/every 15m` — active dev days (fast feedback)
+- `/every 2h` — overnight (slow, batched)
+
+All output is logged to `docs/audits/GRIND_LOG.md`.
+
+### v7 Contract (Hard Constraints)
+
+Sub-agents and audit-grind must enforce:
+
+- ❌ **NO git mutations**: No `git commit`, `git push`, `git reset`, `git stash`, `git revert`, `git cherry-pick`, `git rebase`, `git merge`, `git clean`, `git checkout --`.
+  - **Why**: Git state is owned by the operator (you). Sub-agents propose changes; you decide whether to commit.
+  - **Allowed**: `git diff`, `git log`, `git status`, `grep`, file inspection.
+  
+- ❌ **NO fake author identities**: All work is attributed to the operator, not fabricated personas or "Copilot".
+  
+- ✅ **Scope discipline**: Sub-agents **only** edit files in their owned domain. Cross-domain dependencies are flagged as blocked with rationale (operator must manually coordinate).
+  
+- ✅ **Build & test gates**: All changes must pass `make clean && make` and `pytest -q` (≥ baseline pass count). If a sub-agent breaks the tree, the run is marked FAILED and documented in GRIND_LOG.
+
+- ✅ **SQL bookkeeping**: On success, sub-agents run `UPDATE todos SET status='done' WHERE id='<todo-id>'`; on blockage, `UPDATE todos SET status='blocked'` with one-paragraph rationale.
+
+### File Touchpoints
+
+- **SKILL.md (source of truth):** [.github/skills/audit-grind/SKILL.md](.github/skills/audit-grind/SKILL.md) — complete protocol, persona dispatch logic, failure modes, validation gates.
+- **Persona files:** [.github/agents/](.github/agents/) — 10 `.agent.md` files defining domain, expertise, veto authority, workflows.
+- **Audit reports:** [docs/audits/]( docs/audits/) — one report per persona per cycle (e.g., `engine-porter-r6.md`), plus `SUMMARY.md` (cross-cutting index) and `GRIND_LOG.md` (run log).
+- **Session todos:** SQLite `todos(id, title, description, status)` + optional `todo_deps(todo_id, depends_on)` — the backlog queue.
 
 ## Pull Request Process
 

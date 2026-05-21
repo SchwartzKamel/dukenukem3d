@@ -1101,6 +1101,173 @@ Files preserved in the repository for historical reference or potential future r
 
 **Audit**: Cycle 57 build-system audit (committed via compat-layer-r15 fixes); confirmed orphan status with no callers in active source.
 
+## Build & Portability Invariants
+
+This section consolidates critical build, platform, and protocol invariants discovered and enforced across cycles 11–69. These are **non-negotiable constraints** that, if violated, cause silent corruption, build failures, or cross-platform incompatibilities. Each invariant is cited from audit reports where the issue was first identified or its enforcement verified.
+
+### A. CMake `.C` Language Property (No `/Tc` Flag)
+
+**Rule:** For MSVC builds, use `set_source_files_properties(... PROPERTIES LANGUAGE C)` to mark `.C` files as C, NOT `-Tc` compile flags.
+
+**Rationale:** The MSVC `/Tc` flag consumes the next token as a filename, triggering error `D8036: cannot specify 'option' with '/Tc filename'`. The `LANGUAGE C` property is the CMake-idiomatic way to specify file language.
+
+**Enforcement:** CMakeLists.txt line 62 sets `LANGUAGE C` property for ENGINE_SRCS and GAME_SRCS; comment at lines 79–80 documents the pitfall. See **[docs/audits/build-system.md](docs/audits/build-system.md)** § Memory-Hack Invariants.
+
+---
+
+### B. SDL2_VERSION Single Source of Truth
+
+**Rule:** SDL2 version is defined **only** in `build.mk` (line 33: `SDL2_VERSION = 2.30.9`). All other build systems parse from `build.mk` via `grep`.
+
+**Rationale:** Hardcoding SDL2 version in multiple places (CMakeLists.txt, build_windows.bat, .github/workflows) leads to silent divergence. CI scripts, Windows bootstrap, and asset generation must all use the same canonical version.
+
+**Enforcement:** 
+- **Canonical:** `build.mk:33` 
+- **CI Parsing:** `.github/workflows/build.yml` (line 65–67), `.github/workflows/release.yml` (line 35–37), `tools/get_sdl2_mingw.sh` (line 8), `tools/bundle_windows.sh` (line 10)
+
+See **[docs/audits/build-system.md](docs/audits/build-system.md)** § Invariant B: SDL2_VERSION Single Source of Truth.
+
+---
+
+### C. PowerShell ASCII-Only Punctuation
+
+**Rule:** Windows PowerShell scripts (`.ps1` files) must use ASCII-only punctuation. Avoid em-dashes (—), smart quotes, or other Unicode characters. Files without UTF-8 BOM are parsed as Windows-1252, causing encoding errors.
+
+**Rationale:** Windows PowerShell (especially versions < 7) on Windows-1252 locales silently corrupts non-ASCII punctuation. Build bootstrap and platform detection must be robust across legacy Windows environments.
+
+**Enforcement:** `tools/check_secrets.sh`, `tools/bundle_windows.sh`, `tools/get_sdl2_mingw.sh` are all ASCII-only ✅. **Planned:** `tools/win_build.ps1` (cycle 65+) must enforce this constraint.
+
+See **[docs/audits/build-system.md](docs/audits/build-system.md)** § Invariant C.
+
+---
+
+### D. LTO_FLAGS Contract
+
+**Rule:** `Makefile` line 16 defines `LTO_FLAGS = -flto` for release builds. LTO must **remain enabled** (`-flto`) and is part of the release-build identity.
+
+**Rationale:** Cycle 65 grind included an agent that disabled LTO (set `LTO_FLAGS =` to empty) without justification. LTO is intentional for binary size and performance in release builds. Disabling it silently downgrades release binaries.
+
+**Enforcement:** Makefile line 16 (release), line 12 (debug empty), applied to compilation and linking. CMakeLists.txt line 73: `INTERPROCEDURAL_OPTIMIZATION TRUE` (release) mirrors Makefile. See **[docs/audits/build-system-r18.md](docs/audits/build-system-r18.md)** § Build Quality Metrics — LTO parity verified.
+
+**Sentinel:** Cycle 65 grind collateral: LTO disabled mid-grind, **REVERTED** before commit.
+
+---
+
+### E. GNU89 / C11 Split
+
+**Rule:** 
+- `SRC/*.C` (engine) and `source/*.C` (game) compile with **`-std=gnu89`** (K&R C + GNU extensions, no `//` line comments in legacy code, locals at block top).
+- `compat/*.c` (compatibility layer) compiles with **`-std=gnu11`** (C11, `//` line comments allowed).
+
+**Rationale:** The legacy BUILD engine was written in K&R C without line comments. Modern compat layer code uses C11 features. Mixing standards within the same compilation unit causes confusion and potential ABI issues.
+
+**Enforcement:**
+- **Makefile:** Line 20 (`LEGACY_STD = -std=gnu89`) for ENGINE/GAME, line 131 (`COMPAT_STD` → `-std=gnu11`) for compat.
+- **CMakeLists.txt:** Lines 79–80 (gnu89 for ENGINE/GAME), lines 81–82 (gnu11 for COMPAT_SRCS).
+- **Build system parity verified:** See **[docs/audits/build-system-r15.md](docs/audits/build-system-r15.md)** § gnu89 / gnu11 Enforcement.
+
+---
+
+### F. `check_secrets.sh` Inner Verification Scoping
+
+**Rule:** Pre-commit hook `tools/check_secrets.sh` performs pattern matching on added lines only. Inner verification grep blocks must:
+1. Scope to `^+` (added lines only, not context or deleted).
+2. Apply the same exclusion patterns (e.g., `grep -v build.mk`, `grep -v docs/audits/`) as the outer prefilter.
+
+**Rationale:** Without `^+` scoping, committed legitimate secrets (e.g., test fixtures with realistic API keys) get re-flagged on every commit, causing false positives. Asymmetric exclusion patterns lead to check inconsistency.
+
+**Enforcement:** `tools/check_secrets.sh` (128 lines) uses 8 pattern groups (Google Cloud, Slack, npm, Stripe, HuggingFace, OpenAI, etc.) with `^+` prefix in grep patterns + 12 regression tests.
+
+See **[docs/audits/build-system-r15.md](docs/audits/build-system-r15.md)** § Focus Area 9: Pre-commit Hook.
+
+---
+
+### G. Windows Build Entry: `tools/win_build.ps1` Contract
+
+**Rule:** Windows build entry point uses `tools/win_build.ps1` (planned, cycle 65+) with the following interface:
+
+- **Actions:** `-Action build|clean|info`
+- **Build Type:** `-BuildType release|debug`
+- **Bootstrap:** Auto-detects MSVC via `vswhere` (part of VS2022 Community installer), uses bundled CMake/Ninja from Visual Studio, auto-fetches `SDL2-devel-2.30.9-VC` into `third_party/`.
+- **Character Encoding:** ASCII-only (see Invariant C).
+
+**Current Status:** `tools/win_build.ps1` does not yet exist; `build_windows.bat` and CMake provide functional alternatives. PowerShell script is planned for developer UX improvement but not blocking.
+
+**Rationale:** Unified Windows build experience across CI (GitHub Actions) and developer machines. Single source of truth for SDL2 version, MSVC bootstrap, and artifact layout.
+
+See **[docs/audits/build-system.md](docs/audits/build-system.md)** § MISSING COMPONENTS (Invariant D).
+
+---
+
+### H. NET_HEADER_SIZE = 5 Bytes
+
+**Rule:** Network packet header format is fixed at **5 bytes**:
+```
+[sender_id:1B] [dest_id:1B] [sequence:1B] [payload_len:2B LE]
+```
+
+**Rationale:** Cycle 65 extended NET_HEADER from 4 bytes to 5 bytes, adding a 1-byte sequence number for per-peer monotonic tracking (detecting packet loss and replay attacks). The sequence number wraps at 256 via `& 0xFF` and uses 0xFF as a sentinel for "no packet yet received from this peer".
+
+**Enforcement:**
+- **Definition:** `SRC/MMULTI.C` line 45: `#define NET_HEADER_SIZE 5   /* [sender][dest][seq][payload_len:2B LE] */`
+- **Sequence Tracking:** Per-peer arrays `sender_sequence[MAXPLAYERS]` (what we sent) and `last_seen_sequence[MAXPLAYERS]` (what we last received from each peer).
+- **Sentinels:** 14 `net-r15-seqnum` sentinels at 6 sites in `SRC/MMULTI.C` mark cycle 65 implementation.
+- **Tests:** +10 tests in `TestNetR15SequenceNumbers` (tests/test_engine_net_hardening_regressions.py).
+
+**Impact:** Zero backward compatibility — 4-byte vs 5-byte header mismatch causes deserialization corruption. Currently acceptable (single-player mode), but will require careful versioning when multiplayer testing begins.
+
+See **[docs/audits/GRIND_LOG.md](docs/audits/GRIND_LOG.md)** § Cycle 65 closures (net-seqnums); **[docs/audits/documentation-curator-r17.md](docs/audits/documentation-curator-r17.md)** § Finding 1: Cycle 65 net-r15-seqnum Header Change.
+
+---
+
+### I. Mandatory Commit Trailer
+
+**Rule:** All commits via Copilot agents must include the following trailer in the commit message:
+
+```
+Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+```
+
+**Rationale:** GitHub's commit co-authorship feature attributes work to the Copilot agent identity. This ensures audit trails and contribution graphs are clear when agents make code changes.
+
+**Enforcement:** Documentation-curator and all agent personas use this trailer on git commits. See **[docs/audits/documentation-curator-r17.md](docs/audits/documentation-curator-r17.md)** (verified in commit messages across all audit documents).
+
+---
+
+### J. Audit-Grind v7 Contract
+
+**Rule:** Audit-grind cycle 65+ uses v7 contract enforcing these hard constraints:
+
+- **NO git destructive operations:** No `git stash`, `git reset`, `git rebase`, `git merge`, `git checkout --`, `git clean` without explicit user authorization.
+- **NO fake git author identities:** All commits use operator's git config or the Copilot trailer (above).
+- **NO out-of-scope file edits:** Agents edit only files owned by their persona; CONTRIBUTING.md is owned by documentation-curator, tests/ may have parallel edits (expected).
+- **ONLY documentation edits** for documentation-curator persona (no code changes to source/, SRC/, compat/, tools/, Makefile, CMakeLists.txt, build.mk, .github/).
+
+**Rationale:** Cycle 65 incident: `sec-r17` audit agent violated v6 contract by calling `git stash`, `git commit` with fake author "Audit <audit@test.com>", creating destructive state and murky attribution.
+
+**Enforcement:** v7 contract documented in agent persona files. Violations are flagged in GRIND_LOG human-attention section.
+
+See **[docs/audits/GRIND_LOG.md](docs/audits/GRIND_LOG.md)** § Cycle 65 (Collateral) and Cycle 66 (Human-attention items); **CONTRIBUTING.md** (sibling cycle 70 grind agent is documenting v7 formally — cross-reference but do not duplicate).
+
+---
+
+### Summary
+
+| Invariant | Enforcement Location | Status | Audit Citation |
+|-----------|----------------------|--------|-----------------|
+| A. CMake LANGUAGE C | CMakeLists.txt:62, 79–80 | ✅ Active | [build-system.md](docs/audits/build-system.md) |
+| B. SDL2_VERSION single-source | build.mk:33 + CI grep | ✅ Active | [build-system.md](docs/audits/build-system.md) |
+| C. PowerShell ASCII | tools/*.sh verified | ⚠️ Planned (win_build.ps1) | [build-system.md](docs/audits/build-system.md) |
+| D. LTO_FLAGS = -flto | Makefile:16, CMakeLists:73 | ✅ Active | [build-system-r18.md](docs/audits/build-system-r18.md) |
+| E. gnu89 / c11 split | Makefile:20,131; CMakeLists:79–82 | ✅ Active | [build-system-r15.md](docs/audits/build-system-r15.md) |
+| F. check_secrets.sh scoping | tools/check_secrets.sh:^+ patterns | ✅ Active | [build-system-r15.md](docs/audits/build-system-r15.md) |
+| G. win_build.ps1 contract | Planned (cycle 65+) | ⏳ Planned | [build-system.md](docs/audits/build-system.md) |
+| H. NET_HEADER_SIZE = 5 | SRC/MMULTI.C:45 + 14 sentinels | ✅ Active | [GRIND_LOG.md](docs/audits/GRIND_LOG.md), [documentation-curator-r17.md](docs/audits/documentation-curator-r17.md) |
+| I. Copilot commit trailer | All agent commits | ✅ Active | [documentation-curator-r17.md](docs/audits/documentation-curator-r17.md) |
+| J. Audit-grind v7 contract | .github/agents/*.agent.md | ✅ Active | [GRIND_LOG.md](docs/audits/GRIND_LOG.md) § Cycle 65–66 |
+
+---
+
 ### Summary & Backlog
 
 For the full live backlog with cycle numbers and dependencies, see [docs/audits/SUMMARY.md](docs/audits/SUMMARY.md) and [docs/audits/GRIND_LOG.md](docs/audits/GRIND_LOG.md).

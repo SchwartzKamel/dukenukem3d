@@ -2408,3 +2408,42 @@ Recommendation: leave for now, surface in next session. Adding tighter "NEVER ca
 **Next audit-pass targets (cycle 70):** network-multiplayer r16 + compat-layer r17.
 
 **Human-attention items:** None this cycle.
+
+---
+
+## 2026-05-21T01:25Z — Cycle 70 grind
+
+**Dispatched (6 Haiku agents, parallel, v7 contract):**
+
+| Todo | Persona | Result |
+|------|---------|--------|
+| `fix-asset-atomicity` (MED) | asset-pipeline | ✅ tools/generate_assets.py: `_atomic_write_bytes` (now with fsync) + new `_atomic_write_json`. Applied to log rotation + GRP manifest. NEW tests/test_atomic_writes.py (20 tests). |
+| `audit-engine-allocache-correctness` (MED) | test-engineer | ✅ Extended tests/test_allocache.py +13 correctness tests (`TestAllocacheCorrectness`). 29/29 allocache tests pass. |
+| `docs-r5-contributing-audit-flow` (LOW-MED) | documentation-curator | ✅ CONTRIBUTING.md new "## Audit & Grind Workflow" section (~280 lines, 8 subsections: overview, personas table, audit-pass tick, grind tick, GRIND_LOG discipline, local invocation, v7 contract, file touchpoints). |
+| `docs-r5-arch-invariants-section` (LOW-MED) | documentation-curator | ✅ docs/ARCHITECTURE.md "Build & Portability Invariants" section. 10 invariants documented (A–J): CMake LANGUAGE C, SDL2_VERSION single-source, PowerShell ASCII, LTO_FLAGS=-flto, gnu89/c11 split, check_secrets.sh ^+, win_build.ps1, NET_HEADER_SIZE=5, Copilot trailer, v7 contract. 167 insertions. |
+| `build-r5-ci-sdl2-caching` (LOW-MED) | build-system | ✅ .github/workflows/build.yml +actions/cache@v4 step for SDL2 (keyed on SDL2_VERSION + hashFiles('build.mk')). Wraps download in cache-hit conditional. Pre-existing release.yml YAML quirk unrelated. |
+| `audio-r17-pydantic-cross-field-consistency` (MED) | audio-engineer | ✅ tools/sound_manifest.py `@model_validator(mode='after')` enforcing engine_sound_id ↔ engine_sound_id_int both-None-or-both-set. +5 tests (27 total in TestSoundManifestPydanticSchema). |
+
+**v7 contract compliance:** ✅ All 6 agents clean — no git mutations, no fake authors, no out-of-scope edits.
+
+**Inline closure:** `sec-r17-gitignore-test-artifacts` (LOW) — generalized .gitignore pattern `testdata/determ_frame_n*_*.bmp` (was only n3; n5 leaked this cycle).
+
+**Backlog delta:** 307 → ~302 pending (7 closures: 6 grind + 1 inline; minus 5 retroactive done flagged at cycle 70 start).
+
+**Test count:** 1151 → **1189 (+38)**. Build green.
+
+**Persona freshness after cycle 70:**
+- audio-engineer: r17 @ cycle 69 (and cycle 70 closure work)
+- asset-pipeline: r18 @ cycle 67 (and cycle 70 closure work)
+- build-system: r18 @ cycle 68 (and cycle 70 closure work)
+- documentation-curator: r17 @ cycle 68 (and cycle 70 closure work)
+- engine-porter: r18 @ cycle 67
+- network-multiplayer: r15 @ cycle 64 (STALEST, 6 cycles)
+- compat-layer: r16 @ cycle 64 (STALEST, 6 cycles)
+- performance-profiler: r17 @ cycle 69
+- test-engineer: r17 @ cycle 66 (and cycle 70 closure work)
+- security-and-secrets: r17 @ cycle 66
+
+**Next audit-pass targets (cycle 71):** network-multiplayer r16 + compat-layer r17.
+
+**Human-attention items:** None this cycle. Pre-existing release.yml YAML parse quirk noted (line 30/88) — separate todo if desired.

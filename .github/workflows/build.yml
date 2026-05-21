@@ -47,8 +47,8 @@ jobs:
       - name: Generate assets
         run: python3 tools/generate_assets.py --no-ai
       
-       - name: Validate generated artifacts
-         run: python3 tools/validate_generated_artifacts.py --sets textures grp maps scripts --no-audio-manifest
+      - name: Validate generated artifacts
+        run: python3 tools/validate_generated_artifacts.py --sets textures grp maps scripts --no-audio-manifest
 
       - name: Verify GRP file
         run: |
@@ -83,9 +83,26 @@ jobs:
           sudo apt-get install -y gcc-mingw-w64-i686 python3-pip
           pip3 install --break-system-packages -r requirements.txt
       
-      - name: Install SDL2 for MinGW
+      - name: Parse SDL2 version
         run: |
-          bash tools/get_sdl2_mingw.sh
+          SDL2_VERSION=$(grep '^SDL2_VERSION' build.mk | head -1 | sed 's/.*= *//')
+          echo "SDL2_VERSION=${SDL2_VERSION}" >> $GITHUB_ENV
+      
+      - name: Cache SDL2 MinGW
+        id: cache-sdl2
+        uses: actions/cache@0c45773b623bea8c8e75f6c82b208c3cf94ea4f9 # v4
+        with:
+          path: SDL2-${{ env.SDL2_VERSION }}
+          key: sdl2-mingw-${{ env.SDL2_VERSION }}
+          restore-keys: |
+            sdl2-mingw-${{ env.SDL2_VERSION | split('.')[0] }}.${{ env.SDL2_VERSION | split('.')[1] }}.
+      
+      - name: Install SDL2 for MinGW
+        if: steps.cache-sdl2.outputs.cache-hit != 'true'
+        run: bash tools/get_sdl2_mingw.sh
+      
+      - name: Setup SDL2 environment variables
+        run: |
           SDL2_VERSION=$(grep '^SDL2_VERSION' build.mk | head -1 | sed 's/.*= *//')
           echo "SDL2_WIN_CFLAGS=-I$(pwd)/SDL2-${SDL2_VERSION}/i686-w64-mingw32/include/SDL2" >> $GITHUB_ENV
           echo "SDL2_WIN_LIBS=-L$(pwd)/SDL2-${SDL2_VERSION}/i686-w64-mingw32/lib -lmingw32 -lSDL2main -lSDL2" >> $GITHUB_ENV
@@ -106,8 +123,8 @@ jobs:
       - name: Generate assets
         run: python3 tools/generate_assets.py --no-ai
       
-       - name: Validate generated artifacts (Windows)
-         run: python3 tools/validate_generated_artifacts.py --sets textures grp maps scripts --no-audio-manifest
+      - name: Validate generated artifacts (Windows)
+        run: python3 tools/validate_generated_artifacts.py --sets textures grp maps scripts --no-audio-manifest
 
       - name: Package Windows release
         run: |
@@ -179,8 +196,8 @@ jobs:
       - name: Generate assets (procedural)
         run: python3 tools/generate_assets.py --no-ai
       
-       - name: Validate generated artifacts
-         run: python3 tools/validate_generated_artifacts.py --sets textures grp maps scripts --no-audio-manifest
+      - name: Validate generated artifacts
+        run: python3 tools/validate_generated_artifacts.py --sets textures grp maps scripts --no-audio-manifest
 
 
   test-windows-native:

@@ -1468,3 +1468,89 @@ class TestSoundManifestPydanticSchema:
             generation_metadata={'model': 'gpt-audio-1.5', 'confidence': 0.95}
         )
         assert entry2.generation_metadata == {'model': 'gpt-audio-1.5', 'confidence': 0.95}
+    
+    def test_engine_sound_id_cross_field_both_none(self):
+        """Cross-field: both engine_sound_id and engine_sound_id_int None passes."""
+        from sound_manifest import SoundManifestEntry
+        
+        entry = SoundManifestEntry(
+            wav='TEST01.WAV',
+            voice='alloy',
+            category='taunt',
+            prompt_summary='Test prompt',
+            engine_sound_id=None,
+            engine_sound_id_int=None
+        )
+        assert entry.engine_sound_id is None
+        assert entry.engine_sound_id_int is None
+    
+    def test_engine_sound_id_cross_field_both_set(self):
+        """Cross-field: both engine_sound_id and engine_sound_id_int set passes."""
+        from sound_manifest import SoundManifestEntry
+        
+        entry = SoundManifestEntry(
+            wav='PAIN01.WAV',
+            voice='onyx',
+            category='pain',
+            prompt_summary='grunt',
+            engine_sound_id='DUKE_GRUNT',
+            engine_sound_id_int=38
+        )
+        assert entry.engine_sound_id == 'DUKE_GRUNT'
+        assert entry.engine_sound_id_int == 38
+    
+    def test_engine_sound_id_cross_field_only_id_set(self):
+        """Cross-field: only engine_sound_id set raises ValidationError."""
+        from sound_manifest import SoundManifestEntry
+        from pydantic import ValidationError
+        
+        with pytest.raises(ValidationError) as exc_info:
+            SoundManifestEntry(
+                wav='TEST01.WAV',
+                voice='alloy',
+                category='taunt',
+                prompt_summary='Test prompt',
+                engine_sound_id='DUKE_GRUNT',
+                engine_sound_id_int=None
+            )
+        
+        error_str = str(exc_info.value)
+        assert 'cross-field' in error_str.lower() or \
+               ('engine_sound_id' in error_str and 'engine_sound_id_int' in error_str)
+    
+    def test_engine_sound_id_cross_field_only_int_set(self):
+        """Cross-field: only engine_sound_id_int set raises ValidationError."""
+        from sound_manifest import SoundManifestEntry
+        from pydantic import ValidationError
+        
+        with pytest.raises(ValidationError) as exc_info:
+            SoundManifestEntry(
+                wav='TEST01.WAV',
+                voice='alloy',
+                category='taunt',
+                prompt_summary='Test prompt',
+                engine_sound_id=None,
+                engine_sound_id_int=38
+            )
+        
+        error_str = str(exc_info.value)
+        assert 'cross-field' in error_str.lower() or \
+               ('engine_sound_id' in error_str and 'engine_sound_id_int' in error_str)
+    
+    def test_engine_sound_id_cross_field_only_id_implicit_none(self):
+        """Cross-field: engine_sound_id set but engine_sound_id_int not provided (implicit None) raises error."""
+        from sound_manifest import SoundManifestEntry
+        from pydantic import ValidationError
+        
+        with pytest.raises(ValidationError) as exc_info:
+            SoundManifestEntry(
+                wav='TEST01.WAV',
+                voice='alloy',
+                category='taunt',
+                prompt_summary='Test prompt',
+                engine_sound_id='DUKE_GRUNT'
+            )
+        
+        error_str = str(exc_info.value)
+        assert 'cross-field' in error_str.lower() or \
+               ('engine_sound_id' in error_str and 'engine_sound_id_int' in error_str)

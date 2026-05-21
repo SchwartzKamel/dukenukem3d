@@ -7,7 +7,7 @@ ensuring type safety and schema correctness across the audio pipeline.
 """
 
 from typing import Optional, Dict, Any, List, Literal
-from pydantic import BaseModel, Field, field_validator, ConfigDict
+from pydantic import BaseModel, Field, field_validator, model_validator, ConfigDict
 
 
 class SoundManifestEntry(BaseModel):
@@ -93,6 +93,30 @@ class SoundManifestEntry(BaseModel):
         Use model_validator for full consistency checks if needed.
         """
         return v
+    
+    @model_validator(mode='after')
+    def validate_engine_sound_id_cross_field(self):
+        """audio-r17-pydantic-cross-field-consistency
+        
+        Enforce engine_sound_id ↔ engine_sound_id_int invariant.
+        Both fields must be None or both must be set (not mixed).
+        """
+        has_id = self.engine_sound_id is not None
+        has_int = self.engine_sound_id_int is not None
+        
+        if has_id != has_int:
+            if has_id:
+                raise ValueError(
+                    f"Cross-field consistency error: engine_sound_id='{self.engine_sound_id}' is set "
+                    f"but engine_sound_id_int is None. Both fields must be set together or both must be None."
+                )
+            else:
+                raise ValueError(
+                    f"Cross-field consistency error: engine_sound_id_int={self.engine_sound_id_int} is set "
+                    f"but engine_sound_id is None. Both fields must be set together or both must be None."
+                )
+        
+        return self
 
 
 def validate_sound_manifest_entries(entries: List[dict]) -> List[SoundManifestEntry]:

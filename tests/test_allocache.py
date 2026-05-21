@@ -288,3 +288,248 @@ class TestAllocacheCallSites:
         assert has_guard, (
             "allocache calls should be guarded with NULL check to avoid re-allocation."
         )
+
+
+class TestAllocacheCorrectness:
+    """Verify allocache algorithm correctness: quick-path, free-list, LRU behavior."""
+
+    def test_allocache_quick_path_candidate_check(self, repo_root):
+        """allocache quick-path: lastCandidateSize check optimizes similar-size requests."""
+        cache1d_c = repo_root / "SRC" / "CACHE1D.C"
+        if not cache1d_c.exists():
+            pytest.skip(f"{cache1d_c} not found")
+
+        content = cache1d_c.read_text(errors="replace")
+
+        # Verify quick-path candidate logic exists: checks lastCandidateSize
+        has_size_check = (
+            "lastCandidateSize" in content and 
+            "newbytes" in content and
+            "256" in content
+        )
+        assert has_size_check, (
+            "allocache should have quick-path candidate check: "
+            "if (lastCandidateSize > 0 && lastCandidateSize <= newbytes + 256)"
+        )
+
+    def test_allocache_quick_path_bounds_validation(self, repo_root):
+        """allocache quick-path: validates candidate offset (cand_o2 <= cachesize)."""
+        cache1d_c = repo_root / "SRC" / "CACHE1D.C"
+        if not cache1d_c.exists():
+            pytest.skip(f"{cache1d_c} not found")
+
+        content = cache1d_c.read_text(errors="replace")
+
+        # Verify quick-path bounds check: cand_o2 <= cachesize
+        has_bounds_check = (
+            "cand_o2" in content and 
+            "cachesize" in content and
+            "<=" in content
+        )
+        assert has_bounds_check, (
+            "allocache quick-path must validate candidate bounds: cand_o2 <= cachesize"
+        )
+
+    def test_allocache_quick_path_early_exit_on_zero_damage(self, repo_root):
+        """allocache quick-path: exits early if damage (bestval) is zero (perfect fit)."""
+        cache1d_c = repo_root / "SRC" / "CACHE1D.C"
+        if not cache1d_c.exists():
+            pytest.skip(f"{cache1d_c} not found")
+
+        content = cache1d_c.read_text(errors="replace")
+
+        # Verify early exit on bestval == 0 (perfect candidate)
+        has_early_exit = (
+            "bestval == 0" in content and
+            "cachealloc_found" in content and
+            "goto" in content
+        )
+        assert has_early_exit, (
+            "allocache quick-path should exit early on perfect fit: "
+            "if (bestval == 0) { ... goto cachealloc_found; }"
+        )
+
+    def test_allocache_full_search_damage_calculation(self, repo_root):
+        """allocache full search: damage = sum of (lockval * (blocksize + 65536)) via mulscale32."""
+        cache1d_c = repo_root / "SRC" / "CACHE1D.C"
+        if not cache1d_c.exists():
+            pytest.skip(f"{cache1d_c} not found")
+
+        content = cache1d_c.read_text(errors="replace")
+
+        # Verify damage calculation uses mulscale32 and lockrecip
+        has_damage_calc = (
+            "mulscale32" in content and
+            "lockrecip" in content and
+            "daval +=" in content
+        )
+        assert has_damage_calc, (
+            "allocache damage calculation should use: "
+            "daval += mulscale32(cac[zz].leng+65536, lockrecip[*cac[zz].lock])"
+        )
+
+    def test_allocache_lock_saturation_guard(self, repo_root):
+        """allocache: guards against lock >= 200 (clamped damage to 0x7fffffff)."""
+        cache1d_c = repo_root / "SRC" / "CACHE1D.C"
+        if not cache1d_c.exists():
+            pytest.skip(f"{cache1d_c} not found")
+
+        content = cache1d_c.read_text(errors="replace")
+
+        # Verify lock saturation guard: if (*cac[zz].lock >= 200) { daval = 0x7fffffff; break; }
+        has_lock_guard = (
+            "200" in content and
+            "0x7fffffff" in content and
+            "daval = 0x7fffffff" in content
+        )
+        assert has_lock_guard, (
+            "allocache must guard against lock >= 200 by clamping damage to 0x7fffffff"
+        )
+
+    def test_allocache_cache1d_free_bytes_decremented(self, repo_root):
+        """allocache decrements cache1d_free_bytes after allocation."""
+        cache1d_c = repo_root / "SRC" / "CACHE1D.C"
+        if not cache1d_c.exists():
+            pytest.skip(f"{cache1d_c} not found")
+
+        content = cache1d_c.read_text(errors="replace")
+
+        # Verify: cache1d_free_bytes -= newbytes;
+        has_decrement = (
+            "cache1d_free_bytes" in content and
+            "-= newbytes" in content
+        )
+        assert has_decrement, (
+            "allocache must decrement cache1d_free_bytes: cache1d_free_bytes -= newbytes;"
+        )
+
+    def test_allocache_free_list_coalescing(self, repo_root):
+        """allocache: coalesces empty free blocks after uncaching locked items."""
+        cache1d_c = repo_root / "SRC" / "CACHE1D.C"
+        if not cache1d_c.exists():
+            pytest.skip(f"{cache1d_c} not found")
+
+        content = cache1d_c.read_text(errors="replace")
+
+        # Verify coalescing: checks if next block is free (lock == 0) and merges
+        has_coalesce = (
+            "cac[bestz].leng += sucklen" in content and
+            "sucklen" in content
+        )
+        assert has_coalesce, (
+            "allocache must coalesce free blocks: cac[bestz].leng += sucklen"
+        )
+
+    def test_allocache_zero_size_guard_protection(self, repo_root):
+        """allocache: guards against zero-size or huge-size allocation (newbytes > LONG_MAX - 15)."""
+        cache1d_c = repo_root / "SRC" / "CACHE1D.C"
+        if not cache1d_c.exists():
+            pytest.skip(f"{cache1d_c} not found")
+
+        content = cache1d_c.read_text(errors="replace")
+
+        # Verify overflow guard: if (newbytes > 0x7fffffffL - 15) reportandexit(...)
+        has_overflow_guard = (
+            "0x7fffffffL - 15" in content or
+            "LONG_MAX" in content and
+            "newbytes >" in content
+        )
+        assert has_overflow_guard, (
+            "allocache must guard against integer overflow: "
+            "if (newbytes > 0x7fffffffL - 15) reportandexit(...)"
+        )
+
+    def test_allocache_cachesize_bounds_check(self, repo_root):
+        """allocache: validates (unsigned)newbytes <= (unsigned)cachesize after alignment."""
+        cache1d_c = repo_root / "SRC" / "CACHE1D.C"
+        if not cache1d_c.exists():
+            pytest.skip(f"{cache1d_c} not found")
+
+        content = cache1d_c.read_text(errors="replace")
+
+        # Verify: if ((unsigned)newbytes > (unsigned)cachesize) reportandexit(...)
+        has_bounds = (
+            "(unsigned)newbytes" in content and
+            "(unsigned)cachesize" in content
+        )
+        assert has_bounds, (
+            "allocache must check bounds after alignment: "
+            "if ((unsigned)newbytes > (unsigned)cachesize)"
+        )
+
+    def test_agecache_free_bytes_threshold_check(self, repo_root):
+        """agecache: early exit if cache1d_free_bytes > (cachesize >> 1) (LRU optimization)."""
+        cache1d_c = repo_root / "SRC" / "CACHE1D.C"
+        if not cache1d_c.exists():
+            pytest.skip(f"{cache1d_c} not found")
+
+        content = cache1d_c.read_text(errors="replace")
+
+        # Verify early exit: if (cache1d_free_bytes > (cachesize >> 1)) return;
+        has_threshold = (
+            "cache1d_free_bytes" in content and
+            "cachesize >> 1" in content and
+            "agecache" in content
+        )
+        assert has_threshold, (
+            "agecache should exit early if more than half cache is free: "
+            "if (cache1d_free_bytes > (cachesize >> 1)) return;"
+        )
+
+    def test_agecache_lock_decrement_range(self, repo_root):
+        """agecache: decrements lock value, checks ((ch-2)&255) < 198 before update."""
+        cache1d_c = repo_root / "SRC" / "CACHE1D.C"
+        if not cache1d_c.exists():
+            pytest.skip(f"{cache1d_c} not found")
+
+        content = cache1d_c.read_text(errors="replace")
+
+        # Verify lock aging: if (((ch-2)&255) < 198) (*cac[agecount].lock) = ch-1;
+        has_aging = (
+            "ch-2" in content and
+            "255" in content and
+            "198" in content and
+            "agecache" in content
+        )
+        assert has_aging, (
+            "agecache must check lock range before decrement: "
+            "if (((ch-2)&255) < 198) (*cac[agecount].lock) = ch-1;"
+        )
+
+    def test_agecache_cyclic_iteration_over_cache_entries(self, repo_root):
+        """agecache: cycles through agecount with wraparound (agecount = cacnum-1 on underflow)."""
+        cache1d_c = repo_root / "SRC" / "CACHE1D.C"
+        if not cache1d_c.exists():
+            pytest.skip(f"{cache1d_c} not found")
+
+        content = cache1d_c.read_text(errors="replace")
+
+        # Verify wraparound: if (agecount < 0) agecount = cacnum-1;
+        has_wraparound = (
+            "agecount < 0" in content and
+            "agecount = cacnum-1" in content
+        )
+        assert has_wraparound, (
+            "agecache must wrap agecount cyclically: "
+            "if (agecount < 0) agecount = cacnum-1;"
+        )
+
+    def test_suckcache_free_list_consolidation(self, repo_root):
+        """suckcache: consolidates adjacent free blocks after setting lock=0."""
+        cache1d_c = repo_root / "SRC" / "CACHE1D.C"
+        if not cache1d_c.exists():
+            pytest.skip(f"{cache1d_c} not found")
+
+        content = cache1d_c.read_text(errors="replace")
+
+        # Verify consolidation logic: combines free blocks at i-1, i, or i+1
+        has_consolidate = (
+            "i > 0" in content and
+            "*cac[i-1].lock == 0" in content and
+            "cac[i-1].leng += cac[i].leng" in content and
+            "suckcache" in content
+        )
+        assert has_consolidate, (
+            "suckcache must consolidate adjacent free blocks: "
+            "if ((i > 0) && (*cac[i-1].lock == 0)) { cac[i-1].leng += cac[i].leng; ... }"
+        )

@@ -91,21 +91,20 @@ def _rotate_generation_log():
         keep_count = max(1, line_count // 2)
         kept_lines = lines[-keep_count:]
         
-        # Create synthetic log_rotated entry
+        # Create synthetic log_rotated entry in JSONL format
         rotated_record = {
             "event": "log_rotated",
             "rotated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
             "kept_lines": keep_count,
         }
         
-        # Write atomically to temp file, then replace
-        temp_file = GENERATION_LOG_FILE + ".tmp"
-        with open(temp_file, "w") as f:
-            json.dump(rotated_record, f)
-            f.write("\n")
-            f.writelines(kept_lines)
+        # Build full log content as bytes: rotated_record + kept lines
+        log_content = json.dumps(rotated_record) + "\n"
+        for line in kept_lines:
+            log_content += line
         
-        os.replace(temp_file, GENERATION_LOG_FILE)
+        # Write atomically
+        _atomic_write_bytes(GENERATION_LOG_FILE, log_content.encode("utf-8"))
         
     except Exception as rotate_e:
         # Fail silently if rotation fails - don't cascade error
@@ -242,19 +241,30 @@ def _atomic_write_bytes(path: str, data: bytes) -> None:
     This ensures that if the process is killed or hits an error mid-write,
     the original file (if it exists) is left untouched rather than corrupted.
     Uses POSIX atomic rename within the same filesystem.
+    Includes fsync for extra durability on most filesystems.
     """
     tmp_path = path + ".tmp"
     try:
         with open(tmp_path, "wb") as f:
             f.write(data)
+            f.flush()
+            os.fsync(f.fileno())
         os.replace(tmp_path, path)
     except OSError:
-        # Clean up temp file on error to avoid leaving stray .tmp files
         try:
             os.remove(tmp_path)
         except OSError:
             pass
         raise
+
+def _atomic_write_json(path: str, obj: dict, **json_kwargs) -> None:
+    """Write a dict to JSON file atomically.
+    
+    Serializes obj to JSON and writes atomically using tmp+rename pattern.
+    Any keyword arguments (indent, sort_keys, etc.) are passed to json.dumps().
+    """
+    json_str = json.dumps(obj, **json_kwargs)
+    _atomic_write_bytes(path, json_str.encode("utf-8"))
 
 def _sha256_of_data(data: bytes) -> str:  # asset-r16-grp-manifest-emit: SHA256 integrity
     """Compute SHA256 checksum of bytes data."""
@@ -319,18 +329,10 @@ def _emit_grp_manifest(grp_path: str, grp_contents: dict, manifest_path: str, ge
     # Add top-level manifest checksum
     manifest["manifest_checksum"] = _sha256_of_manifest(manifest)
     
-    # Write manifest atomically
+    # Write manifest atomically using helper
     try:
-        tmp_path = manifest_path + ".tmp"
-        with open(tmp_path, "w") as f:
-            json.dump(manifest, f, indent=2, sort_keys=True)
-        os.replace(tmp_path, manifest_path)
+        _atomic_write_json(manifest_path, manifest, indent=2, sort_keys=True)
     except OSError as exc:
-        # Clean up temp file on error
-        try:
-            os.remove(tmp_path)
-        except OSError:
-            pass
         raise IOError(f"Failed to write GRP manifest: {exc}")
 
 # ---------------------------------------------------------------------------
