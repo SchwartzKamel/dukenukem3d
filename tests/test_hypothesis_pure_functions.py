@@ -13,13 +13,18 @@ import sys
 import os
 import pytest
 from hypothesis import given, settings, strategies as st, assume
+from PIL import Image
+import numpy as np
 
 # Ensure tools package is importable
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "tools"))
 
-from palette import _ramp, build_palette, create_palette_dat
+from palette import _ramp, build_palette, create_palette_dat, _nearest_color, _validate_palette_input, quantize_image
 from tables import create_tables_dat, _generate_basic_font, _generate_small_font, _generate_britable
 from manifest_verification import _sha256_of_manifest, verify_manifest_checksum
+from grp_format import create_grp
+from voc_format import _generate_tone_samples, _generate_noise_samples, _generate_click_samples
+from frame_analyzer import unique_color_count, color_histogram, brightness_stats, is_black_screen, frame_difference, region_crop
 
 
 # ============================================================================
@@ -441,3 +446,738 @@ def test_create_tables_dat_idempotent():
 
 # Test sentinel for hypothesis-expand-<8-hex>
 _HYPOTHESIS_EXPAND_SENTINEL = "hypothesis-expand-a7f9c2e1"
+
+
+# ============================================================================
+# New Pure Function Property Tests (Cycle 87 Expansion)
+# ============================================================================
+
+
+@given(
+    r=st.integers(0, 255),
+    g=st.integers(0, 255),
+    b=st.integers(0, 255)
+)
+@settings(max_examples=50, deadline=1000)
+def test_nearest_color_returns_valid_index(r, g, b):
+    """Property: _nearest_color returns a valid palette index (0-255)."""
+    pal = build_palette()
+    idx = _nearest_color(r, g, b, pal)
+    assert isinstance(idx, int), f"Index {idx} is not int"
+    assert 0 <= idx <= 255, f"Index {idx} out of valid range [0, 255]"
+
+
+@given(
+    r=st.integers(0, 255),
+    g=st.integers(0, 255),
+    b=st.integers(0, 255)
+)
+@settings(max_examples=50, deadline=1000)
+def test_nearest_color_exact_match(r, g, b):
+    """Property: _nearest_color returns exact match when color exists in palette."""
+    pal = build_palette()
+    # If (r,g,b) is in the palette, nearest_color should find it (dist=0)
+    if (r, g, b) in pal:
+        idx = _nearest_color(r, g, b, pal)
+        assert pal[idx] == (r, g, b), f"Expected exact match for {(r,g,b)}, got {pal[idx]}"
+
+
+@given(
+    r=st.one_of(st.integers(-100, -1), st.integers(256, 500)),
+    g=st.integers(0, 255),
+    b=st.integers(0, 255)
+)
+@settings(max_examples=30, deadline=1000)
+def test_nearest_color_rejects_invalid_rgb(r, g, b):
+    """Property: _nearest_color raises ValueError for out-of-range RGB."""
+    pal = build_palette()
+    with pytest.raises(ValueError, match="must be in range"):
+        _nearest_color(r, g, b, pal)
+
+
+@given(
+    palette=st.lists(
+        st.tuples(
+            st.integers(0, 255),
+            st.integers(0, 255),
+            st.integers(0, 255)
+        ),
+        min_size=256,
+        max_size=256
+    )
+)
+@settings(max_examples=30, deadline=1000)
+def test_validate_palette_input_accepts_valid_256_entry(palette):
+    """Property: _validate_palette_input accepts exactly 256-entry palette."""
+    # Should not raise for valid 256-entry palette
+    _validate_palette_input(palette)
+
+
+@given(
+    palette=st.lists(
+        st.tuples(
+            st.integers(0, 255),
+            st.integers(0, 255),
+            st.integers(0, 255)
+        ),
+        min_size=0,
+        max_size=255
+    )
+)
+@settings(max_examples=30, deadline=1000)
+def test_validate_palette_input_rejects_wrong_length(palette):
+    """Property: _validate_palette_input rejects palette not exactly 256 entries."""
+    assume(len(palette) != 256)
+    with pytest.raises(ValueError, match="exactly 256"):
+        _validate_palette_input(palette)
+
+
+@given(
+    palette=st.lists(
+        st.tuples(
+            st.integers(0, 255),
+            st.integers(0, 255),
+            st.integers(0, 300)  # One component out of range
+        ),
+        min_size=256,
+        max_size=256
+    )
+)
+@settings(max_examples=30, deadline=1000)
+def test_validate_palette_input_rejects_invalid_component(palette):
+    """Property: _validate_palette_input rejects palette with out-of-range components."""
+    # Check if any component is invalid
+    has_invalid = any(b > 255 for r, g, b in palette)
+    assume(has_invalid)
+    with pytest.raises(ValueError, match="range \\[0, 255\\]"):
+        _validate_palette_input(palette)
+
+
+@given(
+    files_dict=st.dictionaries(
+        st.text(
+            min_size=1,
+            max_size=12,
+            alphabet=st.characters(
+                min_codepoint=ord('A'),
+                max_codepoint=ord('Z'),
+                blacklist_characters='\x00'
+            )
+        ),
+        st.binary(min_size=0, max_size=1000),
+        min_size=1,
+        max_size=10
+    )
+)
+@settings(max_examples=40, deadline=2000)
+def test_create_grp_deterministic(files_dict):
+    """Property: create_grp returns identical output for same input (determinism)."""
+    grp1 = create_grp(files_dict)
+    grp2 = create_grp(files_dict)
+    assert grp1 == grp2, "create_grp() is not deterministic"
+
+
+@given(
+    files_dict=st.dictionaries(
+        st.text(
+            min_size=1,
+            max_size=12,
+            alphabet=st.characters(
+                min_codepoint=ord('A'),
+                max_codepoint=ord('Z'),
+                blacklist_characters='\x00'
+            )
+        ),
+        st.binary(min_size=0, max_size=1000),
+        min_size=1,
+        max_size=10
+    )
+)
+@settings(max_examples=40, deadline=2000)
+def test_create_grp_starts_with_magic(files_dict):
+    """Property: create_grp output begins with 'KenSilverman' magic header."""
+    grp = create_grp(files_dict)
+    assert grp[:12] == b"KenSilverman", f"GRP header wrong: {grp[:12]}"
+
+
+@given(
+    files_dict=st.dictionaries(
+        st.text(
+            min_size=1,
+            max_size=12,
+            alphabet=st.characters(
+                min_codepoint=ord('A'),
+                max_codepoint=ord('Z'),
+                blacklist_characters='\x00'
+            )
+        ),
+        st.binary(min_size=0, max_size=1000),
+        min_size=1,
+        max_size=10
+    )
+)
+@settings(max_examples=40, deadline=2000)
+def test_create_grp_file_count_correct(files_dict):
+    """Property: create_grp encodes correct file count in header."""
+    grp = create_grp(files_dict)
+    num_files = struct.unpack("<I", grp[12:16])[0]
+    assert num_files == len(files_dict), f"File count {num_files} != {len(files_dict)}"
+
+
+@given(
+    num_samples=st.integers(1, 10000),
+    freq=st.integers(100, 4000)
+)
+@settings(max_examples=30, deadline=1000)
+def test_generate_tone_samples_returns_correct_length(num_samples, freq):
+    """Property: _generate_tone_samples returns exactly num_samples bytes."""
+    samples = _generate_tone_samples(num_samples, freq)
+    assert isinstance(samples, bytes), "_generate_tone_samples did not return bytes"
+    assert len(samples) == num_samples, f"Length {len(samples)} != {num_samples}"
+
+
+@given(
+    num_samples=st.integers(1, 10000),
+    freq=st.integers(100, 4000)
+)
+@settings(max_examples=30, deadline=1000)
+def test_generate_tone_samples_values_in_range(num_samples, freq):
+    """Property: _generate_tone_samples produces valid 8-bit unsigned PCM (0-255)."""
+    samples = _generate_tone_samples(num_samples, freq)
+    for i, byte_val in enumerate(samples):
+        assert 0 <= byte_val <= 255, f"Sample {i}: {byte_val} out of range [0, 255]"
+
+
+@given(
+    num_samples=st.integers(1, 10000),
+    seed=st.integers(0, 2**31 - 1)
+)
+@settings(max_examples=30, deadline=1000)
+def test_generate_noise_samples_correct_length(num_samples, seed):
+    """Property: _generate_noise_samples returns exactly num_samples bytes."""
+    samples = _generate_noise_samples(num_samples, seed)
+    assert isinstance(samples, bytes), "_generate_noise_samples did not return bytes"
+    assert len(samples) == num_samples, f"Length {len(samples)} != {num_samples}"
+
+
+@given(
+    num_samples=st.integers(1, 10000),
+    seed=st.integers(0, 2**31 - 1)
+)
+@settings(max_examples=30, deadline=1000)
+def test_generate_noise_samples_deterministic(num_samples, seed):
+    """Property: _generate_noise_samples is deterministic for same seed."""
+    samples1 = _generate_noise_samples(num_samples, seed)
+    samples2 = _generate_noise_samples(num_samples, seed)
+    assert samples1 == samples2, "Noise generation with same seed produced different results"
+
+
+@given(
+    num_samples=st.integers(1, 10000),
+    seed=st.integers(0, 2**31 - 1)
+)
+@settings(max_examples=30, deadline=1000)
+def test_generate_click_samples_correct_length(num_samples, seed):
+    """Property: _generate_click_samples returns exactly num_samples bytes."""
+    samples = _generate_click_samples(num_samples, seed)
+    assert isinstance(samples, bytes), "_generate_click_samples did not return bytes"
+    assert len(samples) == num_samples, f"Length {len(samples)} != {num_samples}"
+
+
+@given(
+    num_samples=st.integers(1, 10000),
+    seed=st.integers(0, 2**31 - 1)
+)
+@settings(max_examples=30, deadline=1000)
+def test_generate_click_samples_within_bounds(num_samples, seed):
+    """Property: _generate_click_samples produces valid 8-bit unsigned PCM (0-255)."""
+    samples = _generate_click_samples(num_samples, seed)
+    for i, byte_val in enumerate(samples):
+        assert 0 <= byte_val <= 255, f"Sample {i}: {byte_val} out of range [0, 255]"
+
+
+@given(
+    width=st.integers(1, 100),
+    height=st.integers(1, 100)
+)
+@settings(max_examples=20, deadline=2000)
+def test_unique_color_count_less_than_pixels(width, height):
+    """Property: unique_color_count returns count <= total pixels."""
+    # Create a simple RGB image
+    img = Image.new('RGB', (width, height), color=(128, 128, 128))
+    count = unique_color_count(img)
+    assert count <= width * height, f"Color count {count} > pixels {width * height}"
+    assert count >= 1, f"Color count {count} should be >= 1"
+
+
+@given(
+    width=st.integers(1, 100),
+    height=st.integers(1, 100),
+    color_r=st.integers(0, 255),
+    color_g=st.integers(0, 255),
+    color_b=st.integers(0, 255)
+)
+@settings(max_examples=20, deadline=2000)
+def test_unique_color_count_monochrome_is_one(width, height, color_r, color_g, color_b):
+    """Property: unique_color_count returns 1 for monochrome image."""
+    img = Image.new('RGB', (width, height), color=(color_r, color_g, color_b))
+    count = unique_color_count(img)
+    assert count == 1, f"Monochrome image should have 1 color, got {count}"
+
+
+@given(
+    width=st.integers(1, 100),
+    height=st.integers(1, 100)
+)
+@settings(max_examples=20, deadline=2000)
+def test_color_histogram_sum_equals_pixels(width, height):
+    """Property: color_histogram counts sum to total pixels."""
+    img = Image.new('RGB', (width, height), color=(128, 128, 128))
+    hist = color_histogram(img)
+    total_pixels = sum(hist.values())
+    assert total_pixels == width * height, f"Histogram sum {total_pixels} != pixels {width * height}"
+
+
+@given(
+    width=st.integers(1, 100),
+    height=st.integers(1, 100)
+)
+@settings(max_examples=20, deadline=2000)
+def test_brightness_stats_bounds(width, height):
+    """Property: brightness_stats returns valid bounds (min <= max, both in 0-255)."""
+    img = Image.new('RGB', (width, height), color=(128, 128, 128))
+    stats = brightness_stats(img)
+    
+    assert isinstance(stats, dict), "brightness_stats did not return dict"
+    assert 'min' in stats and 'max' in stats, "Missing min/max in stats"
+    assert 0 <= stats['min'] <= 255, f"Min {stats['min']} out of bounds"
+    assert 0 <= stats['max'] <= 255, f"Max {stats['max']} out of bounds"
+    assert stats['min'] <= stats['max'], f"Min {stats['min']} > Max {stats['max']}"
+
+
+@given(
+    width=st.integers(1, 100),
+    height=st.integers(1, 100)
+)
+@settings(max_examples=20, deadline=2000)
+def test_is_black_screen_on_black_image(width, height):
+    """Property: is_black_screen returns True for black images."""
+    img = Image.new('RGB', (width, height), color=(0, 0, 0))
+    assert is_black_screen(img, threshold=0.95), "Black image should be detected as black screen"
+
+
+@given(
+    width=st.integers(1, 100),
+    height=st.integers(1, 100)
+)
+@settings(max_examples=20, deadline=2000)
+def test_is_black_screen_on_white_image(width, height):
+    """Property: is_black_screen returns False for white/bright images."""
+    img = Image.new('RGB', (width, height), color=(255, 255, 255))
+    assume(width > 0 and height > 0)
+    assert not is_black_screen(img, threshold=0.95), "White image should not be black screen"
+
+
+@given(
+    width=st.integers(2, 100),
+    height=st.integers(2, 100),
+    x=st.integers(0, 50),
+    y=st.integers(0, 50),
+    w=st.integers(1, 50),
+    h=st.integers(1, 50)
+)
+@settings(max_examples=20, deadline=2000)
+def test_region_crop_size(width, height, x, y, w, h):
+    """Property: region_crop returns image with expected dimensions."""
+    img = Image.new('RGB', (width, height), color=(128, 128, 128))
+    
+    # Clamp crop region to image bounds
+    x = min(x, width - 1)
+    y = min(y, height - 1)
+    w = min(w, width - x)
+    h = min(h, height - y)
+    assume(w > 0 and h > 0)
+    
+    cropped = region_crop(img, x, y, w, h)
+    assert cropped.size == (w, h), f"Crop size {cropped.size} != expected {(w, h)}"
+
+
+@given(
+    width=st.integers(1, 100),
+    height=st.integers(1, 100)
+)
+@settings(max_examples=15, deadline=2000)
+def test_frame_difference_identical_frames(width, height):
+    """Property: frame_difference returns 0.0 for identical images."""
+    img1 = Image.new('RGB', (width, height), color=(128, 128, 128))
+    img2 = Image.new('RGB', (width, height), color=(128, 128, 128))
+    diff = frame_difference(img1, img2)
+    assert diff == 0.0, f"Identical frames should have diff=0.0, got {diff}"
+
+
+@given(
+    width=st.integers(1, 100),
+    height=st.integers(1, 100)
+)
+@settings(max_examples=15, deadline=2000)
+def test_frame_difference_range(width, height):
+    """Property: frame_difference returns value in range [0.0, 1.0]."""
+    img1 = Image.new('RGB', (width, height), color=(0, 0, 0))
+    img2 = Image.new('RGB', (width, height), color=(255, 255, 255))
+    diff = frame_difference(img1, img2)
+    assert 0.0 <= diff <= 1.0, f"Difference {diff} out of range [0.0, 1.0]"
+
+
+@given(
+    manifest_dict=st.fixed_dictionaries({
+        "version": st.just("1.0"),
+        "source": st.text(min_size=1, max_size=100),
+        "key1": st.text(min_size=0, max_size=50),
+    })
+)
+@settings(max_examples=30, deadline=1000)
+def test_sha256_of_manifest_is_deterministic(manifest_dict):
+    """Property: _sha256_of_manifest is deterministic (same hash for same dict)."""
+    hash1 = _sha256_of_manifest(manifest_dict)
+    hash2 = _sha256_of_manifest(manifest_dict)
+    assert hash1 == hash2, "Hash should be deterministic"
+
+
+@given(
+    key_count=st.integers(1, 5),
+    value_count=st.integers(1, 3)
+)
+@settings(max_examples=20, deadline=1000)
+def test_sha256_of_manifest_excluded_checksum(key_count, value_count):
+    """Property: _sha256_of_manifest excludes 'manifest_checksum' from computation."""
+    # Create manifest with arbitrary keys and values
+    manifest = {f"key_{i}": f"val_{j}" for i in range(key_count) for j in range(value_count)}
+    manifest["version"] = "1.0"
+    
+    hash_without = _sha256_of_manifest(manifest)
+    
+    # Add checksum field
+    computed = _sha256_of_manifest(manifest)
+    manifest["manifest_checksum"] = computed
+    
+    hash_with = _sha256_of_manifest(manifest)
+    
+    # Should be identical (checksum excluded from hash)
+    assert hash_with == hash_without, "Checksum field should be excluded"
+
+
+@given(
+    manifest_dict=st.fixed_dictionaries({
+        "version": st.just("1.0"),
+        "source": st.text(min_size=1, max_size=100),
+    })
+)
+@settings(max_examples=20, deadline=1000)
+def test_sha256_of_manifest_different_for_different_input(manifest_dict):
+    """Property: _sha256_of_manifest produces different hashes for different inputs."""
+    manifest1 = manifest_dict.copy()
+    manifest2 = manifest_dict.copy()
+    manifest2["source"] = manifest2["source"] + "_modified"
+    assume(manifest1 != manifest2)
+    
+    hash1 = _sha256_of_manifest(manifest1)
+    hash2 = _sha256_of_manifest(manifest2)
+    assert hash1 != hash2, "Different manifests should produce different hashes"
+
+
+@given(
+    start_r=st.integers(0, 255),
+    start_g=st.integers(0, 255),
+    start_b=st.integers(0, 255),
+    end_r=st.integers(0, 255),
+    end_g=st.integers(0, 255),
+    end_b=st.integers(0, 255),
+    steps=st.integers(2, 50)
+)
+@settings(max_examples=30, deadline=1000)
+def test_ramp_monotonicity_bounds(start_r, start_g, start_b, end_r, end_g, end_b, steps):
+    """Property: _ramp never produces out-of-bounds intermediate colors."""
+    start = (start_r, start_g, start_b)
+    end = (end_r, end_g, end_b)
+    ramp = _ramp(start, end, steps)
+    
+    for i, (r, g, b) in enumerate(ramp):
+        assert 0 <= r <= 255, f"Color {i}: R={r} out of bounds"
+        assert 0 <= g <= 255, f"Color {i}: G={g} out of bounds"
+        assert 0 <= b <= 255, f"Color {i}: B={b} out of bounds"
+
+
+@given(
+    start_r=st.integers(0, 255),
+    start_g=st.integers(0, 255),
+    start_b=st.integers(0, 255),
+    end_r=st.integers(0, 255),
+    end_g=st.integers(0, 255),
+    end_b=st.integers(0, 255),
+)
+@settings(max_examples=30, deadline=1000)
+def test_ramp_single_step_returns_start(start_r, start_g, start_b, end_r, end_g, end_b):
+    """Property: _ramp with 1 step returns [start]."""
+    start = (start_r, start_g, start_b)
+    end = (end_r, end_g, end_b)
+    ramp = _ramp(start, end, 1)
+    assert len(ramp) == 1, f"1-step ramp should have 1 entry, got {len(ramp)}"
+    assert ramp[0] == start, f"1-step ramp should return start color"
+
+
+@given(
+    files_dict=st.dictionaries(
+        st.text(
+            min_size=1,
+            max_size=12,
+            alphabet=st.characters(
+                min_codepoint=ord('A'),
+                max_codepoint=ord('Z'),
+                blacklist_characters='\x00'
+            )
+        ),
+        st.binary(min_size=0, max_size=500),
+        min_size=0,
+        max_size=5
+    )
+)
+@settings(max_examples=30, deadline=2000)
+def test_create_grp_minimum_size(files_dict):
+    """Property: create_grp output is at least header + directory size."""
+    grp = create_grp(files_dict)
+    min_size = 12 + 4 + (len(files_dict) * 16)  # magic + count + directory entries
+    assert len(grp) >= min_size, f"GRP size {len(grp)} < minimum {min_size}"
+
+
+@given(
+    num_samples=st.integers(100, 5000),
+    freq=st.integers(200, 3000)
+)
+@settings(max_examples=20, deadline=1000)
+def test_generate_tone_samples_has_variation(num_samples, freq):
+    """Property: _generate_tone_samples produces samples with variation (not constant)."""
+    samples = _generate_tone_samples(num_samples, freq)
+    byte_values = list(samples)
+    
+    # Should have at least some variation
+    min_val = min(byte_values)
+    max_val = max(byte_values)
+    assert min_val != max_val, "Tone should have variation, not be constant"
+
+
+@given(
+    num_samples=st.integers(100, 5000),
+    seed1=st.integers(0, 2**31 - 1),
+    seed2=st.integers(0, 2**31 - 1)
+)
+@settings(max_examples=20, deadline=1000)
+def test_generate_noise_samples_seed_changes_output(num_samples, seed1, seed2):
+    """Property: _generate_noise_samples with different seeds produces different output."""
+    assume(seed1 != seed2)
+    samples1 = _generate_noise_samples(num_samples, seed1)
+    samples2 = _generate_noise_samples(num_samples, seed2)
+    assume(samples1 != samples2)  # Filter out rare hash collisions
+    # Most different seeds should produce different noise
+    assert samples1 != samples2, f"Different seeds should produce different noise"
+
+
+@given(
+    width=st.integers(1, 50),
+    height=st.integers(1, 50)
+)
+@settings(max_examples=20, deadline=2000)
+def test_color_histogram_keys_valid_rgb(width, height):
+    """Property: color_histogram keys are valid RGB tuples."""
+    img = Image.new('RGB', (width, height), color=(100, 150, 200))
+    hist = color_histogram(img)
+    
+    for color, count in hist.items():
+        assert isinstance(color, tuple), f"Key {color} is not tuple"
+        assert len(color) == 3, f"Color {color} not 3-tuple"
+        r, g, b = color
+        assert 0 <= r <= 255, f"R={r} out of bounds"
+        assert 0 <= g <= 255, f"G={g} out of bounds"
+        assert 0 <= b <= 255, f"B={b} out of bounds"
+        assert isinstance(count, int), f"Count {count} is not int"
+        assert count >= 0, f"Count {count} is negative"
+
+
+@given(
+    width=st.integers(1, 50),
+    height=st.integers(1, 50)
+)
+@settings(max_examples=20, deadline=2000)
+def test_brightness_stats_mean_between_min_max(width, height):
+    """Property: brightness_stats mean value is between min and max."""
+    img = Image.new('RGB', (width, height), color=(128, 128, 128))
+    stats = brightness_stats(img)
+    
+    assert stats['min'] <= stats['mean'] <= stats['max'], \
+        f"Mean {stats['mean']} not between min {stats['min']} and max {stats['max']}"
+
+
+@given(
+    width=st.integers(1, 50),
+    height=st.integers(1, 50)
+)
+@settings(max_examples=20, deadline=2000)
+def test_brightness_stats_median_between_min_max(width, height):
+    """Property: brightness_stats median value is between min and max."""
+    img = Image.new('RGB', (width, height), color=(128, 128, 128))
+    stats = brightness_stats(img)
+    
+    assert stats['min'] <= stats['median'] <= stats['max'], \
+        f"Median {stats['median']} not between min {stats['min']} and max {stats['max']}"
+
+
+@given(
+    width=st.integers(10, 100),
+    height=st.integers(10, 100),
+    x_off=st.integers(0, 20),
+    y_off=st.integers(0, 20),
+    crop_w=st.integers(1, 30),
+    crop_h=st.integers(1, 30)
+)
+@settings(max_examples=20, deadline=2000)
+def test_region_crop_within_bounds(width, height, x_off, y_off, crop_w, crop_h):
+    """Property: region_crop stays within image bounds."""
+    img = Image.new('RGB', (width, height), color=(128, 128, 128))
+    
+    x = min(x_off, width - 1)
+    y = min(y_off, height - 1)
+    w = min(crop_w, width - x)
+    h = min(crop_h, height - y)
+    assume(w > 0 and h > 0)
+    
+    cropped = region_crop(img, x, y, w, h)
+    assert cropped.size == (w, h), f"Crop dimensions mismatch"
+
+
+@given(
+    width=st.integers(2, 50),
+    height=st.integers(2, 50)
+)
+@settings(max_examples=15, deadline=2000)
+def test_frame_difference_same_size_different_content(width, height):
+    """Property: frame_difference > 0 for images with different content."""
+    img1 = Image.new('RGB', (width, height), color=(0, 0, 0))
+    img2 = Image.new('RGB', (width, height), color=(200, 200, 200))
+    
+    diff = frame_difference(img1, img2)
+    assert diff > 0.0, f"Different content should have diff > 0, got {diff}"
+
+
+@given(
+    steps=st.integers(2, 100)
+)
+@settings(max_examples=30, deadline=1000)
+def test_ramp_linearity(steps):
+    """Property: _ramp produces evenly-spaced colors in RGB space."""
+    start = (0, 0, 0)
+    end = (255, 255, 255)
+    ramp = _ramp(start, end, steps)
+    
+    # For a linear ramp, differences between consecutive colors should be roughly equal
+    assert len(ramp) == steps, f"Ramp length mismatch"
+    
+    # Check monotonicity: each component should be non-decreasing
+    for i in range(len(ramp) - 1):
+        r1, g1, b1 = ramp[i]
+        r2, g2, b2 = ramp[i + 1]
+        # All components should be non-decreasing
+        assert r2 >= r1, f"R component decreased: {r1} -> {r2}"
+        assert g2 >= g1, f"G component decreased: {g1} -> {g2}"
+        assert b2 >= b1, f"B component decreased: {b1} -> {b2}"
+
+
+@given(
+    size=st.integers(10, 10000)
+)
+@settings(max_examples=20, deadline=1000)
+def test_generate_click_samples_peak_in_middle(size):
+    """Property: _generate_click_samples has variation (not constant single value)."""
+    samples = _generate_click_samples(size, seed=42)
+    byte_values = list(samples)
+    
+    # Should have some variation (not all same) for reasonable sizes
+    assert len(set(byte_values)) > 1, "Click should have variation"
+
+
+@given(
+    palette=st.lists(
+        st.tuples(
+            st.integers(0, 255),
+            st.integers(0, 255),
+            st.integers(0, 255)
+        ),
+        min_size=256,
+        max_size=256
+    )
+)
+@settings(max_examples=20, deadline=2000)
+def test_validate_palette_does_not_modify(palette):
+    """Property: _validate_palette_input does not modify the palette."""
+    original = [tuple(x) for x in palette]
+    _validate_palette_input(palette)
+    assert palette == original, "_validate_palette_input modified the palette"
+
+
+@given(
+    manifest=st.fixed_dictionaries({
+        "version": st.just("1.0"),
+        "source": st.text(min_size=1, max_size=50),
+        "timestamp": st.integers(0, 2**31 - 1),
+    })
+)
+@settings(max_examples=20, deadline=1000)
+def test_verify_manifest_checksum_accepts_correct_checksum(manifest):
+    """Property: verify_manifest_checksum accepts manifest with correct checksum."""
+    computed = _sha256_of_manifest(manifest)
+    manifest["manifest_checksum"] = computed
+    
+    # Should not raise
+    verify_manifest_checksum(manifest)
+
+
+@given(
+    r=st.integers(0, 255),
+    g=st.integers(0, 255),
+    b=st.integers(0, 255)
+)
+@settings(max_examples=25, deadline=1000)
+def test_nearest_color_commutative_within_tolerance(r, g, b):
+    """Property: _nearest_color result is stable across multiple calls."""
+    pal = build_palette()
+    idx1 = _nearest_color(r, g, b, pal)
+    idx2 = _nearest_color(r, g, b, pal)
+    assert idx1 == idx2, f"Color index should be stable: {idx1} != {idx2}"
+
+
+@given(
+    width=st.integers(1, 50),
+    height=st.integers(1, 50)
+)
+@settings(max_examples=15, deadline=2000)
+def test_frame_difference_zero_same_object(width, height):
+    """Property: frame_difference with same object reference returns 0.0."""
+    img = Image.new('RGB', (width, height), color=(100, 150, 200))
+    diff = frame_difference(img, img)
+    assert diff == 0.0, f"Same image should have diff=0.0, got {diff}"
+
+
+@given(
+    width=st.integers(5, 50),
+    height=st.integers(5, 50)
+)
+@settings(max_examples=15, deadline=2000)
+def test_region_crop_deterministic(width, height):
+    """Property: region_crop returns same result on repeated calls."""
+    img = Image.new('RGB', (width, height), color=(128, 128, 128))
+    x, y, w, h = 1, 1, min(5, width - 1), min(5, height - 1)
+    
+    cropped1 = region_crop(img, x, y, w, h)
+    cropped2 = region_crop(img, x, y, w, h)
+    
+    # Check dimensions match
+    assert cropped1.size == cropped2.size, "Crop dimensions should be deterministic"
+

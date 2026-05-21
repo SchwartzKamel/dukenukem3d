@@ -12,7 +12,8 @@ GAME_SRCS = source/GAME.C source/ACTORS.C source/GAMEDEF.C source/GLOBAL.C \
 
 # Compatibility layer (modern platform support)
 COMPAT_SRCS = compat/sdl_driver.c compat/audio_stub.c compat/mact_stub.c compat/hud.c \
-              compat/maxtiles_engine_value.c compat/maxtiles_game_value.c compat/maxtiles_guard.c
+              compat/maxtiles_engine_value.c compat/maxtiles_game_value.c compat/maxtiles_guard.c \
+              compat/sha256.c
 
 # Platform-specific socket abstraction layer (net-r15-socket-compat)
 ifdef PLATFORM_WIN32

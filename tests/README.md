@@ -1,6 +1,6 @@
 # Testing Guide
 
-Duke Nukem 3D testing infrastructure with **46 tests** organized by domain. Tests run in parallel via pytest-xdist by default.
+Duke Nukem 3D testing infrastructure with **70 tests** organized by domain. Tests run in parallel via pytest-xdist by default.
 
 ## Quick Start
 
@@ -35,7 +35,14 @@ From `pytest.ini`:
 
 Tests are auto-discovered by prefix. Primary groupings:
 
-- **audio** (2): Playback roundtrip, VOC format validation
+- **hypothesis** (51 @given tests): Property-based tests for pure functions in tools/ using Hypothesis
+  - Palette/RGB conversion (_ramp, build_palette, _nearest_color, quantize_image)
+  - Lookup table generation (sine table, radar angles, fonts, brightness tables)
+  - Manifest verification (SHA256 checksums, schema versions, legacy compatibility)
+  - Audio generation (tone, noise, click synthesis with determinism and bounds properties)
+  - GRP format (file packing, determinism, round-trip properties)
+  - Frame analysis (color histograms, brightness stats, black screen detection, frame difference)
+  - All tests use @settings(max_examples=...) with deterministic seeds
 - **compat** (1): Compatibility layer behavior  
 - **build** (3): Build warnings, asset generation validation, binary artifacts
 - **audio** (2): MIDI format, sound encoding

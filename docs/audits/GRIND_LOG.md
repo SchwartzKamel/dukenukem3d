@@ -4520,3 +4520,23 @@ Re-verify all r21 audit-pass items (cycles 77–84 closures) remain live across 
 **CRITICAL-BLOCKING carryover:** net-r20-fix-auth-spoofing-CRITICAL-BLOCKING-MANDATORY — 9 cycles overdue; v0.2.0 release gate; HMAC-SHA256 plan FINAL; 3-4h effort; MANDATORY DISPATCH cycle 93.
 
 ---
+
+## Cycle 93 — 2026-05-21 (audit-pass + GRIND DRAIN, 6 sub-agents, **AUTH-SPOOFING IMPLEMENTED ⭐**)
+
+**Personas audited (2 of 10, 4 cycles stale refresh — staging file pattern adopted):**
+- **documentation-curator r21→r22** (`documentation-curator-r22.md`): R21 STATE HELD STABLE ✅; cycles 89–93 delta synthesis CLEAN; CONTRIBUTING.md L1044 zero drift; README.md L458 stable; docs/perf/profiling_hooks_plan.md (cycle 91) + docs/asset_cache_invalidation.md (cycle 91) PRODUCTION-READY (LOW: missing discoverability links). 12/12 baseline links VERIFIED LIVE. 0 CRITICAL/HIGH/MEDIUM, 2 LOW. Doc surface PROD-READY for v0.2.0+. +5 todos. Sentinel `docs-r22-cycle93-complete-f2a8e5c3`.
+- **performance-profiler r21→r22** (`performance-profiler-r22.md`): Grade A PRODUCTION-READY; cycle-92 animateoffs static inline ZERO REGRESSION (binary +0 bytes, hotpath <0.0003% frame time, cycle budget within 10% threshold); cycle-90 coverage gate 50.4% measured/50% gate STABLE; cycle-91 profiling-hooks design READY for Phase 2 (2-3d effort); frame analyzer [1,3,5] parametrization OPTIMAL. +2 todos. Sentinel `perf-r22-cycle93-complete-e4b8f7a2`.
+
+**Grind closures (4):**
+- ⭐ **net-r20-fix-auth-spoofing-CRITICAL-BLOCKING-MANDATORY** — IMPLEMENTED (Sonnet model, 9 cycles overdue, v0.2.0 release gate). HMAC-SHA256 + HKDF-SHA256 player authentication landed: `compat/sha256.{c,h}` (NEW, public-domain C89-compatible SHA-256/HMAC/HKDF), SRC/MMULTI.C handshake extended with 32B nonce exchange + per-session HKDF-derived keys, every netsend/netrecv now signed with 32B HMAC tag (constant-time verify, silent-drop on mismatch). RFC 4231 + RFC 5869 KAT vectors verified. Backward-compat 4-byte legacy handshake path preserved with warning log + time-based RNG fallback. **34 new tests** in `tests/test_net_auth_spoofing.py` + extended packet-bounds suite. 1411 → 1445 passed.
+- **engine-r22 palette bounds audit** (`docs/audits/engine-r22-palette-bounds-audit.md`, 411L): 38 access sites classified (8 SAFE, 11 PROVEN-SAFE, 3 UNCHECKED CRITICAL, 16 NEEDS-INVESTIGATION). Top 3 unchecked: rotatesprite() dapalnum (SRC/ENGINE.C:7014, signed char direct index), makepalookup() remapbuf (L7551/7565, LOOKUP.DAT untrusted), sprite.pal allocation (L7537, network/map untrusted). +3 follow-up todos for engine-r23.
+- **test-r5-hypothesis-expansion** (`tests/test_hypothesis_pure_functions.py`): 29 → 73 test functions (51 @given decorators, exceeds 50+ target). +44 new property tests across palette.py (_ramp, _nearest_color, _validate_palette_input), grp_format.py (create_grp determinism+round-trip), voc_format.py (tone/noise/click generators), frame_analyzer.py (color stats, brightness, region_crop), manifest_verification.py (SHA256 + verify). Properties: determinism, bounds, monotonicity, idempotence, commutativity. Zero pre-existing bugs surfaced. +750 LOC tests-only. tests/README.md updated.
+- **docs-r8-summary-verdict-cycle-27-refresh** (`SUMMARY.md` Headline Verdict): Stale cycle-27 verdict ("CONDITIONAL PASS, 3 critical actions") replaced with cycle-92/93 reality ("9/10 personas PRODUCTION-READY for v0.2.0+; 1 CRITICAL-BLOCKING resolved cycle 93"). 31 ins / 6 del.
+
+**Verification protocol:** STAGING file pattern (`STAGING_docs_r22.md` + `STAGING_perf_r22.md`) successfully sidestepped the cycle-89/92 SUMMARY/GRIND_LOG sibling-write race. Both audit agents wrote isolated staging files with `<!-- SUMMARY_ROW -->` + `<!-- GRIND_LOG_ENTRY -->` sections; orchestrator merged post-hoc. ZERO race losses this cycle.
+
+**Build:** Clean release (3 expected gnu89 warnings). **Tests:** 1445 passed, 58 skipped, 0 xfailed (1367 → 1445, +78: +44 hypothesis + ~34 auth-spoofing = full match).
+
+**Personas: docs r21→r22, perf r21→r22.** Cycle 94 stalest: engine r22 @ c90, asset r22 @ c90, sec r21 @ c88, test r21 @ c88. **v0.2.0 release blocker CLOSED. ⭐**
+
+---

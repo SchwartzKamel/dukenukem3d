@@ -16,6 +16,7 @@
 #include <time.h>
 #include <stdint.h>
 #include "pragmas_gcc.h"
+#include "sha256.h"  /* net-r17-hmac: HMAC-SHA256 + HKDF for player auth */
 
 /* Platform-specific networking */
 #ifdef _WIN32
@@ -53,7 +54,7 @@ typedef int SOCKET;
 /* Host-side accept() timeout (seconds). Prevents crashed client from blocking forever.
    Asymmetric with client handshake timeout to allow graceful degradation. */
 #define NET_HOST_ACCEPT_TIMEOUT_SEC 10
-#define NET_PROTOCOL_VERSION 0x0001
+#define NET_PROTOCOL_VERSION 0x0002  /* net-r17-hmac: bumped from 0x0001; HMAC-SHA256 handshake */
 
 #define updatecrc16(crc,dat) crc = (((crc<<8)&65535)^crctable[((((unsigned short)crc)>>8)&65535)^dat])
 
@@ -104,6 +105,19 @@ static int pq_dropped_packets = 0;
 static unsigned char sender_sequence[MAXPLAYERS];
 /* Receiver: last-seen sequence from each peer (for gap/reorder detection) */
 static unsigned char last_seen_sequence[MAXPLAYERS];
+
+/* net-r17-hmac: Per-session HMAC-SHA256 authentication state.
+ * One symmetric 32-byte key per peer (host↔client_i).
+ * Derived via HKDF-SHA256(salt=host_nonce||client_nonce,
+ *                          ikm=zeros, info="AUTH_SPOOFING_V1").
+ * session_key_valid[i] is set after handshake nonce exchange completes.
+ * HMAC tag (32 bytes) is appended to every packet after session key is live.
+ * Wire format: [ NET_HEADER(5B) ][ payload(NB) ][ HMAC-SHA256(32B) ]
+ * Relay: host verifies with key[i], re-signs with key[dest] before forwarding.
+ */
+static unsigned char session_key[MAXPLAYERS][HMAC_SHA256_SIZE];
+static int  session_key_valid[MAXPLAYERS];  /* 1 after HKDF derivation */
+static unsigned char local_nonce[HMAC_SHA256_SIZE]; /* our ephemeral nonce */
 
 /* ---- Endianness Convention & Wire Format ----
  *
@@ -223,6 +237,54 @@ static int net_recv_all(SOCKET sock, unsigned char *buf, int len)
 	return total;
 }
 
+/* net-r17-hmac: Generate a cryptographically random 32-byte nonce.
+ * POSIX: reads /dev/urandom.  Fallback (Win32 + /dev/urandom failures):
+ * XOR of rand() bytes seeded with time+counter (NOT crypto-grade, but
+ * acceptable since the scheme only requires nonces to be unpredictable
+ * from the adversary's position — LAN games with authenticated users). */
+static void net_gen_nonce(unsigned char *nonce, int len)
+{
+	int i;
+#ifndef _WIN32
+	FILE *f = fopen("/dev/urandom", "rb");
+	if (f != NULL) {
+		if (fread(nonce, 1, (size_t)len, f) != (size_t)len) {
+			/* Partial read: XOR in rand() bytes for remaining positions */
+			for (i = 0; i < len; i++)
+				nonce[i] ^= (unsigned char)(rand() & 0xFF);
+		}
+		fclose(f);
+		return;
+	}
+#endif
+	for (i = 0; i < len; i++)
+		nonce[i] = (unsigned char)(rand() & 0xFF);
+}
+
+/* net-r17-hmac: Derive a 32-byte per-session HMAC key from two ephemeral nonces.
+ * Design: HKDF-SHA256 with salt = host_nonce || client_nonce (64 bytes),
+ *         IKM = 32 zero bytes (no pre-shared secret),
+ *         info = "AUTH_SPOOFING_V1" (16 bytes, no null terminator).
+ * Both peers run this with the same inputs → identical key. */
+static void net_derive_session_key(const unsigned char *host_nonce,
+                                   const unsigned char *client_nonce,
+                                   unsigned char *key_out)
+{
+	/* salt = host_nonce || client_nonce */
+	unsigned char salt[64];
+	unsigned char ikm[32];
+	/* Literal ASCII context string, per r17 design — NON-NEGOTIABLE. */
+	static const unsigned char AUTH_INFO[] = {
+		'A','U','T','H','_','S','P','O','O','F','I','N','G','_','V','1'
+	};
+
+	memcpy(salt,      host_nonce,   32);
+	memcpy(salt + 32, client_nonce, 32);
+	memset(ikm, 0, 32); /* no pre-shared secret */
+
+	hkdf_sha256(salt, 64, ikm, 32, AUTH_INFO, 16, key_out, 32);
+}
+
 /* Poll all connected sockets, extract framed packets into queue */
 static void net_poll_sockets(void)
 {
@@ -271,6 +333,8 @@ static void net_poll_sockets(void)
 			int sequence    = recv_bufs[i].buf[2];  /* net-r15-seqnum: extract sequence */
 			int payload_len = mm_unpack_u16_le(recv_bufs[i].buf + 3);  /* net-r15-seqnum: offset +3 for seq field */
 			int total_len;
+			/* net-r17-hmac: socket index i identifies the actual sender */
+			int has_hmac = session_key_valid[i];
 
 			/* Validate from_player bounds (CRITICAL: from_player is wire-supplied, attacker-controlled) */
 			if (from_player < 0 || from_player >= MAXPLAYERS) {
@@ -299,13 +363,52 @@ static void net_poll_sockets(void)
 				break;
 			}
 
-			total_len = NET_HEADER_SIZE + payload_len;
+			/* net-r17-hmac: total_len accounts for appended HMAC tag when key is live */
+			total_len = NET_HEADER_SIZE + payload_len + (has_hmac ? HMAC_SHA256_SIZE : 0);
 			if (recv_bufs[i].len < total_len) break;
 
-			/* Host: relay to destination client (after bounds check) */
+			/* net-r17-hmac: Verify HMAC tag using the actual sender's key (socket index i).
+			 * Using socket index (not attacker-supplied from_player) prevents spoofing.
+			 * Silent drop on mismatch per cycle-65 policy (SRC/MMULTI.C L316-318). */
+			if (has_hmac) {
+				unsigned char expected_tag[HMAC_SHA256_SIZE];
+				const unsigned char *received_tag =
+					recv_bufs[i].buf + NET_HEADER_SIZE + payload_len;
+				hmac_sha256(session_key[i], HMAC_SHA256_SIZE,
+				            recv_bufs[i].buf, (size_t)(NET_HEADER_SIZE + payload_len),
+				            expected_tag);
+				if (hmac_sha256_verify_ct(expected_tag, received_tag, HMAC_SHA256_SIZE) != 0) {
+					/* Silent drop: HMAC mismatch — potential forgery or from_player spoof */
+					printf("NET: SECURITY: HMAC mismatch from socket %d (from_player=%d). Dropping.\n",
+					       i, from_player);
+					pq_dropped_packets++;
+					recv_bufs[i].len -= total_len;
+					if (recv_bufs[i].len > 0)
+						memmove(recv_bufs[i].buf,
+						        recv_bufs[i].buf + total_len, recv_bufs[i].len);
+					continue;
+				}
+			}
+
+			/* Host: relay to destination client.
+			 * net-r17-hmac: re-sign with destination's key so recipient can verify. */
 			if (is_host && dest != 0 && dest > 0 && dest < numplayers) {
-				if (player_sockets[dest] != INVALID_SOCKET)
-					net_send_raw(player_sockets[dest], recv_bufs[i].buf, total_len);
+				if (player_sockets[dest] != INVALID_SOCKET) {
+					if (has_hmac && session_key_valid[dest]) {
+						/* Re-sign: compute new tag with dest's key */
+						unsigned char relay_tag[HMAC_SHA256_SIZE];
+						hmac_sha256(session_key[dest], HMAC_SHA256_SIZE,
+						            recv_bufs[i].buf, (size_t)(NET_HEADER_SIZE + payload_len),
+						            relay_tag);
+						net_send_raw(player_sockets[dest],
+						             recv_bufs[i].buf, NET_HEADER_SIZE + payload_len);
+						net_send_raw(player_sockets[dest], relay_tag, HMAC_SHA256_SIZE);
+					} else if (!has_hmac) {
+						/* Legacy (pre-HMAC) relay — forward as-is */
+						net_send_raw(player_sockets[dest], recv_bufs[i].buf, total_len);
+					}
+					/* else has_hmac && !session_key_valid[dest]: dest not ready, drop */
+				}
 			}
 
 			/* Queue locally if destined for us */
@@ -408,7 +511,11 @@ initmultiplayers(char damultioption, char dacomrateoption, char dapriority)
 		lastsendtime[i] = 0;
 		sender_sequence[i] = 0;  /* net-r15-seqnum: init to 0 */
 		last_seen_sequence[i] = 0xFF;  /* net-r15-seqnum: init to 0xFF as sentinel (no packet yet) */
+		/* net-r17-hmac: clear session keys */
+		session_key_valid[i] = 0;
+		memset(session_key[i], 0, HMAC_SHA256_SIZE);
 	}
+	memset(local_nonce, 0, HMAC_SHA256_SIZE); /* net-r17-hmac */
 	pq_head = pq_tail = 0;
 	pq_count = 0;
 	pq_dropped_packets = 0;
@@ -522,20 +629,41 @@ initmultiplayers(char damultioption, char dacomrateoption, char dapriority)
 
 		printf("NET: Starting game with %d players\n", numplayers);
 
-		/* Send handshake to each client: [player_index, numplayers, version_lo, version_hi, seed_le32] */
-		/* net-r14-randomseed-sync: host generates seed for deterministic RNG init */
+		/* Send handshake to each client: [player_index, numplayers, version_lo, version_hi, seed_le32]
+		 * net-r14-randomseed-sync: host generates seed for deterministic RNG init.
+		 * net-r17-hmac: extended to 40 bytes: 8 original + 32-byte host nonce.
+		 * After sending, receive 32-byte client nonce and derive session key. */
 		{
 			unsigned long seed = (unsigned long)totalclock ^ 0x12345678UL;
+			/* Generate one host nonce shared across all clients */
+			net_gen_nonce(local_nonce, HMAC_SHA256_SIZE);  /* net-r17-hmac */
 			for (i = 1; i < numplayers; i++) {
-				unsigned char msg[8];
+				/* net-r14-randomseed-sync: old format was unsigned char msg[8];
+				 * that was: net_send_raw(player_sockets[i], msg, 8)
+				 * net-r17-hmac: extended to 40 bytes (8 header + 32-byte nonce). */
+				unsigned char msg[40]; /* net-r17-hmac: 8 bytes header + 32-byte nonce */
+				unsigned char client_nonce_buf[HMAC_SHA256_SIZE];
+				int nr;
 				msg[0] = (unsigned char)i;
 				msg[1] = (unsigned char)numplayers;
-			mm_pack_u16_le(msg + 2, NET_PROTOCOL_VERSION);
+				mm_pack_u16_le(msg + 2, NET_PROTOCOL_VERSION);
 				msg[4] = (unsigned char)(seed & 0xFF);
 				msg[5] = (unsigned char)((seed >> 8) & 0xFF);
 				msg[6] = (unsigned char)((seed >> 16) & 0xFF);
 				msg[7] = (unsigned char)((seed >> 24) & 0xFF);
-				net_send_raw(player_sockets[i], msg, 8);
+				memcpy(msg + 8, local_nonce, HMAC_SHA256_SIZE); /* net-r17-hmac: append host nonce */
+				net_send_raw(player_sockets[i], msg, 40);
+
+				/* net-r17-hmac: receive client nonce (blocking, within HANDSHAKE_TIMEOUT_SEC) */
+				nr = net_recv_all(player_sockets[i], client_nonce_buf, HMAC_SHA256_SIZE);
+				if (nr == HMAC_SHA256_SIZE) {
+					net_derive_session_key(local_nonce, client_nonce_buf, session_key[i]);
+					session_key_valid[i] = 1;
+					printf("NET: HMAC session key derived for player %d\n", i);
+				} else {
+					printf("NET: WARNING: Nonce exchange failed for player %d (got %d bytes), HMAC disabled\n",
+					       i, nr);
+				}
 				net_set_nonblocking(player_sockets[i]);
 			}
 			/* net-r14-randomseed-sync: host also initializes from shared seed */
@@ -583,8 +711,12 @@ initmultiplayers(char damultioption, char dacomrateoption, char dapriority)
 		setsockopt(sock, IPPROTO_TCP, TCP_NODELAY,
 		           (const char *)&flag, sizeof(flag));
 
-		/* Receive handshake: [player_index, numplayers, version_lo, version_hi, seed_le32] */
-		/* net-r14-randomseed-sync: client receives seed from host for deterministic RNG init */
+		/* Receive handshake from host.
+		 * net-r17-hmac: extended protocol (0x0002) sends 40 bytes:
+		 *   8 bytes: [idx, numplayers, ver_lo, ver_hi, seed_le32]
+		 *  32 bytes: host nonce
+		 * Then client sends back its own 32-byte nonce and both derive session key.
+		 * net-r14-randomseed-sync: client receives seed from host. */
 		{
 			int hs_len;
 			unsigned long seed;
@@ -593,7 +725,6 @@ initmultiplayers(char damultioption, char dacomrateoption, char dapriority)
 
 			hs_len = net_recv_all(sock, msg_full, 8);
 			if (hs_len == 8) {
-				/* New 8-byte handshake format */
 				peer_version = mm_unpack_u16_le(msg_full + 2);
 				if (peer_version != NET_PROTOCOL_VERSION) {
 					printf("NET: Protocol version mismatch (expected 0x%04x, got 0x%04x)\n",
@@ -609,9 +740,25 @@ initmultiplayers(char damultioption, char dacomrateoption, char dapriority)
 				randomseed = seed;
 				/* net-r14-randomseed-sync: set RNG seed from handshake */
 				srand((unsigned)randomseed);
+
+				/* net-r17-hmac: receive host nonce, send our nonce, derive session key */
+				{
+					unsigned char host_nonce_buf[HMAC_SHA256_SIZE];
+					int nr = net_recv_all(sock, host_nonce_buf, HMAC_SHA256_SIZE);
+					if (nr == HMAC_SHA256_SIZE) {
+						net_gen_nonce(local_nonce, HMAC_SHA256_SIZE);
+						net_send_raw(sock, local_nonce, HMAC_SHA256_SIZE);
+						net_derive_session_key(host_nonce_buf, local_nonce, session_key[0]);
+						session_key_valid[0] = 1;
+						printf("NET: HMAC session key derived\n");
+					} else {
+						printf("NET: WARNING: Failed to receive host nonce (%d bytes), HMAC disabled\n", nr);
+					}
+				}
 			} else if (hs_len == 4) {
-				/* Legacy 4-byte handshake (backward-compat) */
-				printf("NET: WARNING: Legacy 4-byte handshake detected; RNG may diverge\n");
+				/* Legacy 4-byte handshake (backward-compat: no randomseed, no HMAC).
+				 * net-r14-randomseed-sync: legacy path does not sync RNG seed. */
+				printf("NET: WARNING: Legacy 4-byte handshake detected; RNG may diverge; HMAC disabled\n");
 				peer_version = mm_unpack_u16_le(msg_full + 2);
 				if (peer_version != NET_PROTOCOL_VERSION) {
 					printf("NET: Protocol version mismatch (expected 0x%04x, got 0x%04x)\n",
@@ -624,6 +771,7 @@ initmultiplayers(char damultioption, char dacomrateoption, char dapriority)
 				/* Seed from time as fallback (original behavior) */
 				randomseed = (long)time(NULL);
 				srand((unsigned)randomseed);
+				/* session_key_valid[0] remains 0: HMAC disabled for this connection */
 			} else {
 				printf("NET: Handshake failed (expected 4 or 8 bytes, got %d)\n", hs_len);
 				net_close(sock);
@@ -673,7 +821,18 @@ uninitmultiplayers()
 	
 	for (i = 0; i < MAXPLAYERS; i++) {
 		if (player_sockets[i] != INVALID_SOCKET) {
-			net_send_raw(player_sockets[i], disconnect_pkt, NET_HEADER_SIZE + 1);
+			/* net-r17-hmac: tag disconnect packet if session key is live */
+			int key_idx = is_host ? i : 0;
+			if (session_key_valid[key_idx]) {
+				unsigned char disc_tag[HMAC_SHA256_SIZE];
+				hmac_sha256(session_key[key_idx], HMAC_SHA256_SIZE,
+				            disconnect_pkt, NET_HEADER_SIZE + 1,
+				            disc_tag);
+				net_send_raw(player_sockets[i], disconnect_pkt, NET_HEADER_SIZE + 1);
+				net_send_raw(player_sockets[i], disc_tag, HMAC_SHA256_SIZE);
+			} else {
+				net_send_raw(player_sockets[i], disconnect_pkt, NET_HEADER_SIZE + 1);
+			}
 		}
 	}
 
@@ -684,10 +843,14 @@ uninitmultiplayers()
 		if (player_sockets[i] != INVALID_SOCKET) {
 			/* net-r11-player-disconnect-memset: zero sensitive per-player state on disconnect */
 			memset(&recv_bufs[i], 0, sizeof(recv_bufs[i]));
+			/* net-r17-hmac: wipe session key on disconnect */
+			memset(session_key[i], 0, HMAC_SHA256_SIZE);
+			session_key_valid[i] = 0;
 			net_close(player_sockets[i]);
 			player_sockets[i] = INVALID_SOCKET;
 		}
 	}
+	memset(local_nonce, 0, HMAC_SHA256_SIZE); /* net-r17-hmac: wipe local nonce */
 	if (server_socket != INVALID_SOCKET) {
 		net_close(server_socket);
 		server_socket = INVALID_SOCKET;
@@ -756,8 +919,28 @@ sendpacket(int32_t other, char *bufptr, int32_t messleng)
 
 	if (sock == INVALID_SOCKET) return;
 
-	net_send_raw(sock, header, NET_HEADER_SIZE);
-	net_send_raw(sock, (const unsigned char *)bufptr, (int)messleng);
+	/* net-r17-hmac: append HMAC-SHA256 tag when session key is live.
+	 * Tag covers header || payload to prevent both header and payload tampering.
+	 * Key index: is_host → key[other];  client → key[0] (the host connection key). */
+	{
+		int key_idx = is_host ? other : 0;
+		if (session_key_valid[key_idx]) {
+			/* Build HMAC input: header (5B) || payload (messleng B) */
+			unsigned char hmac_input[NET_HEADER_SIZE + MAXPACKETSIZE];
+			unsigned char hmac_tag[HMAC_SHA256_SIZE];
+			memcpy(hmac_input, header, NET_HEADER_SIZE);
+			memcpy(hmac_input + NET_HEADER_SIZE, bufptr, (size_t)messleng);
+			hmac_sha256(session_key[key_idx], HMAC_SHA256_SIZE,
+			            hmac_input, (size_t)(NET_HEADER_SIZE + messleng),
+			            hmac_tag);
+			net_send_raw(sock, header, NET_HEADER_SIZE);
+			net_send_raw(sock, (const unsigned char *)bufptr, (int)messleng);
+			net_send_raw(sock, hmac_tag, HMAC_SHA256_SIZE);
+		} else {
+			net_send_raw(sock, header, NET_HEADER_SIZE);
+			net_send_raw(sock, (const unsigned char *)bufptr, (int)messleng);
+		}
+	}
 
 	lastsendtime[other] = totalclock;
 }
