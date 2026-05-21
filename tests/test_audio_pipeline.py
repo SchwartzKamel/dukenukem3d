@@ -1554,3 +1554,138 @@ class TestSoundManifestPydanticSchema:
         error_str = str(exc_info.value)
         assert 'cross-field' in error_str.lower() or \
                ('engine_sound_id' in error_str and 'engine_sound_id_int' in error_str)
+
+
+class TestAtomicWriteHardening:
+    """Test atomic write functions with fsync for power-loss protection.
+    
+    # sec-r18-atomic-write-hardening: comprehensive atomic write tests
+    """
+    
+    def test_atomic_write_bytes_creates_file(self):
+        """_atomic_write_bytes should create a file with the correct content."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = os.path.join(tmpdir, "test.bin")
+            data = b"Hello, World!"
+            
+            generate_audio._atomic_write_bytes(path, data)
+            
+            assert os.path.exists(path), "File should exist after write"
+            with open(path, "rb") as f:
+                content = f.read()
+            assert content == data, "File content should match written data"
+    
+    def test_atomic_write_bytes_no_tmp_file_on_success(self):
+        """_atomic_write_bytes should clean up temp file after successful write."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = os.path.join(tmpdir, "test.bin")
+            data = b"Test data"
+            
+            generate_audio._atomic_write_bytes(path, data)
+            
+            # Check that .tmp file doesn't exist
+            tmp_path = path + ".tmp"
+            assert not os.path.exists(tmp_path), \
+                f"Temp file {tmp_path} should be cleaned up after successful write"
+    
+    def test_atomic_write_bytes_partial_write_not_visible(self):
+        """_atomic_write_bytes should not leave partial file at final path on error."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = os.path.join(tmpdir, "test.bin")
+            
+            # Write initial file
+            generate_audio._atomic_write_bytes(path, b"Original content")
+            
+            # Try to write to a non-existent parent directory (this will fail)
+            bad_path = os.path.join(tmpdir, "nonexistent_dir", "test.bin")
+            try:
+                generate_audio._atomic_write_bytes(bad_path, b"Should fail")
+            except OSError:
+                pass  # Expected
+            
+            # Original file should remain unchanged
+            with open(path, "rb") as f:
+                content = f.read()
+            assert content == b"Original content", \
+                "Original file should not be corrupted after failed write"
+    
+    def test_atomic_write_bytes_uses_fsync(self):
+        """_atomic_write_bytes should call os.fsync for durability."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = os.path.join(tmpdir, "test.bin")
+            data = b"Data with fsync"
+            
+            # Monkey-patch os.fsync to verify it's called
+            original_fsync = os.fsync
+            fsync_called = []
+            
+            def mock_fsync(fd):
+                fsync_called.append(fd)
+                return original_fsync(fd)
+            
+            os.fsync = mock_fsync
+            try:
+                generate_audio._atomic_write_bytes(path, data)
+                assert len(fsync_called) > 0, \
+                    "os.fsync should be called for durability"
+            finally:
+                os.fsync = original_fsync
+    
+    def test_atomic_write_json_creates_valid_json(self):
+        """_atomic_write_json should create a valid JSON file."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = os.path.join(tmpdir, "test.json")
+            obj = {"key": "value", "number": 42}
+            
+            generate_audio._atomic_write_json(path, obj)
+            
+            assert os.path.exists(path), "JSON file should exist after write"
+            with open(path, "r") as f:
+                loaded = json.load(f)
+            assert loaded == obj, "Loaded JSON should match original object"
+    
+    def test_atomic_write_json_respects_kwargs(self):
+        """_atomic_write_json should pass kwargs like indent and sort_keys to json.dumps."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = os.path.join(tmpdir, "test.json")
+            obj = {"z": 1, "a": 2}
+            
+            generate_audio._atomic_write_json(path, obj, indent=2, sort_keys=True)
+            
+            with open(path, "r") as f:
+                content = f.read()
+            
+            # Check that keys are sorted (indent and sort_keys worked)
+            assert content.find('"a"') < content.find('"z"'), \
+                "Keys should be sorted when sort_keys=True"
+            assert "\n" in content, \
+                "Content should be indented when indent=2"
+    
+    def test_atomic_write_json_no_tmp_file_on_success(self):
+        """_atomic_write_json should clean up temp file after successful write."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = os.path.join(tmpdir, "test.json")
+            obj = {"key": "value"}
+            
+            generate_audio._atomic_write_json(path, obj)
+            
+            # Check that .tmp file doesn't exist
+            tmp_path = path + ".tmp"
+            assert not os.path.exists(tmp_path), \
+                f"Temp file {tmp_path} should be cleaned up after successful write"
+    
+    def test_atomic_write_bytes_overwrites_existing_file(self):
+        """_atomic_write_bytes should overwrite existing file atomically."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = os.path.join(tmpdir, "test.bin")
+            
+            # Write initial file
+            generate_audio._atomic_write_bytes(path, b"Old content here")
+            
+            # Overwrite with new content
+            generate_audio._atomic_write_bytes(path, b"New")
+            
+            with open(path, "rb") as f:
+                content = f.read()
+            assert content == b"New", \
+                "File should be overwritten atomically"

@@ -14,6 +14,7 @@ import os
 import subprocess
 import shutil
 from pathlib import Path
+import pytest
 
 
 class TestInstallHooks:
@@ -127,7 +128,6 @@ if __name__ == "__main__":
         pytest.main([__file__, "-v"])
     else:
         # Manual fallback test
-        import sys
         test = TestInstallHooks()
         
         print("Running test_install_hooks_script_exists_and_is_executable...")
@@ -135,7 +135,6 @@ if __name__ == "__main__":
             test.test_install_hooks_script_exists_and_is_executable()
             print("✓ PASSED")
         except AssertionError as e:
-            print(f"✗ FAILED: {e}")
-            sys.exit(1)
+            pytest.fail(f"test_install_hooks_script_exists_and_is_executable failed: {e}")
         
         print("\nAll manual tests passed!")

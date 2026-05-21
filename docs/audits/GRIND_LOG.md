@@ -2573,3 +2573,53 @@ Recommendation: leave for now, surface in next session. Adding tighter "NEVER ca
 - `audio-r17-pydantic-cross-field-consistency` — already closed cycle 70.
 
 **Human-attention items:** None this cycle. (Standing sec-r17 unauthorized commits 0296200 + 6c236443 from cycle 66 still in history.)
+
+---
+
+## 2026-05-21T02:15Z — Cycle 73 audit-pass (documentation-curator r18 + performance-profiler r18)
+
+**Dispatched:**
+- `docs-r18-audit` (Haiku, v7) → **EXCELLENT verdict: 0 CRITICAL, 1 MEDIUM drift, 1 LOW index maintenance, 2 NEW todos**
+- `perf-r18-audit` (Haiku, v7) → **EXCELLENT verdict: 0 CRITICAL, 7 findings, 2 NEW todos, 36% wallclock improvement sustained**
+
+**docs-r18 Summary:**
+- All 4 r17 remediation todos CLOSED: NET_HEADER_SIZE cycle 70 fix ✅, compat/net_socket documented in compat/README.md ✅, compat/README.md CREATED (150L) ✅, tools/README.md CREATED (180L) ✅
+- NEW compat/README.md: comprehensive (16 files indexed, net_socket status, endianness, testing, archival, cross-refs)
+- NEW tools/README.md: comprehensive (33+ scripts indexed by domain, format encoders, CI integration, memory invariants)
+- **MEDIUM DRIFT:** Both NEW files lack cross-references from top-level README.md + ARCHITECTURE.md; discoverability gap identified
+- Cycle 70 Build & Portability Invariants (10 A–J) verified LIVE ✅
+- Cross-doc links: 8/8 valid ✅; personas: 10/10 present ✅; markdown: clean (0 typos) ✅; TODO/FIXME: 0 doc-level ✅
+- SUMMARY.md r-level index: documentation-curator r17→r18 link added; test-engineer + security-and-secrets r18 already indexed from cycle 72
+
+**perf-r18 Summary (Cycle 73 DOC-ONLY re-measurement):**
+- ✅ **WALLCLOCK IMPROVEMENT SUSTAINED:** 23.64s avg (3 runs: 23.53s, 23.52s, 23.86s) = **-36% vs. r17 baseline (36–39s), -9% vs cycle-72 (25.91s)**. Growth +46 tests (1188→1234, +3.9%) absorbed within xdist budget; zero per-test cost increase
+- ✅ **Atomic-write fsync overhead ACCEPTABLE:** Cycle-70 generate_assets.py + cycle-72 generate_audio.py fsync: ~2–4ms per call, ~50ms total per full regen. CI-only impact, negligible
+- ✅ **Frame analyzer parametrization [1,3,5] STABLE:** 17.15s cumulative (73% slowest-20), cost unchanged; consolidated design VERIFIED complete per r16 contract
+- ✅ **xdist distribution VERIFIED CLEAN:** 1234 tests, 0 new race conditions; 31 @pytest.mark.slow tests, 8 @pytest.mark.playtest tests identified
+- ✅ **Build time STABLE:** 17.29s (vs r16 baseline 17.07s, +1.3% negligible). LTO plateau maintained
+- ⚠️ **Slow test marking HYGIENE GAP:** test_build_lto_warnings (15.86s, slowest single test, 67% of next) unmarked; @pytest.mark.playtest semantics undocumented
+- ⚠️ **CONTRIBUTING.md SPRAWL:** 855 lines (+25.7% since r16, +175 lines cycles 70–73 GRP Determinism Contract). Nesting 4–5 levels acceptable but approaching 1000-line split threshold
+
+**Persona freshness after cycle 73:**
+- documentation-curator: **r18** (FRESH) ✅
+- performance-profiler: **r18** (FRESH) ✅
+- test-engineer: r18 @ cycle 72 ✅
+- security-and-secrets: r18 @ cycle 72 (v7-clean) ✅ ⭐
+- engine-porter: r18 @ cycle 67
+- asset-pipeline: r18 @ cycle 67
+- audio-engineer: r17 @ cycle 69
+- build-system: r18 @ cycle 68
+- network-multiplayer: r16 @ cycle 71
+- compat-layer: r17 @ cycle 71
+
+**New todos seeded (cycle 73 r18 findings):**
+- docs-r18 (2 NEW): `docs-r18-cross-reference-new-readmes` (MEDIUM), `docs-r18-summary-r-level-update` (LOW)
+- perf-r18 (2 NEW): `perf-r18-slow-test-marking-hygiene` (MEDIUM), `perf-r18-contributing-documentation-scaling-advisory` (MEDIUM)
+
+**Backlog delta:** ~324 → ~328 pending (+4 intake, 0 closures).
+
+**Test count:** 1234 collected (1197 passed, 35 skipped, 2 xfailed). Build green (17.29s).
+
+**Next audit-pass targets (cycle 74):** engine-porter r19 + audio-engineer r18 (both 5-6 cycles stale @ cycle 67-69).
+
+**Human-attention items:** None this cycle.

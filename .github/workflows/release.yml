@@ -85,9 +85,9 @@ jobs:
           AUDIO_MODEL: ${{ secrets.AUDIO_MODEL }}
         run: bash tools/ci/generate_assets.sh --ai
       
-       - name: Validate generated artifacts
-         if: matrix.target == 'linux'
-         run: python3 tools/validate_generated_artifacts.py --sets textures grp maps scripts
+      - name: Validate generated artifacts
+        if: matrix.target == 'linux'
+        run: python3 tools/validate_generated_artifacts.py --sets textures grp maps scripts
 
       - name: Package Linux release
         if: matrix.target == 'linux'
@@ -113,11 +113,11 @@ jobs:
           cp duke3d.exe DUKE3D.GRP README.md duke3d_launcher.bat $PKGDIR/
           bash tools/bundle_windows.sh $PKGDIR
           ls -la $PKGDIR/
-       - name: Validate generated artifacts
-         if: matrix.target == 'windows'
-         run: python3 tools/validate_generated_artifacts.py --sets textures grp maps scripts
-
-          zip -r duke3d-${{ github.ref_name }}-windows-x86.zip $PKGDIR/
+           zip -r duke3d-${{ github.ref_name }}-windows-x86.zip $PKGDIR/
+      
+      - name: Validate generated artifacts
+        if: matrix.target == 'windows'
+        run: python3 tools/validate_generated_artifacts.py --sets textures grp maps scripts
       
       - name: Upload release artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

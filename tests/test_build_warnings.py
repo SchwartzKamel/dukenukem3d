@@ -8,7 +8,7 @@ This test helps prevent regression of issues fixed in build-r16-lto-type-mismatc
 
 import subprocess
 import re
-import sys
+import pytest
 import os
 
 def run_build():
@@ -49,20 +49,11 @@ def test_build_lto_warnings():
     print(f"LTO type-mismatch warnings found: {warning_count}")
     print(f"Baseline (max allowed): {baseline}")
     
-    if warning_count > baseline:
-        print("\n❌ FAILURE: LTO type-mismatch warnings exceeded baseline")
-        print("\nWarnings detected:")
-        for line in output.split('\n'):
-            if 'lto-type-mismatch' in line.lower():
-                print(f"  {line}")
-        sys.exit(1)
-    
     print("✅ PASS: Build has no LTO type-mismatch warnings")
-    assert warning_count <= baseline, f"Found {warning_count} LTO warnings, expected ≤ {baseline}"
+    assert warning_count <= baseline, f"Found {warning_count} LTO warnings, expected ≤ {baseline} — Warnings detected: {[line for line in output.split(chr(10)) if 'lto-type-mismatch' in line.lower()]}"
 
 if __name__ == '__main__':
     try:
         test_build_lto_warnings()
     except Exception as e:
-        print(f"❌ Test failed with error: {e}", file=sys.stderr)
-        sys.exit(1)
+        pytest.fail(f"Test failed with error: {e}")

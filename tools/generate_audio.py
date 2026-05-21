@@ -48,11 +48,16 @@ def _atomic_write_bytes(path: str, data: bytes) -> None:
     This ensures that if the process is killed or hits an error mid-write,
     the original file (if it exists) is left untouched rather than corrupted.
     Uses POSIX atomic rename within the same filesystem.
+    Includes fsync() for extra durability against power loss / process kill.
+    
+    # sec-r18-atomic-write-hardening: fsync for power-loss protection
     """
     tmp_path = path + ".tmp"
     try:
         with open(tmp_path, "wb") as f:
             f.write(data)
+            f.flush()
+            os.fsync(f.fileno())
         os.replace(tmp_path, path)
     except OSError:
         # Clean up temp file on error to avoid leaving stray .tmp files
@@ -61,6 +66,19 @@ def _atomic_write_bytes(path: str, data: bytes) -> None:
         except OSError:
             pass
         raise
+
+
+def _atomic_write_json(path: str, obj: dict, **json_kwargs) -> None:
+    """Write a dict to JSON file atomically.
+    
+    Serializes obj to JSON and writes atomically using tmp+rename pattern
+    with fsync for durability. Any keyword arguments (indent, sort_keys, etc.)
+    are passed to json.dumps().
+    
+    # sec-r18-atomic-write-hardening: atomic JSON writes
+    """
+    json_str = json.dumps(obj, **json_kwargs)
+    _atomic_write_bytes(path, json_str.encode("utf-8"))
 
 
 def _sha256_of_file(path):  # asset-r13-manifest-checksums: per-file checksum
@@ -513,12 +531,9 @@ def main():
     
     manifest_path = os.path.join(OUTPUT_DIR, "MANIFEST.json")
     try:
-        # Write to a temp file first then rename so a partial write never
-        # corrupts an existing manifest (audit-audio-manifest-write-error).
-        tmp_path = manifest_path + ".tmp"
-        with open(tmp_path, "w") as f:
-            json.dump(manifest_to_write, f, indent=2, sort_keys=True)
-        os.replace(tmp_path, manifest_path)
+        # Write manifest atomically with fsync for durability
+        # # sec-r18-atomic-write-hardening: manifest write with fsync
+        _atomic_write_json(manifest_path, manifest_to_write, indent=2, sort_keys=True)
         print(f"\n=== Manifest written to {manifest_path} ===")
     except OSError as exc:
         print(f"\n[ERROR] Failed to write manifest at {manifest_path}: {exc}",
