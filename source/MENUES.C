@@ -1199,7 +1199,8 @@ saveplayer(signed char spot)
 
      if(ud.multimode < 2)
      {
-         strcpy(&fta_quotes[122],"GAME SAVED");
+         strncpy(&fta_quotes[122],"GAME SAVED",sizeof(fta_quotes[122])-1);
+         fta_quotes[122][sizeof(fta_quotes[122])-1] = '\0';
          FTA(122,&ps[myconnectindex]);
      }
 

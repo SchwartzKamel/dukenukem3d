@@ -227,6 +227,112 @@ class TestCreatePlaceholderAnm:
             assert len(anm) > 0xB00, f"Too small for: {text}"
 
 
+class TestCreateAnmFileIO:
+    """Test ANM file I/O round-trip operations."""
+
+    def test_anm_file_roundtrip_via_tmp_path(self, tmp_path):
+        """ANM file written and read back should match original."""
+        frame = bytes(64000)
+        palette = [(i, i, i) for i in range(256)]
+        anm_data = create_anm([frame], palette, fps=20)
+        
+        # Write to temp file
+        test_file = tmp_path / "test.anm"
+        test_file.write_bytes(anm_data)
+        
+        # Read back
+        read_data = test_file.read_bytes()
+        assert read_data == anm_data
+        assert len(read_data) == len(anm_data)
+
+    def test_anm_multiple_frames_roundtrip(self, tmp_path):
+        """Multiple-frame ANM should roundtrip via file I/O."""
+        frames = [bytes([i % 256] * 64000) for i in range(3)]
+        palette = [(i, i, i) for i in range(256)]
+        anm_data = create_anm(frames, palette, fps=12)
+        
+        test_file = tmp_path / "multi.anm"
+        test_file.write_bytes(anm_data)
+        read_data = test_file.read_bytes()
+        
+        # Verify header structure is preserved
+        assert read_data[:4] == b"LPF "
+        assert read_data[16:20] == b"ANIM"
+        n_records = struct.unpack_from("<I", read_data, 8)[0]
+        assert n_records == len(frames) + 1
+
+    def test_anm_palette_roundtrip(self, tmp_path):
+        """Custom palette should be preserved through file roundtrip."""
+        frame = bytes(64000)
+        palette = [(255, 0, 0)] * 128 + [(0, 255, 0)] * 128
+        anm_data = create_anm([frame], palette)
+        
+        test_file = tmp_path / "palette.anm"
+        test_file.write_bytes(anm_data)
+        read_data = test_file.read_bytes()
+        
+        # Verify first two palette entries
+        assert read_data[0x100] == 0    # B of (255,0,0)
+        assert read_data[0x101] == 0    # G
+        assert read_data[0x102] == 255  # R
+        assert read_data[0x100 + 128*4] == 0    # B of (0,255,0)
+        assert read_data[0x101 + 128*4] == 255  # G
+        assert read_data[0x102 + 128*4] == 0    # R
+
+    def test_anm_large_file_sizes(self, tmp_path):
+        """Verify large ANM files with multiple pages work."""
+        # Create frames with varied content to prevent extreme compression
+        frames = []
+        for i in range(5):
+            frame = bytearray(64000)
+            for j in range(0, 64000, 50):
+                frame[j] = (i + j) % 256
+            frames.append(bytes(frame))
+        
+        palette = [(i, i, i) for i in range(256)]
+        anm_data = create_anm(frames, palette)
+        
+        test_file = tmp_path / "large.anm"
+        test_file.write_bytes(anm_data)
+        read_data = test_file.read_bytes()
+        
+        # With multiple frames, file should be substantial
+        assert len(read_data) > 0xB00  # At least header + one page
+        assert read_data[:4] == b"LPF "
+
+
+class TestCreateAnmEdgeCases:
+    """Test edge cases and boundary conditions."""
+
+    def test_anm_single_pixel_frame(self):
+        """Single unique pixel value in frame should compress well."""
+        frame = bytes([42] * 64000)
+        palette = [(0, 0, 0)] * 256
+        anm_data = create_anm([frame], palette)
+        assert anm_data[:4] == b"LPF "
+        # Compressed single-color frame should be relatively small
+        assert len(anm_data) < 100000
+
+    def test_anm_complex_frame(self):
+        """Frame with all 256 palette colors should handle correctly."""
+        frame = bytearray(64000)
+        for i in range(256):
+            for j in range(64000 // 256):
+                frame[i * (64000 // 256) + j] = i
+        palette = [(i, i, i) for i in range(256)]
+        anm_data = create_anm([bytes(frame)], palette)
+        assert anm_data[:4] == b"LPF "
+
+    def test_anm_fps_values(self):
+        """Various FPS values should be stored correctly."""
+        frame = bytes(64000)
+        palette = [(0, 0, 0)] * 256
+        for fps_val in [1, 10, 30, 60]:
+            anm_data = create_anm([frame], palette, fps=fps_val)
+            fps_stored = struct.unpack_from("<H", anm_data, 68)[0]
+            assert fps_stored == fps_val
+
+
 def _decompress_rsd(compressed: bytes, expected_size: int) -> bytes:
     """Reference RunSkipDump decompressor matching CPlayRunSkipDump()."""
     dst = bytearray(expected_size)

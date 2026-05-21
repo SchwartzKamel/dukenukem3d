@@ -8847,7 +8847,8 @@ char domovethings(void)
             }
             else
             {
-                strcpy(&fta_quotes[122],"MULTIPLAYER GAME SAVED");
+                strncpy(&fta_quotes[122],"MULTIPLAYER GAME SAVED",sizeof(fta_quotes[122])-1);
+                fta_quotes[122][sizeof(fta_quotes[122])-1] = '\0';
                 FTA(122,&ps[myconnectindex]);
             }
             break;
@@ -8869,7 +8870,8 @@ char domovethings(void)
                 }
                 else
                 {
-                    strcpy(&fta_quotes[122],"MULTIPLAYER GAME LOADED");
+                    strncpy(&fta_quotes[122],"MULTIPLAYER GAME LOADED",sizeof(fta_quotes[122])-1);
+                    fta_quotes[122][sizeof(fta_quotes[122])-1] = '\0';
                     FTA(122,&ps[myconnectindex]);
                 }
                 return 1;

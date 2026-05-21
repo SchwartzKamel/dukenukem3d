@@ -394,6 +394,44 @@ Manifest integrity is verified on load (`tools/manifest_verification.py`) to cat
 
 This ensures that any unintended deviation from the determinism contract is caught immediately.
 
+## TABLES.DAT Determinism Contract
+
+### Overview
+
+TABLES.DAT is a binary file containing precomputed lookup tables (sine, radar, brightness, fonts) used by the game engine for rendering and audio. It is generated deterministically by `tools/generate_tables.py` and must be **bit-identical** across runs and platforms given identical table source code.
+
+### Generation & Format
+
+TABLES.DAT is generated with:
+
+```bash
+python3 tools/generate_tables.py          # Default (current timestamp)
+python3 tools/generate_tables.py --deterministic  # CI mode (fixed 1970-01-01T00:00:00Z timestamp)
+```
+
+The binary output is written to `generated_assets/TABLES.DAT` via atomic write (tmp+rename with fsync, mirroring the GRP pattern). A corresponding manifest (`TABLES_MANIFEST.json`) records metadata and checksums.
+
+### Determinism Guarantees
+
+- **No random seeds**: All tables are computed deterministically from fixed algorithms
+- **Ordered iteration**: Table list is hardcoded as `["sine", "radar", "brightness", "fonts"]` (alphabetical, deterministic order)
+- **Atomic writes**: Uses `_atomic_write_bytes()` (lines 27–50 in `generate_tables.py`) with POSIX atomic rename and fsync to ensure partial writes never corrupt the file
+- **Manifest integrity**: SHA256 checksums (per-file and manifest-level) verify integrity; manifest is also written atomically
+
+### Verification: Checking Determinism Locally
+
+```bash
+python3 tools/generate_tables.py --deterministic
+sha256sum generated_assets/TABLES.DAT > checksum1.txt
+
+python3 tools/generate_tables.py --deterministic
+sha256sum generated_assets/TABLES.DAT > checksum2.txt
+
+diff checksum1.txt checksum2.txt  # Must match
+```
+
+If checksums differ, investigate changes to `tools/generate_tables.py` or the underlying `tables` module that computes the lookup tables.
+
 ## Audit & Grind Workflow
 
 This project uses an **autonomous audit-grind orchestration system** to continuously verify code quality, documentation accuracy, and security posture. Understanding this automation helps you interpret audit reports and contribute effectively.

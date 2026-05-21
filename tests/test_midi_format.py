@@ -98,3 +98,107 @@ def test_midi_all_duke_music_files():
         data = create_simple_midi(fn)
         assert data[:4] == b"MThd", f"Failed for {fn}"
         assert len(data) > 30, f"Too small for {fn}"
+
+
+class TestMidiFileIO:
+    """Test MIDI file I/O round-trip operations."""
+
+    def test_midi_file_roundtrip_via_tmp_path(self, tmp_path):
+        """MIDI file written and read back should match original."""
+        midi_data = create_simple_midi("test.mid", duration_seconds=2)
+        
+        # Write to temp file
+        test_file = tmp_path / "test.mid"
+        test_file.write_bytes(midi_data)
+        
+        # Read back
+        read_data = test_file.read_bytes()
+        assert read_data == midi_data
+        assert len(read_data) == len(midi_data)
+
+    def test_midi_varying_duration_roundtrip(self, tmp_path):
+        """Different durations should produce different files that preserve structure."""
+        for duration in [1, 3, 5]:
+            midi_data = create_simple_midi(f"test_{duration}.mid", duration_seconds=duration)
+            
+            test_file = tmp_path / f"test_{duration}.mid"
+            test_file.write_bytes(midi_data)
+            read_data = test_file.read_bytes()
+            
+            # Verify header structure
+            assert read_data[:4] == b"MThd"
+            assert read_data[-3:] == b"\xFF\x2F\x00"
+            assert len(read_data) == len(midi_data)
+
+    def test_midi_deterministic_generation(self, tmp_path):
+        """Same name should generate identical bytes every time."""
+        data1 = create_simple_midi("GRABBAG.MID", duration_seconds=2)
+        data2 = create_simple_midi("GRABBAG.MID", duration_seconds=2)
+        
+        test_file1 = tmp_path / "grab1.mid"
+        test_file2 = tmp_path / "grab2.mid"
+        test_file1.write_bytes(data1)
+        test_file2.write_bytes(data2)
+        
+        assert test_file1.read_bytes() == test_file2.read_bytes()
+
+    def test_midi_multiple_files_different_sizes(self, tmp_path):
+        """Different names and durations should produce different file sizes."""
+        files = [
+            ("test1.mid", 1),
+            ("test2.mid", 3),
+            ("different.mid", 2),
+        ]
+        sizes = []
+        for name, duration in files:
+            midi_data = create_simple_midi(name, duration_seconds=duration)
+            test_file = tmp_path / name
+            test_file.write_bytes(midi_data)
+            sizes.append(len(test_file.read_bytes()))
+        
+        # At least some size variation should exist
+        assert len(set(sizes)) > 1
+
+
+class TestMidiValidFormat:
+    """Test MIDI format validity and round-trip integrity."""
+
+    def test_midi_header_complete(self):
+        """MIDI header must have all required fields."""
+        data = create_simple_midi("test.mid")
+        assert data[:4] == b"MThd"
+        assert len(data) >= 14  # MThd(4) + length(4) + format(2) + tracks(2) + division(2)
+
+    def test_midi_track_marker_present(self):
+        """Generated MIDI must contain MTrk marker."""
+        data = create_simple_midi("test.mid", duration_seconds=2)
+        assert b"MTrk" in data
+        trk_pos = data.find(b"MTrk")
+        assert trk_pos > 0
+
+    def test_midi_valid_status_bytes(self):
+        """MIDI note-on/off status bytes should be valid."""
+        data = create_simple_midi("test.mid", duration_seconds=3)
+        # Note-on is 0x90, note-off is 0x80
+        track_start = data.find(b"MTrk") + 8
+        # Scan for note-on (0x90 range)
+        found_note_events = False
+        for i in range(track_start, len(data) - 1):
+            byte_val = data[i]
+            if (byte_val & 0xF0) == 0x90 or (byte_val & 0xF0) == 0x80:
+                found_note_events = True
+                break
+        assert found_note_events, "Should contain note-on/off events"
+
+    def test_midi_no_invalid_durations(self):
+        """Duration values should be reasonable."""
+        sizes = []
+        for duration in [0.5, 2, 5]:
+            data = create_simple_midi("test.mid", duration_seconds=duration)
+            assert data[:4] == b"MThd"
+            assert len(data) > 30
+            sizes.append(len(data))
+        # Longer durations should produce larger or equal sized files
+        assert sizes[1] >= sizes[0]
+        assert sizes[2] >= sizes[1]
+

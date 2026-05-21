@@ -255,6 +255,47 @@ See compat/audio_stub.c:417–431 for implementation.
 
 ---
 
+## MSVC Pragmas Status (Compat-R19 Clarification)
+
+**Original compat-r10 backlog item:** Create `pragmas_msvc.h` or expand compat.h MSVC section with pragma documentation.
+
+**Resolution:** ✅ **pragmas_msvc.h is not needed; MSVC pragma support is complete via compat.h.**
+
+### Findings
+
+1. **pragmas_msvc.h does NOT exist** — File not found in repository. Never created.
+
+2. **MSVC pragma support IS complete** via existing files:
+   - **compat.h (lines 20–54):** Master MSVC compatibility section
+     - `__attribute__(x)` macro substitution (GCC feature unavailable in MSVC)
+     - `__builtin_expect(expr, val)` no-op on MSVC
+     - `__restrict__` → `__restrict` (MSVC name variant)
+     - POSIX → MSVC I/O name mappings (access → \_access, alloca → \_alloca)
+   - **compat.h (line 53):** `#pragma warning(disable: 4996)` suppresses POSIX deprecation warnings (MSVC-specific)
+   - **msvc_unistd.h:** Windows I/O shims for getcwd(), chdir(), \_sopen_s
+
+3. **pragmas_gcc.h exists (520 lines)** but serves a different purpose:
+   - Replaces Watcom `#pragma aux` inline assembly declarations (GCC/Clang only)
+   - Not MSVC-specific; MSVC has different inline assembly syntax (not in compat layer)
+   - compat.h lines 582–590 document Watcom pragma handling for GCC
+
+### Design Rationale
+
+- **GNU builds (-std=gnu89):** Use pragmas_gcc.h for inline assembly performance optimizations
+- **MSVC builds:** Use compat.h MSVC section (lines 20–54) + msvc_unistd.h for Windows shims
+- **No separate pragmas_msvc.h needed** because:
+  - MSVC pragma directives are already centralized in compat.h
+  - MSVC has limited use for inline assembly in compat layer (primary use is macro shims + I/O mappings)
+  - pragmas_gcc.h is a **GCC-specific replacement** for Watcom inline asm, not a platform-level pragma guide
+
+### Cross-Reference
+
+- **compat-r10 audit:** docs/audits/compat-layer-r10.md lines 140–160 (original finding)
+- **compat-r19 audit:** docs/audits/compat-layer-r19.md lines 186–202 (clarification request)
+- **Related todo:** compat-r19-pragmas-msvc-clarify (RESOLVED in compat-r19 cycle)
+
+---
+
 ## Cross-References
 
 - **[docs/ARCHITECTURE.md § Compatibility Layer](../docs/ARCHITECTURE.md#compatibility-layer-compat)** — High-level bridge architecture

@@ -1705,10 +1705,10 @@ class TestSoundManifestSchemaVersion:
     """
     
     def test_load_and_verify_audio_manifest_missing_schema_version_raises(self):
-        """load_and_verify_audio_manifest() raises ValueError for missing schema_version.
+        """load_and_verify_audio_manifest() defaults to schema_version='1.0' for legacy manifests.
         
-        asset-r19-sound-manifest-schema-version-enforcement: Enforce schema_version validation.
-        Manifests without a top-level schema_version field must raise ValueError.
+        asset-r20-manifest-verification-schema-version-default: Legacy manifests without
+        schema_version should load with a warning (defaulting to "1.0"), not raise.
         """
         with tempfile.TemporaryDirectory() as tmpdir:
             manifest_path = os.path.join(tmpdir, "MANIFEST.json")
@@ -1726,9 +1726,13 @@ class TestSoundManifestSchemaVersion:
             with open(manifest_path, "w") as f:
                 json.dump(manifest, f)
             
-            # Should raise ValueError for missing schema_version
-            with pytest.raises(ValueError, match="manifest missing required field 'schema_version'"):
-                load_and_verify_audio_manifest(manifest_path)
+            # Should load with warning, not raise (fallback to "1.0")
+            with pytest.warns(UserWarning, match="legacy manifest detected"):
+                result = load_and_verify_audio_manifest(manifest_path)
+            
+            # Verify it loaded successfully
+            assert isinstance(result, dict)
+            assert "entries" in result
     
     def test_load_and_verify_audio_manifest_unsupported_schema_version_raises(self):
         """load_and_verify_audio_manifest() raises ValueError for unsupported schema_version.
@@ -1827,3 +1831,109 @@ class TestSoundManifestSchemaVersion:
         # Verify we can import it directly
         assert lavam_direct is not None
         assert callable(lavam_direct)
+
+
+class TestSchemaVersionFallback:
+    """Test schema_version fallback for legacy manifests without the field.
+    
+    asset-r20-manifest-verification-schema-version-default: Ensure legacy manifests
+    (missing schema_version field) load with a default "1.0" and warning, while
+    explicit bad versions still raise ValueError.
+    """
+
+    def test_legacy_manifest_no_schema_version_defaults_with_warning(self):
+        """Legacy manifest without schema_version should default to '1.0' with warning."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manifest_path = os.path.join(tmpdir, "MANIFEST.json")
+            
+            # Create a legacy manifest without schema_version field
+            manifest = {
+                "entries": [
+                    {
+                        "id": "test_sound",
+                        "wav": "TEST.WAV",
+                        "name": "Test Sound"
+                    }
+                ]
+                # Note: no schema_version field
+            }
+            with open(manifest_path, "w") as f:
+                json.dump(manifest, f)
+            
+            # Create a dummy WAV file
+            wav_path = os.path.join(tmpdir, "TEST.WAV")
+            with wave.open(wav_path, "wb") as wav_file:
+                wav_file.setnchannels(1)
+                wav_file.setsampwidth(2)
+                wav_file.setframerate(16000)
+                wav_file.writeframes(b"\x00\x00" * 100)
+            
+            # Should load with warning, not raise
+            with pytest.warns(UserWarning, match="legacy manifest detected"):
+                result = load_and_verify_audio_manifest(manifest_path, tmpdir)
+            
+            # Verify the manifest was loaded
+            assert isinstance(result, dict)
+            assert "entries" in result
+            assert len(result["entries"]) == 1
+
+    def test_manifest_schema_version_1_0_loads_cleanly_without_warning(self):
+        """Manifest with explicit schema_version='1.0' should load without warning."""
+        import warnings
+        
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manifest_path = os.path.join(tmpdir, "MANIFEST.json")
+            
+            # Create a manifest with explicit schema_version="1.0"
+            manifest = {
+                "schema_version": "1.0",
+                "entries": [
+                    {
+                        "id": "pickup_sound",
+                        "wav": "PICKUP.WAV",
+                        "name": "Pickup Sound"
+                    }
+                ]
+            }
+            with open(manifest_path, "w") as f:
+                json.dump(manifest, f)
+            
+            # Create a dummy WAV file
+            wav_path = os.path.join(tmpdir, "PICKUP.WAV")
+            with wave.open(wav_path, "wb") as wav_file:
+                wav_file.setnchannels(1)
+                wav_file.setsampwidth(2)
+                wav_file.setframerate(16000)
+                wav_file.writeframes(b"\x00\x00" * 100)
+            
+            # Should load without legacy manifest warning
+            with warnings.catch_warnings(record=True) as warning_list:
+                warnings.simplefilter("always")
+                result = load_and_verify_audio_manifest(manifest_path, tmpdir)
+            
+            # Filter for legacy manifest detection warnings
+            legacy_warnings = [w for w in warning_list if "legacy manifest" in str(w.message).lower()]
+            assert len(legacy_warnings) == 0, "Should not emit legacy manifest warning for explicit schema_version"
+            
+            # Verify the manifest was loaded
+            assert isinstance(result, dict)
+            assert result.get("schema_version") == "1.0"
+            assert "entries" in result
+
+    def test_manifest_schema_version_2_0_raises_unsupported(self):
+        """Manifest with unsupported schema_version='2.0' should raise ValueError (regression guard)."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manifest_path = os.path.join(tmpdir, "MANIFEST.json")
+            
+            # Create a manifest with unsupported schema_version="2.0"
+            manifest = {
+                "schema_version": "2.0",
+                "entries": []
+            }
+            with open(manifest_path, "w") as f:
+                json.dump(manifest, f)
+            
+            # Should raise ValueError for unsupported schema_version
+            with pytest.raises(ValueError, match="unsupported schema_version: 2.0"):
+                load_and_verify_audio_manifest(manifest_path, tmpdir)
+

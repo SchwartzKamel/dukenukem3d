@@ -324,8 +324,20 @@ class TestNoAiCodePath:
         with open(manifest_path, "r") as f:
             manifest = json.load(f)
         
-        assert isinstance(manifest, list), "MANIFEST must be a JSON list"
-        assert len(manifest) > 0, "MANIFEST must not be empty"
+        # Cycle 75-76: manifest schema evolved from list to dict with
+        # schema_version, entries, manifest_checksum. Accept both shapes
+        # for legacy compatibility but assert the new fields when present.
+        if isinstance(manifest, dict):
+            assert manifest.get("schema_version") == "1.0", \
+                f"MANIFEST schema_version must be '1.0', got {manifest.get('schema_version')!r}"
+            assert "entries" in manifest and isinstance(manifest["entries"], list), \
+                "MANIFEST dict must contain an 'entries' list"
+            assert len(manifest["entries"]) > 0, "MANIFEST entries must not be empty"
+            assert "manifest_checksum" in manifest, \
+                "MANIFEST dict must contain 'manifest_checksum'"
+        else:
+            assert isinstance(manifest, list), "MANIFEST must be JSON list or dict"
+            assert len(manifest) > 0, "MANIFEST must not be empty"
 
     @pytest.mark.slow
     def test_no_ai_mode_no_api_calls(self):

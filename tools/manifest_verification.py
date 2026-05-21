@@ -96,12 +96,16 @@ def load_and_verify_audio_manifest(manifest_path: str, base_dir: str = None) -> 
         manifest = json.load(f)
     
     # Enforce schema_version validation
+    # asset-r20-manifest-verification-schema-version-default: fallback for legacy manifests
     schema_version = manifest.get("schema_version")
     if schema_version is None:
-        supported_versions = ", ".join(SUPPORTED_SCHEMA_VERSIONS)
-        raise ValueError(
-            f"manifest missing required field 'schema_version' (expected one of: {supported_versions})"
+        # Legacy manifest without schema_version: default to "1.0" with warning
+        warnings.warn(
+            "Manifest lacks schema_version field; defaulting to '1.0' (legacy manifest detected)",
+            category=UserWarning,
+            stacklevel=2
         )
+        schema_version = "1.0"
     
     if schema_version not in SUPPORTED_SCHEMA_VERSIONS:
         supported_versions = ", ".join(SUPPORTED_SCHEMA_VERSIONS)
