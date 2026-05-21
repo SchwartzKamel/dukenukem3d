@@ -5296,3 +5296,33 @@ Backlog: 468 pending / 493 done / 23 blocked.
 ### Notable
 - Cycle 117 lesson on pre-commit hook self-quote FP honored — no agent included literal `service_account`/`private_key` patterns.
 - Audio integration test agent revealed and fixed a latent conftest.py defect (`--runslow` option not registered) — explains the transient "2 failures" reported by mmulti and lzw agents during their pytest runs mid-cycle. Final tree post-c119: clean 1962/3-skip.
+
+---
+
+## Cycle 120 — 2026-05-21T13:55Z — Audit-pass quartet (mining tick, DOC-ONLY)
+
+**Dispatch**: 4 DOC-ONLY STAGING audit-pass agents on stalest 4 personas, parallel-safe. HEAD: 50b4118 (c119).
+
+| Persona | Round | Sentinel | Findings | Todos |
+|---------|-------|----------|----------|-------|
+| documentation-curator | r28 | 2f8a3e1d | 1 HIGH (index.md c119 backfill incomplete: asset-r29 + test-r28 entries missing) + 1 MED (README Roadmap SDL2_mixer marked TODO but implemented at compat/audio_stub.c:944) + 3 LOW (LZW_LENG_WARN_THRESHOLD + recv_buf_near_full hysteresis undocumented; ARCH Audit Infrastructure section incomplete) | 5 |
+| security-and-secrets | r28 | f7e3d4a2 | 2 MED (POSIX getrandom/arc4random fallback missing in net_gen_nonce SRC/MMULTI.C:315-318; SetDefaultDllDirectories documented but unimplemented) + 3 LOW (DNS endpoint hostname disclosure in error logs; GHA version audit cadence; SDL2 CVE automation escalate). Cycle-66 fake-author attribution (0296200, 6c23644) RE-CITED. | 5 |
+| network-multiplayer | r28 | a7f2c8d1 | **2 CRITICAL adoption gaps** (direct socket() at SRC/MMULTI.C:665,845 + TCP_NODELAY at L737,873 bypass net_socket abstraction) + 1 HIGH (IPv6 zone-id stripped at L810-814 breaks link-local per RFC 4007) + 4 MED (recv_buf overflow counter, IPv6 dual-stack setsockopt err check, session_key path audit, 6h multiplayer-harness epic decomposed into 3×2h subtasks: mock-host + client-sync + cleanup) | 9 |
+| performance-profiler | r29 | e7a2c491 | c117 perf cache win FULLY HELD (25.15s warm); 3 fixture amortization confirmed (now incl. sha256); palette.py quantize_image() vectorization opportunity (4-6x speedup) | 3 |
+
+### Headline findings
+- **NEW CRITICAL ×2 (network)**: socket() + TCP_NODELAY abstraction adoption gaps surfaced — directly addressable in 1-2h each.
+- **NEW HIGH ×2**: IPv6 zone-id parsing (RFC 4007 violation); index.md backfill regression from c119.
+- **Doc/sec/perf personas all show production stability** with concrete actionable mining targets (no CRITICAL).
+
+### Total new todos: 22 (across 4 personas)
+- documentation-curator: 5
+- security-and-secrets: 5
+- network-multiplayer: 9
+- performance-profiler: 3
+
+### Test count delta
+- Unchanged (DOC-ONLY pass): 1962 fast / 2040 collected — confirmed by perf agent's 25.15s warm pytest run
+
+### Staleness post-c120 audit-pass
+All 11 personas now refreshed within last 4 cycles. Stalest next: documentation-curator → tied with security/network at r28 c120. Next stalest: engine-porter r29 c118 (2 cycles ago).
