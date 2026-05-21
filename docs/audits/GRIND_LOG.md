@@ -5060,3 +5060,30 @@ After c112: ALL 11 personas now have current revisions within last 5 cycles. Aud
 ### Audit-tick (interleaved with grind)
 10 fresh todos mined into queue (build-r28 ×5, asset-r27 ×1, audio-r26 ×2, compat-r26 ×1, perf-r27 ×1) — pulled from build-system-r27, asset-pipeline-r27, audio-engineer-r26, compat-layer-r26, performance-profiler-r27 STAGING content not yet captured in queue. Backlog now 446 pending / 490 done / 23 blocked.
 
+
+---
+
+## 2026-05-21 — Cycle 114 audit-pass (4 sub-agents, DOC-ONLY)
+
+**Mode:** scheduled audit-mining tick; 4 audit-pass agents on stalest + c113-affected personas.
+
+**Baseline:** post-c113 (commit f84ec8a); pytest 1940 passed -m "not slow" / 3 skipped.
+
+### Audit-pass deliverables (4/4 landed)
+| Persona | New revision | Sentinel | Verifies | Fresh mineables |
+|---|---|---|---|---|
+| network-multiplayer | r26 | `7f3a9c2e` | c113 keepalive teardown (player_peer_addr + structured diagnostic) | 3 (cleanup-immediate MED, recv_buf-near-full LOW, ipv6-scope-id LOW) |
+| test-engineer | r27 | `a7f2c9b4` | c113 FLUX +14 tests; sanitized dummy keys | 3 (keepalive helper coverage MED, makepalookup OOB negative LOW, engine-bounds fixtures MED) |
+| engine-porter | r28 | `3a7f5e8c` | c113 4-site OOB hardening (CACHE1D/ENGINE×2/PREMAP); 8th totalclocklock re-affirmation | 3 (lzw-leng-bounds MED, allocation-multiply-safety-doc LOW, network-buffer-bounds carry-forward MED) |
+| compat-layer | r27 | `a3f7c2e9` | c113 64-site unsigned long → uint32_t migration; net_socket helper | 0 actionable (3 candidates reviewed; all out-of-scope/already-correct) |
+
+### Todos mined into queue (8 net new)
+- net-r26: keepalive-socket-cleanup-immediate (MED), recv-buf-near-full-diagnostic (LOW), ipv6-scope-id-parity-posix (LOW)
+- test-r27: net-socket-keepalive-helper-coverage (MED), makepalookup-oob-negative-palnum (LOW), engine-bounds-art-lookup-fixtures (MED)
+- engine-r28: lzw-leng-bounds-check (MED), allocation-multiply-safety-doc (LOW)
+
+(engine-r28 network-buffer-bounds is dup of existing engine-r27-network-buffer-bounds; not re-inserted.)
+
+### Persona staleness post-c114
+All 11 personas now within last 4 cycles. Backlog 458 pending / 490 done / 23 blocked. Next /audit-grind should focus on grind execution — strong queue depth on MED-severity items (lzw-leng-bounds, keepalive-cleanup-immediate, engine-bounds runtime fixtures, FLUX endpoint, joystick-sdl2, msvc-native-validation).
+
