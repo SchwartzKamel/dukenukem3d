@@ -104,6 +104,29 @@ These functions are called during setup or configuration, not during gameplay:
 
 **Next Step:** See todo **`net-r16-mmulti-adopt-net-socket-compat`** (cycle 66 grind) to integrate into MMULTI.C.
 
+### TCP Keepalive Tuning (Cycle 105, net-r22)
+
+**POSIX systems** support per-socket keepalive tuning via `net_socket_enable_keepalive()`:
+
+| Tunable | Env Var | Default | Range | Purpose |
+|---------|---------|---------|-------|---------|
+| TCP_KEEPIDLE | `DUKE_NET_KEEPIDLE` | 120 sec | 1–86400 | Time before first probe |
+| TCP_KEEPINTVL | `DUKE_NET_KEEPINTVL` | 30 sec | 1–86400 | Interval between probes |
+| TCP_KEEPCNT | `DUKE_NET_KEEPCNT` | 5 | 1–100 | Probes before timeout |
+
+**Windows** uses system-wide keepalive settings (no per-socket tuning). Environment variables are ignored on Windows.
+
+**Usage (lab/CI testing)**:
+```bash
+# Stress-test with aggressive keepalive (60s idle, 10s probe interval, 3 probes)
+DUKE_NET_KEEPIDLE=60 DUKE_NET_KEEPINTVL=10 DUKE_NET_KEEPCNT=3 ./duke3d --net-host
+
+# Or with pytest (sets env for all child processes):
+DUKE_NET_KEEPIDLE=60 python3 -m pytest tests/test_net_keepalive.py -v
+```
+
+Invalid or out-of-range values fall back to defaults (logged as WARNING). See `compat/net_socket_posix.c:118–171` for implementation.
+
 ---
 
 ## Endianness Handling

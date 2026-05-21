@@ -374,7 +374,7 @@ Porting a 1996 DOS game to modern Linux isn't for the faint of heart. Here's wha
 | **Manifest SHA256 Checksums** | Per-entry + top-level checksum in `tools/generate_tables.py` and `tools/generate_audio.py` — mutations now detectable | 46 |
 | **MAXTILES Header Unification + Abort Guard** | Cycles 41–42 unified conflicting `SRC/BUILD.H` (9216) and `source/BUILD.H` (6144) to 6144; runtime abort guard in `compat/maxtiles_guard.c` prevents future divergence | 41–42 |
 
-See [docs/ARCHITECTURE.md § Recent Improvements](#recent-improvements) for technical depth and [docs/audits/GRIND_LOG.md](docs/audits/GRIND_LOG.md) for cycle-by-cycle details.
+See [docs/ARCHITECTURE.md § Recent Improvements](docs/ARCHITECTURE.md#recent-improvements) for technical depth and [docs/audits/GRIND_LOG.md](docs/audits/GRIND_LOG.md) for cycle-by-cycle details.
 
 ---
 

@@ -134,10 +134,13 @@ Scripts that depend on this version must read it dynamically:
 
 Pre-commit hook coverage is **file-type agnostic**:
 - Scans ALL staged files: `.env`, `.yml`, `.yaml`, `.json`, `.bat`, `.sh`, `.py`, `.js`, `.ts`, `.go`, `.java`, `.c`, `.h`, and others
-- Exclusions: `tests/test_check_secrets*` (fixtures), `tools/check_secrets.sh` (this script)
+- Exclusions: `tests/test_check_secrets*` (fixtures), `tools/check_secrets*` (scanner helpers — glob pattern)
 - Detects: high-risk patterns (API_KEY=, sk-, ghp_, xoxb-, base64-like strings)
 
-**See:** `tools/check_secrets.sh` header L9-11, L25-26
+**Self-Exclusion Glob Pattern (`tools/check_secrets*`):**
+Scanner helper scripts are excluded via a glob to prevent self-triggering. Example: `check_secrets_ci.sh` contains pattern strings (e.g., "BEGIN PRIVATE KEY") used as test inputs, which would falsely match the scanner. When adding new scanner helpers (e.g., `check_secrets_*.sh`), ensure they match this pattern so the pre-commit hook and CI exclude them automatically. Update `.githooks/pre-commit` L12 and `tools/check_secrets.sh` L23 if creating new helper names that don't follow `check_secrets*` pattern.
+
+**See:** `tools/check_secrets.sh` L23 (git diff exclusion), `tools/check_secrets_ci.sh` L28 (CI exclusion)
 
 ### C. PowerShell ASCII-Only
 

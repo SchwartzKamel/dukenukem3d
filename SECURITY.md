@@ -56,6 +56,33 @@ The following issues have been identified and documented. Critical and high-seve
 - **Port parsing** — `atoi()` used for port numbers without range validation (1-65535).
 - **Legacy C patterns** — Various fixed-size buffers throughout 1996-era code. Comprehensive audit would require rewriting significant portions of the original engine.
 
+## Azure Key Rotation
+
+Sensitive credentials (Azure Speech API keys for TTS, FLUX API tokens) must be rotated regularly to maintain security posture.
+
+**Rotation Cadence**: 90 days recommended. Defer to operator's existing policy if established.
+
+**Keys in Scope**:
+- `AUDIO_API_KEY` — Azure OpenAI Audio/TTS service
+- `FLUX_API_KEY` — Azure FLUX image generation API
+- Endpoint URLs (if sensitive in your deployment)
+
+**Storage & Access**:
+- Local development: `.env` file (never committed; in `.gitignore`)
+- CI/CD: GitHub repository secrets (`Settings > Secrets and variables > Actions`)
+- Never hardcode in source, config files, or logs
+
+**Operator Rotation Process** (Blocked: `sec-env-real-keys`):
+1. Rotate old keys in Azure portal (Resource Groups → Cognitive Services → Regenerate Keys)
+2. Update local `.env` with new values (never commit)
+3. Update GitHub repository secrets with new values
+4. Trigger CI smoke test run to verify integration
+5. Document rotation date in ticket comments (for audit trail)
+
+**Validation**: Before marking rotation complete, confirm CI pipelines still authenticate successfully and no stale keys remain in logs.
+
+For implementation details, see `.github/ISSUE_TEMPLATE/key-rotation.md`.
+
 ## Code Ownership
 
 Certain security-sensitive paths in this repository are protected by automated code ownership rules (`.github/CODEOWNERS`). These paths require review by the project maintainer before changes are approved:

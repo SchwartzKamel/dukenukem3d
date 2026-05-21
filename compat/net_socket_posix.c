@@ -12,6 +12,7 @@
 #include <errno.h>
 #include <netdb.h>
 #include <netinet/tcp.h>
+#include <stdlib.h>
 
 /* POSIX: socket initialization is a no-op */
 void net_socket_init(void)
@@ -127,10 +128,31 @@ int net_socket_enable_keepalive(net_socket_t sock)
 		return ret;
 	}
 
+	/* Helper macro to read and validate environment variable */
+#define GET_KEEPALIVE_ENV(var_name, default_val, min_val, max_val) \
+	do { \
+		const char *env_str = getenv(var_name); \
+		if (env_str != NULL) { \
+			char *endptr; \
+			long val = strtol(env_str, &endptr, 10); \
+			if (endptr == env_str || *endptr != '\0') { \
+				fprintf(stderr, "WARNING: net_socket_enable_keepalive: %s invalid format '%s', using default %d\n", \
+					var_name, env_str, default_val); \
+				val = default_val; \
+			} else if (val < min_val || val > max_val) { \
+				fprintf(stderr, "WARNING: net_socket_enable_keepalive: %s out of range %ld (valid: %d..%d), using default %d\n", \
+					var_name, val, min_val, max_val, default_val); \
+				val = default_val; \
+			} \
+			(default_val) = (int)val; \
+		} \
+	} while (0)
+
 	/* Optional: Set keepalive timers on Linux if available */
 #ifdef TCP_KEEPIDLE
 	/* TCP_KEEPIDLE: time before first keepalive probe (2 hours default) */
 	int keepidle = 120;  /* 2 minutes for faster dead connection detection */
+	GET_KEEPALIVE_ENV("DUKE_NET_KEEPIDLE", keepidle, 1, 86400);
 	ret = setsockopt(sock, IPPROTO_TCP, TCP_KEEPIDLE, &keepidle, sizeof(keepidle));
 	if (ret < 0) {
 		fprintf(stderr, "WARNING: net_socket_enable_keepalive: TCP_KEEPIDLE failed (%s)\n", strerror(errno));
@@ -140,6 +162,7 @@ int net_socket_enable_keepalive(net_socket_t sock)
 #ifdef TCP_KEEPINTVL
 	/* TCP_KEEPINTVL: interval between keepalive probes (75 sec default) */
 	int keepintvl = 30;  /* 30 seconds for faster detection */
+	GET_KEEPALIVE_ENV("DUKE_NET_KEEPINTVL", keepintvl, 1, 86400);
 	ret = setsockopt(sock, IPPROTO_TCP, TCP_KEEPINTVL, &keepintvl, sizeof(keepintvl));
 	if (ret < 0) {
 		fprintf(stderr, "WARNING: net_socket_enable_keepalive: TCP_KEEPINTVL failed (%s)\n", strerror(errno));
@@ -149,11 +172,14 @@ int net_socket_enable_keepalive(net_socket_t sock)
 #ifdef TCP_KEEPCNT
 	/* TCP_KEEPCNT: number of keepalive probes before giving up (9 default) */
 	int keepcnt = 5;  /* 5 probes × 30 sec = 150 sec total before timeout */
+	GET_KEEPALIVE_ENV("DUKE_NET_KEEPCNT", keepcnt, 1, 100);
 	ret = setsockopt(sock, IPPROTO_TCP, TCP_KEEPCNT, &keepcnt, sizeof(keepcnt));
 	if (ret < 0) {
 		fprintf(stderr, "WARNING: net_socket_enable_keepalive: TCP_KEEPCNT failed (%s)\n", strerror(errno));
 	}
 #endif
+
+#undef GET_KEEPALIVE_ENV
 
 	return 0;  /* SO_KEEPALIVE succeeded; optional tuning failures are logged but not fatal */
 }

@@ -64,7 +64,37 @@ int net_socket_resolve_address(const char *host, const char *port, struct sockad
 int net_socket_set_nonblocking(net_socket_t sock);
 int net_socket_set_option(net_socket_t sock, int level, int optname, const void *optval, int optlen);
 
-/* TCP keepalive configuration (best-effort: logs warnings on failure, does not abort) */
+/**
+ * @brief Enable TCP keepalive on a socket with optional environment-variable tuning.
+ * 
+ * Enables SO_KEEPALIVE to detect dead connections. On POSIX systems (Linux/BSD/macOS),
+ * also sets optional per-socket TCP keepalive timers if available:
+ * 
+ * **POSIX Tunables (defaults)**:
+ * - TCP_KEEPIDLE: Time before first probe (120 seconds) — Override via DUKE_NET_KEEPIDLE
+ * - TCP_KEEPINTVL: Interval between probes (30 seconds) — Override via DUKE_NET_KEEPINTVL
+ * - TCP_KEEPCNT: Number of probes before timeout (5) — Override via DUKE_NET_KEEPCNT
+ * 
+ * Environment variables (POSIX only, parsed via getenv + strtol with range validation):
+ * - DUKE_NET_KEEPIDLE: seconds (1..86400, default 120)
+ * - DUKE_NET_KEEPINTVL: seconds (1..86400, default 30)
+ * - DUKE_NET_KEEPCNT: count (1..100, default 5)
+ * Invalid or out-of-range values fall back to defaults.
+ * 
+ * **Windows Behavior**:
+ * Windows uses system-wide keepalive settings (HKEY_LOCAL_MACHINE TCP parameters).
+ * Per-socket TCP_KEEPIDLE/INTVL/CNT are NOT supported; SO_KEEPALIVE only.
+ * Environment variables are ignored on Windows.
+ * 
+ * **Semantics**:
+ * Best-effort: logs warnings on setsockopt failure but returns 0 (SO_KEEPALIVE must succeed,
+ * optional tuning failures are non-fatal). Does not abort or return error.
+ * 
+ * @param sock Socket to configure
+ * @return 0 on success (SO_KEEPALIVE set), -1 if SO_KEEPALIVE itself fails
+ * 
+ * @note See tests/test_net_keepalive.py for verification and env-var override tests.
+ */
 int net_socket_enable_keepalive(net_socket_t sock);
 
 /* Socket close */

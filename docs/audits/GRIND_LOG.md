@@ -4815,3 +4815,27 @@ Re-verify all r21 audit-pass items (cycles 77–84 closures) remain live across 
 
 **Build/Test**: 1549 passed / 3 skipped (slow opt-out: 1483 passed, 24s). Build clean single-threaded; LTO+parallel-make occasional race observed (transient, non-regression).
 
+
+## Cycle 104b (2026-05-21) — audit-pass tick (engine-r25 + asset-r25)
+
+- **engine-porter r24→r25** (`engine-porter-r25.md`, 361L, sentinel `f2e9a7c3`): **4th consecutive totalclocklock LEGITIMATE re-affirmation** at SRC/BUILD.H:151 (extern), SRC/ENGINE.C:313 (def), :855 (per-frame snapshot), SRC/BUILD.H:379 (consumer). gnu89 100% clean across SRC/+source/. Palette CRITICALs verified at L7106/7547/7554. nextsectorneighborz bounds verified at L4951/4962/4987. Cycle 104 MMULTI.C keepalive wiring gnu89-compliant (no `//`). All 10/10 invariants PASS. 3 todos mined: display() K&R audit, safe_palookup() macro hardening, wall array iteration bounds.
+- **asset-pipeline r24→r25** (`asset-pipeline-r25.md`, 291L, sentinel `f3a7c9e2`): Cycle 104 retry-backoff (MAX_RETRIES=3, MAX_BACKOFF=8.0s, jitter math) + binascii.Error non-retryable path verified production-ready. 16 retry-suite tests pass. Numpy 5.5x speedup intact. CC0/no-copyright posture confirmed via NOTICE L153-160. Cyclomatic 2612L/445 control flow within bounds. 3 todos mined: FLUX edge-case exhaustion (truncated PNG / missing field), automated perf-regression guard (5% threshold), CC refactor planning at 3200L.
+
+
+## Cycle 105 (2026-05-21) — /audit-grind tick (6 grind) + audit-pass (audio-r24 + build-r25 + perf-r25)
+
+### Grind (6 todos drained)
+- **build-r24-precommit-exclusion-docs** (build-system, sentinel `a7c2f341`): tools/README.md §F enhanced — WHY/WHAT/WHEN/REFERENCES for the `tools/check_secrets*` self-exclusion glob (cycle 101). Cross-refs .githooks/pre-commit L12 + tools/check_secrets.sh L23 + tools/check_secrets_ci.sh L28.
+- **sec-r24-azure-key-rotation-tracking** (security-and-secrets, sentinel `8b5d3f6a`): SECURITY.md § Azure Key Rotation (25L, ≤30 limit) — 90-day cadence, AUDIO_API_KEY/FLUX_API_KEY, 5-step operator rotation process. Created `.github/ISSUE_TEMPLATE/key-rotation.md` template + `docs/audits/security-and-secrets.md` cycle-66 citation log.
+- **docs-r24-fix-architecture-improvements-anchor-section** (documentation-curator, sentinel `a7f2e9c1`): Added `## Recent Improvements` section to docs/ARCHITECTURE.md L411-421 (5 high-level bullets); fixed README.md L377 → `docs/ARCHITECTURE.md#recent-improvements`. Cycle-100 totalclocklock anti-regression note at L333-361 preserved.
+- **test-r24-sdlrw-restoration-plan** (test-engineer, sentinel `a7f2d81e`): Restored TestSDLRWSizeCasting class to tests/test_compat_layer.py with 8 black-box tests covering INT32_MAX boundary, overflow, 10MB WAV, VOC/MIDI bounds, negative paths, round-trip determinism. Full cycle-90→105 provenance in docstring.
+- **compat-r24-silent-stubs-determinism** (compat-layer, sentinel `c7f3a9b1`): Created compat/SILENT_STUBS.md (311L) cataloging 14 silent stubs (6 per-frame: FX_GetVolume/MaxReverbDelay, TS_Lock/Unlock, inittimer1mhz, deltatime1mhz; 8 config-rare: 7×MUSIC_*, testcallback). Documented 3 determinism guarantees. tests/test_compat_silent_stubs.py (380L) with 18 regression tests, all pass.
+- **net-r22-keepalive-tuning-doc** (network-multiplayer, sentinel `a7f2c91b`): compat/net_socket.h doxygen-documented POSIX tunables (TCP_KEEPIDLE=120s/INTVL=30s/CNT=5). compat/net_socket_posix.c env-var override: `DUKE_NET_KEEPIDLE/INTVL/CNT` via getenv()+strtol with range validation (1-86400s, 1-100 count) + warn-on-failure fallback. compat/README.md tunables table. +9 tests in test_net_keepalive.py (14→23). c11 strict.
+
+### Audit-Pass (3 personas, 7 new todos mined)
+- **audio-engineer r23→r24** (`audio-engineer-r24.md`, sentinel `bfe5a4db`): generation_method lifecycle verified operational across all 3 paths. SHA256 manifest determinism preserved. Mix_Init forward-compat robust. tools/generate_audio.py 759L within 800L. 187 audio tests green. 5 LOW todos identified (buffer size docs, telemetry, freshness validation).
+- **build-system r24→r25** (`build-system-r25.md`, sentinel `70ef0776`): Grade A PASS. 10/10 invariants stable. **ERRATA protocol honored — totalclocklock not investigated.** Cycle 98 Windows x86_64 stable. Cycle 101 secret-scan workflow live. Cycle 104 MMULTI keepalive wiring gnu89-compliant. 2 todos mined: build-r25-pre-commit-hook-implementation-audit, build-r25-windows-x64-msvc-ci-matrix-expansion.
+- **performance-profiler r24→r25** (`performance-profiler-r25.md`, sentinel `165EEEDA`): Grade A sustained. Fast suite 26.14s (1516 tests); slow markers 66 collected; full ~80-90s. Numpy 5.5x persistent. Coverage 50.4% held. 10/10 invariants PASS. 2 todos: profiling-hooks-phase2-ready-to-execute (MED 2-3d), sdlrw-casting-tests-cycle105 (advisory 1d, RESOLVED THIS CYCLE).
+
+**Build/Test**: 1516+ passed / 3 skipped (fast suite ~28s). Build clean. All wire-format + HMAC + IPv6 + SHA256 manifest determinism + numpy-speedup invariants preserved.
+

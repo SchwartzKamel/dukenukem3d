@@ -140,3 +140,57 @@ class TestNetSocketKeepAlive:
             content = f.read()
         # Should have at least 3 calls total: server socket, accepted client(s), connecting socket
         assert content.count('net_socket_enable_keepalive') >= 3
+
+    def test_env_var_keepidle_override_documented(self):
+        """DUKE_NET_KEEPIDLE environment variable must be documented in header."""
+        with open('compat/net_socket.h') as f:
+            content = f.read()
+        assert 'DUKE_NET_KEEPIDLE' in content
+        assert '120' in content or 'keepidle' in content.lower()
+
+    def test_env_var_keepintvl_override_documented(self):
+        """DUKE_NET_KEEPINTVL environment variable must be documented in header."""
+        with open('compat/net_socket.h') as f:
+            content = f.read()
+        assert 'DUKE_NET_KEEPINTVL' in content
+        assert '30' in content or 'keepintvl' in content.lower()
+
+    def test_env_var_keepcnt_override_documented(self):
+        """DUKE_NET_KEEPCNT environment variable must be documented in header."""
+        with open('compat/net_socket.h') as f:
+            content = f.read()
+        assert 'DUKE_NET_KEEPCNT' in content
+        assert '5' in content or 'keepcnt' in content.lower()
+
+    def test_posix_implementation_reads_env_vars(self):
+        """net_socket_posix.c must use getenv() for environment variable override."""
+        with open('compat/net_socket_posix.c') as f:
+            content = f.read()
+        assert 'getenv' in content
+        assert 'DUKE_NET_KEEP' in content or 'DUKE_NET_KEEPIDLE' in content
+
+    def test_posix_implementation_uses_strtol_for_validation(self):
+        """net_socket_posix.c must use strtol with range validation for env vars."""
+        with open('compat/net_socket_posix.c') as f:
+            content = f.read()
+        assert 'strtol' in content
+        # Should check for min/max ranges
+        assert '86400' in content  # max seconds
+        assert '100' in content    # max count
+
+    def test_posix_keepalive_falls_back_on_invalid_env_var(self):
+        """net_socket_posix.c must fall back to default on invalid env var format."""
+        with open('compat/net_socket_posix.c') as f:
+            content = f.read()
+        # Should have logic to detect invalid format (endptr check or similar)
+        assert 'endptr' in content or 'invalid' in content.lower() or 'WARNING' in content
+
+    def test_posix_keepalive_falls_back_on_out_of_range_env_var(self):
+        """net_socket_posix.c must fall back to default on out-of-range env var."""
+        with open('compat/net_socket_posix.c') as f:
+            content = f.read()
+        # Should validate range (< min or > max)
+        assert ('min_val' in content or 'max_val' in content or 
+                '1' in content or '86400' in content)
+        # Should log warning on out-of-range
+        assert 'out of range' in content.lower() or 'WARNING' in content

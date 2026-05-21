@@ -408,6 +408,18 @@ When implementing fixes for audit findings, link the commit to the specific audi
 
 ---
 
+## Recent Improvements
+
+High-level summaries of structural improvements across cycles 41–49. For detailed technical breakdowns by cycle, see § Recent Improvements (Cycles 41–49) below and [README.md § Recent Improvements](../README.md#-recent-improvements-cycles-41–49) for the complete changelog.
+
+- **Testing Infrastructure:** Property-based testing (Hypothesis), multiplayer regression harness, parallel test execution with xdist
+- **Build System:** Header dependency tracking with `-MMD -MP` flags eliminates stale binaries
+- **Asset Pipeline:** Atomic manifest writes, SHA256 checksums for integrity verification
+- **Engine Performance:** SE40 sprite optimization (22× faster cold render loop), cache efficiency improvements
+- **Engine Safety:** MAXTILES header unification with runtime abort guard prevents future divergence
+
+---
+
 ## Recent Hardening (Cycles 12-15)
 
 This section documents critical safety fixes landed in recent audit cycles to prevent regression and guide future maintenance.
