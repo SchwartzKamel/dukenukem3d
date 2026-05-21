@@ -4839,3 +4839,21 @@ Re-verify all r21 audit-pass items (cycles 77–84 closures) remain live across 
 
 **Build/Test**: 1516+ passed / 3 skipped (fast suite ~28s). Build clean. All wire-format + HMAC + IPv6 + SHA256 manifest determinism + numpy-speedup invariants preserved.
 
+
+## Cycle 106 (2026-05-21 10:11 UTC) — Audit-only fleet (4 audit-pass; no grind)
+
+Operator scheduled audit prompt: "audit codebase, find things for the grind to work on and ensure docs are updated". Dispatched 4 parallel audit-pass agents on stalest personas.
+
+### Audit-Pass Results
+
+- **documentation-curator r24→r25** (`documentation-curator-r25.md`, sentinel `a2f7c51e`): 5 findings — **1 CRITICAL** broken relative cross-refs in ARCHITECTURE.md (L158/172/1204-1209 use `../` instead of `../../`; en-dash U+2013 anchor) breaking compat/README.md + tools/README.md links. 2 MED (SECURITY.md cycle-citation gaps, missing docs/audits/index.md). 2 LOW. Totalclocklock anti-regression note + Recent Improvements anchor verified intact.
+- **network-multiplayer r22→r23** (`network-multiplayer-r23.md`, sentinel `a7f2e9c4`): Production-ready confirmed. Cycle-105 env-var tunables DUKE_NET_KEEPIDLE/INTVL/CNT validation correct (1-86400s, 1-100 count). Cycle-104 keepalive wired at SRC/MMULTI.C L606/667/797 verified. HMAC-SHA256 wire-format deterministic, IPv6 dual-stack functional. 55 network tests green. 4 todos mined (observability, env-override, nonce entropy, IPv6 scope_id).
+- **compat-layer r24→r25** (`compat-layer-r25.md`, sentinel `a7c2f1e4`): SILENT_STUBS.md (cycle-105) 100% accurate vs implementations. MSVC pragma support complete (no separate pragmas_msvc.h needed). c11/gnu89 split clean. 68/68 compat tests pass. Net_socket abstraction ready for broader MMULTI adoption. Totalclocklock NOT investigated per warning. 4 todos mined.
+- **test-engineer r24→r25** (`test-engineer-r25.md`, sentinel `16b774bb`): 1585 tests collected; 1516 passed -m "not slow" in 24.88s; 3 skipped. 63 @slow + 11 @serial markers; FileLock xdist coordination verified at conftest.py:195. TestSDLRWSizeCasting + silent_stubs + keepalive env-var restorations confirmed. ⚠️ C compile-time struct asserts still missing (cycle-90 casualty). Coverage 50.4% floor not yet CI-gated. 4 todos mined.
+
+### Backlog Mining: +16 New Todos
+
+Pending count: 408 → ~424. Critical: 1 (architecture cross-ref breakage). Medium: 11. Low: 4.
+
+**Build/Test (audit baseline)**: 1516 passed -m "not slow" (~25s). 0 regressions. No source/test modifications.
+
