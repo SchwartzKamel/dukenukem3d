@@ -4857,3 +4857,29 @@ Pending count: 408 → ~424. Critical: 1 (architecture cross-ref breakage). Medi
 
 **Build/Test (audit baseline)**: 1516 passed -m "not slow" (~25s). 0 regressions. No source/test modifications.
 
+
+## Cycle 107 (2026-05-21 10:21 UTC) — /audit-grind 6-agent grind + audit tick 107b (3 audit-pass)
+
+### Grind (6 todos drained — all marked done)
+
+- **docs-r25-fix-architecture-cross-refs-relative-paths** (documentation-curator, sentinel `f7e14c2a`): docs/ARCHITECTURE.md L158/160/299 relative paths `../` → `../../` (compat/README.md & tools/README.md targets); L413 en-dash U+2013 → ASCII hyphen in Recent Improvements anchor. 4 link corrections; cycle-100 totalclocklock note + cycle-105 Recent Improvements anchor preserved. 1516 passed.
+- **sec-r11-sdl2-mixer-cve-advisory** (security-and-secrets, sentinel `d4a7f2c9`): SECURITY.md +11L "Optional Dependency: SDL2_mixer (CVE Monitoring)" section. Cites GitHub Security Advisories, 90-day cadence, audio_stub fallback. Cycle-66 fake-author audit trail (0296200 + 6c236443) referenced.
+- **compat-r11-c11-static-assert-audit** (compat-layer, sentinel `a7f3c29e`): **24 `_Static_assert` added** across compat/. **CAUGHT 3 LOAD-BEARING BUGS**: `unsigned long` → `uint32_t` in (1) `fx_blaster_config` (was 8B on 64-bit, broke 28B contract), (2) `songposition` (mixed long/int → all uint32_t = 20B), (3) `task` struct (`volatile long` → `volatile int32_t` for scheduler safety). Build clean, 67 compat tests + 1516 total tests green.
+- **test-r17-refactor-sys-exit-antipattern** (test-engineer, sentinel `a7f2c81e`): Antipattern already absent (todo description stale from earlier cycle). Both target test files (test_build_warnings.py + test_install_hooks.py) verified clean with 0 sys.exit() occurrences; assertion-first pattern in place. 4 tests pass.
+- **engine-r22-allocache-profiling-baseline-verify** (performance-profiler, sentinel `e7d3a1f6`): New `docs/audits/performance-profiler-allocache-r22.md` (284L). Cycle-89 baseline confirmed: 400-600 calls/map load, 94-98% hit-rate, single-thread invariant. 33 call-sites stable. r23 concurrency stress-test (TSAN) planned out-of-scope.
+- **net-r20-ipv6-scope-triage** (network-multiplayer, sentinel `c4e7f2a9`): New `docs/audits/network-multiplayer-ipv6-scope-r23.md` triage. Current state: AF_INET6+IPV6_V6ONLY=0 functional; scope_id NOT handled. WAN minimal/LAN real/UX cryptic. Mined: `net-r23-ipv6-link-local-scope-impl` (MED, 3-4h).
+
+### Cycle 107b Audit-Pass (3 personas, +9 todos mined, capped at 10)
+
+- **security-and-secrets r24→r25** (`security-and-secrets-r25.md`, sentinel `a7f2c4d1`): v7-HARDENED standing confirmed. 0 HIGH / 0 MED. 20+ pattern coverage, SHA-pinned actions, CODEOWNERS, NOTICE, key-rotation template, SDL2_mixer CVE doc all verified live. 2 LOW todos mined.
+- **asset-pipeline r25→r26** (`asset-pipeline-r26.md`, sentinel `284eebeb`): cycles 96-104 features (numpy 5.5x, SHA256, exp backoff, --no-ai, binascii hardening, palette cache, generation_method) all VERIFIED. 45 asset tests green. 4 todos mined.
+- **engine-porter r25→r26** (`engine-porter-r26.md`, sentinel `a5f2d8b7`): **5th totalclocklock LEGITIMATE re-affirmation** (cycles 100/101/104/104b/107b). Palette CRITICALs + nextsectorneighborz bounds + cache1d K&R + MMULTI wire-format all stable. GAME.C:10129 "//" agent-claimed CRITICAL → **FALSE POSITIVE** (the `//` sits inside a `/* ... */` doc-comment block; orchestrator-verified). 3 follow-up audit-todos mined (display K&R, safe_palookup callsites, wall[] iteration bounds).
+
+### Notable Wins
+- **3 load-bearing bugs caught** by compat _Static_assert audit — `unsigned long` (8B 64-bit) struct-size violations in fx_blaster_config, songposition, task. These would have broken HMAC/wire-format determinism on 64-bit hosts.
+- **5th totalclocklock re-affirmation** — anti-regression note continues to hold; engine-porter persona honored protocol.
+
+### Build/Test (final)
+- Build: clean.
+- Tests: 1516 passed -m "not slow" / 3 skipped / 17 warnings (~25-30s).
+

@@ -111,6 +111,26 @@
 #include <sys/types.h>  /* replaces sys\types.h */
 #include <sys/stat.h>   /* replaces sys\stat.h */
 
+/*
+ * Validate fundamental C integer types across all platforms.
+ * These assertions catch configuration errors early and ensure
+ * that DOS/legacy code assumptions about type sizes hold true.
+ */
+_Static_assert(sizeof(int8_t) == 1, "int8_t must be exactly 1 byte");
+_Static_assert(sizeof(uint8_t) == 1, "uint8_t must be exactly 1 byte");
+_Static_assert(sizeof(int16_t) == 2, "int16_t must be exactly 2 bytes");
+_Static_assert(sizeof(uint16_t) == 2, "uint16_t must be exactly 2 bytes");
+_Static_assert(sizeof(int32_t) == 4, "int32_t must be exactly 4 bytes");
+_Static_assert(sizeof(uint32_t) == 4, "uint32_t must be exactly 4 bytes");
+_Static_assert(sizeof(int64_t) == 8, "int64_t must be exactly 8 bytes");
+_Static_assert(sizeof(uint64_t) == 8, "uint64_t must be exactly 8 bytes");
+
+/*
+ * Validate pointer size: affects struct layouts and pointer arithmetic.
+ * Game code assumes pointers fit in 32-bit or 64-bit consistently.
+ */
+_Static_assert((sizeof(void *) == 4) || (sizeof(void *) == 8), "pointer must be 4 or 8 bytes");
+
 #ifdef _WIN32
   /* WIN32_LEAN_AND_MEAN prevents windows.h from including winsock.h,
      which conflicts with winsock2.h used in MMULTI.C networking code.

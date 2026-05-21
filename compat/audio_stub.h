@@ -22,6 +22,18 @@ extern "C" {
 
 #include <stdint.h>
 
+/*
+ * Validate fixed-width integer types for audio API compatibility.
+ * uint8, uint16, uint32, int32 are aliases used by the game code;
+ * assert their actual sizes to catch platform misconfigurations early.
+ */
+_Static_assert(sizeof(int32_t) == 4, "int32_t must be exactly 4 bytes");
+_Static_assert(sizeof(uint32_t) == 4, "uint32_t must be exactly 4 bytes");
+_Static_assert(sizeof(int16_t) == 2, "int16_t must be exactly 2 bytes");
+_Static_assert(sizeof(uint16_t) == 2, "uint16_t must be exactly 2 bytes");
+_Static_assert(sizeof(int8_t) == 1, "int8_t must be exactly 1 byte");
+_Static_assert(sizeof(uint8_t) == 1, "uint8_t must be exactly 1 byte");
+
 /* ═══════════════════════════════════════════════════════════════════
    Portable type aliases (match source/TYPES.H for the game code)
    ═══════════════════════════════════════════════════════════════════ */
@@ -102,14 +114,20 @@ typedef struct {
 
 /* Sound Blaster configuration */
 typedef struct {
-    unsigned long Address;
-    unsigned long Type;
-    unsigned long Interrupt;
-    unsigned long Dma8;
-    unsigned long Dma16;
-    unsigned long Midi;
-    unsigned long Emu;
+    uint32_t Address;
+    uint32_t Type;
+    uint32_t Interrupt;
+    uint32_t Dma8;
+    uint32_t Dma16;
+    uint32_t Midi;
+    uint32_t Emu;
 } fx_blaster_config;
+
+/*
+ * Validate fx_blaster_config layout: must be 28 bytes (7*4)
+ * for DOS/legacy compatibility across all platforms.
+ */
+_Static_assert(sizeof(fx_blaster_config) == 28, "fx_blaster_config must be 28 bytes (7*4-byte uint32_t)");
 
 /* Error codes */
 enum FX_ERRORS {
@@ -209,12 +227,18 @@ enum MUSIC_ERRORS {
 #define MUSIC_PlayOnce  (!MUSIC_LoopSong)
 
 typedef struct {
-    unsigned long tickposition;
-    unsigned long milliseconds;
-    unsigned int  measure;
-    unsigned int  beat;
-    unsigned int  tick;
+    uint32_t tickposition;
+    uint32_t milliseconds;
+    uint32_t measure;
+    uint32_t beat;
+    uint32_t tick;
 } songposition;
+
+/*
+ * Validate songposition layout: must be 20 bytes (5*4) for DOS compatibility.
+ * Changed from unsigned long/unsigned int to all uint32_t for platform independence.
+ */
+_Static_assert(sizeof(songposition) == 20, "songposition must be 20 bytes (5*4-byte uint32_t)");
 
 extern int MUSIC_ErrorCode;
 
@@ -234,8 +258,8 @@ int   MUSIC_StopSong(void);
 int   MUSIC_PlaySong(unsigned char *song, int loopflag);
 void  MUSIC_SetContext(int context);
 int   MUSIC_GetContext(void);
-void  MUSIC_SetSongTick(unsigned long PositionInTicks);
-void  MUSIC_SetSongTime(unsigned long milliseconds);
+void  MUSIC_SetSongTick(uint32_t PositionInTicks);
+void  MUSIC_SetSongTime(uint32_t milliseconds);
 void  MUSIC_SetSongPosition(int measure, int beat, int tick);
 void  MUSIC_GetSongPosition(songposition *pos);
 void  MUSIC_GetSongLength(songposition *pos);
@@ -260,11 +284,17 @@ typedef struct task {
     struct task *prev;
     void (*TaskService)(struct task *);
     void       *data;
-    long        rate;
-    volatile long count;
+    int32_t     rate;
+    volatile int32_t count;
     int         priority;
     int         active;
 } task;
+
+/*
+ * Validate task struct layout: int32_t fields ensure fixed size across
+ * all platforms. volatile int32_t count is used in scheduler synchronization.
+ */
+_Static_assert(sizeof(task) >= 40, "task struct must be at least 40 bytes");
 
 extern volatile int TS_InInterrupt;
 
@@ -506,6 +536,12 @@ typedef struct {
     fixed dpitch;
     fixed droll;
 } ControlInfo;
+
+/*
+ * Validate ControlInfo layout: fixed is typedef'd as int32,
+ * so this struct should be exactly 24 bytes (6 * 4).
+ */
+_Static_assert(sizeof(ControlInfo) == 24, "ControlInfo must be 24 bytes (6 * 4-byte fixed fields)");
 
 typedef enum {
     controltype_keyboard,

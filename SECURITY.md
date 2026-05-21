@@ -43,6 +43,17 @@ This is a port of 1996-era C code. Known limitations:
 ### Third-Party License Compliance
 All third-party dependencies are GPL-2.0 compatible. See [NOTICE](NOTICE) at the repository root for a consolidated attribution of SDL2, BUILD engine, Duke3D source, and Python dependencies. Downstream packagers should reference this file for compliance verification.
 
+### Optional Dependency: SDL2_mixer (CVE Monitoring)
+
+SDL2_mixer is an **OPTIONAL** runtime dependency loaded in QUIET mode (CMakeLists.txt). The library is not vendored; system package managers (apt, brew, dnf, pacman, Windows MSYS2, etc.) are responsible for patching.
+
+**Recommended Actions**:
+- Subscribe to [SDL2_mixer GitHub Security Advisories](https://github.com/libsdl-org/SDL_mixer/security/advisories) for CVE notifications.
+- Review cadence: 90 days. File an issue using `.github/ISSUE_TEMPLATE/key-rotation.md` (adapted) if a HIGH or CRITICAL CVE is identified.
+- If SDL2_mixer is unavailable or removed from system, audio output gracefully falls back to `compat/audio_stub` (silent path). Build and test pipelines are unaffected.
+
+**Audit trail**: cycles 101 (CODEOWNERS), 104 (NOTICE), 105 (key rotation); cycle-66 fake-author commits 0296200 + 6c236443 remain in history per operator decision.
+
 ## Known Issues (v0.1.0)
 
 The following issues have been identified and documented. Critical and high-severity items are resolved.

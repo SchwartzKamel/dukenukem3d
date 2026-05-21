@@ -19,6 +19,14 @@
 #include <stdint.h>   /* uint8_t, uint32_t, uint64_t -- available in GCC gnu89 */
 #include <stddef.h>   /* size_t */
 
+/*
+ * Validate fixed-width types used in SHA256 cryptographic implementation.
+ * These must be exact sizes to ensure correct hashing across platforms.
+ */
+_Static_assert(sizeof(uint8_t) == 1, "uint8_t must be exactly 1 byte for SHA256");
+_Static_assert(sizeof(uint32_t) == 4, "uint32_t must be exactly 4 bytes for SHA256");
+_Static_assert(sizeof(uint64_t) == 8, "uint64_t must be exactly 8 bytes for SHA256");
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -35,6 +43,14 @@ typedef struct {
     uint64_t bitlen;    /* total bits hashed so far (complete blocks only) */
     uint32_t state[8];
 } sha256_ctx_t;
+
+/*
+ * Validate sha256_ctx_t layout: used in cryptographic authentication.
+ * Size must be stable across platforms to ensure correct struct offsets.
+ * Layout: 64 + 4 + 8 + 32 = 108 bytes (no padding on most platforms).
+ */
+_Static_assert(sizeof(sha256_ctx_t) >= 108, "sha256_ctx_t must be at least 108 bytes");
+_Static_assert(sizeof(sha256_ctx_t) <= 112, "sha256_ctx_t must be at most 112 bytes (with alignment padding)");
 
 /* ---- SHA-256 ---- */
 void sha256_init   (sha256_ctx_t *ctx);

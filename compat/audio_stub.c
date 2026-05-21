@@ -954,8 +954,8 @@ int MUSIC_PlaySong(unsigned char *song, int loopflag)
 
 void MUSIC_SetContext(int context)                    { music_context = context; }
 int  MUSIC_GetContext(void)                           { return music_context; }
-void MUSIC_SetSongTick(unsigned long t)              { (void)t; }
-void MUSIC_SetSongTime(unsigned long ms)             { (void)ms; }
+void MUSIC_SetSongTick(uint32_t t)              { (void)t; }
+void MUSIC_SetSongTime(uint32_t ms)             { (void)ms; }
 void MUSIC_SetSongPosition(int m, int b, int t)     { (void)m; (void)b; (void)t; }
 
 void MUSIC_GetSongPosition(songposition *pos)
