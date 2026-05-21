@@ -65,6 +65,13 @@
  * Available in C11, but we support older standards via GCC __attribute__.
  * Use __attribute__((noreturn)) instead of _Noreturn for maximum portability,
  * as it works on both GCC and GCC-compatible compilers across all C standards.
+ *
+ * === r20 Audit (compat-layer) ===
+ * Identified exit-only functions in source/SRC/:
+ *   1. gameexit(char *t) - source/FUNCT.H:372, source/GAME.C:2189 (always exit(0))
+ *   2. reportandexit(char *msg) - SRC/BUILD.H:352, SRC/CACHE1D.C:239 (always exit(0))
+ *   3. error_fatal() - compat/compat.h:755 (already annotated)
+ * No further candidates without callsite audit (all other exit() calls are inline).
  */
 #ifndef _Noreturn
   #ifdef __GNUC__

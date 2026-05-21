@@ -369,7 +369,7 @@ extern void showtwoscreens(void );
 //#line "game.c" 1691
 extern void binscreen(void );
 //#line "game.c" 1705
-extern void gameexit(char *t);
+extern _Noreturn void gameexit(char *t);
 //#line "game.c" 1752
 extern short strget(short x,short y,char *t,short dalen,short c);
 //#line "game.c" 1819

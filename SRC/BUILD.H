@@ -349,6 +349,7 @@ long FindDistance3D(long x, long y, long z);
 /* Cache/file system */
 void initcache(long dacachestart, long dacachesize);
 void allocache(long *newhandle, long newbytes, char *newlockptr);
+_Noreturn void reportandexit(char *errormessage);
 int kopen4load(char *filename, char searchfirst);
 long kread(long handle, void *buffer, long leng);
 long klseek(long handle, long offset, long whession);

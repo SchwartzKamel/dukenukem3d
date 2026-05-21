@@ -22,6 +22,43 @@ import generate_audio
 from manifest_verification import load_and_verify_audio_manifest
 
 
+# ============================================================================
+# Module-Level Fixtures for Test DRY (audio-r19-manifest-fixture-refactor)
+# ============================================================================
+
+@pytest.fixture
+def temp_manifest_file():
+    """Create a temporary manifest file from a dict.
+    
+    Fixture scope: function (default)
+    
+    Usage:
+        def test_something(temp_manifest_file):
+            manifest_path = temp_manifest_file({
+                "schema_version": "1.0",
+                "entries": [...]
+            })
+            # manifest_path is a valid file path with manifest written to disk
+            # Cleanup is automatic on test exit
+    """
+    temp_files = []
+    
+    def _create_temp_manifest(manifest_dict):
+        """Create a temp file with manifest_dict as JSON content."""
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+            json.dump(manifest_dict, f)
+            temp_path = f.name
+        temp_files.append(temp_path)
+        return temp_path
+    
+    yield _create_temp_manifest
+    
+    # Cleanup: remove all temp files created
+    for temp_path in temp_files:
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+
+
 class TestVoiceLinesSchema:
     """Validate VOICE_LINES catalog structure and content."""
 
@@ -408,10 +445,8 @@ class TestManifestSchemaValidation:
         assert data["schema_version"] == "1.0", \
             f"Expected schema_version '1.0', got '{data.get('schema_version')}'"
     
-    def test_manifest_loader_rejects_unknown_schema_version(self):
+    def test_manifest_loader_rejects_unknown_schema_version(self, temp_manifest_file):
         """load_manifest() must reject unknown schema_version values."""
-        import tempfile
-        
         # sec-r15-manifest-loader-adoption: intentional test bypass
         # Test fixtures intentionally omit checksums to test schema validation in isolation
         bad_manifest = {
@@ -419,25 +454,18 @@ class TestManifestSchemaValidation:
             "entries": [{"wav": "TEST01.WAV", "voice": "alloy", "category": "taunt", "status": "generated", "generated_at": "2025-01-01T00:00:00Z"}]
         }
         
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
-            json.dump(bad_manifest, f)
-            temp_path = f.name
+        temp_path = temp_manifest_file(bad_manifest)
         
-        try:
-            with pytest.raises(ValueError) as exc_info:
-                generate_audio.load_manifest(temp_path)
-            
-            assert "schema_version" in str(exc_info.value).lower(), \
-                f"Error message should mention schema_version: {exc_info.value}"
-            assert "1.0" in str(exc_info.value), \
-                f"Error message should mention expected version 1.0: {exc_info.value}"
-        finally:
-            os.remove(temp_path)
+        with pytest.raises(ValueError) as exc_info:
+            generate_audio.load_manifest(temp_path)
+        
+        assert "schema_version" in str(exc_info.value).lower(), \
+            f"Error message should mention schema_version: {exc_info.value}"
+        assert "1.0" in str(exc_info.value), \
+            f"Error message should mention expected version 1.0: {exc_info.value}"
     
-    def test_manifest_loader_validates_enum_fields(self):
+    def test_manifest_loader_validates_enum_fields(self, temp_manifest_file):
         """load_manifest() must validate categorical fields (voice, category, status)."""
-        import tempfile
-        
         # sec-r15-manifest-loader-adoption: intentional test bypass
         # Test fixtures intentionally omit checksums to test schema validation in isolation
         bad_manifest = {
@@ -453,23 +481,16 @@ class TestManifestSchemaValidation:
             ]
         }
         
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
-            json.dump(bad_manifest, f)
-            temp_path = f.name
+        temp_path = temp_manifest_file(bad_manifest)
         
-        try:
-            with pytest.raises(ValueError) as exc_info:
-                generate_audio.load_manifest(temp_path)
-            
-            assert "voice" in str(exc_info.value).lower(), \
-                f"Error should mention voice validation: {exc_info.value}"
-        finally:
-            os.remove(temp_path)
+        with pytest.raises(ValueError) as exc_info:
+            generate_audio.load_manifest(temp_path)
+        
+        assert "voice" in str(exc_info.value).lower(), \
+            f"Error should mention voice validation: {exc_info.value}"
     
-    def test_manifest_loader_validates_category_enum(self):
+    def test_manifest_loader_validates_category_enum(self, temp_manifest_file):
         """load_manifest() must validate category field against allowed values."""
-        import tempfile
-        
         # sec-r15-manifest-loader-adoption: intentional test bypass
         # Test fixtures intentionally omit checksums to test schema validation in isolation
         bad_manifest = {
@@ -485,23 +506,16 @@ class TestManifestSchemaValidation:
             ]
         }
         
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
-            json.dump(bad_manifest, f)
-            temp_path = f.name
+        temp_path = temp_manifest_file(bad_manifest)
         
-        try:
-            with pytest.raises(ValueError) as exc_info:
-                generate_audio.load_manifest(temp_path)
-            
-            assert "category" in str(exc_info.value).lower(), \
-                f"Error should mention category validation: {exc_info.value}"
-        finally:
-            os.remove(temp_path)
+        with pytest.raises(ValueError) as exc_info:
+            generate_audio.load_manifest(temp_path)
+        
+        assert "category" in str(exc_info.value).lower(), \
+            f"Error should mention category validation: {exc_info.value}"
     
-    def test_manifest_loader_validates_status_enum(self):
+    def test_manifest_loader_validates_status_enum(self, temp_manifest_file):
         """load_manifest() must validate status field against allowed values."""
-        import tempfile
-        
         # sec-r15-manifest-loader-adoption: intentional test bypass
         # Test fixtures intentionally omit checksums to test schema validation in isolation
         bad_manifest = {
@@ -517,23 +531,16 @@ class TestManifestSchemaValidation:
             ]
         }
         
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
-            json.dump(bad_manifest, f)
-            temp_path = f.name
+        temp_path = temp_manifest_file(bad_manifest)
         
-        try:
-            with pytest.raises(ValueError) as exc_info:
-                generate_audio.load_manifest(temp_path)
-            
-            assert "status" in str(exc_info.value).lower(), \
-                f"Error should mention status validation: {exc_info.value}"
-        finally:
-            os.remove(temp_path)
+        with pytest.raises(ValueError) as exc_info:
+            generate_audio.load_manifest(temp_path)
+        
+        assert "status" in str(exc_info.value).lower(), \
+            f"Error should mention status validation: {exc_info.value}"
     
-    def test_manifest_loader_accepts_valid_manifest(self):
+    def test_manifest_loader_accepts_valid_manifest(self, temp_manifest_file):
         """load_manifest() must accept valid manifests with correct schema_version and enums."""
-        import tempfile
-        
         # sec-r15-manifest-loader-adoption: intentional test bypass
         # Test fixtures intentionally omit checksums to test schema validation in isolation
         valid_manifest = {
@@ -553,17 +560,12 @@ class TestManifestSchemaValidation:
             ]
         }
         
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
-            json.dump(valid_manifest, f)
-            temp_path = f.name
+        temp_path = temp_manifest_file(valid_manifest)
         
-        try:
-            loaded = generate_audio.load_manifest(temp_path)
-            assert loaded["schema_version"] == "1.0"
-            assert len(loaded["entries"]) == 1
-            assert loaded["entries"][0]["wav"] == "TAUNT01.WAV"
-        finally:
-            os.remove(temp_path)
+        loaded = generate_audio.load_manifest(temp_path)
+        assert loaded["schema_version"] == "1.0"
+        assert len(loaded["entries"]) == 1
+        assert loaded["entries"][0]["wav"] == "TAUNT01.WAV"
 
 
 class TestEndpointLoggingRedaction:

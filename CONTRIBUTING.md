@@ -78,10 +78,11 @@ This project uses external APIs for AI-generated assets (textures and audio).
    - `AUDIO_API_KEY`: Request from the project lead or obtain from Azure OpenAI portal
    - `FLUX_API_KEY`: Obtain from Black Forest Labs (Flux API) or Azure Deployment
 3. **Verify `.env` is ignored:** The `.env` file is in `.gitignore` and should never be committed
-4. **Enable the secret-scan hook** to prevent accidental commits:
+4. **Install the pre-commit secret-scan hook:**
    ```bash
-   git config core.hooksPath .githooks
+   bash tools/install_hooks.sh
    ```
+   This installs a hook at `.git/hooks/pre-commit` that scans staged changes for exposed secrets. If an existing hook is detected, it will be backed up with a timestamp. The hook runs `tools/check_secrets.sh` automatically on all commits. To bypass (not recommended): `git commit --no-verify`
 
 #### Obtaining API Keys
 
