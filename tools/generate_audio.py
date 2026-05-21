@@ -11,9 +11,11 @@ import json
 import logging
 import os
 import random
+import socket
 import struct
 import sys
 import time
+import urllib.parse
 from datetime import datetime, timezone
 
 import aiohttp
@@ -52,6 +54,51 @@ def _redact_endpoint(url: str) -> str:
         return f"{p.scheme}://{host}.***"
     except Exception:
         return "***"
+
+
+def _validate_audio_endpoint(endpoint: str, api_key: str) -> tuple:
+    """Validate AUDIO endpoint and API key at startup.
+    
+    Returns:
+        (ok: bool, reason: str) - (True, "") if valid, (False, reason) otherwise
+    
+    Checks:
+    - Endpoint URL: well-formed (urllib.parse.urlparse), https scheme, non-empty hostname
+    - DNS resolvability (socket.gethostbyname with 3s timeout)
+    - API key: non-empty, minimum 16 chars
+    """
+    # Check API key
+    if not api_key:
+        return False, "AUDIO_API_KEY not set"
+    if len(api_key) < 16:
+        return False, f"AUDIO_API_KEY too short (min 16 chars, got {len(api_key)})"
+    
+    # Check endpoint URL format
+    if not endpoint:
+        return False, "AUDIO_ENDPOINT not set"
+    
+    try:
+        parsed = urllib.parse.urlparse(endpoint)
+    except Exception as e:
+        return False, f"AUDIO_ENDPOINT URL parse failed: {e}"
+    
+    if parsed.scheme != "https":
+        return False, f"AUDIO_ENDPOINT must use https (got {parsed.scheme})"
+    
+    if not parsed.hostname:
+        return False, "AUDIO_ENDPOINT has no hostname"
+    
+    # Check DNS resolvability
+    try:
+        socket.gethostbyname(parsed.hostname)
+    except socket.gaierror as e:
+        return False, f"AUDIO_ENDPOINT hostname not resolvable ({parsed.hostname}): {e}"
+    except socket.timeout:
+        return False, f"AUDIO_ENDPOINT DNS lookup timed out ({parsed.hostname})"
+    except Exception as e:
+        return False, f"AUDIO_ENDPOINT DNS check failed: {e}"
+    
+    return True, ""
 
 
 def _atomic_write_bytes(path: str, data: bytes) -> None:
@@ -559,6 +606,13 @@ def main():
     except ValueError as e:
         print(f"[ERROR] Sound manifest Pydantic validation failed:\n{e}", file=sys.stderr)
         return 1
+
+    # Validate AUDIO configuration if AI mode is requested (asset-r28-audio-endpoint-validation-startup)
+    if use_ai:
+        valid, reason = _validate_audio_endpoint(endpoint, api_key)
+        if not valid:
+            logger.warning(f"AUDIO config validation failed: {reason}. Falling back to procedural (--no-ai) mode.")
+            use_ai = False
 
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 

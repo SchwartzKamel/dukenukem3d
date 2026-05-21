@@ -128,6 +128,9 @@ static unsigned char local_nonce[HMAC_SHA256_SIZE]; /* our ephemeral nonce */
 static struct sockaddr_storage player_peer_addr[MAXPLAYERS];
 static int player_peer_addr_valid[MAXPLAYERS];
 
+/* net-r26-recv-buf-near-full-diagnostic: Track per-player near-full warning state for hysteresis */
+static int recv_buf_near_full_logged[MAXPLAYERS];
+
 /* ---- Endianness Convention & Wire Format ----
  *
  * WIRE FORMAT SPECIFICATION: ALL MULTI-BYTE INTEGERS ARE LITTLE-ENDIAN
@@ -359,6 +362,16 @@ static void net_poll_sockets(void)
 			             RECV_BUF_SIZE - recv_bufs[i].len, 0);
 			if (r > 0) {
 				recv_bufs[i].len += r;
+				/* net-r26-recv-buf-near-full-diagnostic: Warn once when buffer crosses threshold */
+				if (recv_bufs[i].len > (RECV_BUF_SIZE - 4096) && !recv_buf_near_full_logged[i]) {
+					const char *peer_str = "unknown";
+					if (player_peer_addr_valid[i]) {
+						peer_str = net_format_addr(&player_peer_addr[i]);
+					}
+					printf("NET: Player %d [%s] recv buffer near capacity: %d / %d bytes\n",
+						i, peer_str, recv_bufs[i].len, RECV_BUF_SIZE);
+					recv_buf_near_full_logged[i] = 1;
+				}
 			} else if (r == 0) {
 				break;
 			} else {
@@ -410,6 +423,11 @@ static void net_poll_sockets(void)
 			int total_len;
 			/* net-r17-hmac: socket index i identifies the actual sender */
 			int has_hmac = session_key_valid[i];
+
+			/* net-r26-recv-buf-near-full-diagnostic: Hysteresis clear when buffer drops below threshold/2 */
+			if (recv_buf_near_full_logged[i] && recv_bufs[i].len < (RECV_BUF_SIZE - 4096) / 2) {
+				recv_buf_near_full_logged[i] = 0;
+			}
 
 			/* Validate from_player bounds (CRITICAL: from_player is wire-supplied, attacker-controlled) */
 			if (from_player < 0 || from_player >= MAXPLAYERS) {

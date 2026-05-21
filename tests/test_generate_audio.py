@@ -872,3 +872,68 @@ class TestAsyncRetryBackoff:
         assert logger is not None
         # Verify logger has handlers
         assert len(logger.handlers) > 0, "Logger has no handlers configured"
+
+
+class TestAudioEndpointValidation:
+    """Test _validate_audio_endpoint function (asset-r28-audio-endpoint-validation-startup)."""
+
+    def test_validate_audio_endpoint_valid(self):
+        """Valid endpoint and API key should return (True, '')."""
+        # Use a real, resolvable hostname
+        valid, reason = generate_audio._validate_audio_endpoint(
+            "https://api.openai.com/v1/audio/speech",
+            "test_dummy_key_1234567890abcdef"
+        )
+        assert valid is True
+        assert reason == ""
+
+    @pytest.mark.parametrize("endpoint,api_key,expected_reason", [
+        # Invalid URL scheme
+        ("http://api.openai.com/v1/audio", "test_dummy_key_1234567890abcdef",
+         "AUDIO_ENDPOINT must use https"),
+        # Missing scheme
+        ("api.openai.com/v1/audio", "test_dummy_key_1234567890abcdef",
+         "AUDIO_ENDPOINT must use https"),
+        # Empty endpoint
+        ("", "test_dummy_key_1234567890abcdef",
+         "AUDIO_ENDPOINT not set"),
+        # No hostname
+        ("https://", "test_dummy_key_1234567890abcdef",
+         "AUDIO_ENDPOINT has no hostname"),
+        # Unresolvable hostname
+        ("https://thishostnamedoesnotexist12345.invalid",
+         "test_dummy_key_1234567890abcdef",
+         "AUDIO_ENDPOINT hostname not resolvable"),
+    ])
+    def test_validate_audio_endpoint_invalid_url(self, endpoint, api_key, expected_reason):
+        """Invalid endpoints should return (False, reason)."""
+        valid, reason = generate_audio._validate_audio_endpoint(endpoint, api_key)
+        assert valid is False
+        assert expected_reason in reason, \
+            f"Expected '{expected_reason}' in '{reason}'"
+
+    @pytest.mark.parametrize("endpoint,api_key,expected_reason", [
+        # Empty API key
+        ("https://api.openai.com/v1/audio", "",
+         "AUDIO_API_KEY not set"),
+        # Short API key (less than 16 chars)
+        ("https://api.openai.com/v1/audio", "test_dummy_key",
+         "AUDIO_API_KEY too short"),
+        # Even shorter
+        ("https://api.openai.com/v1/audio", "short",
+         "AUDIO_API_KEY too short"),
+    ])
+    def test_validate_audio_endpoint_invalid_key(self, endpoint, api_key, expected_reason):
+        """Invalid API keys should return (False, reason)."""
+        valid, reason = generate_audio._validate_audio_endpoint(endpoint, api_key)
+        assert valid is False
+        assert expected_reason in reason, \
+            f"Expected '{expected_reason}' in '{reason}'"
+
+    def test_validate_audio_endpoint_returns_tuple(self):
+        """Validator must return (bool, str) tuple."""
+        result = generate_audio._validate_audio_endpoint("https://api.openai.com", "test_dummy_key_1234567890abcdef")
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        assert isinstance(result[0], bool)
+        assert isinstance(result[1], str)

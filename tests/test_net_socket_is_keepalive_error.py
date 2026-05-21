@@ -12,176 +12,20 @@ Coverage:
 import subprocess
 import sys
 import os
-import tempfile
-import textwrap
 from pathlib import Path
 import pytest
 
 
 def compile_keepalive_error_test():
+    """Deprecated: Use compiled_keepalive_error_harness fixture instead.
+    
+    Kept for backward compatibility if needed, but tests should use the
+    session-scoped fixture to avoid recompilation overhead.
     """
-    Compile a minimal C test harness that calls net_socket_is_keepalive_error().
-    Returns a tuple: (compiled_binary_path, test_result_as_dict)
-    """
-    test_code = textwrap.dedent(r'''
-    #include <stdio.h>
-    #include <errno.h>
-    #include <string.h>
-    
-    #ifdef _WIN32
-    #include <winsock2.h>
-    #else
-    #include <sys/socket.h>
-    #include <netinet/in.h>
-    #endif
-    
-    /* Forward declare the function we're testing */
-    int net_socket_is_keepalive_error(int err);
-    
-    /* POSIX implementation */
-    #ifndef _WIN32
-    int net_socket_is_keepalive_error(int err)
-    {
-        return (err == ETIMEDOUT || err == ECONNRESET);
-    }
-    #else
-    /* Windows implementation */
-    int net_socket_is_keepalive_error(int err)
-    {
-        return (err == WSAETIMEDOUT || err == WSAECONNRESET);
-    }
-    #endif
-    
-    int main(void)
-    {
-        int pass = 0;
-        int fail = 0;
-        
-        /* Test positive cases (should return 1) */
-        #ifndef _WIN32
-        /* POSIX tests */
-        if (net_socket_is_keepalive_error(ETIMEDOUT) == 1) {
-            printf("PASS: ETIMEDOUT -> 1\n");
-            pass++;
-        } else {
-            printf("FAIL: ETIMEDOUT -> %d (expected 1)\n", net_socket_is_keepalive_error(ETIMEDOUT));
-            fail++;
-        }
-        
-        if (net_socket_is_keepalive_error(ECONNRESET) == 1) {
-            printf("PASS: ECONNRESET -> 1\n");
-            pass++;
-        } else {
-            printf("FAIL: ECONNRESET -> %d (expected 1)\n", net_socket_is_keepalive_error(ECONNRESET));
-            fail++;
-        }
-        
-        /* Test negative cases (should return 0) */
-        if (net_socket_is_keepalive_error(EAGAIN) == 0) {
-            printf("PASS: EAGAIN -> 0\n");
-            pass++;
-        } else {
-            printf("FAIL: EAGAIN -> %d (expected 0)\n", net_socket_is_keepalive_error(EAGAIN));
-            fail++;
-        }
-        
-        if (net_socket_is_keepalive_error(EWOULDBLOCK) == 0) {
-            printf("PASS: EWOULDBLOCK -> 0\n");
-            pass++;
-        } else {
-            printf("FAIL: EWOULDBLOCK -> %d (expected 0)\n", net_socket_is_keepalive_error(EWOULDBLOCK));
-            fail++;
-        }
-        
-        if (net_socket_is_keepalive_error(EINTR) == 0) {
-            printf("PASS: EINTR -> 0\n");
-            pass++;
-        } else {
-            printf("FAIL: EINTR -> %d (expected 0)\n", net_socket_is_keepalive_error(EINTR));
-            fail++;
-        }
-        
-        if (net_socket_is_keepalive_error(ENOTCONN) == 0) {
-            printf("PASS: ENOTCONN -> 0\n");
-            pass++;
-        } else {
-            printf("FAIL: ENOTCONN -> %d (expected 0)\n", net_socket_is_keepalive_error(ENOTCONN));
-            fail++;
-        }
-        
-        if (net_socket_is_keepalive_error(0) == 0) {
-            printf("PASS: 0 -> 0\n");
-            pass++;
-        } else {
-            printf("FAIL: 0 -> %d (expected 0)\n", net_socket_is_keepalive_error(0));
-            fail++;
-        }
-        #else
-        /* Windows tests */
-        if (net_socket_is_keepalive_error(WSAETIMEDOUT) == 1) {
-            printf("PASS: WSAETIMEDOUT -> 1\n");
-            pass++;
-        } else {
-            printf("FAIL: WSAETIMEDOUT -> %d (expected 1)\n", net_socket_is_keepalive_error(WSAETIMEDOUT));
-            fail++;
-        }
-        
-        if (net_socket_is_keepalive_error(WSAECONNRESET) == 1) {
-            printf("PASS: WSAECONNRESET -> 1\n");
-            pass++;
-        } else {
-            printf("FAIL: WSAECONNRESET -> %d (expected 1)\n", net_socket_is_keepalive_error(WSAECONNRESET));
-            fail++;
-        }
-        
-        if (net_socket_is_keepalive_error(0) == 0) {
-            printf("PASS: 0 -> 0\n");
-            pass++;
-        } else {
-            printf("FAIL: 0 -> %d (expected 0)\n", net_socket_is_keepalive_error(0));
-            fail++;
-        }
-        #endif
-        
-        printf("Results: %d passed, %d failed\n", pass, fail);
-        return (fail == 0) ? 0 : 1;
-    }
-    ''')
-    
-    # Create temp directory for compilation
-    with tempfile.TemporaryDirectory(prefix='net_socket_test_') as tmpdir:
-        tmpdir_path = Path(tmpdir)
-        src_file = tmpdir_path / 'test_keepalive_error.c'
-        exe_file = tmpdir_path / 'test_keepalive_error'
-        
-        # Write test source
-        src_file.write_text(test_code)
-        
-        # Compile
-        compile_cmd = [
-            'gcc',
-            '-o', str(exe_file),
-            str(src_file),
-            '-Wall', '-Wextra', '-pedantic',
-        ]
-        
-        result = subprocess.run(
-            compile_cmd,
-            capture_output=True,
-            text=True
-        )
-        
-        if result.returncode != 0:
-            raise RuntimeError(f"Compilation failed:\nstdout: {result.stdout}\nstderr: {result.stderr}")
-        
-        # Run the test
-        run_result = subprocess.run(
-            [str(exe_file)],
-            capture_output=True,
-            text=True
-        )
-        
-        return run_result.stdout, run_result.returncode
+    raise NotImplementedError(
+        "compile_keepalive_error_test() is deprecated. "
+        "Use the compiled_keepalive_error_harness fixture instead in conftest.py"
+    )
 
 
 class TestNetSocketIsKeepaliveErrorDeclaration:
@@ -214,32 +58,42 @@ class TestNetSocketIsKeepaliveErrorDeclaration:
 class TestNetSocketIsKeepaliveErrorFunctionality:
     """Test net_socket_is_keepalive_error() actual behavior."""
     
-    def test_keepalive_error_detection(self):
-        """Test that keepalive error detection works correctly."""
-        try:
-            output, returncode = compile_keepalive_error_test()
-            
-            # Check that all tests passed
-            assert returncode == 0, f"Test failed with return code {returncode}\n{output}"
-            
-            # Verify expected test results are in output
-            lines = output.strip().split('\n')
-            
-            # Count PASS/FAIL results
-            pass_count = sum(1 for line in lines if 'PASS:' in line)
-            fail_count = sum(1 for line in lines if 'FAIL:' in line)
-            
-            # On POSIX: should have 7 tests (2 positive + 5 negative)
-            # On Windows: should have 3 tests (2 positive + 1 negative)
-            if sys.platform == 'win32':
-                assert pass_count >= 3, f"Expected at least 3 passing tests on Windows, got {pass_count}\n{output}"
-            else:
-                assert pass_count >= 7, f"Expected at least 7 passing tests on POSIX, got {pass_count}\n{output}"
-            
-            assert fail_count == 0, f"Test had failures:\n{output}"
-            
-        except RuntimeError as e:
-            pytest.skip(f"Could not compile test: {e}")
+    def test_keepalive_error_detection(self, compiled_keepalive_error_harness):
+        """Test that keepalive error detection works correctly using cached binary.
+        
+        Uses a session-scoped fixture that compiles once per pytest session,
+        dramatically reducing test startup overhead.
+        """
+        exe_file = compiled_keepalive_error_harness
+        
+        # Run the test
+        run_result = subprocess.run(
+            [str(exe_file)],
+            capture_output=True,
+            text=True
+        )
+        
+        output = run_result.stdout
+        returncode = run_result.returncode
+        
+        # Check that all tests passed
+        assert returncode == 0, f"Test failed with return code {returncode}\n{output}"
+        
+        # Verify expected test results are in output
+        lines = output.strip().split('\n')
+        
+        # Count PASS/FAIL results
+        pass_count = sum(1 for line in lines if 'PASS:' in line)
+        fail_count = sum(1 for line in lines if 'FAIL:' in line)
+        
+        # On POSIX: should have 7 tests (2 positive + 5 negative)
+        # On Windows: should have 3 tests (2 positive + 1 negative)
+        if sys.platform == 'win32':
+            assert pass_count >= 3, f"Expected at least 3 passing tests on Windows, got {pass_count}\n{output}"
+        else:
+            assert pass_count >= 7, f"Expected at least 7 passing tests on POSIX, got {pass_count}\n{output}"
+        
+        assert fail_count == 0, f"Test had failures:\n{output}"
 
 
 class TestNetSocketIsKeepaliveErrorPositiveCases:

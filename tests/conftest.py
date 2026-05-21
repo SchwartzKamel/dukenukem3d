@@ -4,6 +4,7 @@ import subprocess
 import json
 from pathlib import Path
 import re
+import textwrap
 
 import pytest
 from pydantic import BaseModel, field_validator
@@ -213,6 +214,297 @@ def generated_audio_artifacts(worker_id, tmp_path_factory):
     }
     
     yield artifacts
+
+
+@pytest.fixture(scope="session")
+def compiled_makepalookup_harness(tmp_path_factory):
+    """Session-scoped fixture that compiles makepalookup test harness once.
+    
+    Compiles the C test harness for makepalookup() bounds checking and caches
+    the binary for the entire pytest session. This avoids recompiling on every
+    test discovery or test method, reducing pytest startup from ~2-4s per file
+    to 1 shared compile per session.
+    
+    Yields:
+        Path to the compiled executable (auto-cleaned by pytest tmp_path cleanup)
+    """
+    c_code = r"""
+#include <stdio.h>
+#include <stdint.h>
+#include <limits.h>
+#include <assert.h>
+
+/* Test harness to verify makepalookup() bounds guard logic */
+
+#define MAXPALOOKUPS 256
+
+/* Simulate the guard from SRC/ENGINE.C:7568 */
+int test_guard_triggers(long palnum) {
+    /* Replicate the guard: if (palnum < 0 || palnum >= MAXPALOOKUPS) return; */
+    if (palnum < 0 || palnum >= MAXPALOOKUPS) {
+        return 1; /* Guard triggered (should return early) */
+    }
+    return 0; /* Guard did NOT trigger (function proceeds) */
+}
+
+int main() {
+    int pass_count = 0, fail_count = 0;
+    int i;
+    long palnum;
+    int triggered;
+    
+    printf("Testing makepalookup() bounds guard logic...\n");
+    printf("MAXPALOOKUPS = %d\n\n", MAXPALOOKUPS);
+    
+    /* Test cases: guard MUST trigger */
+    struct {
+        long palnum;
+        const char *desc;
+    } guard_must_trigger[] = {
+        { -1, "palnum = -1" },
+        { -100, "palnum = -100" },
+        { -128, "palnum = -128 (signed-char min)" },
+        { INT_MIN, "palnum = INT_MIN" },
+        { MAXPALOOKUPS, "palnum = 256 (MAXPALOOKUPS)" },
+        { MAXPALOOKUPS + 1, "palnum = 257 (MAXPALOOKUPS+1)" },
+        { 512, "palnum = 512 (well above max)" },
+    };
+    int num_must_trigger = sizeof(guard_must_trigger) / sizeof(guard_must_trigger[0]);
+    
+    for (i = 0; i < num_must_trigger; i++) {
+        palnum = guard_must_trigger[i].palnum;
+        triggered = test_guard_triggers(palnum);
+        
+        if (triggered) {
+            printf("[PASS] %s -> guard triggered (correct)\n", guard_must_trigger[i].desc);
+            pass_count++;
+        } else {
+            printf("[FAIL] %s -> guard did NOT trigger (BUG!)\n", guard_must_trigger[i].desc);
+            fail_count++;
+        }
+    }
+    
+    printf("\n");
+    
+    /* Test cases: guard must NOT trigger */
+    struct {
+        long palnum;
+        const char *desc;
+    } guard_must_not_trigger[] = {
+        { 0, "palnum = 0 (min valid)" },
+        { 1, "palnum = 1" },
+        { 127, "palnum = 127 (mid-range)" },
+        { 255, "palnum = 255 (MAXPALOOKUPS-1, max valid)" },
+    };
+    int num_must_not_trigger = sizeof(guard_must_not_trigger) / sizeof(guard_must_not_trigger[0]);
+    
+    for (i = 0; i < num_must_not_trigger; i++) {
+        palnum = guard_must_not_trigger[i].palnum;
+        triggered = test_guard_triggers(palnum);
+        
+        if (!triggered) {
+            printf("[PASS] %s -> guard did NOT trigger (correct)\n", guard_must_not_trigger[i].desc);
+            pass_count++;
+        } else {
+            printf("[FAIL] %s -> guard triggered (BUG!)\n", guard_must_not_trigger[i].desc);
+            fail_count++;
+        }
+    }
+    
+    printf("\n");
+    printf("Results: %d passed, %d failed\n", pass_count, fail_count);
+    
+    if (fail_count > 0) {
+        fprintf(stderr, "BOUNDS GUARD TEST FAILED\n");
+        return 1;
+    }
+    
+    printf("ALL BOUNDS GUARD CHECKS PASSED\n");
+    return 0;
+}
+"""
+    
+    tmpdir = tmp_path_factory.mktemp("c_harness")
+    compiler = os.environ.get("STRUCT_TEST_CC", "gcc")
+    c_file = tmpdir / "makepalookup_bounds.c"
+    out_file = tmpdir / "makepalookup_bounds"
+    
+    # Write C code
+    c_file.write_text(c_code)
+    
+    # Compile
+    result = subprocess.run(
+        [compiler, "-std=gnu89", "-x", "c", str(c_file), "-o", str(out_file)],
+        capture_output=True, text=True, timeout=30
+    )
+    assert result.returncode == 0, (
+        f"Compilation failed with {compiler}:\n{result.stderr}"
+    )
+    
+    yield out_file
+
+
+@pytest.fixture(scope="session")
+def compiled_keepalive_error_harness(tmp_path_factory):
+    """Session-scoped fixture that compiles keepalive error test harness once.
+    
+    Compiles the C test harness for net_socket_is_keepalive_error() and caches
+    the binary for the entire pytest session. This avoids recompiling on every
+    test discovery, reducing overhead significantly.
+    
+    Yields:
+        Path to the compiled executable (auto-cleaned by pytest tmp_path cleanup)
+    """
+    test_code = textwrap.dedent(r'''
+    #include <stdio.h>
+    #include <errno.h>
+    #include <string.h>
+    
+    #ifdef _WIN32
+    #include <winsock2.h>
+    #else
+    #include <sys/socket.h>
+    #include <netinet/in.h>
+    #endif
+    
+    /* Forward declare the function we're testing */
+    int net_socket_is_keepalive_error(int err);
+    
+    /* POSIX implementation */
+    #ifndef _WIN32
+    int net_socket_is_keepalive_error(int err)
+    {
+        return (err == ETIMEDOUT || err == ECONNRESET);
+    }
+    #else
+    /* Windows implementation */
+    int net_socket_is_keepalive_error(int err)
+    {
+        return (err == WSAETIMEDOUT || err == WSAECONNRESET);
+    }
+    #endif
+    
+    int main(void)
+    {
+        int pass = 0;
+        int fail = 0;
+        
+        /* Test positive cases (should return 1) */
+        #ifndef _WIN32
+        /* POSIX tests */
+        if (net_socket_is_keepalive_error(ETIMEDOUT) == 1) {
+            printf("PASS: ETIMEDOUT -> 1\n");
+            pass++;
+        } else {
+            printf("FAIL: ETIMEDOUT -> %d (expected 1)\n", net_socket_is_keepalive_error(ETIMEDOUT));
+            fail++;
+        }
+        
+        if (net_socket_is_keepalive_error(ECONNRESET) == 1) {
+            printf("PASS: ECONNRESET -> 1\n");
+            pass++;
+        } else {
+            printf("FAIL: ECONNRESET -> %d (expected 1)\n", net_socket_is_keepalive_error(ECONNRESET));
+            fail++;
+        }
+        
+        /* Test negative cases (should return 0) */
+        if (net_socket_is_keepalive_error(EAGAIN) == 0) {
+            printf("PASS: EAGAIN -> 0\n");
+            pass++;
+        } else {
+            printf("FAIL: EAGAIN -> %d (expected 0)\n", net_socket_is_keepalive_error(EAGAIN));
+            fail++;
+        }
+        
+        if (net_socket_is_keepalive_error(EWOULDBLOCK) == 0) {
+            printf("PASS: EWOULDBLOCK -> 0\n");
+            pass++;
+        } else {
+            printf("FAIL: EWOULDBLOCK -> %d (expected 0)\n", net_socket_is_keepalive_error(EWOULDBLOCK));
+            fail++;
+        }
+        
+        if (net_socket_is_keepalive_error(EINTR) == 0) {
+            printf("PASS: EINTR -> 0\n");
+            pass++;
+        } else {
+            printf("FAIL: EINTR -> %d (expected 0)\n", net_socket_is_keepalive_error(EINTR));
+            fail++;
+        }
+        
+        if (net_socket_is_keepalive_error(ENOTCONN) == 0) {
+            printf("PASS: ENOTCONN -> 0\n");
+            pass++;
+        } else {
+            printf("FAIL: ENOTCONN -> %d (expected 0)\n", net_socket_is_keepalive_error(ENOTCONN));
+            fail++;
+        }
+        
+        if (net_socket_is_keepalive_error(0) == 0) {
+            printf("PASS: 0 -> 0\n");
+            pass++;
+        } else {
+            printf("FAIL: 0 -> %d (expected 0)\n", net_socket_is_keepalive_error(0));
+            fail++;
+        }
+        #else
+        /* Windows tests */
+        if (net_socket_is_keepalive_error(WSAETIMEDOUT) == 1) {
+            printf("PASS: WSAETIMEDOUT -> 1\n");
+            pass++;
+        } else {
+            printf("FAIL: WSAETIMEDOUT -> %d (expected 1)\n", net_socket_is_keepalive_error(WSAETIMEDOUT));
+            fail++;
+        }
+        
+        if (net_socket_is_keepalive_error(WSAECONNRESET) == 1) {
+            printf("PASS: WSAECONNRESET -> 1\n");
+            pass++;
+        } else {
+            printf("FAIL: WSAECONNRESET -> %d (expected 1)\n", net_socket_is_keepalive_error(WSAECONNRESET));
+            fail++;
+        }
+        
+        if (net_socket_is_keepalive_error(0) == 0) {
+            printf("PASS: 0 -> 0\n");
+            pass++;
+        } else {
+            printf("FAIL: 0 -> %d (expected 0)\n", net_socket_is_keepalive_error(0));
+            fail++;
+        }
+        #endif
+        
+        printf("Results: %d passed, %d failed\n", pass, fail);
+        return (fail == 0) ? 0 : 1;
+    }
+    ''')
+    
+    tmpdir = tmp_path_factory.mktemp("c_harness")
+    src_file = tmpdir / 'test_keepalive_error.c'
+    exe_file = tmpdir / 'test_keepalive_error'
+    
+    # Write test source
+    src_file.write_text(test_code)
+    
+    # Compile
+    compile_cmd = [
+        'gcc',
+        '-o', str(exe_file),
+        str(src_file),
+        '-Wall', '-Wextra', '-pedantic',
+    ]
+    
+    result = subprocess.run(
+        compile_cmd,
+        capture_output=True,
+        text=True
+    )
+    
+    if result.returncode != 0:
+        raise RuntimeError(f"Compilation failed:\nstdout: {result.stdout}\nstderr: {result.stderr}")
+    
+    yield exe_file
 
 def pytest_addoption(parser):
     """Add --runslow option to pytest CLI."""

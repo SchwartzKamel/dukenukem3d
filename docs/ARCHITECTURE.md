@@ -841,6 +841,39 @@ SRC/MMULTI.C `NET_HEADER_SIZE` definition + 14 `net-r15-seqnum` sentinels.
 - Host closes → clients recv() EOF, drop to single-player
 - **Cleanup**: `memset(&recv_bufs[i], 0, sizeof(recv_bufs[i]))` clears per-player recv buffer (prevents stale data leak on reconnect)
 
+### Network Keepalive Semantics (Cycles 113–115)
+
+**TCP SO_KEEPALIVE per-Socket (Cycle 113):**
+- TCP keepalive is enabled on all player sockets via `net_socket_enable_keepalive()` (SRC/MMULTI.C:646, 710, 840; compat/net_socket_posix.c:119–185, compat/net_socket_win32.c:123–138).
+- **POSIX (Linux/BSD/macOS)**: SO_KEEPALIVE + optional tunable timers (TCP_KEEPIDLE, TCP_KEEPINTVL, TCP_KEEPCNT) via environment variables; defaults: idle=120s, interval=30s, count=5.
+- **Windows**: SO_KEEPALIVE only (system-wide TCP parameters; per-socket tuning not supported).
+- **Rationale**: Detect dead peers (network outage, silent disconnects) before game state desynchronization; prevents "ghost players" in multiplayer state.
+
+**Per-Player Address Tracking (Cycle 113):**
+Static arrays track connected peers for diagnostic logging:
+```c
+static struct sockaddr_storage player_peer_addr[MAXPLAYERS];
+static int player_peer_addr_valid[MAXPLAYERS];  /* populated on accept/connect */
+```
+Populated at accept (host) or connect (client) handshake; enables human-readable IP:port logging on keepalive disconnect.
+
+**Keepalive Error Detection (Cycle 113):**
+Helper function `net_socket_is_keepalive_error(int err)` distinguishes dead-peer errors from transient I/O errors:
+- **POSIX**: Returns non-zero for ETIMEDOUT or ECONNRESET (compat/net_socket_posix.c:207–211)
+- **Windows**: Returns non-zero for WSAETIMEDOUT or WSAECONNRESET (compat/net_socket_win32.c:160–164)
+
+**Diagnostic & Cleanup (Cycles 113–115):**
+On keepalive error detection (SRC/MMULTI.C:392–410):
+1. Emit structured diagnostic: `NET: Player {idx} [{IP:port}] disconnected: TCP keepalive detected dead peer ({error_code})`
+2. **Immediate cleanup** (not deferred to next tick):
+   - Close socket via `net_close()`
+   - Mark as `INVALID_SOCKET`
+   - Clear `player_peer_addr_valid[i]`
+   - Zero `memset(&recv_bufs[i], ...)` (prevents stale packet leakage)
+   - Zero `memset(session_key[i], HMAC_SHA256_SIZE)` + set `session_key_valid[i] = 0`
+
+**Cycle References:** [Grind Log c113](GRIND_LOG#c113-keepalive) (per-player tracking, error detection); [Grind Log c115](GRIND_LOG#c115-keepalive) (cleanup-immediate pattern).
+
 ### Packet Integrity (current gap)
 
 **CRC Implementation Status (Cycle 59 audit closure):**

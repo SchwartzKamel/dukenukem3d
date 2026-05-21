@@ -5156,3 +5156,48 @@ Backlog: 468 pending / 493 done / 23 blocked.
 ### Race outcome
 4/4 STAGING files survived. No mid-flight test regressions (mid-run "1950 passed" report from docs agent was a transient pytest-collection race with sibling agents; final tree confirmed 1952). Perf agent ran longer than others (15min) due to multiple wallclock measurement passes — expected.
 
+
+---
+
+## Cycle 117 — 2026-05-21T13:30Z — Grind + Audit-Pass Drain (8 agents, all landed)
+
+**Dispatch**: 6 grind + 2 audit-pass (DOC-ONLY STAGING) — all 8 distinct file domains.
+
+### Grind landings (6/6)
+
+| Agent | Todo | Sentinel | Key change |
+|-------|------|----------|------------|
+| perf-subprocess-cache | perf-r28-subprocess-test-harness-build-cache | a7f2c1b9 | tests/conftest.py session-scoped fixtures for makepalookup + keepalive C harnesses. **Wallclock -27.1%** (120.57s → 87.84s w/ slow); per-test 59.67ms → 43.24ms. Fast-suite back under 30s (was 49.91s post-c115). |
+| asset-audio-endpoint | asset-r28-audio-endpoint-validation-startup | 8c738041 | tools/generate_audio.py `_validate_audio_endpoint()` (URL/DNS/key), wired into main() before first API call w/ fallback. +10 tests (1952→1962). |
+| docs-readme-sync | docs-r27-readme-recent-improvements-c113-c115-sync | 4f2a34cd | README.md "Recent Improvements" header 100–112 → 100–115; +10 consolidated bullets across c113–c115. |
+| net-recv-buf-diag | net-r26-recv-buf-near-full-diagnostic | a3f7c1b2 | SRC/MMULTI.C +18L: per-player `recv_buf_near_full_logged[MAXPLAYERS]` flag + threshold-cross diagnostic at (RECV_BUF_SIZE-4096) + hysteresis clear at threshold/2. |
+| engine-lzw-other-sites | engine-r28-lzw-bounds-other-call-sites | a7f3e2c1 | **AUDIT-ONLY closure**: no additional LZW leng sites need bounds (c115 CACHE1D.C kdfread/dfread are the only consumers; all other paths use protected interface or have existing bounds). |
+| docs-arch-keepalive | docs-r27-arch-network-keepalive-section | a7f2c8e1 | docs/ARCHITECTURE.md +33L Network Keepalive Semantics subsection (TCP SO_KEEPALIVE + per-player addr tracking + net_socket_is_keepalive_error helper + structured diag + c115 cleanup-immediate + cycle refs). |
+
+### Audit-pass landings (2/2 DOC-ONLY)
+
+| Persona | Round | Sentinel | Headline |
+|---------|-------|----------|----------|
+| build-system | r28 | a3f2c1e8 | **CRITICAL**: compat/sha256.c in build.mk:16 but MISSING from CMakeLists.txt:46–54 — source drift. c115 landings (bcrypt guard, macOS defer, SDL2_VERSION single-source, LANGUAGE C, GNU89/C11) all RE-VERIFIED. 5 todos mined. |
+| security-and-secrets | r27 | a7f2c4e1 | 11-control verification matrix all PASS: c113 .env hardening, c115 cycle annotations, BCryptGenRandom, FLUX+AUDIO env loading, 20+ secret patterns, GPL compliance, cycle-66 attribution preserved. 0 CRITICAL/HIGH/MED; 3 LOW + 1 ADVISORY; 4 todos mined. |
+
+### Test count progression
+- c116 baseline: 1952 passed (-m "not slow")
+- c117 post-audio validator: **1962 passed** (+10)
+- Wallclock fast-suite: **26.52s** (regressed-then-recovered: c114 ~27s → c115 49.91s → **c117 26.52s** ✅ FULL RECOVERY via perf cache fix)
+
+### New todos mined (9 total, 1 CRITICAL + 3 MED + 5 LOW/ADVISORY)
+- **build-r28-source-file-sync-critical** (CRITICAL — sha256.c CMake gap) ← highest priority for c118
+- build-r28-cmake-platform-guard-clarity (MED)
+- build-r28-ci-sdl2-extraction-dry (MED)
+- build-r28-windows-architecture-clarification (MED)
+- build-r28-cmake-warning-strategy-docs (MED)
+- sec-r27-generate-assets-flux-validation-early (LOW)
+- sec-r27-check-secrets-pre-commit-guidance (LOW)
+- sec-r27-sdl2-cve-monitoring-automation (ADVISORY)
+- sec-r27-bcrypt-pragma-comment-coverage (LOW)
+
+### Notable
+- **Perf regression FULLY RECOVERED** (-27%; per-test 59.67ms → 43.24ms; below c114 baseline). c115 subprocess-test pattern now amortized cleanly via session-scoped pytest fixtures; pattern can scale to future C harness tests safely.
+- 6-agent cap discipline upheld: 8 in flight (6 grind + 2 doc-only audit STAGING) with strict distinct-file-domain assignment; zero race or contention. Confirms STAGING contract enables safe expansion beyond 6 when doc-only.
+- ARCH + README + ARCH-keepalive docs all advanced — operator's "ensure we're updating docs" directive honored.

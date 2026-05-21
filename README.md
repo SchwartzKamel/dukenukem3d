@@ -361,7 +361,7 @@ Porting a 1996 DOS game to modern Linux isn't for the faint of heart. Here's wha
 
 <!-- docs-feature-summary-update: cycle 113 -->
 
-## 📝 Recent Improvements (Cycles 100–112)
+## 📝 Recent Improvements (Cycles 100–115)
 
 | Improvement | Purpose | Cycle |
 |---|---|---|
@@ -371,6 +371,16 @@ Porting a 1996 DOS game to modern Linux isn't for the faint of heart. Here's wha
 | **Procedural Texture Test Expansion** | Added 400+ parametrized procedural texture edge-case tests — covers color quantization, palette overflow, aspect ratio extremes | 109 |
 | **Palette Lookup Hardening (P0)** | Fixed `makepalookup()` integer overflow; replaced unsafe `(long)` casts with `(uint32_t)` in shade calculation; added bounds checks for palette index | 111 |
 | **Windows CSPRNG Hardening** | Integrated `BCryptGenRandom()` on Windows for cryptographically secure RNG; fallback to `getrandom()` on Linux; enables secure GRP manifest checksums | 111 |
+| **Engine File-I/O Bounds Validation** | P0 makepalookup() OOB fix (SRC/ENGINE.C) + defense-in-depth hardening across 4 sites: GRP gnumfiles, ART tile indices, palette numpalookups, lookup.dat numl (SRC/PREMAP.C) | 113 |
+| **Audio ABI Consolidation** | Migrated 64 callback sites from `unsigned long → uint32_t` in compat/audio_stub.{c,h}; completes cycle-107 ABI thread (114 audio pipeline tests still pass) | 113 |
+| **Windows Cryptography Stack** | Added `BCryptGenRandom()` CSPRNG for HMAC nonces in SRC/MMULTI.C with bcrypt.lib link integration on Windows platforms | 113 |
+| **Network Keepalive Diagnostics** | SRC/MMULTI.C keepalive teardown: per-player peer-addr tracking + structured ETIMEDOUT/ECONNRESET diagnostic on recv() failure with IP:port + error code logging | 113 |
+| **FLUX Asset Pipeline Hardening** | Startup endpoint+DNS+API-key validator with `--no-ai` fallback; HTTP 429 `Retry-After` parser (int + HTTP-date, 60s cap) in tools/generate_assets.py | 113 |
+| **Security Documentation** | .env chmod 600 / icacls hardening + SDL2_mixer DLL search-path protection (SetDefaultDllDirectories) advisory added to SECURITY.md | 113 |
+| **Codebase Audit Program** | docs/audits 4-persona audit-pass — network, test, engine, compat personas reviewed c113 work; found and queued 8 fresh follow-ups | 114 |
+| **LZW Decompression Bounds** | SRC/CACHE1D.C kdfread()/dfread() now bounds-check `leng` from compressed stream (4 call-sites); rejects negative + oversized values (max 20480) | 115 |
+| **Keepalive Cleanup Optimization** | SRC/MMULTI.C now closes socket + zeros state inline on ETIMEDOUT/ECONNRESET instead of deferring to next tick; uses `net_close()` + `INVALID_SOCKET` conventions | 115 |
+| **Runtime Test Coverage** | +12 new test cases for c111/c113 static guards: makepalookup OOB negative palnum + net_socket_is_keepalive_error platform-errno matrix (C harness + pytest) | 115 |
 
 See [docs/ARCHITECTURE.md § Recent Improvements](docs/ARCHITECTURE.md#recent-improvements) for technical depth and [docs/audits/GRIND_LOG.md](docs/audits/GRIND_LOG.md) for cycle-by-cycle details.
 
