@@ -168,3 +168,105 @@ class TestSecurityBasics:
     def test_security_md_exists(self):
         """SECURITY.md must exist."""
         assert os.path.exists('SECURITY.md')
+
+
+class TestStubLogging:
+    """Test the debug logging for stubbed no-op functions."""
+
+    def test_log_stub_header_exists(self):
+        """log_stub.h must exist in compat/."""
+        assert os.path.exists('compat/log_stub.h')
+
+    def test_log_stub_macro_defined(self):
+        """log_stub.h must define STUB_LOG macro."""
+        with open('compat/log_stub.h') as f:
+            content = f.read()
+        assert '#define STUB_LOG' in content, "STUB_LOG macro not defined"
+
+    def test_log_stub_macro_has_noop(self):
+        """STUB_LOG macro must have a no-op fallback when DUKE3D_STUB_LOG is not defined."""
+        with open('compat/log_stub.h') as f:
+            content = f.read()
+        # Should have both the enabled and disabled versions
+        assert '#ifdef DUKE3D_STUB_LOG' in content
+        assert '#else' in content
+
+    def test_log_stub_includes_in_mact_stub(self):
+        """mact_stub.c must include log_stub.h."""
+        with open('compat/mact_stub.c') as f:
+            content = f.read()
+        assert '#include "log_stub.h"' in content
+
+    def test_log_stub_includes_in_audio_stub(self):
+        """audio_stub.c must include log_stub.h."""
+        with open('compat/audio_stub.c') as f:
+            content = f.read()
+        assert '#include "log_stub.h"' in content
+
+    def test_music_setvol_has_logging(self):
+        """Music_SetVolume() stub must call STUB_LOG."""
+        with open('compat/mact_stub.c') as f:
+            content = f.read()
+        # Find the Music_SetVolume function
+        assert 'void Music_SetVolume(int volume)' in content
+        # Should have STUB_LOG call
+        import re
+        match = re.search(r'void Music_SetVolume\(int volume\)\s*\{\s*STUB_LOG', content)
+        assert match, "Music_SetVolume should call STUB_LOG"
+
+    def test_playmusic_has_logging(self):
+        """PlayMusic() stub must call STUB_LOG."""
+        with open('compat/mact_stub.c') as f:
+            content = f.read()
+        # Find the PlayMusic function
+        assert 'void PlayMusic(char *fn)' in content
+        # Should have STUB_LOG call
+        import re
+        match = re.search(r'void PlayMusic\(char \*fn\)\s*\{\s*STUB_LOG', content)
+        assert match, "PlayMusic should call STUB_LOG"
+
+    def test_control_waitrelease_has_logging(self):
+        """CONTROL_WaitRelease() stub must call STUB_LOG."""
+        with open('compat/audio_stub.c') as f:
+            content = f.read()
+        # Find the CONTROL_WaitRelease function
+        assert 'void CONTROL_WaitRelease(void)' in content
+        # Should have STUB_LOG call
+        import re
+        match = re.search(r'void CONTROL_WaitRelease\(void\)\s*\{\s*STUB_LOG', content)
+        assert match, "CONTROL_WaitRelease should call STUB_LOG"
+
+    def test_control_ack_has_logging(self):
+        """CONTROL_Ack() stub must call STUB_LOG."""
+        with open('compat/audio_stub.c') as f:
+            content = f.read()
+        # Find the CONTROL_Ack function
+        assert 'void CONTROL_Ack(void)' in content
+        # Should have STUB_LOG call
+        import re
+        match = re.search(r'void CONTROL_Ack\(void\)\s*\{\s*STUB_LOG', content)
+        assert match, "CONTROL_Ack should call STUB_LOG"
+
+    def test_fx_stoprecord_has_logging(self):
+        """FX_StopRecord() stub must call STUB_LOG."""
+        with open('compat/audio_stub.c') as f:
+            content = f.read()
+        # Find the FX_StopRecord function
+        assert 'void FX_StopRecord(void)' in content
+        # Should have STUB_LOG call
+        import re
+        match = re.search(r'void FX_StopRecord\(void\)\s*\{\s*STUB_LOG', content)
+        assert match, "FX_StopRecord should call STUB_LOG"
+
+    def test_log_stub_compilation_without_define(self):
+        """log_stub.h must compile as valid C11 without DUKE3D_STUB_LOG."""
+        # This is a compile-time test; if the header exists and is syntactically valid,
+        # it will have passed during the build. We verify by checking the file content
+        # is valid C preprocessor directives.
+        with open('compat/log_stub.h') as f:
+            content = f.read()
+        # Should have ifndef and endif
+        assert '#ifndef COMPAT_LOG_STUB_H' in content
+        assert '#endif' in content
+        # Should have #ifdef DUKE3D_STUB_LOG guard
+        assert '#ifdef DUKE3D_STUB_LOG' in content

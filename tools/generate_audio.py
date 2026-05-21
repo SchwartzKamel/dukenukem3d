@@ -18,6 +18,7 @@ import aiohttp
 import requests
 
 from manifest_verification import load_and_verify_audio_manifest
+from sound_manifest import validate_sound_manifest_entries
 
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 OUTPUT_DIR = os.path.join(PROJECT_ROOT, "generated_assets", "sounds")
@@ -467,6 +468,13 @@ def main():
         validate_voice_manifest_sync(VOICE_LINES, SOUND_MANIFEST)
     except ValueError as e:
         print(f"[ERROR] Voice manifest sync validation failed:\n{e}", file=sys.stderr)
+        return 1
+    
+    # Validate SOUND_MANIFEST entries using Pydantic schema (fix-assets-sound-manifest-pydantic-schema)
+    try:
+        validate_sound_manifest_entries(SOUND_MANIFEST)
+    except ValueError as e:
+        print(f"[ERROR] Sound manifest Pydantic validation failed:\n{e}", file=sys.stderr)
         return 1
 
     os.makedirs(OUTPUT_DIR, exist_ok=True)

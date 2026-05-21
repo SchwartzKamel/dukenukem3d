@@ -1079,3 +1079,392 @@ class TestVoiceManifestSync:
         assert "Voice mismatch" in error_msg
         assert "Orphans in VOICE_LINES" in error_msg
         assert "Orphans in SOUND_MANIFEST" in error_msg
+
+
+class TestSoundManifestPydanticSchema:
+    """Test Pydantic validation of SOUND_MANIFEST entries.
+    
+    fix-assets-sound-manifest-pydantic-schema: Pydantic BaseModel for sound entries
+    asset-r18-sound-manifest-pydantic-schema: Related todo covering same scope
+    """
+    
+    def test_valid_entry_with_engine_sound_id(self):
+        """Valid entry with engine_sound_id string passes validation."""
+        from sound_manifest import SoundManifestEntry
+        
+        entry = SoundManifestEntry(
+            wav='PAIN01.WAV',
+            engine_sound_id='DUKE_GRUNT',
+            engine_sound_id_int=38,
+            voice='onyx',
+            category='pain',
+            prompt_summary='short grunt of pain',
+            status='generated',
+            generated_at='1970-01-01T00:00:00Z',
+            schema_version='1.0'
+        )
+        assert entry.wav == 'PAIN01.WAV'
+        assert entry.voice == 'onyx'
+    
+    def test_valid_entry_without_engine_sound_id(self):
+        """Valid entry with None engine_sound_id passes validation."""
+        from sound_manifest import SoundManifestEntry
+        
+        entry = SoundManifestEntry(
+            wav='TAUNT01.WAV',
+            engine_sound_id=None,
+            engine_sound_id_int=None,
+            voice='alloy',
+            category='taunt',
+            prompt_summary="gruff merc one-liner: 'Welcome to the machine, punk.'",
+            notes='AI-generated taunt',
+            status='generated',
+            generated_at='1970-01-01T00:00:00Z',
+            schema_version='1.0'
+        )
+        assert entry.engine_sound_id is None
+        assert entry.engine_sound_id_int is None
+    
+    def test_missing_required_field_wav(self):
+        """Missing required 'wav' field raises validation error."""
+        from sound_manifest import SoundManifestEntry
+        from pydantic import ValidationError
+        
+        with pytest.raises(ValidationError) as exc_info:
+            SoundManifestEntry(
+                engine_sound_id=None,
+                voice='alloy',
+                category='taunt',
+                prompt_summary='Test prompt'
+            )
+        
+        assert 'wav' in str(exc_info.value)
+    
+    def test_missing_required_field_voice(self):
+        """Missing required 'voice' field raises validation error."""
+        from sound_manifest import SoundManifestEntry
+        from pydantic import ValidationError
+        
+        with pytest.raises(ValidationError) as exc_info:
+            SoundManifestEntry(
+                wav='TEST01.WAV',
+                category='taunt',
+                prompt_summary='Test prompt'
+            )
+        
+        assert 'voice' in str(exc_info.value)
+    
+    def test_missing_required_field_category(self):
+        """Missing required 'category' field raises validation error."""
+        from sound_manifest import SoundManifestEntry
+        from pydantic import ValidationError
+        
+        with pytest.raises(ValidationError) as exc_info:
+            SoundManifestEntry(
+                wav='TEST01.WAV',
+                voice='alloy',
+                prompt_summary='Test prompt'
+            )
+        
+        assert 'category' in str(exc_info.value)
+    
+    def test_missing_required_field_prompt_summary(self):
+        """Missing required 'prompt_summary' field raises validation error."""
+        from sound_manifest import SoundManifestEntry
+        from pydantic import ValidationError
+        
+        with pytest.raises(ValidationError) as exc_info:
+            SoundManifestEntry(
+                wav='TEST01.WAV',
+                voice='alloy',
+                category='taunt'
+            )
+        
+        assert 'prompt_summary' in str(exc_info.value)
+    
+    def test_invalid_voice_enum(self):
+        """Invalid voice value raises validation error."""
+        from sound_manifest import SoundManifestEntry
+        from pydantic import ValidationError
+        
+        with pytest.raises(ValidationError) as exc_info:
+            SoundManifestEntry(
+                wav='TEST01.WAV',
+                voice='invalid_voice',
+                category='taunt',
+                prompt_summary='Test prompt'
+            )
+        
+        error_str = str(exc_info.value)
+        assert 'voice' in error_str or 'invalid_voice' in error_str
+    
+    def test_invalid_category_enum(self):
+        """Invalid category value raises validation error."""
+        from sound_manifest import SoundManifestEntry
+        from pydantic import ValidationError
+        
+        with pytest.raises(ValidationError) as exc_info:
+            SoundManifestEntry(
+                wav='TEST01.WAV',
+                voice='alloy',
+                category='invalid_category',
+                prompt_summary='Test prompt'
+            )
+        
+        error_str = str(exc_info.value)
+        assert 'category' in error_str or 'invalid_category' in error_str
+    
+    def test_invalid_status_enum(self):
+        """Invalid status value raises validation error."""
+        from sound_manifest import SoundManifestEntry
+        from pydantic import ValidationError
+        
+        with pytest.raises(ValidationError) as exc_info:
+            SoundManifestEntry(
+                wav='TEST01.WAV',
+                voice='alloy',
+                category='taunt',
+                prompt_summary='Test prompt',
+                status='invalid_status'
+            )
+        
+        error_str = str(exc_info.value)
+        assert 'status' in error_str or 'invalid_status' in error_str
+    
+    def test_invalid_wav_filename_pattern(self):
+        """WAV filename not matching pattern raises validation error."""
+        from sound_manifest import SoundManifestEntry
+        from pydantic import ValidationError
+        
+        # lowercase filename should fail pattern ^[A-Z0-9]+\.WAV$
+        with pytest.raises(ValidationError) as exc_info:
+            SoundManifestEntry(
+                wav='test01.wav',
+                voice='alloy',
+                category='taunt',
+                prompt_summary='Test prompt'
+            )
+        
+        error_str = str(exc_info.value)
+        assert 'wav' in error_str
+    
+    def test_invalid_engine_sound_id_pattern(self):
+        """engine_sound_id not matching C identifier pattern raises error."""
+        from sound_manifest import SoundManifestEntry
+        from pydantic import ValidationError
+        
+        # Invalid C identifier (starts with digit)
+        with pytest.raises(ValidationError) as exc_info:
+            SoundManifestEntry(
+                wav='TEST01.WAV',
+                engine_sound_id='123INVALID',
+                voice='alloy',
+                category='taunt',
+                prompt_summary='Test prompt'
+            )
+        
+        error_str = str(exc_info.value)
+        assert 'engine_sound_id' in error_str or '123INVALID' in error_str
+    
+    def test_engine_sound_id_int_negative_value(self):
+        """engine_sound_id_int negative value raises validation error."""
+        from sound_manifest import SoundManifestEntry
+        from pydantic import ValidationError
+        
+        with pytest.raises(ValidationError) as exc_info:
+            SoundManifestEntry(
+                wav='TEST01.WAV',
+                engine_sound_id_int=-1,
+                voice='alloy',
+                category='taunt',
+                prompt_summary='Test prompt'
+            )
+        
+        error_str = str(exc_info.value)
+        assert 'engine_sound_id_int' in error_str or '-1' in error_str
+    
+    def test_engine_sound_id_int_exceeds_range(self):
+        """engine_sound_id_int exceeding max (1000) raises validation error."""
+        from sound_manifest import SoundManifestEntry
+        from pydantic import ValidationError
+        
+        with pytest.raises(ValidationError) as exc_info:
+            SoundManifestEntry(
+                wav='TEST01.WAV',
+                engine_sound_id_int=1001,
+                voice='alloy',
+                category='taunt',
+                prompt_summary='Test prompt'
+            )
+        
+        error_str = str(exc_info.value)
+        assert 'engine_sound_id_int' in error_str or '1001' in error_str
+    
+    def test_schema_version_mismatch(self):
+        """schema_version other than '1.0' raises validation error."""
+        from sound_manifest import SoundManifestEntry
+        from pydantic import ValidationError
+        
+        with pytest.raises(ValidationError) as exc_info:
+            SoundManifestEntry(
+                wav='TEST01.WAV',
+                voice='alloy',
+                category='taunt',
+                prompt_summary='Test prompt',
+                schema_version='2.0'
+            )
+        
+        error_str = str(exc_info.value)
+        assert 'schema_version' in error_str or '2.0' in error_str
+    
+    def test_valid_all_categories(self):
+        """All valid category enum values pass validation."""
+        from sound_manifest import SoundManifestEntry
+        
+        valid_categories = [
+            'taunt', 'pain', 'death', 'pickup', 'weapon',
+            'level_start', 'alarm', 'ambient'
+        ]
+        
+        for cat in valid_categories:
+            entry = SoundManifestEntry(
+                wav=f'{cat.upper()}01.WAV',
+                voice='alloy',
+                category=cat,
+                prompt_summary=f'Test {cat} sound'
+            )
+            assert entry.category == cat
+    
+    def test_valid_all_status_values(self):
+        """All valid status enum values pass validation."""
+        from sound_manifest import SoundManifestEntry
+        
+        valid_statuses = ['generated', 'failed', 'fallback']
+        
+        for status in valid_statuses:
+            entry = SoundManifestEntry(
+                wav='TEST01.WAV',
+                voice='alloy',
+                category='taunt',
+                prompt_summary='Test prompt',
+                status=status
+            )
+            assert entry.status == status
+    
+    def test_validate_sound_manifest_entries_all_valid(self):
+        """validate_sound_manifest_entries validates all SOUND_MANIFEST entries."""
+        from sound_manifest import validate_sound_manifest_entries
+        
+        # This should not raise
+        validated = validate_sound_manifest_entries(generate_audio.SOUND_MANIFEST)
+        assert len(validated) == len(generate_audio.SOUND_MANIFEST)
+        assert all(entry.wav for entry in validated)
+    
+    def test_validate_sound_manifest_entries_with_invalid_entry(self):
+        """validate_sound_manifest_entries raises on invalid entry."""
+        from sound_manifest import validate_sound_manifest_entries
+        from pydantic import ValidationError
+        
+        invalid_manifest = [
+            {
+                'wav': 'VALID01.WAV',
+                'voice': 'alloy',
+                'category': 'taunt',
+                'prompt_summary': 'Valid entry'
+            },
+            {
+                'wav': 'INVALID02.WAV',
+                'voice': 'invalid_voice',  # Invalid
+                'category': 'taunt',
+                'prompt_summary': 'Invalid entry'
+            }
+        ]
+        
+        with pytest.raises(ValueError) as exc_info:
+            validate_sound_manifest_entries(invalid_manifest)
+        
+        error_str = str(exc_info.value)
+        assert 'Sound manifest validation failed' in error_str
+        assert 'Entry 1' in error_str or 'INVALID02' in error_str
+    
+    def test_prompt_summary_empty_string(self):
+        """prompt_summary empty string fails validation."""
+        from sound_manifest import SoundManifestEntry
+        from pydantic import ValidationError
+        
+        with pytest.raises(ValidationError) as exc_info:
+            SoundManifestEntry(
+                wav='TEST01.WAV',
+                voice='alloy',
+                category='taunt',
+                prompt_summary=''  # Empty
+            )
+        
+        error_str = str(exc_info.value)
+        assert 'prompt_summary' in error_str
+    
+    def test_prompt_summary_max_length(self):
+        """prompt_summary exceeding max length (500) fails validation."""
+        from sound_manifest import SoundManifestEntry
+        from pydantic import ValidationError
+        
+        long_prompt = 'x' * 501
+        
+        with pytest.raises(ValidationError) as exc_info:
+            SoundManifestEntry(
+                wav='TEST01.WAV',
+                voice='alloy',
+                category='taunt',
+                prompt_summary=long_prompt
+            )
+        
+        error_str = str(exc_info.value)
+        assert 'prompt_summary' in error_str
+    
+    def test_optional_notes_field(self):
+        """Optional 'notes' field can be None or string."""
+        from sound_manifest import SoundManifestEntry
+        
+        # With None
+        entry1 = SoundManifestEntry(
+            wav='TEST01.WAV',
+            voice='alloy',
+            category='taunt',
+            prompt_summary='Test prompt',
+            notes=None
+        )
+        assert entry1.notes is None
+        
+        # With string
+        entry2 = SoundManifestEntry(
+            wav='TEST02.WAV',
+            voice='alloy',
+            category='taunt',
+            prompt_summary='Test prompt',
+            notes='Some note'
+        )
+        assert entry2.notes == 'Some note'
+    
+    def test_optional_generation_metadata_field(self):
+        """Optional 'generation_metadata' field can be None or dict."""
+        from sound_manifest import SoundManifestEntry
+        
+        # With None
+        entry1 = SoundManifestEntry(
+            wav='TEST01.WAV',
+            voice='alloy',
+            category='taunt',
+            prompt_summary='Test prompt',
+            generation_metadata=None
+        )
+        assert entry1.generation_metadata is None
+        
+        # With dict
+        entry2 = SoundManifestEntry(
+            wav='TEST02.WAV',
+            voice='alloy',
+            category='taunt',
+            prompt_summary='Test prompt',
+            generation_metadata={'model': 'gpt-audio-1.5', 'confidence': 0.95}
+        )
+        assert entry2.generation_metadata == {'model': 'gpt-audio-1.5', 'confidence': 0.95}

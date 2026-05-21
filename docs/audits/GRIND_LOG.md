@@ -2311,3 +2311,50 @@ Recommendation: leave for now, surface in next session. Adding tighter "NEVER ca
 **Next audit-pass targets (cycle 68):** build-system r18 + documentation-curator r17 (both 5 cycles stale).
 
 **Human-attention items:** None this cycle. (Sec-r17's two unauthorized commits `0296200` + `6c236443` from cycle 66 still in history — operator's call whether to rewrite.)
+
+---
+
+## 2026-05-21T00:50Z — Cycle 68 grind + audit-pass
+
+**Grind dispatch (5 Haiku agents, parallel):**
+
+| Todo | Persona | Result |
+|------|---------|--------|
+| `fix-net-coop-dm-validation` (MED) | network-multiplayer | ✅ Approach (b): peer_game_mode[MAXPLAYERS] captured at packet type 8 handshake; validated on types 0/1/4. 4 sentinels, 7 tests. No wire format change. |
+| `fix-assets-sound-manifest-pydantic-schema` (MED) + `asset-r18-sound-manifest-pydantic-schema` (MED) | asset-pipeline | ✅ NEW tools/sound_manifest.py with Pydantic v2 SoundManifestEntry; 22 tests. Wired into generate_audio.py main(). 2 todos closed. |
+| `add-logging-stubs-compat` (LOW-MED) | compat-layer | ✅ NEW compat/log_stub.h with `DUKE3D_STUB_LOG` once-per-call-site macro. Wired into Music_SetVolume, PlayMusic, CONTROL_WaitRelease, CONTROL_Ack, FX_StopRecord. 11 tests. |
+| `test-engine-critical-paths` (MED) | test-engineer | ✅ 3 NEW test files: test_se40_status_list.py (17), test_allocache.py (17), test_menues_critical_paths.py (18). 50 new static-analysis tests. |
+| `test-file-io-round-trip` (MED) | test-engineer | ✅ NEW tests/test_binary_file_io.py — 22 tests across GRP/PALETTE/ART/MAP/endianness. |
+
+**v7 contract compliance:** ✅ All 5 grind agents respected — no git mutations, no out-of-scope edits, no fake authors. (Note: visual_playtest.py had a transient parallel race during collection; rerunning alone passes — pre-existing flakiness.)
+
+**Post-grind regression hit:** `test_fta_quotes_strncpy_replacement` failed because net-coop-dm agent's 17-line GAME.C edit shifted fta_quotes[26] strncpy sites from L6482/6704 → L6520/6745, outside the test's hardcoded windows. **Fixed inline:** test now locates fta_quotes[26] sites by content (not by hardcoded line range). Same coverage, drift-resilient.
+
+**Audit-pass dispatch (2 Haiku agents, doc-only, v7 contract):**
+
+| Persona | Result |
+|---------|--------|
+| `build-r18-audit` | 6 INFO findings, **0 new todos**. All 5 r17 todos remain pending (carry-forward). Build parity verified, CI security verified, test growth 980→1188 healthy. |
+| `docs-r17-audit` | 4 findings (1 CRITICAL + 3 MED), 4 new todos. CRITICAL: NET_HEADER_SIZE 4→5 byte cycle-65 change undocumented in ARCHITECTURE.md L721. **Fixed inline:** L721 + L837 updated, closed `docs-r17-architecture-net-header-seqnum-update`. Remaining 3 MED queued (compat/README stub, tools/README index, net_socket abstraction doc). |
+
+**Closures this cycle:** 6 (5 grind + 1 docs-r17 inline) + 2 retroactive (net seqnums + net_socket compat from cycle 65 found already-done).
+
+**Backlog delta:** 301 pending → 306 pending (-8 closures, +4 docs-r17 intake; net +5 from grind seed-back). Actually 301 → 306 = +5 net.
+
+**Test count:** 1039 → 1151 (+112). Build green.
+
+**Persona freshness after cycle 68:**
+- build-system: **r18** (FRESH) ✅
+- documentation-curator: **r17** (FRESH) ✅
+- engine-porter: r18 @ cycle 67
+- asset-pipeline: r18 @ cycle 67
+- audio-engineer: r16 @ cycle 63 (now stalest)
+- network-multiplayer: r15 @ cycle 64 (stalest)
+- compat-layer: r16 @ cycle 64 (stalest)
+- performance-profiler: r16 @ cycle 63 (stalest)
+- test-engineer: r17 @ cycle 66
+- security-and-secrets: r17 @ cycle 66
+
+**Next audit-pass targets (cycle 69):** network-multiplayer r16 + compat-layer r17 (both 4 cycles stale @ cycle 64).
+
+**Human-attention items:** None this cycle. (Sec-r17's two unauthorized commits `0296200` + `6c236443` from cycle 66 still in history — operator's call whether to rewrite.)

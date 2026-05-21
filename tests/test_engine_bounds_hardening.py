@@ -1307,7 +1307,12 @@ class TestFtaQuotesStrcpyOverflow:
     """Verify r12 fta_quotes buffer overflow fix (sec-r12-strcat-fta-quotes-overflow)."""
 
     def test_fta_quotes_strncpy_replacement(self, repo_root):
-        """GAME.C lines 6482, 6704: verify strcpy→strncpy replacement for fta_quotes buffer."""
+        """GAME.C: verify strcpy→strncpy replacement for fta_quotes[26] buffer.
+
+        Line numbers drift as the file evolves (e.g. cycle 68 added
+        net-r15-coop-dm-mode-validation). Locate both fta_quotes[26]
+        sites by content and verify each is bounded + sentinelled.
+        """
         game_c = repo_root / "source" / "GAME.C"
         if not game_c.exists():
             pytest.skip(f"{game_c} not found")
@@ -1315,28 +1320,42 @@ class TestFtaQuotesStrcpyOverflow:
         content = game_c.read_text(errors="replace")
         lines = content.split('\n')
 
+        fta26_sites = [
+            i for i, line in enumerate(lines)
+            if "fta_quotes[26]" in line and ("strncpy" in line or "strcpy" in line)
+        ]
+
+        assert len(fta26_sites) >= 2, (
+            f"Expected ≥2 fta_quotes[26] strncpy/strcpy sites in GAME.C, "
+            f"found {len(fta26_sites)}"
+        )
+
         sentinel_found_6480s = False
         sentinel_found_6700s = False
-        strncpy_found_6480s = False
-        strncpy_found_6700s = False
+        strncpy_found_6480s = True
+        strncpy_found_6700s = True
         strcpy_found_6480s = False
         strcpy_found_6700s = False
 
-        for i in range(max(0, 6475-1), min(len(lines), 6515)):
-            if "sec-r12-strcat-fta-quotes-overflow" in lines[i]:
-                sentinel_found_6480s = True
-            if "strncpy(fta_quotes" in lines[i] or "strncpy(&fta_quotes" in lines[i]:
-                strncpy_found_6480s = True
-            if "strcpy(fta_quotes" in lines[i] or "strcpy(&fta_quotes" in lines[i]:
-                strcpy_found_6480s = True
-
-        for i in range(max(0, 6700-1), min(len(lines), 6740)):
-            if "sec-r12-strcat-fta-quotes-overflow" in lines[i]:
-                sentinel_found_6700s = True
-            if "strncpy(fta_quotes" in lines[i] or "strncpy(&fta_quotes" in lines[i]:
-                strncpy_found_6700s = True
-            if "strcpy(fta_quotes" in lines[i] or "strcpy(&fta_quotes" in lines[i]:
-                strcpy_found_6700s = True
+        for idx, site in enumerate(fta26_sites[:2]):
+            sentinel_in_window = any(
+                "sec-r12-strcat-fta-quotes-overflow" in lines[j]
+                for j in range(max(0, site - 2), min(len(lines), site + 3))
+            )
+            if "strcpy(" in lines[site] and "strncpy(" not in lines[site]:
+                if idx == 0:
+                    strcpy_found_6480s = True
+                else:
+                    strcpy_found_6700s = True
+            if "strncpy(" not in lines[site]:
+                if idx == 0:
+                    strncpy_found_6480s = False
+                else:
+                    strncpy_found_6700s = False
+            if idx == 0:
+                sentinel_found_6480s = sentinel_in_window
+            else:
+                sentinel_found_6700s = sentinel_in_window
 
         assert sentinel_found_6480s or sentinel_found_6700s, (
             "Sentinel comment 'sec-r12-strcat-fta-quotes-overflow' not found "

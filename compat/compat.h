@@ -808,4 +808,18 @@ static LONG WINAPI crash_handler(EXCEPTION_POINTERS *ep)
 }
 #endif
 
+/* ======================================================================
+ * Debug logging for stubbed functions (compat/log_stub.h)
+ * =====================================================================
+ * To enable debug logging for no-op stubs (Music_SetVolume, PlayMusic,
+ * CONTROL_WaitRelease, CONTROL_Ack, FX_StopRecord, etc.):
+ *
+ *   make DUKE3D_STUB_LOG=1
+ *   // or
+ *   DUKE3D_STUB_LOG=1 make
+ *
+ * When enabled, each stub logs once to stderr with [STUB] prefix.
+ * See compat/log_stub.h for full documentation.
+ * ===================================================================== */
+
 #endif /* COMPAT_H_ */

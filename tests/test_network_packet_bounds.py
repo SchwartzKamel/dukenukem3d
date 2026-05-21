@@ -1703,3 +1703,152 @@ class TestNetR15SequenceNumbers:
         )
 
 
+
+class TestNetR15CoopDmValidation:
+    """Verify cycle-r15 co-op vs DM mode validation on packet receive."""
+
+    def test_peer_game_mode_array_declaration(self, repo_root):
+        """peer_game_mode[MAXPLAYERS] must be declared in GLOBAL.C."""
+        global_c = repo_root / "source" / "GLOBAL.C"
+        if not global_c.exists():
+            pytest.skip(f"{global_c} not found")
+        
+        content = global_c.read_text(errors="replace")
+        
+        assert "char peer_game_mode[MAXPLAYERS]" in content, (
+            "source/GLOBAL.C must define static char peer_game_mode[MAXPLAYERS] "
+            "with net-r15-coop-dm-mode-validation sentinel"
+        )
+        
+        assert "net-r15-coop-dm-mode-validation" in content, (
+            "GLOBAL.C peer_game_mode declaration must include net-r15-coop-dm-mode-validation sentinel"
+        )
+
+    def test_peer_game_mode_extern_declaration(self, repo_root):
+        """peer_game_mode[MAXPLAYERS] must be extern in DUKE3D.H."""
+        duke3d_h = repo_root / "source" / "DUKE3D.H"
+        if not duke3d_h.exists():
+            pytest.skip(f"{duke3d_h} not found")
+        
+        content = duke3d_h.read_text(errors="replace")
+        
+        assert "extern char peer_game_mode[MAXPLAYERS]" in content, (
+            "source/DUKE3D.H must declare extern char peer_game_mode[MAXPLAYERS] "
+            "with net-r15-coop-dm-mode-validation sentinel"
+        )
+
+    def test_game_c_stores_peer_mode_in_packet_8(self, repo_root):
+        """Packet type 8 must store peer's co-op mode in peer_game_mode[other]."""
+        game_c = repo_root / "source" / "GAME.C"
+        if not game_c.exists():
+            pytest.skip(f"{game_c} not found")
+        
+        content = game_c.read_text(errors="replace")
+        
+        # Must capture peer's co-op flag from packet type 8
+        assert "peer_game_mode[other]" in content, (
+            "source/GAME.C must store peer game mode from packet type 8"
+        )
+        
+        # Must have sentinel
+        assert "net-r15-coop-dm-mode-validation" in content, (
+            "source/GAME.C must have net-r15-coop-dm-mode-validation sentinel at peer_game_mode store"
+        )
+
+    def test_game_c_validates_coop_on_packet_types_0_1_4(self, repo_root):
+        """Packets 0, 1, 4 must validate co-op mode before processing."""
+        game_c = repo_root / "source" / "GAME.C"
+        if not game_c.exists():
+            pytest.skip(f"{game_c} not found")
+        
+        content = game_c.read_text(errors="replace")
+        
+        # Must check packbuf[0] for types 0, 1, 4
+        assert "packbuf[0] == 0 || packbuf[0] == 1 || packbuf[0] == 4" in content, (
+            "source/GAME.C must validate mode for packet types 0, 1, and 4"
+        )
+        
+        # Must compare peer_game_mode with ud.coop
+        assert "peer_game_mode[other] != ud.coop" in content, (
+            "source/GAME.C must compare peer_game_mode[other] against local ud.coop"
+        )
+        
+        # Must drop packet with continue
+        assert 'printf("NET: SECURITY: Packet type %d from player %d mode mismatch' in content, (
+            "source/GAME.C must log mode mismatch with NET: SECURITY prefix"
+        )
+        
+        # Must have continue statement to skip mismatched packets
+        assert "continue;" in content and "mode mismatch" in content, (
+            "source/GAME.C must use continue to drop mode-mismatched packets"
+        )
+
+    def test_game_c_bounds_check_on_other(self, repo_root):
+        """Mode validation must bounds-check 'other' against MAXPLAYERS."""
+        game_c = repo_root / "source" / "GAME.C"
+        if not game_c.exists():
+            pytest.skip(f"{game_c} not found")
+        
+        content = game_c.read_text(errors="replace")
+        
+        # Must check other >= 0 && other < MAXPLAYERS
+        assert "other >= 0 && other < MAXPLAYERS" in content, (
+            "source/GAME.C mode validation must bounds-check other index"
+        )
+
+    def test_coop_dm_validation_sentinel_count(self, repo_root):
+        """Must have at least 3 net-r15-coop-dm-mode-validation sentinels."""
+        game_c = repo_root / "source" / "GAME.C"
+        duke3d_h = repo_root / "source" / "DUKE3D.H"
+        global_c = repo_root / "source" / "GLOBAL.C"
+        
+        total_sentinels = 0
+        
+        if game_c.exists():
+            content = game_c.read_text(errors="replace")
+            total_sentinels += content.count("net-r15-coop-dm-mode-validation")
+        
+        if duke3d_h.exists():
+            content = duke3d_h.read_text(errors="replace")
+            total_sentinels += content.count("net-r15-coop-dm-mode-validation")
+        
+        if global_c.exists():
+            content = global_c.read_text(errors="replace")
+            total_sentinels += content.count("net-r15-coop-dm-mode-validation")
+        
+        assert total_sentinels >= 3, (
+            f"Must have at least 3 net-r15-coop-dm-mode-validation sentinels, "
+            f"found {total_sentinels}"
+        )
+
+    def test_mismatch_packet_types_only(self, repo_root):
+        """Validation must only apply to packet types 0, 1, 4 (not handshake type 8)."""
+        game_c = repo_root / "source" / "GAME.C"
+        if not game_c.exists():
+            pytest.skip(f"{game_c} not found")
+        
+        content = game_c.read_text(errors="replace")
+        
+        # Validation check must exclude type 8
+        assert "case 8:" in content, (
+            "source/GAME.C must have packet type 8 (startup config)"
+        )
+        
+        # The validation must come before the switch statement, not inside case 8
+        lines = content.split("\n")
+        validation_line = -1
+        case_8_line = -1
+        switch_line = -1
+        
+        for i, line in enumerate(lines):
+            if "packbuf[0] == 0 || packbuf[0] == 1 || packbuf[0] == 4" in line:
+                validation_line = i
+            if "case 8:" in line:
+                case_8_line = i
+            if "switch(packbuf[0])" in line and switch_line == -1:
+                switch_line = i
+        
+        # Validation should be before switch, not inside any case
+        assert validation_line >= 0 and switch_line >= 0, (
+            "source/GAME.C must have validation before switch statement"
+        )

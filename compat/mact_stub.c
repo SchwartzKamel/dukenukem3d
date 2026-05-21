@@ -17,6 +17,7 @@
 #include <sys/stat.h>
 #include "compat.h"
 #include "sdl_driver.h"
+#include "log_stub.h"
 
 /* ======================================================================
  * Script/Config file parsing (from MACT SCRIPLIB)
@@ -339,8 +340,8 @@ void Shutdown(void) {
 /* These are called from GAME.C but defined in engine - provide weak stubs
    that get overridden by the real engine implementations */
 
-void Music_SetVolume(int volume) { (void)volume; }
-void PlayMusic(char *fn) { (void)fn; }
+void Music_SetVolume(int volume) { STUB_LOG("Music_SetVolume(%d)", volume); (void)volume; }
+void PlayMusic(char *fn) { STUB_LOG("PlayMusic(%s)", fn ? fn : "<NULL>"); (void)fn; }
 
 /* IntelLong: byte-swap for big-endian. On little-endian (x86), no-op */
 int32_t IntelLong(int32_t val) { /* build-r16-lto-type: aligned to legacy K&R caller decl */

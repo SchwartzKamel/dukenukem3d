@@ -17,6 +17,7 @@
 
 #include "audio_stub.h"
 #include "sdl_driver.h"
+#include "log_stub.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -749,7 +750,7 @@ int FX_StartRecording(int MixRate, void (*function)(char *ptr, int length))
     return FX_Ok;
 }
 
-void FX_StopRecord(void) { }
+void FX_StopRecord(void) { STUB_LOG("FX_StopRecord()"); }
 
 /* ═══════════════════════════════════════════════════════════════════
    MUSIC (MIDI)
@@ -1456,11 +1457,13 @@ void CONTROL_ClearUserInput(UserInput *info)
 
 void CONTROL_WaitRelease(void)
 {
+    STUB_LOG("CONTROL_WaitRelease()");
     /* Spin until all keys released (in real use, pump SDL events) */
 }
 
 void CONTROL_Ack(void)
 {
+    STUB_LOG("CONTROL_Ack()");
     /* Wait for a key press then release */
 }
 

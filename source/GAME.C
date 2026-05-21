@@ -392,6 +392,17 @@ void getpackets(void)
     if (numplayers < 2) return;
     while ((packbufleng = getpacket(&other,packbuf)) > 0)
     {
+        /* net-r15-coop-dm-mode-validation: validate co-op mode on game-sync packets */
+        if ((packbuf[0] == 0 || packbuf[0] == 1 || packbuf[0] == 4) && 
+            other >= 0 && other < MAXPLAYERS &&
+            peer_game_mode[other] != ud.coop)
+        {
+            printf("NET: SECURITY: Packet type %d from player %d mode mismatch "
+                   "(peer=%d, local=%d). Dropping.\n",
+                   packbuf[0], other, peer_game_mode[other], ud.coop);
+            continue;
+        }
+        
         switch(packbuf[0])
         {
             case 125:
@@ -753,6 +764,10 @@ void getpackets(void)
                 ud.m_coop = ud.coop = packbuf[8];
                 ud.m_marker = ud.marker = packbuf[9];
                 ud.m_ffire = ud.ffire = packbuf[10];
+                
+                /* net-r15-coop-dm-mode-validation: store peer's game mode for later validation */
+                if (other >= 0 && other < MAXPLAYERS)
+                    peer_game_mode[other] = packbuf[8];
 
                 copybufbyte(packbuf+10,boardfilename,packbufleng-11);
                 boardfilename[packbufleng-11] = 0;

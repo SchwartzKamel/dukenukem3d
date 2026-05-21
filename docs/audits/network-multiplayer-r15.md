@@ -313,3 +313,63 @@ Network section maintains consistent documentation across 4 audit cycles (48, 50
 **Sentinel**: `net-r15-audit-complete: 6 findings 0 todos`
 
 ---
+
+---
+
+## Cycle 68 Closure: Co-op vs DM Mode Validation
+
+### Task: fix-net-coop-dm-validation (MEDIUM)
+
+**Problem**: No validation that sender and receiver are in the same game-mode (co-op vs DM). Packet format identical between modes; only `ud.coop` flag differs. Mismatch could corrupt state or enable DoS.
+
+**Solution Implemented**: Approach (b) — Handshake-time capture + packet-time validation (no wire format change).
+
+**Changes**:
+1. **source/GLOBAL.C** (1 line): Added `char peer_game_mode[MAXPLAYERS]` array definition
+2. **source/DUKE3D.H** (1 line): Added `extern char peer_game_mode[MAXPLAYERS]` declaration
+3. **source/GAME.C** (17 lines):
+   - Store peer's `ud.coop` during packet type 8 (startup config) → `peer_game_mode[other] = packbuf[8]`
+   - Validate at packet receive (types 0, 1, 4): compare `peer_game_mode[other] != ud.coop` → log + drop if mismatch
+   - Bounds-check `other` against `MAXPLAYERS`
+4. **tests/test_network_packet_bounds.py** (149 lines): Added `TestNetR15CoopDmValidation` class with 7 test cases:
+   - Array declaration verification
+   - Extern declaration verification
+   - Peer mode capture in packet type 8
+   - Validation logic on types 0, 1, 4
+   - Bounds checking
+   - Sentinel count verification
+   - Handshake-only application verification
+
+**Sentinels**: 4 instances of `net-r15-coop-dm-mode-validation` placed at:
+1. GLOBAL.C array definition
+2. DUKE3D.H extern declaration
+3. GAME.C peer mode storage (packet 8)
+4. GAME.C validation check (before switch)
+
+**Testing**:
+- ✅ 7 new tests passing
+- ✅ All 74 network_packet_bounds tests passing
+- ✅ 1150+ total tests passing (includes 1039+ baseline)
+- ✅ Build succeeds (`make clean && make -j$(nproc)`)
+
+**Validation Gates Passed**:
+- ✅ `make clean && make -j$(nproc)` succeeded
+- ✅ `pytest -q` passed ≥1039 + 7 = 1046 tests (actual: 1150)
+- ✅ `git diff --stat` shows only allowed files modified: source/DUKE3D.H, source/GAME.C, source/GLOBAL.C, tests/test_network_packet_bounds.py
+
+**Impact**:
+- **Security**: Prevents mode-mismatch attacks that could corrupt player state or crash game
+- **Cost**: 4 bytes per-player static memory + O(1) bounds check per game-sync packet (negligible)
+- **Wire Format**: No change — backward compatible with older clients
+- **Reliability**: Packets from clients in wrong game-mode are logged and silently dropped (graceful degradation)
+
+**Next Reachability**: Deterministic replay stack now has:
+- ✅ Randomseed sync (net-r14)
+- ✅ Game-mode validation (net-r15)
+- ❌ Sequence numbers (blocked on net-r15-seqnum implementation)
+- ❌ Auth/spoofing protection (future)
+
+---
+
+**Sentinel**: `net-r15-coop-dm-validation-complete: 4 sentinels, 7 tests, 0 regressions`
+

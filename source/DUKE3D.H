@@ -411,6 +411,7 @@ extern int32 VoiceToggle,AmbienceToggle;
 extern SOUNDOWNER SoundOwner[NUM_SOUNDS][4];
 
 extern char playerreadyflag[MAXPLAYERS],playerquitflag[MAXPLAYERS];
+extern char peer_game_mode[MAXPLAYERS];  /* net-r15-coop-dm-mode-validation: track each peer's co-op flag */
 extern char sounds[NUM_SOUNDS][14];
 
 extern long script[MAXSCRIPTSIZE],*scriptptr,*insptr,labelcode[MAXLABELS],labelcnt;

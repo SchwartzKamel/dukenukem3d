@@ -716,14 +716,19 @@ The multiplayer networking layer (cycles 26–48) implements **star topology TCP
 
 ### Wire Protocol & Transport
 
-**Packet Header Format:**
+**Packet Header Format (cycle 65 — net-r15 seqnum extension):**
 ```
-NET_HEADER_SIZE = 4 bytes:
-  [1B: sender ID] [1B: dest ID] [2B: payload length (net byte order)]
-  
+NET_HEADER_SIZE = 5 bytes:
+  [1B: sender ID] [1B: dest ID] [1B: sequence number] [2B: payload length (LE)]
+
 Payload: up to MAXPACKETSIZE = 2048 bytes
   (MTU-safe; avoids fragmentation on standard Ethernet 1500 byte MTU)
 ```
+
+Cycle 65 added a per-peer monotonic sequence byte (`net-r15-seqnum`) between
+dest and payload_len. Wrap is `(seq + 1) & 0xFF`; init sentinel `0xFF`
+indicates "no packet yet". Gap detection is log-only (does NOT drop). See
+SRC/MMULTI.C `NET_HEADER_SIZE` definition + 14 `net-r15-seqnum` sentinels.
 
 **Transport:**
 - **Protocol**: TCP (stream-based) on `IPPROTO_TCP` with `TCP_NODELAY` enabled (disable Nagle's algorithm for low-latency gameplay)
@@ -834,7 +839,7 @@ This section documents packet sizing, TCP Nagle tuning, and fragmentation handli
 ```
 
 - **MAXPACKETSIZE = 2048 bytes** (application-layer limit) is conservative vs. Ethernet MTU (1500 bytes). **Rationale**: TCP/IP stack fragments at ~1500 bytes; keeping application payloads to 2048 total (including 4-byte header = 2044-byte max payload) ensures any single application send fits within a single TCP segment if path MTU is ≥1500 (typical Ethernet). See SRC/MMULTI.C:277 validation: `if (payload_len > MAXPACKETSIZE - NET_HEADER_SIZE)`.
-- **NET_HEADER_SIZE = 4 bytes** (sender ID, destination ID, payload length) framing cost is ~0.2% overhead at full payload.
+- **NET_HEADER_SIZE = 5 bytes** (sender ID, destination ID, sequence, payload length — sequence added cycle 65) framing cost is ~0.25% overhead at full payload.
 
 ### Transport Protocol & Socket Tuning
 
