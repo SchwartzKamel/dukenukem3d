@@ -55,3 +55,4 @@ session.db
 # Frame analyzer determinism artifacts (sec-r17-gitignore-test-artifacts)
 testdata/determ_frame_n*_*.bmp
 headless_run.done
+.coverage

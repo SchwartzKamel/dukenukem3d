@@ -25,6 +25,18 @@ class SoundManifestEntry(BaseModel):
         pattern=r'^[A-Z0-9_]+\.WAV$'
     )
     
+    hash: Optional[str] = Field(
+        None,
+        description="SHA256 checksum of WAV file (optional, for integrity verification)",
+        pattern=r'^[a-f0-9]{64}$'
+    )
+    
+    size_bytes: Optional[int] = Field(
+        None,
+        description="Size of WAV file in bytes (optional, for metadata tracking)",
+        ge=0
+    )
+    
     engine_sound_id: Optional[str] = Field(
         None,
         description="C identifier for engine sound (e.g., 'DUKE_GRUNT') or None if no mapping",

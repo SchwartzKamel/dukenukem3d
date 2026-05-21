@@ -41,8 +41,8 @@ jobs:
           file duke3d | grep -q "ELF 64-bit"
           echo "✅ Linux binary built successfully"
       
-      - name: Run tests
-        run: python3 -m pytest tests/ -v --tb=short --runslow
+      - name: Run tests with coverage
+        run: python3 -m pytest tests/ -v --tb=short --runslow --cov=tools --cov-report=term-missing --cov-fail-under=50
       
       - name: Generate assets
         run: python3 tools/generate_assets.py --no-ai

@@ -1328,6 +1328,14 @@ void displayweapon(short snum)
         cw = p->last_weapon;
     else cw = p->curr_weapon;
 
+    if (!WEAPON_VALID(cw))
+    {
+        /*
+         * SECURITY: Invalid weapon index detected. Clamp to 0.
+         */
+        cw = WEAPON_CLAMP(cw);
+    }
+
     j = 14-p->quick_kick;
     if(j != 14)
     {
@@ -3343,7 +3351,8 @@ void processinput(short snum)
                 p->subweapon |= (1<<GROW_WEAPON);
             else if(p->last_full_weapon == SHRINKER_WEAPON)
                 p->subweapon &= ~(1<<GROW_WEAPON);
-            addweapon( p, p->last_full_weapon );
+            if (WEAPON_VALID(p->last_full_weapon))
+                addweapon( p, p->last_full_weapon );
             return;
         }
     }

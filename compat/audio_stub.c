@@ -22,6 +22,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <limits.h>
 
 #include "SDL.h"
 
@@ -196,7 +197,8 @@ static int mixer_play(const char *ptr, int loops, int vol,
 
     if (!mixer_initialized || !ptr) return -1;
     size = sound_file_size(ptr);
-    rw   = SDL_RWFromConstMem(ptr, (size_t)size);
+    if (size > (uint32_t)INT_MAX) return -1;  /* prevent narrowing UB */
+    rw   = SDL_RWFromConstMem(ptr, (int)size);
     if (!rw) return -1;
 
     chunk = Mix_LoadWAV_RW(rw, 1);
@@ -255,7 +257,8 @@ static int mixer_play_3d(const char *ptr, int angle, int distance,
 
     if (!mixer_initialized || !ptr) return -1;
     size = sound_file_size(ptr);
-    rw   = SDL_RWFromConstMem(ptr, (size_t)size);
+    if (size > (uint32_t)INT_MAX) return -1;  /* prevent narrowing UB */
+    rw   = SDL_RWFromConstMem(ptr, (int)size);
     if (!rw) return -1;
 
     chunk = Mix_LoadWAV_RW(rw, 1);
@@ -924,7 +927,8 @@ int MUSIC_PlaySong(unsigned char *song, int loopflag)
     if (mixer_initialized && song) {
         unsigned long size = midi_file_size(song, 72000);
         free_current_music();
-        current_music_rw = SDL_RWFromConstMem(song, (size_t)size);
+        if (size > (uint32_t)INT_MAX) return MUSIC_Error;  /* prevent narrowing UB */
+        current_music_rw = SDL_RWFromConstMem(song, (int)size);
         if (current_music_rw) {
             current_music = Mix_LoadMUS_RW(current_music_rw, 0);
             if (!current_music) {
