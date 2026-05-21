@@ -1,0 +1,21 @@
+# CODEOWNERS — auto-route reviewers for security-sensitive paths
+# See: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Global default (catch-all, lowest priority)
+*                              @SchwartzKamel
+
+# Security-sensitive workflows and CI/CD pipelines
+/.github/workflows/            @SchwartzKamel
+
+# Secret scanning and detection tools
+/tools/check_secrets.sh        @SchwartzKamel
+
+# Dependency management and security audits
+/requirements.txt              @SchwartzKamel
+
+# Cryptographic primitives (SHA256 implementations)
+/compat/sha256.*               @SchwartzKamel
+
+# HMAC and networking implementations (potential security impact)
+/SRC/MMULTI.C                  @SchwartzKamel
+/compat/net_socket*            @SchwartzKamel

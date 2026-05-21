@@ -76,16 +76,16 @@ Versions ≥ v0.1.0 are tracked as annotated git tags; the audit-grind cycles
 - **Performance: frame_analyzer lazy imports** (cycle 36): `tools/frame_analyzer.py` — deferred PIL/numpy/scipy module loads via `_import_pil()` / `_import_numpy()` / `_import_scipy()` helpers; cold-start import time reduced 22× (0.41s → 0.009s).
 
 ### Testing
-- **717 collected tests** (cycles 19–36 added 148 new tests cumulative):
-  - Cycle 19: Foundation (baseline audit)
-  - Cycle 20: Asset schema + bounds validation (+7 tests)
-  - Cycle 21: Regression suite closure (+19 tests via new regression harness)
-  - Cycle 22: Final validation + cross-agent coverage (+15 tests)
-  - Cycles 23–24: Engine bounds hardening + build-h consistency (+41 tests)
-  - Cycles 25–27: Cycle-25/r8 CRITICAL/HIGH hardening + audio RWops regression tests (+30 tests)
-  - Cycles 28–33: CMake LTO parity, CONFIG/SECTOR hardening, PICNUM_SAFE/WEAPON_VALID guards, net packet validation (+30 tests)
-  - Cycles 34–36: Audio manifest schema validation, engine/net hardening, frame analyzer performance (+6 tests)
-- Pre-cycle-19 baseline: 569 fast / 33 skipped = 602 with --runslow (was 543 at v0.1.33).
+- **717 collected tests** (cycles 18–36 progression verified against docs/audits/GRIND_LOG.md):
+  - Baseline (pre-cycle-18): 569 passed / 33 skipped = 602 collected, was 543 at v0.1.33
+  - Cycle 18: +19 tests (regression hardening audit) → 588 passed
+  - Cycles 19–21: +7 tests (asset schema) → 595 passed
+  - Cycle 22: +15 tests (cross-agent validation) → 610 passed
+  - **Cycles 23–24: +16 tests** (engine bounds, build-h consistency) → 626 passed [GRIND_LOG §778]
+  - **Cycles 25–27: +11 tests** (CRITICAL/HIGH fixes, audio RWops) → 637 passed [GRIND_LOG §848–947]
+  - Cycles 28–30: +27 tests (CONFIG/SECTOR hardening, PICNUM_SAFE) → 664 passed
+  - Cycles 33–36: +15 tests (audio manifest, net/engine hardening) → 679 passed
+  - **Total v0.2.0 growth: +110 passed tests (18% from 569 baseline)** ✅
 - New suites: multiplayer regression harness (`tests/test_net_protocol.py`),
   audio semaphore-timeout + manifest-sync tests (`tests/test_audio_pipeline.py`),
   pydantic schema validation, frame analyzer, cache1d benchmarks, savegame loader bounds,

@@ -80,9 +80,9 @@ This project uses external APIs for AI-generated assets (textures and audio).
 3. **Verify `.env` is ignored:** The `.env` file is in `.gitignore` and should never be committed
 4. **Install the pre-commit secret-scan hook:**
    ```bash
-   bash tools/install_hooks.sh
+   sh tools/install_hooks.sh
    ```
-   This installs a hook at `.git/hooks/pre-commit` that scans staged changes for exposed secrets. If an existing hook is detected, it will be backed up with a timestamp. The hook runs `tools/check_secrets.sh` automatically on all commits. To bypass (not recommended): `git commit --no-verify`
+   This activates the secret-scan hook at `.githooks/pre-commit`. The hook runs `tools/check_secrets.sh` automatically on all commits. To bypass (not recommended): `git commit --no-verify`
 
 #### Obtaining API Keys
 
@@ -91,12 +91,7 @@ This project uses external APIs for AI-generated assets (textures and audio).
 
 #### Pre-Commit Hook
 
-The project includes a secret-scan hook that prevents commits containing API keys or secrets:
-```bash
-git config core.hooksPath .githooks
-```
-
-This runs before each commit and will reject staged changes if it detects:
+The project includes a secret-scan hook (in `.githooks/pre-commit`) that prevents commits containing API keys or secrets. This runs before each commit and will reject staged changes if it detects:
 - API keys with non-placeholder values
 - Long base64-looking strings after `_KEY=`
 - Common token prefixes (`sk-`, `ghp_`, `xoxb-`, etc.)

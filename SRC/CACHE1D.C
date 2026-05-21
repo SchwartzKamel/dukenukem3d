@@ -1,6 +1,8 @@
-// "Build Engine & Tools" Copyright (c) 1993-1997 Ken Silverman
-// Ken Silverman's official web site: "http://www.advsys.net/ken"
-// See the included license file "BUILDLIC.TXT" for license info.
+/*
+  "Build Engine & Tools" Copyright (c) 1993-1997 Ken Silverman
+  Ken Silverman's official web site: "http://www.advsys.net/ken"
+  See the included license file "BUILDLIC.TXT" for license info.
+ */
 
 #include "compat.h"
 #include <stdio.h>
@@ -9,33 +11,35 @@
 extern void *kmalloc(size_t);
 extern void kfree(void *);
 
-//   This module keeps track of a standard linear cacheing system.
-//   To use this module, here's all you need to do:
-//
-//   Step 1: Allocate a nice BIG buffer, like from 1MB-4MB and
-//           Call initcache(long cachestart, long cachesize) where
-//
-//              cachestart = (long)(pointer to start of BIG buffer)
-//              cachesize = length of BIG buffer
-//
-//   Step 2: Call allocache(long *bufptr, long bufsiz, char *lockptr)
-//              whenever you need to allocate a buffer, where:
-//
-//              *bufptr = pointer to 4-byte pointer to buffer
-//                 Confused?  Using this method, cache2d can remove
-//                 previously allocated things from the cache safely by
-//                 setting the 4-byte pointer to 0.
-//              bufsiz = number of bytes to allocate
-//              *lockptr = pointer to locking char which tells whether
-//                 the region can be removed or not.  If *lockptr = 0 then
-//                 the region is not locked else its locked.
-//
-//   Step 3: If you need to remove everything from the cache, or every
-//           unlocked item from the cache, you can call uninitcache();
-//              Call uninitcache(0) to remove all unlocked items, or
-//              Call uninitcache(1) to remove everything.
-//           After calling uninitcache, it is still ok to call allocache
-//           without first calling initcache.
+/*
+    This module keeps track of a standard linear cacheing system.
+    To use this module, here's all you need to do:
+ 
+    Step 1: Allocate a nice BIG buffer, like from 1MB-4MB and
+            Call initcache(long cachestart, long cachesize) where
+ 
+               cachestart = (long)(pointer to start of BIG buffer)
+               cachesize = length of BIG buffer
+ 
+    Step 2: Call allocache(long *bufptr, long bufsiz, char *lockptr)
+               whenever you need to allocate a buffer, where:
+ 
+               *bufptr = pointer to 4-byte pointer to buffer
+                  Confused?  Using this method, cache2d can remove
+                  previously allocated things from the cache safely by
+                  setting the 4-byte pointer to 0.
+               bufsiz = number of bytes to allocate
+               *lockptr = pointer to locking char which tells whether
+                  the region can be removed or not.  If *lockptr = 0 then
+                  the region is not locked else its locked.
+ 
+    Step 3: If you need to remove everything from the cache, or every
+            unlocked item from the cache, you can call uninitcache();
+               Call uninitcache(0) to remove all unlocked items, or
+               Call uninitcache(1) to remove everything.
+            After calling uninitcache, it is still ok to call allocache
+            without first calling initcache.
+ */
 
 #define MAXCACHEOBJECTS 9216
 
@@ -89,10 +93,10 @@ allocache (long *newhandle, long newbytes, char *newlockptr)
 		reportandexit("ALLOCACHE CALLED WITH LOCK OF 0!");
 	}
 
-		//Find best place
+  /* Find best place */
 	bestval = 0x7fffffff; o1 = cachesize;
 	
-	// Try candidate cache first if size is similar
+  /*  Try candidate cache first if size is similar */
 	if (lastCandidateSize > 0 && lastCandidateSize <= newbytes + 256)
 	{
 		long cand_o1 = lastCandidateBesto;
@@ -146,16 +150,16 @@ allocache (long *newhandle, long newbytes, char *newlockptr)
 	lastCandidateSize = newbytes;
 	cachealloc_found:
 
-	//printf("%ld %ld %ld\n",besto,newbytes,*newlockptr);
+  /* printf("%ld %ld %ld\n",besto,newbytes,*newlockptr); */
 
 	if (bestval == 0x7fffffff)
 		reportandexit("CACHE SPACE ALL LOCKED UP!");
 
-		//Suck things out
+  /* Suck things out */
 	for(sucklen=-newbytes,suckz=bestz;sucklen<0;sucklen+=cac[suckz++].leng)
 		if (*cac[suckz].lock) *cac[suckz].hand = 0;
 
-		//Remove all blocks except 1
+  /* Remove all blocks except 1 */
 	suckz -= (bestz+1); cacnum -= suckz;
 	copybufbyte(&cac[bestz+suckz],&cac[bestz],(cacnum-bestz)*sizeof(cactype));
 	cac[bestz].hand = newhandle; *newhandle = cachestart+besto;
@@ -262,8 +266,8 @@ reportandexit(char *errormessage)
 
 /* fcntl.h, sys/types.h, sys/stat.h already included via compat.h */
 
-#define MAXGROUPFILES 4     //Warning: Fix groupfil if this is changed
-#define MAXOPENFILES 64     //Warning: Fix filehan if this is changed
+#define MAXGROUPFILES 4  /* Warning: Fix groupfil if this is changed */
+#define MAXOPENFILES 64  /* Warning: Fix filehan if this is changed */
 
 static char toupperlookup[256] =
 {
@@ -501,8 +505,8 @@ kclose(long handle)
 
 
 
-	//Internal LZW variables
-#define LZWSIZE 16384           //Watch out for shorts!
+  /* Internal LZW variables */
+#define LZWSIZE 16384  /* Watch out for shorts! */
 static char *lzwbuf1, *lzwbuf4, *lzwbuf5, lzwbuflock[5];
 static short *lzwbuf2, *lzwbuf3;
 
@@ -697,7 +701,7 @@ uncompress(char *lzwinbuf, long compleng, char *lzwoutbuf)
 	if (strtot == 0)
 	{
 		copybuf(FP_OFF(lzwinbuf)+4,FP_OFF(lzwoutbuf),((compleng-4)+3)>>2);
-		return((long)shortptr[0]); //uncompleng
+		return((long)shortptr[0]);  /* uncompleng */
 	}
 	for(i=255;i>=0;i--) { lzwbuf2[i] = i; lzwbuf3[i] = i; }
 	currstr = 256; bitcnt = (4<<3); outbytecnt = 0;
@@ -722,5 +726,5 @@ uncompress(char *lzwinbuf, long compleng, char *lzwoutbuf)
 		currstr++;
 		if (currstr > oneupnumbits) { numbits++; oneupnumbits <<= 1; }
 	} while (currstr < strtot);
-	return((long)shortptr[0]); //uncompleng
+	return((long)shortptr[0]);  /* uncompleng */
 }

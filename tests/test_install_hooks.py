@@ -27,11 +27,10 @@ class TestInstallHooks:
         assert os.access(script, os.X_OK), f"{script} is not executable"
 
     def test_install_hooks_creates_pre_commit_hook(self, tmp_path):
-        """Test that install_hooks.sh creates .git/hooks/pre-commit in a temp repo."""
+        """Test that install_hooks.sh configures git core.hooksPath in a temp repo."""
         # Get paths before any directory changes
         project_root = Path.cwd()
         install_script_src = project_root / "tools" / "install_hooks.sh"
-        check_secrets_src = project_root / "tools" / "check_secrets.sh"
         
         # Create isolated temp git repo
         repo = tmp_path / "test_repo"
@@ -46,34 +45,37 @@ class TestInstallHooks:
         tools_dst = repo / "tools"
         tools_dst.mkdir()
         shutil.copy(install_script_src, tools_dst / "install_hooks.sh")
-        shutil.copy(check_secrets_src, tools_dst / "check_secrets.sh")
         os.chmod(tools_dst / "install_hooks.sh", 0o755)
-        os.chmod(tools_dst / "check_secrets.sh", 0o755)
+        
+        # Create .githooks directory with pre-commit
+        githooks_dst = repo / ".githooks"
+        githooks_dst.mkdir()
+        (githooks_dst / "pre-commit").write_text("#!/bin/sh\necho 'test hook'\n")
+        os.chmod(githooks_dst / "pre-commit", 0o755)
         
         # Run the installer from the temp repo
         result = subprocess.run(
-            ["bash", "tools/install_hooks.sh"],
+            ["sh", "tools/install_hooks.sh"],
             cwd=repo,
             capture_output=True,
             text=True
         )
         assert result.returncode == 0, f"install_hooks.sh failed: {result.stderr}"
         
-        # Verify hook was created
-        hook_file = repo / ".git" / "hooks" / "pre-commit"
-        assert hook_file.exists(), f"pre-commit hook not created at {hook_file}"
-        assert os.access(hook_file, os.X_OK), f"pre-commit hook not executable"
-        
-        # Verify hook contents
-        hook_content = hook_file.read_text()
-        assert "check_secrets.sh" in hook_content, "Hook does not call check_secrets.sh"
+        # Verify git config was set
+        config_result = subprocess.run(
+            ["git", "config", "core.hooksPath"],
+            cwd=repo,
+            capture_output=True,
+            text=True
+        )
+        assert config_result.stdout.strip() == ".githooks", "core.hooksPath not set to .githooks"
 
     def test_install_hooks_is_idempotent(self, tmp_path):
-        """Test that running install_hooks.sh twice does not error and backs up old hooks."""
+        """Test that running install_hooks.sh twice does not error."""
         # Get paths before any directory changes
         project_root = Path.cwd()
         install_script_src = project_root / "tools" / "install_hooks.sh"
-        check_secrets_src = project_root / "tools" / "check_secrets.sh"
         
         # Create isolated temp git repo
         repo = tmp_path / "test_repo_idempotent"
@@ -88,33 +90,49 @@ class TestInstallHooks:
         tools_dst = repo / "tools"
         tools_dst.mkdir()
         shutil.copy(install_script_src, tools_dst / "install_hooks.sh")
-        shutil.copy(check_secrets_src, tools_dst / "check_secrets.sh")
         os.chmod(tools_dst / "install_hooks.sh", 0o755)
-        os.chmod(tools_dst / "check_secrets.sh", 0o755)
+        
+        # Create .githooks directory with pre-commit
+        githooks_dst = repo / ".githooks"
+        githooks_dst.mkdir()
+        (githooks_dst / "pre-commit").write_text("#!/bin/sh\necho 'test hook'\n")
+        os.chmod(githooks_dst / "pre-commit", 0o755)
         
         # Run installer first time
         result1 = subprocess.run(
-            ["bash", "tools/install_hooks.sh"],
+            ["sh", "tools/install_hooks.sh"],
             cwd=repo,
             capture_output=True,
             text=True
         )
         assert result1.returncode == 0, f"First run failed: {result1.stderr}"
         
-        hook_file = repo / ".git" / "hooks" / "pre-commit"
-        assert hook_file.exists(), "Hook not created on first run"
+        # Verify config was set
+        config_result1 = subprocess.run(
+            ["git", "config", "core.hooksPath"],
+            cwd=repo,
+            capture_output=True,
+            text=True
+        )
+        assert config_result1.stdout.strip() == ".githooks", "core.hooksPath not set"
         
         # Run installer second time
         result2 = subprocess.run(
-            ["bash", "tools/install_hooks.sh"],
+            ["sh", "tools/install_hooks.sh"],
             cwd=repo,
             capture_output=True,
             text=True
         )
         assert result2.returncode == 0, f"Second run failed: {result2.stderr}"
         
-        # Verify hook still exists (idempotent)
-        assert hook_file.exists(), "Hook missing after second run"
+        # Verify config still set (idempotent)
+        config_result2 = subprocess.run(
+            ["git", "config", "core.hooksPath"],
+            cwd=repo,
+            capture_output=True,
+            text=True
+        )
+        assert config_result2.stdout.strip() == ".githooks", "core.hooksPath lost after second run"
 
 
 if __name__ == "__main__":

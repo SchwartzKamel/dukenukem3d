@@ -49,9 +49,9 @@ if not exist "%SDL2_DIR%\lib\x64\SDL2.lib" (
     echo SDL2_DIR is currently set to: %SDL2_DIR%
     exit /b 1
 )
-if not exist "%SDL2_DIR%\i686-w64-mingw32\include\SDL2" (
+if not exist "%SDL2_DIR%\x86_64-w64-mingw32\include\SDL2" (
     echo.
-    echo WARNING: MinGW SDL2 path not found: %SDL2_DIR%\i686-w64-mingw32\include\SDL2
+    echo WARNING: MinGW SDL2 path not found: %SDL2_DIR%\x86_64-w64-mingw32\include\SDL2
     echo This is only required if building with MinGW compiler.
 )
 
@@ -127,14 +127,14 @@ echo Build complete: duke3d.exe
 goto :done
 
 :build_mingw
-REM MinGW 32-bit (i686) build target: Windows PE32 executable, matching Makefile and CI
-REM Requires: gcc-mingw-w64-i686 toolchain with SDL2-devel mingw i686 libraries
-echo --- Building with MinGW (32-bit) ---
-REM Note: Expects 32-bit MinGW toolchain on PATH (i686-w64-mingw32-gcc or gcc from MinGW32)
+REM MinGW 64-bit (x86_64) build target: Windows PE32+ executable, matching MSVC section and modern Windows
+REM Requires: gcc-mingw-w64-x86_64 toolchain with SDL2-devel mingw x86_64 libraries
+echo --- Building with MinGW (64-bit) ---
+REM Note: Expects 64-bit MinGW toolchain on PATH (x86_64-w64-mingw32-gcc or gcc from MinGW64)
 set CC=gcc
 set CFLAGS=-std=gnu89 -O2 -w -DSUPERBUILD -DPLATFORM_WIN32
-set SDL_INC=-I"%SDL2_DIR%\i686-w64-mingw32\include\SDL2"
-set SDL_LIB=-L"%SDL2_DIR%\i686-w64-mingw32\lib"
+set SDL_INC=-I"%SDL2_DIR%\x86_64-w64-mingw32\include\SDL2"
+set SDL_LIB=-L"%SDL2_DIR%\x86_64-w64-mingw32\lib"
 set INCLUDES=-Icompat -ISRC -Isource
 set LIBS=%SDL_LIB% -lmingw32 -lSDL2main -lSDL2 -lm -lws2_32 -mwindows
 

@@ -8,7 +8,9 @@ import base64
 import concurrent.futures
 import hashlib
 import json
+import logging
 import os
+import random
 import struct
 import sys
 import time
@@ -23,6 +25,16 @@ from sound_manifest import validate_sound_manifest_entries
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 OUTPUT_DIR = os.path.join(PROJECT_ROOT, "generated_assets", "sounds")
 ENV_FILE = os.path.join(PROJECT_ROOT, ".env")
+
+# Retry constants for Azure TTS async requests
+MAX_RETRIES = 3
+MAX_BACKOFF = 8.0
+
+# Configure logging for retry attempts
+logger = logging.getLogger(__name__)
+if not logger.handlers:
+    logger.addHandler(logging.StreamHandler(sys.stderr))
+    logger.setLevel(logging.INFO)
 
 
 def _redact_endpoint(url: str) -> str:
@@ -392,7 +404,10 @@ def generate_audio(prompt, voice, endpoint, api_key, model):
 
 
 async def generate_audio_async(session, prompt, voice, endpoint, api_key, model):
-    """Call GPT Audio 1.5 to generate a WAV file (async, for concurrent requests)."""
+    """Call GPT Audio 1.5 to generate a WAV file (async, for concurrent requests).
+    
+    Implements exponential backoff with jitter for retry logic.
+    """
     url = (
         f"{endpoint.rstrip('/')}/openai/deployments/{model}"
         f"/chat/completions?api-version=2025-01-01-preview"
@@ -411,17 +426,37 @@ async def generate_audio_async(session, prompt, voice, endpoint, api_key, model)
         "max_tokens": 500,
     }
 
-    try:
-        async with session.post(url, json=payload, headers=headers, timeout=60) as resp:
-            if resp.status != 200:
-                text = await resp.text()
-                return None, f"API error {resp.status}: {text[:200]}"
+    backoff = 1.0
+    for attempt in range(MAX_RETRIES + 1):
+        try:
+            async with session.post(url, json=payload, headers=headers, timeout=60) as resp:
+                if resp.status != 200:
+                    text = await resp.text()
+                    error_msg = f"API error {resp.status}: {text[:200]}"
+                    if attempt < MAX_RETRIES:
+                        jitter = random.uniform(0, 0.5 * backoff)
+                        sleep_time = backoff + jitter
+                        logger.info(f"Retry attempt {attempt + 1}/{MAX_RETRIES}: {error_msg}. Sleeping {sleep_time:.2f}s")
+                        await asyncio.sleep(sleep_time)
+                        backoff = min(backoff * 2, MAX_BACKOFF)
+                        continue
+                    return None, error_msg
 
-            result = await resp.json()
-            audio_b64 = result["choices"][0]["message"]["audio"]["data"]
-            return base64.b64decode(audio_b64), None
-    except Exception as e:
-        return None, f"Failed: {e}"
+                result = await resp.json()
+                audio_b64 = result["choices"][0]["message"]["audio"]["data"]
+                return base64.b64decode(audio_b64), None
+        except Exception as e:
+            error_msg = f"Failed: {e}"
+            if attempt < MAX_RETRIES:
+                jitter = random.uniform(0, 0.5 * backoff)
+                sleep_time = backoff + jitter
+                logger.info(f"Retry attempt {attempt + 1}/{MAX_RETRIES}: {error_msg}. Sleeping {sleep_time:.2f}s")
+                await asyncio.sleep(sleep_time)
+                backoff = min(backoff * 2, MAX_BACKOFF)
+                continue
+            return None, error_msg
+
+    return None, "Max retries exceeded"
 
 
 def _add_checksums_to_manifest(manifest_dict, output_dir):  # asset-r13-manifest-checksums: SHA256 integrity

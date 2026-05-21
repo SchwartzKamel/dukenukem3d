@@ -1,6 +1,8 @@
-// "Build Engine & Tools" Copyright (c) 1993-1997 Ken Silverman
-// Ken Silverman's official web site: "http://www.advsys.net/ken"
-// See the included license file "BUILDLIC.TXT" for license info.
+/*
+  "Build Engine & Tools" Copyright (c) 1993-1997 Ken Silverman
+  Ken Silverman's official web site: "http://www.advsys.net/ken"
+  See the included license file "BUILDLIC.TXT" for license info.
+ */
 
 #define SUPERBUILD
 
@@ -106,24 +108,24 @@ static long imageSize = 0;
 #define MAXPERMS 512
 #define MAXTILEFILES 256
 #define MAXYSAVES ((MAXXDIM*MAXSPRITES)>>7)
-#define MAXNODESPERLINE 42   //Warning: This depends on MAXYSAVES & MAXYDIM!
+#define MAXNODESPERLINE 42     /* Warning: This depends on MAXYSAVES & MAXYDIM! */
 #define MAXWALLSB 2048
 #define MAXCLIPDIST 1024
 
-	//MUST CALL MALLOC THIS WAY TO FORCE CALLS TO KMALLOC!
+	/* MUST CALL MALLOC THIS WAY TO FORCE CALLS TO KMALLOC! */
 void *kmalloc(size_t size) { return(malloc(size)); }
 void *kkmalloc(size_t size) { return(malloc(size)); }
 
-	//MUST CALL FREE THIS WAY TO FORCE CALLS TO KFREE!
+	/* MUST CALL FREE THIS WAY TO FORCE CALLS TO KFREE! */
 void kfree(void *buffer) { free(buffer); }
 void kkfree(void *buffer) { free(buffer); }
 
 #ifdef SUPERBUILD
-	//MUST CALL LOADVOXEL THIS WAY BECAUSE WATCOM STINKS!
+	/* MUST CALL LOADVOXEL THIS WAY BECAUSE WATCOM STINKS! */
 void loadvoxel(long voxindex) { (void)voxindex; }
 void kloadvoxel(long voxindex) { loadvoxel(voxindex); }
 
-	//These variables need to be copied into BUILD
+	/* These variables need to be copied into BUILD */
 #define MAXXSIZ 128
 #define MAXYSIZ 128
 #define MAXZSIZ 200
@@ -143,7 +145,7 @@ static long oxdimen = -1, oviewingrange = -1, oxyaspect = -1;
 
 static long curbrightness = 0;
 
-	//Textured Map variables
+	/* Textured Map variables */
 static char globalpolytype;
 static short *dotp1[MAXYDIM], *dotp2[MAXYDIM];
 
@@ -299,8 +301,8 @@ static char vgapal16[48] =
 
 short editstatus = 0;
 short searchit;
-long searchx = -1, searchy;                          //search input
-short searchsector, searchwall, searchstat;     //search output
+long searchx = -1, searchy;                            /* search input */
+short searchsector, searchwall, searchstat;       /* search output */
 
 static char artfilename[20];
 static long numtilefiles, artfil = -1, artfilnum, artfilplc;
@@ -967,14 +969,14 @@ drawrooms(long daposx, long daposy, long daposz,
 		clearbuf(&tempbuf[0],(long)((numbunches+3)>>2),0L);
 		tempbuf[0] = 1;
 
-		closest = 0;              //Almost works, but not quite :(
+		closest = 0;                /* Almost works, but not quite :( */
 		for(i=1;i<numbunches;i++)
 		{
 			if ((j = bunchfront(i,closest)) < 0) continue;
 			tempbuf[i] = 1;
 			if (j == 0) tempbuf[closest] = 1, closest = i;
 		}
-		for(i=0;i<numbunches;i++) //Double-check
+		for(i=0;i<numbunches;i++)   /* Double-check */
 		{
 			if (tempbuf[i]) continue;
 			if ((j = bunchfront(i,closest)) < 0) continue;
@@ -1072,14 +1074,14 @@ scansector (short sectnum)
 			yp2 = dmulscale6(x2,cosviewingrangeglobalang,y2,sinviewingrangeglobalang);
 			if ((yp1 < 256) && (yp2 < 256)) goto skipitaddwall;
 
-				//If wall's NOT facing you
+				/* If wall's NOT facing you */
 			if (dmulscale32(xp1,yp2,-xp2,yp1) >= 0) goto skipitaddwall;
 
 			if (xp1 >= -yp1)
 			{
 				if ((xp1 > yp1) || (yp1 == 0)) goto skipitaddwall;
 				xb1[numscans] = halfxdimen + scale(xp1,halfxdimen,yp1);
-				if (xp1 >= 0) xb1[numscans]++;   //Fix for SIGNED divide
+				if (xp1 >= 0) xb1[numscans]++;     /* Fix for SIGNED divide */
 				if (xb1[numscans] >= xdimen) xb1[numscans] = xdimen-1;
 				yb1[numscans] = yp1;
 			}
@@ -1097,7 +1099,7 @@ scansector (short sectnum)
 			{
 				if ((xp2 < -yp2) || (yp2 == 0)) goto skipitaddwall;
 				xb2[numscans] = halfxdimen + scale(xp2,halfxdimen,yp2) - 1;
-				if (xp2 >= 0) xb2[numscans]++;   //Fix for SIGNED divide
+				if (xp2 >= 0) xb2[numscans]++;     /* Fix for SIGNED divide */
 				if (xb2[numscans] >= xdimen) xb2[numscans] = xdimen-1;
 				yb2[numscans] = yp2;
 			}
@@ -1111,7 +1113,7 @@ scansector (short sectnum)
 			}
 			if ((yb2[numscans] < 256) || (xb1[numscans] > xb2[numscans])) goto skipitaddwall;
 
-				//Made it all the way!
+				/* Made it all the way! */
 			thesector[numscans] = sectnum; thewall[numscans] = z;
 			rx1[numscans] = xp1; ry1[numscans] = yp1;
 			rx2[numscans] = xp2; ry2[numscans] = yp2;
@@ -1146,24 +1148,24 @@ wallfront (long l1, long l2)
 	wal = &wall[wal->point2]; x22 = wal->x; y22 = wal->y;
 
 	dx = x21-x11; dy = y21-y11;
-	t1 = dmulscale2(x12-x11,dy,-dx,y12-y11); //p1(l2) vs. l1
-	t2 = dmulscale2(x22-x11,dy,-dx,y22-y11); //p2(l2) vs. l1
+	t1 = dmulscale2(x12-x11,dy,-dx,y12-y11);   /* p1(l2) vs. l1 */
+	t2 = dmulscale2(x22-x11,dy,-dx,y22-y11);   /* p2(l2) vs. l1 */
 	if (t1 == 0) { t1 = t2; if (t1 == 0) return(-1); }
 	if (t2 == 0) t2 = t1;
 	if ((t1^t2) >= 0)
 	{
-		t2 = dmulscale2(globalposx-x11,dy,-dx,globalposy-y11); //pos vs. l1
+		t2 = dmulscale2(globalposx-x11,dy,-dx,globalposy-y11);   /* pos vs. l1 */
 		return((t2^t1) >= 0);
 	}
 
 	dx = x22-x12; dy = y22-y12;
-	t1 = dmulscale2(x11-x12,dy,-dx,y11-y12); //p1(l1) vs. l2
-	t2 = dmulscale2(x21-x12,dy,-dx,y21-y12); //p2(l1) vs. l2
+	t1 = dmulscale2(x11-x12,dy,-dx,y11-y12);   /* p1(l1) vs. l2 */
+	t2 = dmulscale2(x21-x12,dy,-dx,y21-y12);   /* p2(l1) vs. l2 */
 	if (t1 == 0) { t1 = t2; if (t1 == 0) return(-1); }
 	if (t2 == 0) t2 = t1;
 	if ((t1^t2) >= 0)
 	{
-		t2 = dmulscale2(globalposx-x12,dy,-dx,globalposy-y12); //pos vs. l2
+		t2 = dmulscale2(globalposx-x12,dy,-dx,globalposy-y12);   /* pos vs. l2 */
 		return((t2^t1) < 0);
 	}
 	return(-2);
@@ -1211,13 +1213,13 @@ drawalls (long bunch)
 	sectnum = thesector[z]; sec = &sector[sectnum];
 
 	andwstat1 = 0xff; andwstat2 = 0xff;
-	for(;z>=0;z=p2[z])  //uplc/dplc calculation
+	for(;z>=0;z=p2[z])    /* uplc/dplc calculation */
 	{
 		andwstat1 &= wallmost(uplc,z,sectnum,(char)0);
 		andwstat2 &= wallmost(dplc,z,sectnum,(char)1);
 	}
 
-	if ((andwstat1&3) != 3)     //draw ceilings
+	if ((andwstat1&3) != 3)       /* draw ceilings */
 	{
 		if ((sec->ceilingstat&3) == 2)
 			grouscan(xb1[bunchfirst[bunch]],xb2[bunchlast[bunch]],sectnum,0);
@@ -1226,7 +1228,7 @@ drawalls (long bunch)
 		else
 			parascan(xb1[bunchfirst[bunch]],xb2[bunchlast[bunch]],sectnum,0,bunch);
 	}
-	if ((andwstat2&12) != 12)   //draw floors
+	if ((andwstat2&12) != 12)     /* draw floors */
 	{
 		if ((sec->floorstat&3) == 2)
 			grouscan(xb1[bunchfirst[bunch]],xb2[bunchlast[bunch]],sectnum,1);
@@ -1236,7 +1238,7 @@ drawalls (long bunch)
 			parascan(xb1[bunchfirst[bunch]],xb2[bunchlast[bunch]],sectnum,1,bunch);
 	}
 
-		//DRAW WALLS SECTION!
+		/* DRAW WALLS SECTION! */
 	for(z=bunchfirst[bunch];z>=0;z=p2[z])
 	{
 		x1 = xb1[z]; x2 = xb2[z];
@@ -1263,12 +1265,12 @@ drawalls (long bunch)
 
 		if ((searchit == 2) && (searchx >= x1) && (searchx <= x2))
 		{
-			if (searchy <= uplc[searchx]) //ceiling
+			if (searchy <= uplc[searchx])   /* ceiling */
 			{
 				searchsector = sectnum; searchwall = wallnum;
 				searchstat = 1; searchit = 1;
 			}
-			else if (searchy >= dplc[searchx]) //floor
+			else if (searchy >= dplc[searchx])   /* floor */
 			{
 				searchsector = sectnum; searchwall = wallnum;
 				searchstat = 2; searchit = 1;
@@ -1305,7 +1307,7 @@ drawalls (long bunch)
 						for(i=x1;i<=x2;i++) if (dwall[i] > dplc[i]) dwall[i] = dplc[i];
 
 					if ((searchit == 2) && (searchx >= x1) && (searchx <= x2))
-						if (searchy <= dwall[searchx]) //wall
+						if (searchy <= dwall[searchx])   /* wall */
 						{
 							searchsector = sectnum; searchwall = wallnum;
 							searchstat = 0; searchit = 1;
@@ -1367,7 +1369,7 @@ drawalls (long bunch)
 					{
 						smoststart[smostwallcnt] = smostcnt;
 						smostwall[smostwallcnt] = z;
-						smostwalltype[smostwallcnt] = 1;   //1 for umost
+						smostwalltype[smostwallcnt] = 1;     /* 1 for umost */
 						smostwallcnt++;
 						copybufbyte((long)&umost[x1],(long)&smost[smostcnt],i*sizeof(smost[0]));
 						smostcnt += i;
@@ -1394,7 +1396,7 @@ drawalls (long bunch)
 						for(i=x1;i<=x2;i++) if (uwall[i] < uplc[i]) uwall[i] = uplc[i];
 
 					if ((searchit == 2) && (searchx >= x1) && (searchx <= x2))
-						if (searchy >= uwall[searchx]) //wall
+						if (searchy >= uwall[searchx])   /* wall */
 						{
 							searchsector = sectnum; searchwall = wallnum;
 							if ((wal->cstat&2) > 0) searchwall = wal->nextwall;
@@ -1474,7 +1476,7 @@ drawalls (long bunch)
 					{
 						smoststart[smostwallcnt] = smostcnt;
 						smostwall[smostwallcnt] = z;
-						smostwalltype[smostwallcnt] = 2;   //2 for dmost
+						smostwalltype[smostwallcnt] = 2;     /* 2 for dmost */
 						smostwallcnt++;
 						copybufbyte((long)&dmost[x1],(long)&smost[smostcnt],i*sizeof(smost[0]));
 						smostcnt += i;
@@ -1492,8 +1494,10 @@ drawalls (long bunch)
 						if (umost[x] < dmost[x])
 							{ scansector(nextsectnum); break; }
 
-						//If can't see sector beyond, then cancel smost array and just
-						//store wall!
+						/*
+						 If can't see sector beyond, then cancel smost array and just
+						 store wall!
+						 */
 					if (x == x2)
 					{
 						smostwallcnt = startsmostwallcnt;
@@ -1505,7 +1509,7 @@ drawalls (long bunch)
 				}
 			}
 		}
-		if ((nextsectnum < 0) || (wal->cstat&32))   //White/1-way wall
+		if ((nextsectnum < 0) || (wal->cstat&32))     /* White/1-way wall */
 		{
 			globalorientation = (long)wal->cstat;
 			if (nextsectnum < 0) globalpicnum = wal->picnum;
@@ -1561,7 +1565,7 @@ prepwall(long z, walltype *wal)
 
 	walxrepeat = (wal->xrepeat<<3);
 
-		//lwall calculation
+		/* lwall calculation */
 	i = xb1[z]-halfxdimen;
 	topinc = -(ry1[z]>>2);
 	botinc = ((ry2[z]-ry1[z])>>8);
@@ -2419,7 +2423,7 @@ loadboard(char *filename, int32_t *daposx, int32_t *daposy, int32_t *daposz,
 		insertsprite(sprite[i].sectnum,sprite[i].statnum);
 	}
 
-		//Must be after loading sectors, etc!
+		/* Must be after loading sectors, etc! */
 	updatesector(*daposx,*daposy,dacursectnum);
 
 	kclose(fil);
@@ -2570,7 +2574,7 @@ setgamemode(char davidoption, long daxdim, long daydim)
 		case 6: xdim = 320; ydim = 200; i = 131072; break;
 		default: return(-1);
 	}
-	j = ydim*4*sizeof(long);  //Leave room for horizlookup&horizlookup2
+	j = ydim*4*sizeof(long);    /* Leave room for horizlookup&horizlookup2 */
 
 	if (screen != NULL)
 	{
@@ -2593,11 +2597,11 @@ setgamemode(char davidoption, long daxdim, long daydim)
 	switch(vidoption)
 	{
 		case 1:
-				//bytesperline is set in this function
+				/* bytesperline is set in this function */
 			if (setvesa(xdim,ydim) < 0) return(-1);
 			break;
 		case 2:
-			horizycent = ((ydim*4)>>1);  //HACK for switching to this mode
+			horizycent = ((ydim*4)>>1);    /* HACK for switching to this mode */
 			/* Mode 13h used VGA framebuffer at 0xA0000 on DOS.
 			   On modern systems we must init SDL and redirect the
 			   engine's frameplace to the SDL pixel buffer. */
@@ -2612,7 +2616,7 @@ setgamemode(char davidoption, long daxdim, long daydim)
 		default: return(-1);
 	}
 
-		//Force drawrooms to call dosetaspect & recalculate stuff
+		/* Force drawrooms to call dosetaspect & recalculate stuff */
 	oxyaspect = oxdimen = oviewingrange = -1;
 
 	setvlinebpl(bytesperline);
@@ -2743,7 +2747,7 @@ uninitengine()
 	if (screen != NULL)
 	{
 		if (screenalloctype == 0) kkfree((void *)screen);
-		//if (screenalloctype == 1) suckcache(screen);  //Cache already gone
+		/* if (screenalloctype == 1) suckcache(screen);  //Cache already gone */
 		screen = NULL;
 	}
 	for(i=0;i<MAXPALOOKUPS;i++)
@@ -2755,18 +2759,20 @@ nextpage()
 	long totbytes, i, j, k;
 	permfifotype *per;
 
-	//char snotbuf[32];
-	//j = 0; k = 0;
-	//for(i=0;i<4096;i++)
-	//   if (waloff[i] != 0)
-	//   {
-	//      sprintf(snotbuf,"%ld-%ld",i,tilesizx[i]*tilesizy[i]);
-	//      printext256((j>>5)*40+32,(j&31)*6,walock[i]>>3,-1,snotbuf,1);
-	//      k += tilesizx[i]*tilesizy[i];
-	//      j++;
-	//   }
-	//sprintf(snotbuf,"Total: %ld",k);
-	//printext256((j>>5)*40+32,(j&31)*6,31,-1,snotbuf,1);
+	/*
+	 char snotbuf[32];
+	 j = 0; k = 0;
+	 for(i=0;i<4096;i++)
+	    if (waloff[i] != 0)
+	    {
+	       sprintf(snotbuf,"%ld-%ld",i,tilesizx[i]*tilesizy[i]);
+	       printext256((j>>5)*40+32,(j&31)*6,walock[i]>>3,-1,snotbuf,1);
+	       k += tilesizx[i]*tilesizy[i];
+	       j++;
+	    }
+	 sprintf(snotbuf,"Total: %ld",k);
+	 printext256((j>>5)*40+32,(j&31)*6,31,-1,snotbuf,1);
+	 */
 
 	switch(qsetmode)
 	{
@@ -2828,7 +2834,7 @@ nextpage()
 		case 350:
 			koutpw(0x3d4,0xc+((pageoffset>>11)<<8));
 			limitrate();
-			pageoffset = 225280-pageoffset; //225280 is 352(multiple of 16)*640
+			pageoffset = 225280-pageoffset;   /* 225280 is 352(multiple of 16)*640 */
 			break;
 
 		case 480:
@@ -2990,7 +2996,7 @@ loadpics(char *filename)
 
 	clearbuf(&gotpic[0],(long)((MAXTILES+31)>>5),0L);
 
-	//try dpmi_DETERMINEMAXREALALLOC!
+	/* try dpmi_DETERMINEMAXREALALLOC! */
 
 	cachesize = max(artsize,1048576);
 	while ((pic = (char *)kkmalloc(cachesize)) == NULL)
@@ -3031,7 +3037,7 @@ qloadkvx(long voxindex, char *filename)
 	for(i=0;i<MAXVOXMIPS;i++)
 	{
 		kread(fil,&dasiz,4);
-			//Must store filenames to use cacheing system :(
+			/* Must store filenames to use cacheing system :( */
 		voxlock[voxindex][i] = 200;
 		allocache(&voxoff[voxindex][i],dasiz,&voxlock[voxindex][i]);
 		ptr = (char *)voxoff[voxindex][i];
@@ -3059,7 +3065,7 @@ clipinsidebox(long x, long y, short wallnum, long walldist)
 	if ((y1 >= r) && (y2 >= r)) return(0);
 
 	x2 -= x1; y2 -= y1;
-	if (x2*(walldist-y1) >= y2*(walldist-x1))  //Front
+	if (x2*(walldist-y1) >= y2*(walldist-x1))    /* Front */
 	{
 		if (x2 > 0) x2 *= (0-y1); else x2 *= (r-y1);
 		if (y2 > 0) y2 *= (r-x1); else y2 *= (0-x1);
@@ -3085,7 +3091,7 @@ clipinsideboxline(long x, long y, long x1, long y1, long x2, long y2, long walld
 	if ((y1 >= r) && (y2 >= r)) return(0);
 
 	x2 -= x1; y2 -= y1;
-	if (x2*(walldist-y1) >= y2*(walldist-x1))  //Front
+	if (x2*(walldist-y1) >= y2*(walldist-x1))    /* Front */
 	{
 		if (x2 > 0) x2 *= (0-y1); else x2 *= (r-y1);
 		if (y2 > 0) y2 *= (r-x1); else y2 *= (0-x1);
@@ -3357,7 +3363,7 @@ drawmasks()
 		}
 		else if ((tspriteptr[i]->cstat&48) == 0)
 		{
-			spritesortcnt--;  //Delete face sprite if on wrong side!
+			spritesortcnt--;    /* Delete face sprite if on wrong side! */
 			if (i != spritesortcnt)
 			{
 				tspriteptr[i] = tspriteptr[spritesortcnt];
@@ -3370,7 +3376,7 @@ drawmasks()
 	}
 
 	gap = 1; while (gap < spritesortcnt) gap = (gap<<1)+1;
-	for(gap>>=1;gap>0;gap>>=1)      //Sort sprite list
+	for(gap>>=1;gap>0;gap>>=1)        /* Sort sprite list */
 		for(i=0;i<spritesortcnt-gap;i++)
 			for(l=i;l>=0;l-=gap)
 			{
@@ -3441,14 +3447,14 @@ drawmasks()
 		drawline256(xs+65536,ys-65536,xs-65536,ys+65536,31);
 	}*/
 
-	while ((spritesortcnt > 0) && (maskwallcnt > 0))  //While BOTH > 0
+	while ((spritesortcnt > 0) && (maskwallcnt > 0))    /* While BOTH > 0 */
 	{
 		j = maskwall[maskwallcnt-1];
 		if (spritewallfront(tspriteptr[spritesortcnt-1],(long)thewall[j]) == 0)
 			drawsprite(--spritesortcnt);
 		else
 		{
-				//Check to see if any sprites behind the masked wall...
+				/* Check to see if any sprites behind the masked wall... */
 			k = -1;
 			gap = 0;
 			for(i=spritesortcnt-2;i>=0;i--)
@@ -3460,7 +3466,7 @@ drawmasks()
 						k = i;
 						gap++;
 					}
-			if (k >= 0)       //remove holes in sprite list
+			if (k >= 0)         /* remove holes in sprite list */
 			{
 				for(i=k;i<spritesortcnt;i++)
 					if (tspriteptr[i]->owner >= 0)
@@ -3476,7 +3482,7 @@ drawmasks()
 				spritesortcnt -= gap;
 			}
 
-				//finally safe to draw the masked wall
+				/* finally safe to draw the masked wall */
 			drawmaskwall(--maskwallcnt);
 		}
 	}
@@ -3557,7 +3563,7 @@ drawmaskwall(short damaskwallcnt)
 		}
 	}
 
-		//maskwall
+		/* maskwall */
 	if ((searchit >= 1) && (searchx >= xb1[z]) && (searchx <= xb2[z]))
 		if ((searchy >= uwall[searchx]) && (searchy <= dwall[searchx]))
 		{
@@ -3643,10 +3649,10 @@ drawsprite (long snum)
 		ysiz = mulscale14(siz,tspr->yrepeat*yspan);
 
 		if (((tilesizx[tilenum]>>11) >= xsiz) || (yspan >= (ysiz>>1)))
-			return;  //Watch out for divscale overflow
+			return;    /* Watch out for divscale overflow */
 
 		x1 = xb-(xsiz>>1);
-		if (xspan&1) x1 += mulscale31(siz,xv);  //Odd xspans
+		if (xspan&1) x1 += mulscale31(siz,xv);    /* Odd xspans */
 		i = mulscale30(siz,xv*xoff);
 		if ((cstat&4) == 0) x1 -= i; else x1 += i;
 
@@ -3656,7 +3662,7 @@ drawsprite (long snum)
 		if (cstat&128)
 		{
 			y1 += (ysiz>>1);
-			if (yspan&1) y1 += mulscale15(siz,tspr->yrepeat);  //Odd yspans
+			if (yspan&1) y1 += mulscale15(siz,tspr->yrepeat);    /* Odd yspans */
 		}
 
 		x2 = x1+xsiz-1;
@@ -3747,7 +3753,7 @@ drawsprite (long snum)
 			if (x == rx) return;
 		}
 
-			//sprite
+			/* sprite */
 		if ((searchit >= 1) && (searchx >= lx) && (searchx <= rx))
 			if ((searchy >= uwall[searchx]) && (searchy < dwall[searchx]))
 			{
@@ -3759,7 +3765,7 @@ drawsprite (long snum)
 		if (cstat&128)
 		{
 			z2 += ((yspan*tspr->yrepeat)<<1);
-			if (yspan&1) z2 += (tspr->yrepeat<<1);        //Odd yspans
+			if (yspan&1) z2 += (tspr->yrepeat<<1);          /* Odd yspans */
 		}
 		z1 = z2 - ((yspan*tspr->yrepeat)<<2);
 
@@ -3811,7 +3817,7 @@ drawsprite (long snum)
 		x2 += globalposx; y2 += globalposy;
 
 		swapped = 0;
-		if (dmulscale32(xp1,yp2,-xp2,yp1) >= 0)  //If wall's NOT facing you
+		if (dmulscale32(xp1,yp2,-xp2,yp1) >= 0)    /* If wall's NOT facing you */
 		{
 			if ((cstat&64) != 0) return;
 			i = xp1, xp1 = xp2, xp2 = i;
@@ -3827,7 +3833,7 @@ drawsprite (long snum)
 
 			if (yp1 == 0) return;
 			xb1[MAXWALLSB-1] = halfxdimen + scale(xp1,halfxdimen,yp1);
-			if (xp1 >= 0) xb1[MAXWALLSB-1]++;   //Fix for SIGNED divide
+			if (xp1 >= 0) xb1[MAXWALLSB-1]++;     /* Fix for SIGNED divide */
 			if (xb1[MAXWALLSB-1] >= xdimen) xb1[MAXWALLSB-1] = xdimen-1;
 			yb1[MAXWALLSB-1] = yp1;
 		}
@@ -3845,7 +3851,7 @@ drawsprite (long snum)
 
 			if (yp2 == 0) return;
 			xb2[MAXWALLSB-1] = halfxdimen + scale(xp2,halfxdimen,yp2) - 1;
-			if (xp2 >= 0) xb2[MAXWALLSB-1]++;   //Fix for SIGNED divide
+			if (xp2 >= 0) xb2[MAXWALLSB-1]++;     /* Fix for SIGNED divide */
 			if (xb2[MAXWALLSB-1] >= xdimen) xb2[MAXWALLSB-1] = xdimen-1;
 			yb2[MAXWALLSB-1] = yp2;
 		}
@@ -3902,7 +3908,7 @@ drawsprite (long snum)
 		if (cstat&128)
 		{
 			z2 += ((yspan*tspr->yrepeat)<<1);
-			if (yspan&1) z2 += (tspr->yrepeat<<1);        //Odd yspans
+			if (yspan&1) z2 += (tspr->yrepeat<<1);          /* Odd yspans */
 		}
 		z1 = z2 - ((yspan*tspr->yrepeat)<<2);
 
@@ -3973,7 +3979,7 @@ drawsprite (long snum)
 									x = 0x7fffffff;
 							}
 							else
-							{     //INTERSECTION!
+							{       /* INTERSECTION! */
 								x = (xp1-globalposx) + scale(xp2-xp1,z1,z1-z2);
 								y = (yp1-globalposy) + scale(yp2-yp1,z1,z1-z2);
 
@@ -3983,7 +3989,7 @@ drawsprite (long snum)
 									xp1 = dmulscale14(y,cosglobalang,-x,singlobalang);
 
 									x = halfxdimen + scale(xp1,halfxdimen,yp1);
-									if (xp1 >= 0) x++;   //Fix for SIGNED divide
+									if (xp1 >= 0) x++;     /* Fix for SIGNED divide */
 
 									if (z1 < 0)
 										{ if (dalx2 < x) dalx2 = x; }
@@ -4025,7 +4031,7 @@ drawsprite (long snum)
 			}
 		}
 
-			//sprite
+			/* sprite */
 		if ((searchit >= 1) && (searchx >= xb1[MAXWALLSB-1]) && (searchx <= xb2[MAXWALLSB-1]))
 			if ((searchy >= uwall[searchx]) && (searchy <= dwall[searchx]))
 			{
@@ -4049,13 +4055,13 @@ drawsprite (long snum)
 		xspan = tilesizx[tilenum];
 		yspan = tilesizy[tilenum];
 
-			//Rotate center point
+			/* Rotate center point */
 		dax = tspr->x-globalposx;
 		day = tspr->y-globalposy;
 		rzi[0] = dmulscale10(cosglobalang,dax,singlobalang,day);
 		rxi[0] = dmulscale10(cosglobalang,day,-singlobalang,dax);
 
-			//Get top-left corner
+			/* Get top-left corner */
 		i = ((tspr->ang+2048-globalang)&2047);
 		cosang = sintable[(i+512)&2047]; sinang = sintable[i];
 		dax = ((xspan>>1)+xoff)*tspr->xrepeat;
@@ -4063,7 +4069,7 @@ drawsprite (long snum)
 		rzi[0] += dmulscale12(sinang,dax,cosang,day);
 		rxi[0] += dmulscale12(sinang,day,-cosang,dax);
 
-			//Get other 3 corners
+			/* Get other 3 corners */
 		dax = xspan*tspr->xrepeat;
 		day = yspan*tspr->yrepeat;
 		rzi[1] = rzi[0]-mulscale12(sinang,dax);
@@ -4073,7 +4079,7 @@ drawsprite (long snum)
 		rzi[2] = rzi[1]+dax; rxi[2] = rxi[1]+day;
 		rzi[3] = rzi[0]+dax; rxi[3] = rxi[0]+day;
 
-			//Put all points on same z
+			/* Put all points on same z */
 		ryi[0] = scale((tspr->z-globalposz),yxaspect,320<<8);
 		if (ryi[0] == 0) return;
 		ryi[1] = ryi[2] = ryi[3] = ryi[0];
@@ -4095,7 +4101,7 @@ drawsprite (long snum)
 		globaly1 = divscale18(dax,bot);
 		globaly2 = divscale18(day,bot);
 
-			//Calculate globals for hline texture mapping function
+			/* Calculate globals for hline texture mapping function */
 		globalxpanning = (rxi[z]<<12);
 		globalypanning = (rzi[z]<<12);
 		globalzd = (ryi[z]<<12);
@@ -4105,17 +4111,17 @@ drawsprite (long snum)
 		rzi[2] = mulscale16(rzi[2],viewingrange);
 		rzi[3] = mulscale16(rzi[3],viewingrange);
 
-		if (ryi[0] < 0)   //If ceilsprite is above you, reverse order of points
+		if (ryi[0] < 0)     /* If ceilsprite is above you, reverse order of points */
 		{
 			i = rxi[1]; rxi[1] = rxi[3]; rxi[3] = i;
 			i = rzi[1]; rzi[1] = rzi[3]; rzi[3] = i;
 		}
 
 
-			//Clip polygon in 3-space
+			/* Clip polygon in 3-space */
 		npoints = 4;
 
-			//Clip edge 1
+			/* Clip edge 1 */
 		npoints2 = 0;
 		zzsgn = rxi[0]+rzi[0];
 		for(z=0;z<npoints;z++)
@@ -4138,7 +4144,7 @@ drawsprite (long snum)
 		}
 		if (npoints2 <= 2) return;
 
-			//Clip edge 2
+			/* Clip edge 2 */
 		npoints = 0;
 		zzsgn = rxi2[0]-rzi2[0];
 		for(z=0;z<npoints2;z++)
@@ -4161,7 +4167,7 @@ drawsprite (long snum)
 		}
 		if (npoints <= 2) return;
 
-			//Clip edge 3
+			/* Clip edge 3 */
 		npoints2 = 0;
 		zzsgn = ryi[0]*halfxdimen + (rzi[0]*(globalhoriz-0));
 		for(z=0;z<npoints;z++)
@@ -4186,7 +4192,7 @@ drawsprite (long snum)
 		}
 		if (npoints2 <= 2) return;
 
-			//Clip edge 4
+			/* Clip edge 4 */
 		npoints = 0;
 		zzsgn = ryi2[0]*halfxdimen + (rzi2[0]*(globalhoriz-ydimen));
 		for(z=0;z<npoints2;z++)
@@ -4211,7 +4217,7 @@ drawsprite (long snum)
 		}
 		if (npoints <= 2) return;
 
-			//Project onto screen
+			/* Project onto screen */
 		lpoint = -1; lmax = 0x7fffffff;
 		rpoint = -1; rmax = 0x80000000;
 		for(z=0;z<npoints;z++)
@@ -4226,7 +4232,7 @@ drawsprite (long snum)
 			if (xsi[z] > rmax) rmax = xsi[z], rpoint = z;
 		}
 
-			//Get uwall arrays
+			/* Get uwall arrays */
 		for(z=lpoint;z!=rpoint;z=zz)
 		{
 			zz = z+1; if (zz == npoints) zz = 0;
@@ -4241,7 +4247,7 @@ drawsprite (long snum)
 			}
 		}
 
-			//Get dwall arrays
+			/* Get dwall arrays */
 		for(;z!=lpoint;z=zz)
 		{
 			zz = z+1; if (zz == npoints) zz = 0;
@@ -4265,14 +4271,14 @@ drawsprite (long snum)
 			dwall[x] = min(dwall[x],startdmost[x+windowx1]-windowy1);
 		}
 
-			//Additional uwall/dwall clipping goes here
+			/* Additional uwall/dwall clipping goes here */
 		for(i=smostwallcnt-1;i>=0;i--)
 		{
 			j = smostwall[i];
 			if ((xb1[j] > rx) || (xb2[j] < lx)) continue;
 			if ((yp <= yb1[j]) && (yp <= yb2[j])) continue;
 
-				//if (spritewallfront(tspr,thewall[j]) == 0)
+				/* if (spritewallfront(tspr,thewall[j]) == 0) */
 			x = thewall[j]; xp1 = wall[x].x; yp1 = wall[x].y;
 			x = wall[x].point2; xp2 = wall[x].x; yp2 = wall[x].y;
 			x = (xp2-xp1)*(tspr->y-yp1)-(tspr->x-xp1)*(yp2-yp1);
@@ -4303,7 +4309,7 @@ drawsprite (long snum)
 			}
 		}
 
-			//sprite
+			/* sprite */
 		if ((searchit >= 1) && (searchx >= lx) && (searchx <= rx))
 			if ((searchy >= uwall[searchx]) && (searchy <= dwall[searchx]))
 			{
@@ -4314,7 +4320,7 @@ drawsprite (long snum)
 		globalorientation = cstat;
 		globalpicnum = tilenum;
 		if ((unsigned)globalpicnum >= (unsigned)MAXTILES) globalpicnum = 0;
-		//if (picanm[globalpicnum]&192) globalpicnum += animateoffs((short)globalpicnum,spritenum+32768);
+		/* if (picanm[globalpicnum]&192) globalpicnum += animateoffs((short)globalpicnum,spritenum+32768); */
 
 		if (waloff[globalpicnum] == 0) loadtile(globalpicnum);
 		if (waloff[globalpicnum] == 0) return;
@@ -4348,7 +4354,7 @@ drawsprite (long snum)
 		else
 			tsethlineshift(x,y);
 
-			//Draw it!
+			/* Draw it! */
 		ceilspritescan(lx,rx-1);
 	}
 #ifdef SUPERBUILD
@@ -4424,18 +4430,18 @@ drawsprite (long snum)
 			xsiz = mulscale30(siz,xv*xspan);
 			ysiz = mulscale14(siz,tspr->yrepeat*yspan);
 
-				//Watch out for divscale overflow
+				/* Watch out for divscale overflow */
 			if (((xspan>>11) < xsiz) && (yspan < (ysiz>>1)))
 			{
 				x1 = xb-(xsiz>>1);
-				if (xspan&1) x1 += mulscale31(siz,xv);  //Odd xspans
+				if (xspan&1) x1 += mulscale31(siz,xv);    /* Odd xspans */
 				i = mulscale30(siz,xv*xoff);
 				if ((cstat&4) == 0) x1 -= i; else x1 += i;
 
 				y1 = mulscale16(tspr->z-globalposz,siz);
-				//y1 -= mulscale14(siz,tspr->yrepeat*yoff);
+				/* y1 -= mulscale14(siz,tspr->yrepeat*yoff); */
 				y1 += (globalhoriz<<8)-ysiz;
-				//if (cstat&128)  //Already fixed up above
+				/* if (cstat&128)  //Already fixed up above */
 				y1 += (ysiz>>1);
 
 				x2 = x1+xsiz-1;
@@ -4451,7 +4457,7 @@ drawsprite (long snum)
 					else
 						startdm = 0x7fffffff;
 
-						//sprite
+						/* sprite */
 					if ((searchy >= max(startum,(y1>>8))) && (searchy < min(startdm,(y2>>8))))
 					{
 						searchsector = sectnum; searchwall = spritenum;
@@ -4492,7 +4498,7 @@ drawvox(long dasprx, long daspry, long dasprz, long dasprang,
 	j = (long)(getpalookup((long)mulscale21(globvis,i),(long)dashade)<<8);
 	setupdrawslab(ylookup[1],FP_OFF(safe_palookup(dapal))+j);
 	j = 1310720;
-	j *= min(daxscale,dayscale); j >>= 6;  //New hacks (for sized-down voxels)
+	j *= min(daxscale,dayscale); j >>= 6;    /* New hacks (for sized-down voxels) */
 	for(k=0;k<MAXVOXMIPS;k++)
 	{
 		if (i < j) { i = k; break; }
@@ -4602,7 +4608,7 @@ drawvox(long dasprx, long daspry, long dasprz, long dasprang,
 		if (yi > 0) { dagxinc = gxinc; dagyinc = mulscale16(gyinc,viewingrangerecip); }
 				 else { dagxinc = -gxinc; dagyinc = -mulscale16(gyinc,viewingrangerecip); }
 
-			//Fix for non 90 degree viewing ranges
+			/* Fix for non 90 degree viewing ranges */
 		nxoff = mulscale16(x2-x1,viewingrangerecip);
 		x1 = mulscale16(x1,viewingrangerecip);
 
@@ -4641,11 +4647,11 @@ drawvox(long dasprx, long daspry, long dasprz, long dasprang,
 						if (k < 0)
 						{
 							if ((voxptr[2]&oand32) == 0) continue;
-							z2 = mulscale32(l2,k) + globalhoriz;     //Below slab
+							z2 = mulscale32(l2,k) + globalhoriz;       /* Below slab */
 						}
 						else
 						{
-							if ((voxptr[2]&oand) == 0) continue;    //Middle of slab
+							if ((voxptr[2]&oand) == 0) continue;      /* Middle of slab */
 							z2 = mulscale32(l1,k) + globalhoriz;
 						}
 						z1 = mulscale32(l1,j) + globalhoriz;
@@ -4653,7 +4659,7 @@ drawvox(long dasprx, long daspry, long dasprz, long dasprang,
 					else
 					{
 						if ((voxptr[2]&oand16) == 0) continue;
-						z1 = mulscale32(l2,j) + globalhoriz;        //Above slab
+						z1 = mulscale32(l2,j) + globalhoriz;          /* Above slab */
 						z2 = mulscale32(l1,j+(voxptr[1]<<15)) + globalhoriz;
 					}
 
@@ -4717,9 +4723,11 @@ ceilspritehline (long x2, long y)
 {
 	long x1, v, bx, by;
 
-	//x = x1 + (x2-x1)t + (y1-y2)u  �  x = 160v
-	//y = y1 + (y2-y1)t + (x2-x1)u  �  y = (scrx-160)v
-	//z = z1 = z2                   �  z = posz + (scry-horiz)v
+	/*
+	 x = x1 + (x2-x1)t + (y1-y2)u  �  x = 160v
+	 y = y1 + (y2-y1)t + (x2-x1)u  �  y = (scrx-160)v
+	 z = z1 = z2                   �  z = posz + (scry-horiz)v
+	 */
 
 	x1 = lastx[y]; if (x2 < x1) return;
 
@@ -4789,7 +4797,7 @@ initspritelists()
 {
 	long i;
 
-	for (i=0;i<MAXSECTORS;i++)     //Init doubly-linked sprite sector lists
+	for (i=0;i<MAXSECTORS;i++)       /* Init doubly-linked sprite sector lists */
 		headspritesect[i] = -1;
 	headspritesect[MAXSECTORS] = 0;
 	for(i=0;i<MAXSPRITES;i++)
@@ -4802,7 +4810,7 @@ initspritelists()
 	nextspritesect[MAXSPRITES-1] = -1;
 
 
-	for(i=0;i<MAXSTATUS;i++)      //Init doubly-linked sprite status lists
+	for(i=0;i<MAXSTATUS;i++)        /* Init doubly-linked sprite status lists */
 		headspritestat[i] = -1;
 	headspritestat[MAXSTATUS] = 0;
 	for(i=0;i<MAXSPRITES;i++)
@@ -4826,7 +4834,7 @@ insertspritesect(short sectnum)
 	short blanktouse;
 
 	if ((sectnum >= MAXSECTORS) || (headspritesect[MAXSECTORS] == -1))
-		return(-1);  //list full
+		return(-1);    /* list full */
 
 	blanktouse = headspritesect[MAXSECTORS];
 
@@ -4850,7 +4858,7 @@ insertspritestat(short statnum)
 	short blanktouse;
 
 	if ((statnum >= MAXSTATUS) || (headspritestat[MAXSTATUS] == -1))
-		return(-1);  //list full
+		return(-1);    /* list full */
 
 	blanktouse = headspritestat[MAXSTATUS];
 
@@ -5224,8 +5232,10 @@ hitscan(long xs, long ys, long zs, short sectnum, long vx, long vy, long vz,
 					*hitx = intx; *hity = inty; *hitz = intz;
 					break;
 				case 16:
-						//These lines get the 2 points of the rotated sprite
-						//Given: (x1, y1) starts out as the center point
+						/*
+						 These lines get the 2 points of the rotated sprite
+						 Given: (x1, y1) starts out as the center point
+						 */
 					tilenum = spr->picnum;
 					xoff = (long)((signed char)((picanm[tilenum]>>8)&255))+((long)spr->xoffset);
 					if ((cstat&4) > 0) xoff = -xoff;
@@ -5235,7 +5245,7 @@ hitscan(long xs, long ys, long zs, short sectnum, long vx, long vy, long vz,
 					x1 -= mulscale16(dax,k); x2 = x1+mulscale16(dax,l);
 					y1 -= mulscale16(day,k); y2 = y1+mulscale16(day,l);
 
-					if ((cstat&64) != 0)   //back side of 1-way sprite
+					if ((cstat&64) != 0)     /* back side of 1-way sprite */
 						if ((x1-xs)*(y2-ys) < (x2-xs)*(y1-ys)) continue;
 
 					if (rintersect(xs,ys,zs,vx,vy,vz,x1,y1,x2,y2,&intx,&inty,&intz) == 0) continue;
@@ -5439,7 +5449,7 @@ neartag (long xs, long ys, long zs, short sectnum, short ange, short *neartagsec
 
 lintersect(long x1, long y1, long z1, long x2, long y2, long z2, long x3,
 			  long y3, long x4, long y4, long *intx, long *inty, long *intz)
-{     //p1 to p2 is a line segment
+{       /* p1 to p2 is a line segment */
 	long x21, y21, x34, y34, x31, y31, bot, topt, topu, t;
 
 	x21 = x2-x1; x34 = x3-x4;
@@ -5467,7 +5477,7 @@ lintersect(long x1, long y1, long z1, long x2, long y2, long z2, long x3,
 
 rintersect(long x1, long y1, long z1, long vx, long vy, long vz, long x3,
 			  long y3, long x4, long y4, long *intx, long *inty, long *intz)
-{     //p1 towards p2 is a ray
+{       /* p1 towards p2 is a ray */
 	long x34, y34, x31, y31, bot, topt, topu, t;
 
 	x34 = x3-x4; y34 = y3-y4;
@@ -5500,7 +5510,7 @@ dragpoint(short pointhighlight, long dax, long day)
 	wall[pointhighlight].y = day;
 
 	cnt = MAXWALLS;
-	tempshort = pointhighlight;    //search points CCW
+	tempshort = pointhighlight;      /* search points CCW */
 	do
 	{
 		if (wall[tempshort].nextwall >= 0)
@@ -5511,7 +5521,7 @@ dragpoint(short pointhighlight, long dax, long day)
 		}
 		else
 		{
-			tempshort = pointhighlight;    //search points CW if not searched all the way around
+			tempshort = pointhighlight;      /* search points CW if not searched all the way around */
 			do
 			{
 				if (wall[lastwall(tempshort)].nextwall >= 0)
@@ -5589,14 +5599,14 @@ clipmove (int32_t *x, int32_t *y, int32_t *z, short *sectnum,
 
 	cx = (((*x)+goalx)>>1);
 	cy = (((*y)+goaly)>>1);
-		//Extra walldist for sprites on sector lines
+		/* Extra walldist for sprites on sector lines */
 	gx = goalx-(*x); gy = goaly-(*y);
 	rad = nsqrtasm(gx*gx + gy*gy) + MAXCLIPDIST+walldist + 8;
 	xmin = cx-rad; ymin = cy-rad;
 	xmax = cx+rad; ymax = cy+rad;
 
-	dawalclipmask = (cliptype&65535);        //CLIPMASK0 = 0x00010001
-	dasprclipmask = (cliptype>>16);          //CLIPMASK1 = 0x01000040
+	dawalclipmask = (cliptype&65535);          /* CLIPMASK0 = 0x00010001 */
+	dasprclipmask = (cliptype>>16);            /* CLIPMASK1 = 0x01000040 */
 
 	clipsectorlist[0] = (*sectnum);
 	clipsectcnt = 0; clipsectnum = 1;
@@ -5616,7 +5626,7 @@ clipmove (int32_t *x, int32_t *y, int32_t *z, short *sectnum,
 			x1 = wal->x; y1 = wal->y; x2 = wal2->x; y2 = wal2->y;
 
 			dx = x2-x1; dy = y2-y1;
-			if (dx*((*y)-y1) < ((*x)-x1)*dy) continue;  //If wall's not facing you
+			if (dx*((*y)-y1) < ((*x)-x1)*dy) continue;    /* If wall's not facing you */
 
 			if (dx > 0) dax = dx*(ymin-y1); else dax = dx*(ymax-y1);
 			if (dy > 0) day = dy*(xmax-x1); else day = dy*(xmin-x1);
@@ -5647,7 +5657,7 @@ clipmove (int32_t *x, int32_t *y, int32_t *z, short *sectnum,
 
 			if (clipyou)
 			{
-					//Add 2 boxes at endpoints
+					/* Add 2 boxes at endpoints */
 				bsz = walldist; if (gx < 0) bsz = -bsz;
 				addclipline(x1-bsz,y1-bsz,x1-bsz,y1+bsz,(short)j+32768);
 				addclipline(x2-bsz,y2-bsz,x2-bsz,y2+bsz,(short)j+32768);
@@ -5699,8 +5709,10 @@ clipmove (int32_t *x, int32_t *y, int32_t *z, short *sectnum,
 					daz += ceildist; daz2 -= flordist;
 					if (((*z) < daz) && ((*z) > daz2))
 					{
-							//These lines get the 2 points of the rotated sprite
-							//Given: (x1, y1) starts out as the center point
+							/*
+							 These lines get the 2 points of the rotated sprite
+							 Given: (x1, y1) starts out as the center point
+							 */
 						tilenum = spr->picnum;
 						xoff = (long)((signed char)((picanm[tilenum]>>8)&255))+((long)spr->xoffset);
 						if ((cstat&4) > 0) xoff = -xoff;
@@ -5714,7 +5726,7 @@ clipmove (int32_t *x, int32_t *y, int32_t *z, short *sectnum,
 							dax = mulscale14(sintable[(spr->ang+256+512)&2047],walldist);
 							day = mulscale14(sintable[(spr->ang+256)&2047],walldist);
 
-							if ((x1-(*x))*(y2-(*y)) >= (x2-(*x))*(y1-(*y)))   //Front
+							if ((x1-(*x))*(y2-(*y)) >= (x2-(*x))*(y1-(*y)))     /* Front */
 							{
 								addclipline(x1+dax,y1+day,x2+day,y2-dax,(short)j+49152);
 							}
@@ -5724,7 +5736,7 @@ clipmove (int32_t *x, int32_t *y, int32_t *z, short *sectnum,
 								addclipline(x2-dax,y2-day,x1-day,y1+dax,(short)j+49152);
 							}
 
-								//Side blocker
+								/* Side blocker */
 							if ((x2-x1)*((*x)-x1) + (y2-y1)*((*y)-y1) < 0)
 								{ addclipline(x1-day,y1+dax,x1+dax,y1+day,(short)j+49152); }
 							else if ((x1-x2)*((*x)-x2) + (y1-y2)*((*y)-y2) < 0)
@@ -6007,7 +6019,7 @@ pushmove (int32_t *x, int32_t *y, int32_t *z, short *sectnum,
 						sec2 = &sector[wal->nextsector];
 
 
-							//Find closest point on wall (dax, day) to (*x, *y)
+							/* Find closest point on wall (dax, day) to (*x, *y) */
 						dax = wall[wal->point2].x-wal->x;
 						day = wall[wal->point2].y-wal->y;
 						daz = dax*((*x)-wal->x) + day*((*y)-wal->y);
@@ -6236,7 +6248,7 @@ drawline16(long x1, long y1, long x2, long y2, char col)
 	if (x1 == x2)
 	{
 		if (y2 < y1) i = y1, y1 = y2, y2 = i;
-		koutpw(0x3ce,0x8+(256<<(x1&7^7)));  //bit mask
+		koutpw(0x3ce,0x8+(256<<(x1&7^7)));    /* bit mask */
 		vlin16((((mul5(y1)<<7)+x1+pageoffset)>>3)+0xa0000,y2-y1+1);
 		return;
 	}
@@ -6313,8 +6325,8 @@ qsetmode640350()
 		ydim16 = 350;
 		koutpw(0x3d4,0xc+((pageoffset>>11)<<8));
 
-		koutpw(0x3ce,0x0f00);  //set/reset
-		koutpw(0x3ce,0x0f01);  //enable set/reset
+		koutpw(0x3ce,0x0f00);    /* set/reset */
+		koutpw(0x3ce,0x0f01);    /* enable set/reset */
 		fillscreen16(0L,0L,640L*350L);
 	}
 	qsetmode = 350;
@@ -6331,15 +6343,15 @@ qsetmode640480()
 		setvmode(0x12);
 
 		i = 479-144;
-		koutpw(0x3d4,0x18+((i&255)<<8));             //line compare
+		koutpw(0x3d4,0x18+((i&255)<<8));               /* line compare */
 		koutp(0x3d4,0x7); koutp(0x3d5,(kinp(0x3d5)&239)|((i&256)>>4));
 		koutp(0x3d4,0x9); koutp(0x3d5,(kinp(0x3d5)&191)|((i&512)>>3));
 
 		pageoffset = 92160;
 		koutpw(0x3d4,0xc+((pageoffset>>11)<<8));
 
-		koutpw(0x3ce,0x0f00);  //set/reset
-		koutpw(0x3ce,0x0f01);  //enable set/reset
+		koutpw(0x3ce,0x0f00);    /* set/reset */
+		koutpw(0x3ce,0x0f01);    /* enable set/reset */
 		fillscreen16(0L,8L,640L*144L);
 		fillscreen16((640L*144L)>>3,0L,640L*336L);
 		pageoffset = 92160; ydim16 = 336;
@@ -6600,7 +6612,7 @@ draw2dscreen(long posxe, long posye, short ange, long zoome, short gride)
 				}
 
 	faketimerhandler();
-	xp1 = mulscale11(sintable[(ange+2560)&2047],zoome) / 768; //Draw white arrow
+	xp1 = mulscale11(sintable[(ange+2560)&2047],zoome) / 768;   /* Draw white arrow */
 	yp1 = mulscale11(sintable[(ange+2048)&2047],zoome) / 768;
 	drawline16(320+xp1,200+yp1,320-xp1,200-yp1,15);
 	drawline16(320+xp1,200+yp1,320+yp1,200-xp1,15);
@@ -6635,7 +6647,7 @@ printext16(long xpos, long ypos, short col, short backcol, char name[82], char f
 		z++;
 
 		mask = pow2char[8-(daxpos&7)]-1;
-		p = ypos*80 + (daxpos>>3)+0xa0000;   //Do not make ylookup!
+		p = ypos*80 + (daxpos>>3)+0xa0000;     /* Do not make ylookup! */
 
 		if ((daxpos&7) == 0)
 		{
@@ -6689,7 +6701,7 @@ printext16(long xpos, long ypos, short col, short backcol, char name[82], char f
 					koutp(0x3cf,(0x7c&dat)<<(8-(daxpos&7)));
 					readpixel(p+1), drawpixel(p+1,col);
 				}
-				p += 80;    //Do not make bytesperline!
+				p += 80;      /* Do not make bytesperline! */
 			}
 		}
 
@@ -6754,7 +6766,7 @@ getzrange(long x, long y, long z, short sectnum,
 		return;
 	}
 
-		//Extra walldist for sprites on sector lines
+		/* Extra walldist for sprites on sector lines */
 	i = walldist+MAXCLIPDIST+1;
 	xmin = x-i; ymin = y-i;
 	xmax = x+i; ymax = y+i;
@@ -6768,7 +6780,7 @@ getzrange(long x, long y, long z, short sectnum,
 	clipsectorlist[0] = sectnum;
 	clipsectcnt = 0; clipsectnum = 1;
 
-	do  //Collect sectors inside your square first
+	do    /* Collect sectors inside your square first */
 	{
 		sec = &sector[clipsectorlist[clipsectcnt]];
 		startwall = sec->wallptr; endwall = startwall + sec->wallnum;
@@ -6786,7 +6798,7 @@ getzrange(long x, long y, long z, short sectnum,
 				if ((y1 > ymax) && (y2 > ymax)) continue;
 
 				dx = x2-x1; dy = y2-y1;
-				if (dx*(y-y1) < (x-x1)*dy) continue; //back
+				if (dx*(y-y1) < (x-x1)*dy) continue;   /* back */
 				if (dx > 0) dax = dx*(ymin-y1); else dax = dx*(ymax-y1);
 				if (dy > 0) day = dy*(xmax-x1); else day = dy*(xmin-x1);
 				if (dax >= day) continue;
@@ -6810,7 +6822,7 @@ getzrange(long x, long y, long z, short sectnum,
 				if (dy > 0) day -= dy*MAXCLIPDIST; else day += dy*MAXCLIPDIST;
 				if (dax >= day) continue;
 
-					//It actually got here, through all the continue's!!!
+					/* It actually got here, through all the continue's!!! */
 				getzsofslope((short)k,x,y,&daz,&daz2);
 				if (daz > *ceilz) { *ceilz = daz; *ceilhit = k+16384; }
 				if (daz2 < *florz) { *florz = daz2; *florhit = k+16384; }
@@ -7041,8 +7053,8 @@ rotatesprite (long sx, long sy, long z, short a, short picnum, signed char dasha
 		per->pagesleft = numpages+((beforedrawrooms&1)<<7);
 		per->cx1 = cx1; per->cy1 = cy1; per->cx2 = cx2; per->cy2 = cy2;
 
-			//Would be better to optimize out true bounding boxes
-		if (dastat&64)  //If non-masking write, checking for overlapping cases
+			/* Would be better to optimize out true bounding boxes */
+		if (dastat&64)    /* If non-masking write, checking for overlapping cases */
 		{
 			for(i=permtail;i!=permhead;i=((i+1)&(MAXPERMS-1)))
 			{
@@ -7106,19 +7118,21 @@ dorotatesprite (long sx, long sy, long z, short a, short picnum, signed char das
 
 	cosang = sintable[(a+512)&2047]; sinang = sintable[a&2047];
 
-	if ((dastat&2) != 0)  //Auto window size scaling
+	if ((dastat&2) != 0)    /* Auto window size scaling */
 	{
 		if ((dastat&8) == 0)
 		{
-			x = xdimenscale;   //= scale(xdimen,yxaspect,320);
+			x = xdimenscale;     /* = scale(xdimen,yxaspect,320); */
 			if (stereomode) x = scale(windowx2-windowx1+1,yxaspect,320);
 			sx = ((cx1+cx2+2)<<15)+scale(sx-(320<<15),xdimen,320);
 			sy = ((cy1+cy2+2)<<15)+mulscale16(sy-(200<<15),x);
 		}
 		else
 		{
-			  //If not clipping to startmosts, & auto-scaling on, as a
-			  //hard-coded bonus, scale to full screen instead
+			  /*
+			   If not clipping to startmosts, & auto-scaling on, as a
+			   hard-coded bonus, scale to full screen instead
+			   */
 			x = scale(xdim,yxaspect,320);
 			sx = (xdim<<15)+32768+scale(sx-(320<<15),xdim,320);
 			sy = (ydim<<15)+32768+mulscale16(sy-(200<<15),x);
@@ -7128,7 +7142,7 @@ dorotatesprite (long sx, long sy, long z, short a, short picnum, signed char das
 
 	xv = mulscale14(cosang,z);
 	yv = mulscale14(sinang,z);
-	if (((dastat&2) != 0) || ((dastat&8) == 0)) //Don't aspect unscaled perms
+	if (((dastat&2) != 0) || ((dastat&8) == 0))   /* Don't aspect unscaled perms */
 	{
 		xv2 = mulscale16(xv,xyaspect);
 		yv2 = mulscale16(yv,xyaspect);
@@ -7153,7 +7167,7 @@ dorotatesprite (long sx, long sy, long z, short a, short picnum, signed char das
 	i = (cx1<<16); if ((rx1[0]<i) && (rx1[1]<i) && (rx1[2]<i) && (rx1[3]<i)) return;
 	i = (cx2<<16); if ((rx1[0]>i) && (rx1[1]>i) && (rx1[2]>i) && (rx1[3]>i)) return;
 
-	gx1 = rx1[0]; gy1 = ry1[0];   //back up these before clipping
+	gx1 = rx1[0]; gy1 = ry1[0];     /* back up these before clipping */
 
 	if ((npoints = clippoly4(cx1<<16,cy1<<16,(cx2+1)<<16,(cy2+1)<<16)) < 3) return;
 
@@ -7194,7 +7208,7 @@ dorotatesprite (long sx, long sy, long z, short a, short picnum, signed char das
 	i = divscale32(1L,z);
 	xv = mulscale14(sinang,i);
 	yv = mulscale14(cosang,i);
-	if (((dastat&2) != 0) || ((dastat&8) == 0)) //Don't aspect unscaled perms
+	if (((dastat&2) != 0) || ((dastat&8) == 0))   /* Don't aspect unscaled perms */
 	{
 		yv2 = mulscale16(-xv,yxaspect);
 		xv2 = mulscale16(yv,yxaspect);
@@ -7227,7 +7241,7 @@ dorotatesprite (long sx, long sy, long z, short a, short picnum, signed char das
 
 	if ((dastat&1) == 0)
 	{
-		if (((a&1023) == 0) && (ysiz <= 256))  //vlineasm4 has 256 high limit!
+		if (((a&1023) == 0) && (ysiz <= 256))    /* vlineasm4 has 256 high limit! */
 		{
 			if (dastat&64) setupvlineasm(24L); else setupmvlineasm(24L);
 			by <<= 8; yv <<= 8; yv2 <<= 8;
@@ -7354,7 +7368,7 @@ dorotatesprite (long sx, long sy, long z, short a, short picnum, signed char das
 						{
 							y1++; if ((y1&31) == 0) faketimerhandler();
 
-								//x,y1
+								/* x,y1 */
 							bx += xv*(y1-oy); by += yv*(y1-oy); oy = y1;
 							if (dastat&64) {  if (qlinemode) qrhlineasm4(x-lastx[y1],(bx>>16)*ysiz+(by>>16)+bufplc,0L,0L    ,by<<16,ylookup[y1]+x+frameplace);
 																  else rhlineasm4(x-lastx[y1],(bx>>16)*ysiz+(by>>16)+bufplc,0L,bx<<16,by<<16,ylookup[y1]+x+frameplace);
@@ -7368,7 +7382,7 @@ dorotatesprite (long sx, long sy, long z, short a, short picnum, signed char das
 						{
 							y1++; if ((y1&31) == 0) faketimerhandler();
 
-								//x,y1
+								/* x,y1 */
 							bx += xv*(y1-oy); by += yv*(y1-oy); oy = y1;
 							if (dastat&64) {  if (qlinemode) qrhlineasm4(x-lastx[y1],(bx>>16)*ysiz+(by>>16)+bufplc,0L,0L    ,by<<16,ylookup[y1]+x+frameplace);
 																  else rhlineasm4(x-lastx[y1],(bx>>16)*ysiz+(by>>16)+bufplc,0L,bx<<16,by<<16,ylookup[y1]+x+frameplace);
@@ -7380,7 +7394,7 @@ dorotatesprite (long sx, long sy, long z, short a, short picnum, signed char das
 					{
 						y2--; if ((y2&31) == 0) faketimerhandler();
 
-							//x,y2
+							/* x,y2 */
 						bx += xv*(y2-oy); by += yv*(y2-oy); oy = y2;
 						if (dastat&64) {  if (qlinemode) qrhlineasm4(x-lastx[y2],(bx>>16)*ysiz+(by>>16)+bufplc,0L,0L    ,by<<16,ylookup[y2]+x+frameplace);
 															  else rhlineasm4(x-lastx[y2],(bx>>16)*ysiz+(by>>16)+bufplc,0L,bx<<16,by<<16,ylookup[y2]+x+frameplace);
@@ -7394,7 +7408,7 @@ dorotatesprite (long sx, long sy, long z, short a, short picnum, signed char das
 					{
 						y1++; if ((y1&31) == 0) faketimerhandler();
 
-							//x,y1
+							/* x,y1 */
 						bx += xv*(y1-oy); by += yv*(y1-oy); oy = y1;
 						if (dastat&64) {  if (qlinemode) qrhlineasm4(x-lastx[y1],(bx>>16)*ysiz+(by>>16)+bufplc,0L,0L    ,by<<16,ylookup[y1]+x+frameplace);
 															  else rhlineasm4(x-lastx[y1],(bx>>16)*ysiz+(by>>16)+bufplc,0L,bx<<16,by<<16,ylookup[y1]+x+frameplace);
@@ -7411,7 +7425,7 @@ dorotatesprite (long sx, long sy, long z, short a, short picnum, signed char das
 			{
 				y1++; if ((y1&31) == 0) faketimerhandler();
 
-					//x2,y1
+					/* x2,y1 */
 				bx += xv*(y1-oy); by += yv*(y1-oy); oy = y1;
 				if (dastat&64) {  if (qlinemode) qrhlineasm4(x2-lastx[y1],(bx>>16)*ysiz+(by>>16)+bufplc,0L,0L    ,by<<16,ylookup[y1]+x2+frameplace);
 													  else rhlineasm4(x2-lastx[y1],(bx>>16)*ysiz+(by>>16)+bufplc,0L,bx<<16,by<<16,ylookup[y1]+x2+frameplace);
@@ -7478,7 +7492,7 @@ dorotatesprite (long sx, long sy, long z, short a, short picnum, signed char das
 	}
 }
 
-	//Assume npoints=4 with polygon on &rx1,&ry1
+	/* Assume npoints=4 with polygon on &rx1,&ry1 */
 clippoly4(long cx1, long cy1, long cx2, long cy2)
 {
 	long n, nn, z, zz, x, x1, x2, y, y1, y2, t;
@@ -7539,7 +7553,7 @@ makepalookup(long palnum, char *remapbuf, signed char r, signed char g, signed c
 
 	if (palookup[palnum] == NULL)
 	{
-			//Allocate palookup buffer
+			/* Allocate palookup buffer */
 		if ((palookup[palnum] = (char *)kkmalloc(numpalookups<<8)) == NULL)
 			allocache(&palookup[palnum],numpalookups<<8,&permanentlock);
 	}
@@ -7593,7 +7607,7 @@ initfastcolorlookup(long rscale, long gscale, long bscale)
 	j = 0;
 	for(i=64;i>=0;i--)
 	{
-		//j = (i-64)*(i-64);
+		/* j = (i-64)*(i-64); */
 		rdist[i] = rdist[128-i] = j*rscale;
 		gdist[i] = gdist[128-i] = j*gscale;
 		bdist[i] = bdist[128-i] = j*bscale;
@@ -7751,7 +7765,7 @@ drawmapview (long dax, long day, long zoome, short ang)
 				if (npoints < 3) continue;
 			}
 
-				//Collect floor sprites to draw
+				/* Collect floor sprites to draw */
 			for(i=headspritesect[s];i>=0;i=nextspritesect[i])
 				if ((sprite[i].cstat&48) == 32)
 				{
@@ -7831,7 +7845,7 @@ drawmapview (long dax, long day, long zoome, short ang)
 			fillpolygon(npoints);
 		}
 
-		//Sort sprite list
+		/* Sort sprite list */
 	gap = 1; while (gap < sortnum) gap = (gap<<1)+1;
 	for(gap>>=1;gap>0;gap>>=1)
 		for(i=0;i<sortnum-gap;i++)
@@ -7925,7 +7939,7 @@ drawmapview (long dax, long day, long zoome, short ang)
 			if (sec->visibility != 0) globvis = mulscale4(globvis,(long)((unsigned char)(sec->visibility+16)));
 			globalpolytype = ((spr->cstat&2)>>1)+1;
 
-				//relative alignment stuff
+				/* relative alignment stuff */
 			ox = x2-x1; oy = y2-y1;
 			i = ox*ox+oy*oy; if (i == 0) continue; i = (65536*16384)/i;
 			globalx1 = mulscale10(dmulscale10(ox,bakgxvect,oy,bakgyvect),i);
@@ -7972,7 +7986,7 @@ clippoly (long npoints, long clipstat)
 	cy2 = windowy2+1;
 	cx1 <<= 12; cy1 <<= 12; cx2 <<= 12; cy2 <<= 12;
 
-	if (clipstat&0xa)   //Need to clip top or left
+	if (clipstat&0xa)     /* Need to clip top or left */
 	{
 		npoints2 = 0; start2 = 0; z = 0; splitcnt = 0;
 		do
@@ -8067,7 +8081,7 @@ clippoly (long npoints, long clipstat)
 					{ t = xb1[p2[z]]; xb1[p2[z]] = xb1[p2[zz]]; xb1[p2[zz]] = t; }
 			}
 	}
-	if (clipstat&0x5)   //Need to clip bottom or right
+	if (clipstat&0x5)     /* Need to clip bottom or right */
 	{
 		npoints2 = 0; start2 = 0; z = 0; splitcnt = 0;
 		do
@@ -8177,7 +8191,7 @@ fillpolygon(long npoints)
 	miny = (miny>>12); maxy = (maxy>>12);
 	if (miny < 0) miny = 0;
 	if (maxy >= ydim) maxy = ydim-1;
-	ptr = smost;    //They're pointers! - watch how you optimize this thing
+	ptr = smost;      /* They're pointers! - watch how you optimize this thing */
 	for(y=miny;y<=maxy;y++)
 	{
 		dotp1[y] = ptr; dotp2[y] = ptr+(MAXNODESPERLINE>>1);
@@ -8233,7 +8247,7 @@ fillpolygon(long npoints)
 
 			if (globalpolytype < 1)
 			{
-					//maphline
+					/* maphline */
 				ox = x2+1-(xdim>>1);
 				bx = ox*asm1 + globalposx;
 				by = ox*asm2 - globalposy;
@@ -8243,7 +8257,7 @@ fillpolygon(long npoints)
 			}
 			else
 			{
-					//maphline
+					/* maphline */
 				ox = x1+1-(xdim>>1);
 				bx = ox*asm1 + globalposx;
 				by = ox*asm2 - globalposy;
@@ -8328,7 +8342,7 @@ char getpixel(long x, long y)
 	return(readpixel(ylookup[y]+x+frameplace));
 }
 
-	//MUST USE RESTOREFORDRAWROOMS AFTER DRAWING
+	/* MUST USE RESTOREFORDRAWROOMS AFTER DRAWING */
 static long setviewcnt = 0;
 static long bakvidoption[4];
 static intptr_t bakframeplace[4];
@@ -8344,7 +8358,7 @@ setviewtotile(short tilenume, long xsiz, long ysiz)
 	if ((unsigned)tilenume >= (unsigned)MAXTILES) return;
 	if (waloff[tilenume] == 0) loadtile(tilenume);
 	if (waloff[tilenume] == 0) return;
-		//DRAWROOMS TO TILE BACKUP&SET CODE
+		/* DRAWROOMS TO TILE BACKUP&SET CODE */
 	tilesizx[tilenume] = xsiz; tilesizy[tilenume] = ysiz;
 	bakxsiz[setviewcnt] = xsiz; bakysiz[setviewcnt] = ysiz;
 	bakvidoption[setviewcnt] = vidoption; vidoption = 2;
@@ -8391,7 +8405,7 @@ squarerotatetile(short tilenume)
 	if (waloff[tilenume] == 0) return;
 	xsiz = tilesizx[tilenume]; ysiz = tilesizy[tilenume];
 
-		//supports square tiles only for rotation part
+		/* supports square tiles only for rotation part */
 	if (xsiz == ysiz)
 	{
 		k = (xsiz<<1);
@@ -8424,7 +8438,7 @@ completemirror()
 {
 	long i, dy, p;
 
-		//Can't reverse with uninitialized data
+		/* Can't reverse with uninitialized data */
 	if (inpreparemirror) { inpreparemirror = 0; return; }
 	if (mirrorsx1 > 0) mirrorsx1--;
 	if (mirrorsx2 < windowx2-windowx1-1) mirrorsx2++;
@@ -8704,15 +8718,17 @@ wallmost(short *mostbuf, long w, long sectnum, char dastat)
 
 	if (bad&3)
 	{
-			//inty = intz / (globaluclip>>16)
+			/* inty = intz / (globaluclip>>16) */
 		t = divscale30(oz1-s1,s2-s1+oz1-oz2);
 		inty = yb1[w] + mulscale30(yb2[w]-yb1[w],t);
 		intz = oz1 + mulscale30(oz2-oz1,t);
 		xcross = xb1[w] + scale(mulscale30(yb2[w],t),xb2[w]-xb1[w],inty);
 
-		//t = divscale30((x1<<4)-xcross*yb1[w],xcross*(yb2[w]-yb1[w])-((x2-x1)<<4));
-		//inty = yb1[w] + mulscale30(yb2[w]-yb1[w],t);
-		//intz = z1 + mulscale30(z2-z1,t);
+		/*
+		 t = divscale30((x1<<4)-xcross*yb1[w],xcross*(yb2[w]-yb1[w])-((x2-x1)<<4));
+		 inty = yb1[w] + mulscale30(yb2[w]-yb1[w],t);
+		 intz = z1 + mulscale30(z2-z1,t);
+		 */
 
 		if ((bad&3) == 2)
 		{
@@ -8728,15 +8744,17 @@ wallmost(short *mostbuf, long w, long sectnum, char dastat)
 
 	if (bad&12)
 	{
-			//inty = intz / (globaldclip>>16)
+			/* inty = intz / (globaldclip>>16) */
 		t = divscale30(oz1-s3,s4-s3+oz1-oz2);
 		inty = yb1[w] + mulscale30(yb2[w]-yb1[w],t);
 		intz = oz1 + mulscale30(oz2-oz1,t);
 		xcross = xb1[w] + scale(mulscale30(yb2[w],t),xb2[w]-xb1[w],inty);
 
-		//t = divscale30((x1<<4)-xcross*yb1[w],xcross*(yb2[w]-yb1[w])-((x2-x1)<<4));
-		//inty = yb1[w] + mulscale30(yb2[w]-yb1[w],t);
-		//intz = z1 + mulscale30(z2-z1,t);
+		/*
+		 t = divscale30((x1<<4)-xcross*yb1[w],xcross*(yb2[w]-yb1[w])-((x2-x1)<<4));
+		 inty = yb1[w] + mulscale30(yb2[w]-yb1[w],t);
+		 intz = z1 + mulscale30(z2-z1,t);
+		 */
 
 		if ((bad&12) == 8)
 		{
@@ -8762,7 +8780,7 @@ wallmost(short *mostbuf, long w, long sectnum, char dastat)
 	return(bad);
 }
 
-#define BITSOFPRECISION 3  //Don't forget to change this in A.ASM also!
+#define BITSOFPRECISION 3    /* Don't forget to change this in A.ASM also! */
 grouscan (long dax1, long dax2, long sectnum, char dastat)
 {
 	long i, j, k, l, m, n, x, y, dx, dy, wx, wy, x1, y1, x2, y2, daz;
@@ -8776,7 +8794,7 @@ grouscan (long dax1, long dax2, long sectnum, char dastat)
 	if (dastat == 0)
 	{
 		if (globalposz <= getceilzofslope(sectnum,globalposx,globalposy))
-			return;  //Back-face culling
+			return;    /* Back-face culling */
 		globalorientation = sec->ceilingstat;
 		globalpicnum = sec->ceilingpicnum;
 		globalshade = sec->ceilingshade;
@@ -8787,7 +8805,7 @@ grouscan (long dax1, long dax2, long sectnum, char dastat)
 	else
 	{
 		if (globalposz >= getflorzofslope(sectnum,globalposx,globalposy))
-			return;  //Back-face culling
+			return;    /* Back-face culling */
 		globalorientation = sec->floorstat;
 		globalpicnum = sec->floorpicnum;
 		globalshade = sec->floorshade;
@@ -8821,7 +8839,7 @@ grouscan (long dax1, long dax2, long sectnum, char dastat)
 	globalzx = -dmulscale17(wx,globaly2,-wy,globalx2) + mulscale10(1-globalhoriz,globalzd);
 	globalz = -dmulscale25(wx,globaly,-wy,globalx);
 
-	if (globalorientation&64)  //Relative alignment
+	if (globalorientation&64)    /* Relative alignment */
 	{
 		dx = mulscale14(wall[wal->point2].x-wal->x,dasqr);
 		dy = mulscale14(wall[wal->point2].y-wal->y,dasqr);
@@ -8885,7 +8903,7 @@ grouscan (long dax1, long dax2, long sectnum, char dastat)
 	if (shinc > 0) shoffs = (4<<15); else shoffs = ((2044-ydimen)<<15);
 	if (dastat == 0) y1 = umost[dax1]; else y1 = max(umost[dax1],dplc[dax1]);
 	m1 = mulscale16(y1,globalzd) + (globalzx>>6);
-		//Avoid visibility overflow by crossing horizon
+		/* Avoid visibility overflow by crossing horizon */
 	if (globalzd > 0) m1 += (globalzd>>16); else m1 -= (globalzd>>16);
 	m2 = m1+l;
 	mptr1 = (long *)&slopalookup[y1+(shoffs>>15)]; mptr2 = mptr1+1;
@@ -8940,7 +8958,7 @@ parascan (long dax1, long dax2, long sectnum, char dastat, long bunch)
 	if (parallaxyscale != 65536)
 		globalhoriz = mulscale16(globalhoriz-(ydimen>>1),parallaxyscale) + (ydimen>>1);
 	globvis = globalpisibility;
-	//globalorientation = 0L;
+	/* globalorientation = 0L; */
 	if (sec->visibility != 0) globvis = mulscale4(globvis,(long)((unsigned char)(sec->visibility+16)));
 
 	if (dastat == 0)
@@ -8971,7 +8989,7 @@ parascan (long dax1, long dax2, long sectnum, char dastat, long bunch)
 	globalshiftval = 32-globalshiftval;
 	globalzd = (((tilesizy[globalpicnum]>>1)+parallaxyoffs)<<globalshiftval)+(globalypanning<<24);
 	globalyscale = (8<<(globalshiftval-19));
-	//if (globalorientation&256) globalyscale = -globalyscale, globalzd = -globalzd;
+	/* if (globalorientation&256) globalyscale = -globalyscale, globalzd = -globalzd; */
 
 	k = 11 - (picsiz[globalpicnum]&15) - pskybits;
 	x = -1;
@@ -9117,7 +9135,7 @@ void setfirstwall(short sectnum, short newfirstwall)
 		i = wall[i].point2;
 	} while (i != newfirstwall);
 
-		//Put correct loop at beginning
+		/* Put correct loop at beginning */
 	dagoalloop = loopnumofsector(sectnum,newfirstwall);
 	if (dagoalloop > 0)
 	{
