@@ -1,4 +1,4 @@
-//-------------------------------------------------------------------------
+/* ------------------------------------------------------------------------- */
 /*
 Copyright (C) 1996, 2003 - 3D Realms Entertainment
 
@@ -22,17 +22,17 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 Original Source: 1996 - Todd Replogle
 Prepared for public release: 03/21/2003 - Charlie Wiederhold, 3D Realms
 */
-//-------------------------------------------------------------------------
+/* ------------------------------------------------------------------------- */
 
-// Savage Baggage Masters
+/*  Savage Baggage Masters */
 
 #include "compat.h"
 #include "pragmas_gcc.h"
 #include "audio_stub.h"
 #include "DUKE3D.H"
 
-int32 turnheldtime; //MED
-int32 lastcontroltime; //MED
+int32 turnheldtime; /* MED */
+int32 lastcontroltime; /* MED */
 
 void setpal(struct player_struct *p)
 {
@@ -215,7 +215,7 @@ short aim(spritetype *s,short aang)
     a = s->ang;
 
     j = -1;
-//    if(s->picnum == APLAYER && ps[s->yvel].aim_mode) return -1;
+/*     if(s->picnum == APLAYER && ps[s->yvel].aim_mode) return -1; */
 
     gotshrinker = s->picnum == APLAYER && ps[s->yvel].curr_weapon == SHRINKER_WEAPON;
     gotfreezer = s->picnum == APLAYER && ps[s->yvel].curr_weapon == FREEZE_WEAPON;
@@ -241,7 +241,7 @@ short aim(spritetype *s,short aang)
                 if(badguy(&sprite[i]) || PN == APLAYER || PN == SHARK)
                 {
                     if( PN == APLAYER &&
-//                        ud.ffire == 0 &&
+/*                         ud.ffire == 0 && */
                         ud.coop == 1 &&
                         s->picnum == APLAYER &&
                         s != &sprite[i])
@@ -372,7 +372,7 @@ void shoot(short i,short atwith)
                 }
             }
 
-//            writestring(sx,sy,sz,sect,sintable[(sa+512)&2047],sintable[sa&2047],zvel<<6);
+/*             writestring(sx,sy,sz,sect,sintable[(sa+512)&2047],sintable[sa&2047],zvel<<6); */
 
             hitscan(sx,sy,sz,sect,
                 sintable[(sa+512)&2047],
@@ -471,7 +471,7 @@ void shoot(short i,short atwith)
                     j = spawn(ps[p].i,WATERSPLASH2);
                     sprite[j].x = hitx;
                     sprite[j].y = hity;
-                    sprite[j].ang = ps[p].ang; // Total tweek
+                    sprite[j].ang = ps[p].ang; /*  Total tweek */
                     sprite[j].xvel = 32;
                     ssp(i,CLIPMASK0);
                     sprite[j].xvel = 0;
@@ -732,7 +732,7 @@ void shoot(short i,short atwith)
             else
             {
                 j = findplayer(s,&x);
-//                sa = getangle(ps[j].oposx-sx,ps[j].oposy-sy);
+/*                 sa = getangle(ps[j].oposx-sx,ps[j].oposy-sy); */
                 sa += 16-(TRAND&31);
                 zvel = ( ( (ps[j].oposz - sz + (3<<8) ) )*vel ) / ldist(&sprite[ps[j].i],s);
             }
@@ -1029,7 +1029,7 @@ void shoot(short i,short atwith)
 
             k = 0;
 
-//            RESHOOTGROW:
+/*             RESHOOTGROW: */
 
             s->cstat &= ~257;
             hitscan(sx,sy,sz,sect,
@@ -1276,8 +1276,8 @@ char animateaccess(short gs,short snum)
     if(ps[snum].access_spritenum >= 0)
         p = sprite[ps[snum].access_spritenum].pal;
     else p = 0;
-//    else
-//        p = wall[ps[snum].access_wallnum].pal;
+/*     else */
+/*         p = wall[ps[snum].access_wallnum].pal; */
 
     if((ps[snum].access_incs-3) > 0 && (ps[snum].access_incs-3)>>3)
         myospal(170+(sync[snum].avel>>4)-(ps[snum].look_ang>>1)+(access_y[ps[snum].access_incs]>>2),looking_arc+266-((ps[snum].horiz-ps[snum].horizoff)>>4),HANDHOLDINGLASER+(ps[snum].access_incs>>3),gs,0,p);
@@ -1628,11 +1628,11 @@ void displayweapon(short snum)
                     = {0,0,0,0,0,1,1,1,1,1,1,1,2,2,2,2,2,2,2,2,2};
 
                 if((*kb) < 7)
-                    gun_pos -= 10*(*kb);        //D
+                    gun_pos -= 10*(*kb);        /* D */
                 else if((*kb) < 12)
-                    gun_pos += 20*((*kb)-10); //U
+                    gun_pos += 20*((*kb)-10); /* U */
                 else if((*kb) < 20)
-                    gun_pos -= 9*((*kb)-14);  //D
+                    gun_pos -= 9*((*kb)-14);  /* D */
 
                 myospal(weapon_xoffset+190-(p->look_ang>>1),looking_arc+250-gun_pos,HANDTHROW+throw_frames[(*kb)],gs,o,pal);
             }
@@ -1776,7 +1776,7 @@ void displayweapon(short snum)
 
 }
 
-#define TURBOTURNTIME (TICRATE/8) // 7
+#define TURBOTURNTIME (TICRATE/8) /*  7 */
 #define NORMALTURN   15
 #define PREAMBLETURN 5
 #define NORMALKEYMOVE 40
@@ -1791,7 +1791,7 @@ void getinput(short snum)
 {
 
     short j, daang;
-// MED
+/*  MED */
     ControlInfo info;
     int32 tics;
     boolean running;
@@ -2033,8 +2033,8 @@ char doincrements(struct player_struct *p)
     long /*j,*/i,snum;
 
     snum = sprite[p->i].yvel;
-//    j = sync[snum].avel;
-//    p->weapon_ang = -(j/5);
+/*     j = sync[snum].avel; */
+/*     p->weapon_ang = -(j/5); */
 
     p->player_par++;
 
@@ -2536,7 +2536,7 @@ void processinput(short snum)
                 {
                     sprintf(tempbuf,"frag %d killed %d\n",p->frag_ps+1,snum+1);
                     sendscore(tempbuf);
-//                    printf(tempbuf);
+/*                     printf(tempbuf); */
                 }
 
                 p->frag_ps = snum;
@@ -2560,7 +2560,7 @@ void processinput(short snum)
             clipmove(&p->posx,&p->posy,
                 &p->posz,&p->cursectnum,
                 0,0,164L,(4L<<8),(4L<<8),CLIPMASK0);
-//            p->bobcounter += 32;
+/*             p->bobcounter += 32; */
         }
 
         p->oposx = p->posx;
@@ -2682,7 +2682,7 @@ void processinput(short snum)
         p->ang += 128;
     }
 
-    // Shrinking code
+    /*  Shrinking code */
 
     i = 40;
 
@@ -2766,7 +2766,7 @@ void processinput(short snum)
         if(p->jetpack_on < 11)
         {
             p->jetpack_on++;
-            p->posz -= (p->jetpack_on<<7); //Goin up
+            p->posz -= (p->jetpack_on<<7); /* Goin up */
         }
         else if(p->jetpack_on == 11 && Sound[DUKE_JETPACK_IDLE].num < 1)
             spritesound(DUKE_JETPACK_IDLE,pi);
@@ -2774,13 +2774,13 @@ void processinput(short snum)
         if(shrunk) j = 512;
         else j = 2048;
 
-        if ( sb_snum&1 )                            //A (soar high)
+        if ( sb_snum&1 )                            /* A (soar high) */
         {
             p->posz -= j;
             p->crack_time = 777;
         }
 
-        if (sb_snum&(1<<1))                            //Z (soar low)
+        if (sb_snum&(1<<1))                            /* Z (soar low) */
         {
             p->posz += j;
             p->crack_time = 777;
@@ -2801,7 +2801,7 @@ void processinput(short snum)
     else if( psectlotag != 2 )
     {
         if(p->airleft != 15*26)
-            p->airleft = 15*26; //Aprox twenty seconds.
+            p->airleft = 15*26; /* Aprox twenty seconds. */
 
         if(p->scuba_on == 1)
             p->scuba_on = 0;
@@ -2862,14 +2862,14 @@ void processinput(short snum)
             }
         }
 
-        if(p->posz < (fz-(i<<8)) ) //falling
+        if(p->posz < (fz-(i<<8)) ) /* falling */
         {
             if( (sb_snum&3) == 0 && p->on_ground && (sector[psect].floorstat&2) && p->posz >= (fz-(i<<8)-(16<<8) ) )
                 p->posz = fz-(i<<8);
             else
             {
                 p->on_ground = 0;
-                p->poszv += (gc+80); // (TICSPERFRAME<<6);
+                p->poszv += (gc+80); /*  (TICSPERFRAME<<6); */
                 if(p->poszv >= (4096+2048)) p->poszv = (4096+2048);
                 if(p->poszv > 2400 && p->falling_counter < 255)
                 {
@@ -2878,7 +2878,7 @@ void processinput(short snum)
                         p->scream_voice = spritesound(DUKE_SCREAM,pi);
                 }
 
-                if( (p->posz+p->poszv) >= (fz-(i<<8)) ) // hit the ground
+                if( (p->posz+p->poszv) >= (fz-(i<<8)) ) /*  hit the ground */
                     if(sector[p->cursectnum].lotag != 1)
                     {
                         if( p->falling_counter > 62 ) quickkill(p);
@@ -2927,7 +2927,7 @@ void processinput(short snum)
 
             if( i==40 )
             {
-                //Smooth on the ground
+                /* Smooth on the ground */
 
                 k = ((fz-(i<<8))-p->posz)>>1;
                 if( klabs(k) < 256 ) k = 0;
@@ -2937,7 +2937,7 @@ void processinput(short snum)
             }
             else if(p->jumping_counter == 0)
             {
-                p->posz += ((fz-(i<<7))-p->posz)>>1; //Smooth on the water
+                p->posz += ((fz-(i<<7))-p->posz)>>1; /* Smooth on the water */
                 if(p->on_warping_sector == 0 && p->posz > fz-(16<<8))
                 {
                     p->posz = fz-(16<<8);
@@ -3008,7 +3008,7 @@ void processinput(short snum)
         }
     }
 
-    //Do the quick lefts and rights
+    /* Do the quick lefts and rights */
 
     if ( p->fist_incs ||
          p->transporter_hold > 2 ||
@@ -3023,8 +3023,8 @@ void processinput(short snum)
         p->posxv = 0;
         p->posyv = 0;
     }
-    else if ( sync[snum].avel )          //p->ang += syncangvel * constant
-    {                         //ENGINE calculates angvel for you
+    else if ( sync[snum].avel )          /* p->ang += syncangvel * constant */
+    {                         /* ENGINE calculates angvel for you */
         long tempang;
 
         tempang = sync[snum].avel<<1;
@@ -3244,7 +3244,7 @@ void processinput(short snum)
                 p->pyoff = 0;
         }
 
-        // RBG***
+        /*  RBG*** */
         setsprite(pi,p->posx,p->posy,p->posz+PHEIGHT);
 
         if( psectlotag < 3 )
@@ -3340,7 +3340,7 @@ void processinput(short snum)
         if(p->horiz > 299) p->horiz = 299;
         else if(p->horiz < -99) p->horiz = -99;
 
-    //Shooting code/changes
+    /* Shooting code/changes */
 
     if( p->show_empty_weapon > 0)
     {
@@ -3420,7 +3420,7 @@ void processinput(short snum)
             if(p->last_weapon >= 0)
             {
                 p->weapon_pos = 10;
-//                if(p->curr_weapon == KNEE_WEAPON) *kb = 1;
+/*                 if(p->curr_weapon == KNEE_WEAPON) *kb = 1; */
                 p->last_weapon = -1;
             }
             else if(p->holster_weapon == 0)
@@ -3429,12 +3429,12 @@ void processinput(short snum)
         else p->weapon_pos--;
     }
 
-    // HACKS
+    /*  HACKS */
 
     SHOOTINCODE:
 
     if( p->curr_weapon == SHRINKER_WEAPON || p->curr_weapon == GROW_WEAPON )
-        p->random_club_frame += 64; // Glowing
+        p->random_club_frame += 64; /*  Glowing */
 
     if(p->rapid_fire_hold == 1)
     {
@@ -3481,7 +3481,7 @@ void processinput(short snum)
 
 
             case CHAINGUN_WEAPON:
-                if( p->ammo_amount[CHAINGUN_WEAPON] > 0 ) // && p->random_club_frame == 0)
+                if( p->ammo_amount[CHAINGUN_WEAPON] > 0 ) /*  && p->random_club_frame == 0) */
                     (*kb)=1;
                 break;
 
@@ -3917,7 +3917,7 @@ void processinput(short snum)
 
 
 
-//UPDATE THIS FILE OVER THE OLD GETSPRITESCORE/COMPUTERGETINPUT FUNCTIONS
+/* UPDATE THIS FILE OVER THE OLD GETSPRITESCORE/COMPUTERGETINPUT FUNCTIONS */
 getspritescore(long snum, long dapicnum)
 {
     switch(dapicnum)
@@ -3959,19 +3959,19 @@ getspritescore(long snum, long dapicnum)
 
 static long fdmatrix[12][12] =
 {
- //KNEE PIST SHOT CHAIN RPG PIPE SHRI DEVI WALL FREE HAND EXPA
-     128,  -1,  -1,  -1, 128,  -1,  -1,  -1, 128,  -1, 128,  -1,   //KNEE
-    1024,1024,1024,1024,2560, 128,2560,2560,1024,2560,2560,2560,   //PIST
-     512, 512, 512, 512,2560, 128,2560,2560,1024,2560,2560,2560,   //SHOT
-     512, 512, 512, 512,2560, 128,2560,2560,1024,2560,2560,2560,   //CHAIN
-    2560,2560,2560,2560,2560,2560,2560,2560,2560,2560,2560,2560,   //RPG
-     512, 512, 512, 512,2048, 512,2560,2560, 512,2560,2560,2560,   //PIPE
-     128, 128, 128, 128,2560, 128,2560,2560, 128, 128, 128, 128,   //SHRI
-    1536,1536,1536,1536,2560,1536,1536,1536,1536,1536,1536,1536,   //DEVI
-      -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,   //WALL
-     128, 128, 128, 128,2560, 128,2560,2560, 128, 128, 128, 128,   //FREE
-    2560,2560,2560,2560,2560,2560,2560,2560,2560,2560,2560,2560,   //HAND
-     128, 128, 128, 128,2560, 128,2560,2560, 128, 128, 128, 128,   //EXPA
+ /* KNEE PIST SHOT CHAIN RPG PIPE SHRI DEVI WALL FREE HAND EXPA */
+     128,  -1,  -1,  -1, 128,  -1,  -1,  -1, 128,  -1, 128,  -1,   /* KNEE */
+    1024,1024,1024,1024,2560, 128,2560,2560,1024,2560,2560,2560,   /* PIST */
+     512, 512, 512, 512,2560, 128,2560,2560,1024,2560,2560,2560,   /* SHOT */
+     512, 512, 512, 512,2560, 128,2560,2560,1024,2560,2560,2560,   /* CHAIN */
+    2560,2560,2560,2560,2560,2560,2560,2560,2560,2560,2560,2560,   /* RPG */
+     512, 512, 512, 512,2048, 512,2560,2560, 512,2560,2560,2560,   /* PIPE */
+     128, 128, 128, 128,2560, 128,2560,2560, 128, 128, 128, 128,   /* SHRI */
+    1536,1536,1536,1536,2560,1536,1536,1536,1536,1536,1536,1536,   /* DEVI */
+      -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,   /* WALL */
+     128, 128, 128, 128,2560, 128,2560,2560, 128, 128, 128, 128,   /* FREE */
+    2560,2560,2560,2560,2560,2560,2560,2560,2560,2560,2560,2560,   /* HAND */
+     128, 128, 128, 128,2560, 128,2560,2560, 128, 128, 128, 128,   /* EXPA */
 };
 
 static int32_t goalx[MAXPLAYERS], goaly[MAXPLAYERS], goalz[MAXPLAYERS];
@@ -4119,7 +4119,7 @@ void computergetinput(long snum, input *syn)
         syn->fvel += (x3-x1)*2047/dist;
         syn->svel += (y3-y1)*2047/dist;
 
-            //Strafe attack
+            /* Strafe attack */
         if (fightdist)
         {
             j = totalclock+snum*13468;
@@ -4201,8 +4201,8 @@ void computergetinput(long snum, input *syn)
                             dx = wall[wall[i].point2].x-wall[i].x;
                             dy = wall[wall[i].point2].y-wall[i].y;
 
-                            //if (dx*(y1-wall[i].y) <= dy*(x1-wall[i].x))
-                            //   if (dx*(y2-wall[i].y) >= dy*(x2-wall[i].x))
+                            /* if (dx*(y1-wall[i].y) <= dy*(x1-wall[i].x)) */
+                            /*    if (dx*(y2-wall[i].y) >= dy*(x2-wall[i].x)) */
                                     if ((x3-x1)*(wall[i].y-y1) <= (y3-y1)*(wall[i].x-x1))
                                         if ((x3-x1)*(wall[wall[i].point2].y-y1) >= (y3-y1)*(wall[wall[i].point2].x-x1))
                                             { k = i; break; }
@@ -4303,7 +4303,7 @@ void computergetinput(long snum, input *syn)
         clipmovecount[snum]++;
 
         j = 0;
-        if ((i&0xc000) == 32768)  //Hit a wall (49152 for sprite)
+        if ((i&0xc000) == 32768)  /* Hit a wall (49152 for sprite) */
             if (wall[i&(MAXWALLS-1)].nextsector >= 0)
             {
                 if (getflorzofslope(wall[i&(MAXWALLS-1)].nextsector,p->posx,p->posy) <= p->posz+(24<<8)) j |= 1;
@@ -4313,7 +4313,7 @@ void computergetinput(long snum, input *syn)
         if (j&1) if (clipmovecount[snum] == 4) syn->bits |= (1<<0);
         if (j&2) syn->bits |= (1<<1);
 
-            //Strafe attack
+            /* Strafe attack */
         daang = getangle(x2-x1,y2-y1);
         if ((i&0xc000) == 32768)
             daang = getangle(wall[wall[i&(MAXWALLS-1)].point2].x-wall[i&(MAXWALLS-1)].x,wall[wall[i&(MAXWALLS-1)].point2].y-wall[i&(MAXWALLS-1)].y);

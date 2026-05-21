@@ -6,6 +6,9 @@
 
 #include "net_socket.h"
 #include <string.h>
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#include <netdb.h>
 
 /* Global Winsock initialized flag */
 static int winsock_initialized = 0;
@@ -70,6 +73,36 @@ int net_socket_send(net_socket_t sock, const void *buf, int len)
 int net_socket_recv(net_socket_t sock, void *buf, int len)
 {
 	return recv(sock, (char *)buf, len, 0);
+}
+
+/* Resolve hostname/port to sockaddr_storage (IPv4 and IPv6 support) */
+int net_socket_resolve_address(const char *host, const char *port, struct sockaddr_storage *addr, int *addrlen)
+{
+	struct addrinfo hints, *res, *rp;
+	int status;
+
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = AF_UNSPEC;   /* Allow IPv4 or IPv6 */
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_flags = AI_ADDRCONFIG;
+
+	status = getaddrinfo(host, port, &hints, &res);
+	if (status != 0) {
+		return -1;
+	}
+
+	/* Use first result (prefer IPv6 if available per hints) */
+	for (rp = res; rp != NULL; rp = rp->ai_next) {
+		if (rp->ai_family == AF_INET6 || rp->ai_family == AF_INET) {
+			memcpy(addr, rp->ai_addr, rp->ai_addrlen);
+			*addrlen = (int)rp->ai_addrlen;
+			freeaddrinfo(res);
+			return 0;
+		}
+	}
+
+	freeaddrinfo(res);
+	return -1;
 }
 
 /* Set socket to non-blocking mode */

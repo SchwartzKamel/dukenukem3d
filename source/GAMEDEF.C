@@ -1,4 +1,4 @@
-//-------------------------------------------------------------------------
+/* ------------------------------------------------------------------------- */
 /*
 Copyright (C) 1996, 2003 - 3D Realms Entertainment
 
@@ -22,7 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 Original Source: 1996 - Todd Replogle
 Prepared for public release: 03/21/2003 - Charlie Wiederhold, 3D Realms
 */
-//-------------------------------------------------------------------------
+/* ------------------------------------------------------------------------- */
 
 #include "compat.h"
 #include "audio_stub.h"
@@ -44,118 +44,118 @@ static spritetype *g_sp;
 
 char *keyw[NUMKEYWORDS] =
 {
-    "definelevelname",  // 0
-    "actor",            // 1    [#]
-    "addammo",   // 2    [#]
-    "ifrnd",            // 3    [C]
-    "enda",             // 4    [:]
-    "ifcansee",         // 5    [C]
-    "ifhitweapon",      // 6    [#]
-    "action",           // 7    [#]
-    "ifpdistl",         // 8    [#]
-    "ifpdistg",         // 9    [#]
-    "else",             // 10   [#]
-    "strength",         // 11   [#]
-    "break",            // 12   [#]
-    "shoot",            // 13   [#]
-    "palfrom",          // 14   [#]
-    "sound",            // 15   [filename.voc]
-    "fall",             // 16   []
-    "state",            // 17
-    "ends",             // 18
-    "define",           // 19
-    "//",               // 20
-    "ifai",             // 21
-    "killit",           // 22
-    "addweapon",        // 23
-    "ai",               // 24
-    "addphealth",       // 25
-    "ifdead",           // 26
-    "ifsquished",       // 27
-    "sizeto",           // 28
-    "{",                // 29
-    "}",                // 30
-    "spawn",            // 31
-    "move",             // 32
-    "ifwasweapon",      // 33
-    "ifaction",         // 34
-    "ifactioncount",    // 35
-    "resetactioncount", // 36
-    "debris",           // 37
-    "pstomp",           // 38
-    "/*",               // 39
-    "cstat",            // 40
-    "ifmove",           // 41
-    "resetplayer",      // 42
-    "ifonwater",        // 43
-    "ifinwater",        // 44
-    "ifcanshoottarget", // 45
-    "ifcount",          // 46
-    "resetcount",       // 47
-    "addinventory",     // 48
-    "ifactornotstayput",// 49
-    "hitradius",        // 50
-    "ifp",              // 51
-    "count",            // 52
-    "ifactor",          // 53
-    "music",            // 54
-    "include",          // 55
-    "ifstrength",       // 56
-    "definesound",      // 57
-    "guts",             // 58
-    "ifspawnedby",      // 59
-    "gamestartup",      // 60
-    "wackplayer",       // 61
-    "ifgapzl",          // 62
-    "ifhitspace",       // 63
-    "ifoutside",        // 64
-    "ifmultiplayer",    // 65
-    "operate",          // 66
-    "ifinspace",        // 67
-    "debug",            // 68
-    "endofgame",        // 69
-    "ifbulletnear",     // 70
-    "ifrespawn",        // 71
-    "iffloordistl",     // 72
-    "ifceilingdistl",   // 73
-    "spritepal",        // 74
-    "ifpinventory",     // 75
-    "betaname",         // 76
-    "cactor",           // 77
-    "ifphealthl",       // 78
-    "definequote",      // 79
-    "quote",            // 80
-    "ifinouterspace",   // 81
-    "ifnotmoving",      // 82
-    "respawnhitag",        // 83
-    "tip",             // 84
-    "ifspritepal",      // 85
-    "money",         // 86
-    "soundonce",         // 87
-    "addkills",         // 88
-    "stopsound",        // 89
-    "ifawayfromwall",       // 90
-    "ifcanseetarget",   // 91
-    "globalsound",  // 92
-    "lotsofglass", // 93
-    "ifgotweaponce", // 94
-    "getlastpal", // 95
-    "pkick",  // 96
-    "mikesnd", // 97
-    "useractor",  // 98
-    "sizeat",  // 99
-    "addstrength", // 100   [#]
-    "cstator", // 101
-    "mail", // 102
-    "paper", // 103
-    "tossweapon", // 104
-    "sleeptime", // 105
-    "nullop", // 106
-    "definevolumename", // 107
-    "defineskillname", // 108
-    "ifnosounds", // 109
-    "clipdist", // 110
-    "ifangdiffl" // 111
+    "definelevelname",  /*  0 */
+    "actor",            /*  1    [#] */
+    "addammo",   /*  2    [#] */
+    "ifrnd",            /*  3    [C] */
+    "enda",             /*  4    [:] */
+    "ifcansee",         /*  5    [C] */
+    "ifhitweapon",      /*  6    [#] */
+    "action",           /*  7    [#] */
+    "ifpdistl",         /*  8    [#] */
+    "ifpdistg",         /*  9    [#] */
+    "else",             /*  10   [#] */
+    "strength",         /*  11   [#] */
+    "break",            /*  12   [#] */
+    "shoot",            /*  13   [#] */
+    "palfrom",          /*  14   [#] */
+    "sound",            /*  15   [filename.voc] */
+    "fall",             /*  16   [] */
+    "state",            /*  17 */
+    "ends",             /*  18 */
+    "define",           /*  19 */
+    "//",               /*  20 */
+    "ifai",             /*  21 */
+    "killit",           /*  22 */
+    "addweapon",        /*  23 */
+    "ai",               /*  24 */
+    "addphealth",       /*  25 */
+    "ifdead",           /*  26 */
+    "ifsquished",       /*  27 */
+    "sizeto",           /*  28 */
+    "{",                /*  29 */
+    "}",                /*  30 */
+    "spawn",            /*  31 */
+    "move",             /*  32 */
+    "ifwasweapon",      /*  33 */
+    "ifaction",         /*  34 */
+    "ifactioncount",    /*  35 */
+    "resetactioncount", /*  36 */
+    "debris",           /*  37 */
+    "pstomp",           /*  38 */
+    "/*",               /*  39 */
+    "cstat",            /*  40 */
+    "ifmove",           /*  41 */
+    "resetplayer",      /*  42 */
+    "ifonwater",        /*  43 */
+    "ifinwater",        /*  44 */
+    "ifcanshoottarget", /*  45 */
+    "ifcount",          /*  46 */
+    "resetcount",       /*  47 */
+    "addinventory",     /*  48 */
+    "ifactornotstayput",/*  49 */
+    "hitradius",        /*  50 */
+    "ifp",              /*  51 */
+    "count",            /*  52 */
+    "ifactor",          /*  53 */
+    "music",            /*  54 */
+    "include",          /*  55 */
+    "ifstrength",       /*  56 */
+    "definesound",      /*  57 */
+    "guts",             /*  58 */
+    "ifspawnedby",      /*  59 */
+    "gamestartup",      /*  60 */
+    "wackplayer",       /*  61 */
+    "ifgapzl",          /*  62 */
+    "ifhitspace",       /*  63 */
+    "ifoutside",        /*  64 */
+    "ifmultiplayer",    /*  65 */
+    "operate",          /*  66 */
+    "ifinspace",        /*  67 */
+    "debug",            /*  68 */
+    "endofgame",        /*  69 */
+    "ifbulletnear",     /*  70 */
+    "ifrespawn",        /*  71 */
+    "iffloordistl",     /*  72 */
+    "ifceilingdistl",   /*  73 */
+    "spritepal",        /*  74 */
+    "ifpinventory",     /*  75 */
+    "betaname",         /*  76 */
+    "cactor",           /*  77 */
+    "ifphealthl",       /*  78 */
+    "definequote",      /*  79 */
+    "quote",            /*  80 */
+    "ifinouterspace",   /*  81 */
+    "ifnotmoving",      /*  82 */
+    "respawnhitag",        /*  83 */
+    "tip",             /*  84 */
+    "ifspritepal",      /*  85 */
+    "money",         /*  86 */
+    "soundonce",         /*  87 */
+    "addkills",         /*  88 */
+    "stopsound",        /*  89 */
+    "ifawayfromwall",       /*  90 */
+    "ifcanseetarget",   /*  91 */
+    "globalsound",  /*  92 */
+    "lotsofglass", /*  93 */
+    "ifgotweaponce", /*  94 */
+    "getlastpal", /*  95 */
+    "pkick",  /*  96 */
+    "mikesnd", /*  97 */
+    "useractor",  /*  98 */
+    "sizeat",  /*  99 */
+    "addstrength", /*  100   [#] */
+    "cstator", /*  101 */
+    "mail", /*  102 */
+    "paper", /*  103 */
+    "tossweapon", /*  104 */
+    "sleeptime", /*  105 */
+    "nullop", /*  106 */
+    "definevolumename", /*  107 */
+    "defineskillname", /*  108 */
+    "ifnosounds", /*  109 */
+    "clipdist", /*  110 */
+    "ifangdiffl" /*  111 */
 };
 
 
@@ -217,14 +217,14 @@ void getglobalz(short i)
             {
                 if( s->statnum != 4 )
                 {
-                    hittype[i].dispicnum = -4; // No shadows on actors
+                    hittype[i].dispicnum = -4; /*  No shadows on actors */
                     s->xvel = -256;
                     ssp(i,CLIPMASK0);
                 }
             }
             else if(sprite[lz].picnum == APLAYER && badguy(s) )
             {
-                hittype[i].dispicnum = -4; // No shadows on actors
+                hittype[i].dispicnum = -4; /*  No shadows on actors */
                 s->xvel = -256;
                 ssp(i,CLIPMASK0);
             }
@@ -339,7 +339,7 @@ long keyword(void)
     return -1;
 }
 
-long transword(void) //Returns its code #
+long transword(void) /* Returns its code # */
 {
     long i, l;
 
@@ -459,8 +459,8 @@ char parsecommand(void)
     {
         default:
         case -1:
-            return 0; //End
-        case 39:      //Rem endrem
+            return 0; /* End */
+        case 39:      /* Rem endrem */
             scriptptr--;
             j = line_number;
             do
@@ -539,7 +539,7 @@ char parsecommand(void)
                 printf("  * ERROR!(L%ld) Found 'ends' with no 'state'.\n",line_number);
                 error++;
             }
-//            else
+/*             else */
             {
                 if( num_squigilly_brackets > 0 )
                 {
@@ -674,12 +674,12 @@ char parsecommand(void)
         case 54:
             {
                 scriptptr--;
-                transnum(); // Volume Number (0/4)
+                transnum(); /*  Volume Number (0/4) */
                 scriptptr--;
 
                 k = *scriptptr-1;
 
-                if(k >= 0) // if it's background music
+                if(k >= 0) /*  if it's background music */
                 {
                     i = 0;
                     while(keyword() == -1)
@@ -1071,7 +1071,7 @@ char parsecommand(void)
             {
                 checking_ifelse--;
                 tempscrptr = scriptptr;
-                scriptptr++; //Leave a spot for the fail location
+                scriptptr++; /* Leave a spot for the fail location */
                 parsecommand();
                 *tempscrptr = (long) scriptptr;
             }
@@ -1101,7 +1101,7 @@ char parsecommand(void)
         case 62:
         case 72:
         case 73:
-//        case 74:
+/*         case 74: */
         case 78:
         case 85:
         case 94:
@@ -1143,7 +1143,7 @@ char parsecommand(void)
             }
 
             tempscrptr = scriptptr;
-            scriptptr++; //Leave a spot for the fail location
+            scriptptr++; /* Leave a spot for the fail location */
 
             do
             {
@@ -1183,11 +1183,11 @@ char parsecommand(void)
             betaname[j] = 0;
             return 0;
         case 20:
-            scriptptr--; //Negate the rem
+            scriptptr--; /* Negate the rem */
             while( *textptr != 0x0a )
                 textptr++;
 
-            // line_number++;
+            /*  line_number++; */
             return 0;
 
         case 107:
@@ -1375,7 +1375,7 @@ char parsecommand(void)
                 printf("  * ERROR!(L%ld) Found 'enda' without defining 'actor'.\n",line_number);
                 error++;
             }
-//            else
+/*             else */
             {
                 if( num_squigilly_brackets > 0 )
                 {
@@ -1389,8 +1389,8 @@ char parsecommand(void)
         case 12:
         case 16:
         case 84:
-//        case 21:
-        case 22:    //KILLIT
+/*         case 21: */
+        case 22:    /* KILLIT */
         case 36:
         case 38:
         case 42:
@@ -1511,16 +1511,16 @@ void copydefaultcons(void)
 
         if(fpi == 0)
         {
-// CTW - MODIFICATION
-//          if(fpo == -1) fclose(fpo);
+/*  CTW - MODIFICATION */
+/*           if(fpo == -1) fclose(fpo); */
             if(fpo == NULL) fclose(fpo);
-// CTW END - MODIFICATION
+/*  CTW END - MODIFICATION */
             continue;
         }
-// CTW - MODIFICATION
-//      if(fpo == -1)
+/*  CTW - MODIFICATION */
+/*       if(fpo == -1) */
         if(fpo == NULL)
-// CTW END - MODIFICATION
+/*  CTW END - MODIFICATION */
         {
             if(fpi == 0) kclose(fpi);
             continue;
@@ -1564,7 +1564,7 @@ void loadefs(char *filenam,char *mptr)
             gameexit("\nMissing con file(s).");
 
         loadfromgrouponly = 1;
-        return; //Not there
+        return; /* Not there */
     }
     else
     {
@@ -1591,7 +1591,7 @@ void loadefs(char *filenam,char *mptr)
     line_number = 1;
     total_lines = 0;
 
-    passone(); //Tokenize
+    passone(); /* Tokenize */
     *script = (long) scriptptr;
 
     if(warning|error)
@@ -1662,7 +1662,7 @@ char dodge(spritetype *s)
     my = s->y;
     mxvect = sintable[(s->ang+512)&2047]; myvect = sintable[s->ang&2047];
 
-    for(i=headspritestat[4];i>=0;i=nextspritestat[i]) //weapons list
+    for(i=headspritestat[4];i>=0;i=nextspritestat[i]) /* weapons list */
     {
         if( OW == i || SECT != s->sectnum)
             continue;
@@ -1718,7 +1718,7 @@ short furthestangle(short i,short angs)
 short furthestcanseepoint(short i,spritetype *ts,long *dax,long *day)
 {
     short j, hitsect,hitwall,hitspr, angincs, tempang;
-    long hx, hy, hz, d, da;//, d, cd, ca,tempx,tempy,cx,cy;
+    long hx, hy, hz, d, da;/* , d, cd, ca,tempx,tempy,cx,cy; */
     spritetype *s = &sprite[i];
 
     if( (g_t[0]&63) ) return -1;
@@ -1792,7 +1792,7 @@ void alterang(short a)
                         g_sp->ang -= j;
                 }
             }
-            else if(ticselapsed > 18 && ticselapsed < 26) // choose
+            else if(ticselapsed > 18 && ticselapsed < 26) /*  choose */
             {
                 if(klabs(angdif>>2) < 128) g_sp->ang = goalang;
                 else g_sp->ang += angdif>>2;
@@ -1814,7 +1814,7 @@ void alterang(short a)
         if(a&fleeenemy)
         {
             goalang = furthestangle(g_i,j);
-            g_sp->ang = goalang; // += angdif; //  = getincangle(aang,goalang)>>1;
+            g_sp->ang = goalang; /*  += angdif; //  = getincangle(aang,goalang)>>1; */
         }
     }
 }
@@ -2036,7 +2036,7 @@ void parseifelse(long condition)
     }
 }
 
-// long *it = 0x00589a04;
+/*  long *it = 0x00589a04; */
 
 char parse(void)
 {
@@ -2044,7 +2044,7 @@ char parse(void)
 
     if(killit_flag) return 1;
 
-//    if(*it == 1668249134L) gameexit("\nERR");
+/*     if(*it == 1668249134L) gameexit("\nERR"); */
 
     switch(*insptr)
     {
@@ -2178,9 +2178,9 @@ char parse(void)
         case 24:
             insptr++;
             g_t[5] = *insptr;
-            g_t[4] = ((long *)g_t[5])[0];       // Action
-            g_t[1] = ((long *)g_t[5])[1];       // move
-            g_sp->hitag = ((long *)g_t[5])[2];    // Ai
+            g_t[4] = ((long *)g_t[5])[0];       /*  Action */
+            g_t[1] = ((long *)g_t[5])[1];       /*  move */
+            g_sp->hitag = ((long *)g_t[5])[2];    /*  Ai */
             g_t[0] = g_t[2] = g_t[3] = 0;
             if(g_sp->hitag&random_angle)
                 g_sp->ang = TRAND&2047;
@@ -2330,7 +2330,7 @@ char parse(void)
             insptr++;
             g_sp->xoffset = 0;
             g_sp->yoffset = 0;
-//            if(!gotz)
+/*             if(!gotz) */
             {
                 long c;
 
@@ -2755,20 +2755,20 @@ char parse(void)
                     ps[g_p].inven_icon = 2;
                     break;
                 case 1:
-                    ps[g_p].shield_amount +=          *insptr;// 100;
+                    ps[g_p].shield_amount +=          *insptr;/*  100; */
                     if(ps[g_p].shield_amount > max_player_health)
                         ps[g_p].shield_amount = max_player_health;
                     break;
                 case 2:
-                    ps[g_p].scuba_amount =             *insptr;// 1600;
+                    ps[g_p].scuba_amount =             *insptr;/*  1600; */
                     ps[g_p].inven_icon = 6;
                     break;
                 case 3:
-                    ps[g_p].holoduke_amount =          *insptr;// 1600;
+                    ps[g_p].holoduke_amount =          *insptr;/*  1600; */
                     ps[g_p].inven_icon = 3;
                     break;
                 case 4:
-                    ps[g_p].jetpack_amount =           *insptr;// 1600;
+                    ps[g_p].jetpack_amount =           *insptr;/*  1600; */
                     ps[g_p].inven_icon = 4;
                     break;
                 case 6:
@@ -2868,9 +2868,9 @@ char parse(void)
             break;
         case 59:
             insptr++;
-//            if(g_sp->owner >= 0 && sprite[g_sp->owner].picnum == *insptr)
-  //              parseifelse(1);
-//            else
+/*             if(g_sp->owner >= 0 && sprite[g_sp->owner].picnum == *insptr) */
+  /*               parseifelse(1); */
+/*             else */
             parseifelse( hittype[g_i].picnum == *insptr);
             break;
         case 61:
@@ -2943,12 +2943,12 @@ char parse(void)
             break;
         case 72:
             insptr++;
-//            getglobalz(g_i);
+/*             getglobalz(g_i); */
             parseifelse( (hittype[g_i].floorz - g_sp->z) <= ((*insptr)<<8));
             break;
         case 73:
             insptr++;
-//            getglobalz(g_i);
+/*             getglobalz(g_i); */
             parseifelse( ( g_sp->z - hittype[g_i].ceilingz ) <= ((*insptr)<<8));
             break;
         case 14:
@@ -3199,96 +3199,96 @@ void execute(short i,short p,long x)
 
 
 
-// "Duke 2000"
-// "Virchua Duke"
-// "Son of Death
-// "Cromium"
-// "Potent"
-// "Flotsom"
+/*  "Duke 2000" */
+/*  "Virchua Duke" */
+/*  "Son of Death */
+/*  "Cromium" */
+/*  "Potent" */
+/*  "Flotsom" */
 
-// Volume One
-// "Duke is brain dead",
-// "BOOT TO THE HEAD"
-// Damage too duke
-// Weapons are computer cont.  Only logical thinking
-// is disappearing.
-// " Flips! "
-// Flash on screen, inst.
-// "BUMS"
-// "JAIL"/"MENTAL WARD (Cop code for looney?  T. asks Cop.)"
-// "GUTS OR GLORY"
+/*  Volume One */
+/*  "Duke is brain dead", */
+/*  "BOOT TO THE HEAD" */
+/*  Damage too duke */
+/*  Weapons are computer cont.  Only logical thinking */
+/*  is disappearing. */
+/*  " Flips! " */
+/*  Flash on screen, inst. */
+/*  "BUMS" */
+/*  "JAIL"/"MENTAL WARD (Cop code for looney?  T. asks Cop.)" */
+/*  "GUTS OR GLORY" */
 
-// ( Duke's Mission
+/*  ( Duke's Mission */
 
-// Duke:    "Looks like some kind of transporter...?"
-// Byte:    "...YES"
+/*  Duke:    "Looks like some kind of transporter...?" */
+/*  Byte:    "...YES" */
 
-// Duke:    "Waa, here goes nuthin'. "
-// (Duke puts r. arm in device)
+/*  Duke:    "Waa, here goes nuthin'. " */
+/*  (Duke puts r. arm in device) */
 
-// Duke:    AAAAHHHHHHHHHHHHHHHHHHHHHHHHH!!!
-// (Duke's arm is seved.)
-// Byte:    NO.NO.NO.NO.NO.NO.NO...
-// ( Byte directs duke to the nearest heat source)
-// (Shut Up Mode)
-// ( Duke Staggers, end of arm bleeding, usual oozing arm guts. )
-// Byte: Left, Left, Left, Left, Right.
-// ( Duke, loozing consc, trips on broken pipe, )
-// ( hits temple on edge of step. )
-// ( Rats everywhere, byte pushing them away with weapon,
-// ( eventually covered, show usual groosums, Duke appears dead
-// ( Duke wakes up, in hospital, vision less blurry
-// ( Hospital doing brain scan, 1/3 cran. mass MISSING!
-// Doc: Hummm?  ( Grabbing upper lip to "appear" smart. )
+/*  Duke:    AAAAHHHHHHHHHHHHHHHHHHHHHHHHH!!! */
+/*  (Duke's arm is seved.) */
+/*  Byte:    NO.NO.NO.NO.NO.NO.NO... */
+/*  ( Byte directs duke to the nearest heat source) */
+/*  (Shut Up Mode) */
+/*  ( Duke Staggers, end of arm bleeding, usual oozing arm guts. ) */
+/*  Byte: Left, Left, Left, Left, Right. */
+/*  ( Duke, loozing consc, trips on broken pipe, ) */
+/*  ( hits temple on edge of step. ) */
+/*  ( Rats everywhere, byte pushing them away with weapon, */
+/*  ( eventually covered, show usual groosums, Duke appears dead */
+/*  ( Duke wakes up, in hospital, vision less blurry */
+/*  ( Hospital doing brain scan, 1/3 cran. mass MISSING! */
+/*  Doc: Hummm?  ( Grabbing upper lip to "appear" smart. ) */
 
-// Stand back boys
+/*  Stand back boys */
 
-// Schrapnel has busted my scull!
-// Now I'm insane, Mental ward, got to escape.
-// Search light everywhere.
+/*  Schrapnel has busted my scull! */
+/*  Now I'm insane, Mental ward, got to escape. */
+/*  Search light everywhere. */
 
-// (M)Mendor, The Tree Dweller.
-// (M)BashMan, The Destructor.
-// (M)Lash, The Scavenger.
-// (F)Mag, The Slut.
-// (F)
-// NRA OR SOMETHIN'
+/*  (M)Mendor, The Tree Dweller. */
+/*  (M)BashMan, The Destructor. */
+/*  (M)Lash, The Scavenger. */
+/*  (F)Mag, The Slut. */
+/*  (F) */
+/*  NRA OR SOMETHIN' */
 
-// Duke Nukem
-// 5th Dimention
-// Pentagon Man!
+/*  Duke Nukem */
+/*  5th Dimention */
+/*  Pentagon Man! */
 
 
-// I Hope your not stupid!
-// The 70's meet the future.
-// Dirty Harry style.  70's music with futuristic edge
-// The Instant De-Welder(tm)
-// I think I'm going to puke...
-// Badge attitude.
-// He's got a Badge(LA 3322), a Bulldog, a Bronco (beat up/bondoed).
-// Gfx:
-// Lite rail systems
-// A church.  Large cross
-// Sniper Scope,
-// Really use the phone
-// The Boiler Room
-// The IRS, nuking other government buildings?
-// You wouldn't have a belt of booz, would ya?
-// Slow turning signes
-// More persise shooting/descructions
-// Faces, use phoneoms and its lookup.  Talking, getting in fights.
-// Drug dealers, pimps, and all galore
-// Weapons, Anything lying around.
-// Trees to clime, burning trees.
-// Sledge Hammer, Sledge hammer with Spike
-// sancurary, get away from it all.
-// Goodlife = ( War + Greed ) / Peace
-// Monsterism           (ACTION)
-// Global Hunter        (RPG)
-// Slick a Wick         (PUZZLE)
-// Roach Condo          (FUNNY)
-// AntiProfit           (RPG)
-// Pen Patrol           (TD SIM)
-// 97.5 KPIG! - Wanker County
-// "Fauna" - Native Indiginouns Animal Life
+/*  I Hope your not stupid! */
+/*  The 70's meet the future. */
+/*  Dirty Harry style.  70's music with futuristic edge */
+/*  The Instant De-Welder(tm) */
+/*  I think I'm going to puke... */
+/*  Badge attitude. */
+/*  He's got a Badge(LA 3322), a Bulldog, a Bronco (beat up/bondoed). */
+/*  Gfx: */
+/*  Lite rail systems */
+/*  A church.  Large cross */
+/*  Sniper Scope, */
+/*  Really use the phone */
+/*  The Boiler Room */
+/*  The IRS, nuking other government buildings? */
+/*  You wouldn't have a belt of booz, would ya? */
+/*  Slow turning signes */
+/*  More persise shooting/descructions */
+/*  Faces, use phoneoms and its lookup.  Talking, getting in fights. */
+/*  Drug dealers, pimps, and all galore */
+/*  Weapons, Anything lying around. */
+/*  Trees to clime, burning trees. */
+/*  Sledge Hammer, Sledge hammer with Spike */
+/*  sancurary, get away from it all. */
+/*  Goodlife = ( War + Greed ) / Peace */
+/*  Monsterism           (ACTION) */
+/*  Global Hunter        (RPG) */
+/*  Slick a Wick         (PUZZLE) */
+/*  Roach Condo          (FUNNY) */
+/*  AntiProfit           (RPG) */
+/*  Pen Patrol           (TD SIM) */
+/*  97.5 KPIG! - Wanker County */
+/*  "Fauna" - Native Indiginouns Animal Life */
 

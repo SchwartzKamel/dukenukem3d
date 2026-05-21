@@ -5,6 +5,7 @@
 #   pydantic 2.x     v2 schema model used by tools/generate_audio.py
 #   hypothesis 6.x   marker compatible with our pytest config
 #   filelock 3.0+    xdist fixture synchronization (perf-r12-xdist-fixture-redesign)
+#   numpy 1.19.0+    vectorization for procedural texture performance (perf-r7)
 # To update: run `pip install --upgrade <pkg>` locally, validate the suite,
 # then write the new version here.
 Pillow==12.1.1
@@ -15,3 +16,4 @@ pytest-xdist>=3.5
 pydantic==2.12.5
 hypothesis==6.152.9
 filelock>=3.0
+numpy==1.26.4

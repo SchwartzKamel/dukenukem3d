@@ -22,6 +22,7 @@
 #ifdef _WIN32
 #include <winsock2.h>
 #include <ws2tcpip.h>
+#include <netdb.h>
 typedef int socklen_t;
 #define net_close closesocket
 #define net_sleep(ms) Sleep(ms)
@@ -31,6 +32,7 @@ typedef int socklen_t;
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
+#include <netdb.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -149,6 +151,38 @@ static inline uint16_t mm_unpack_u16_le(const unsigned char *buf)
 	return (uint16_t)(buf[0] | ((unsigned)buf[1] << 8));
 }
 
+/* Format IPv4/IPv6 address for logging (handles both AF_INET and AF_INET6) */
+static const char *net_format_addr(const struct sockaddr_storage *addr)
+{
+	static char buf[128];
+	const struct sockaddr_in *addr4 = (const struct sockaddr_in *)addr;
+	const struct sockaddr_in6 *addr6 = (const struct sockaddr_in6 *)addr;
+
+	if (addr->ss_family == AF_INET) {
+#ifdef _WIN32
+		snprintf(buf, sizeof(buf), "%s", inet_ntoa(addr4->sin_addr));
+#else
+		inet_ntop(AF_INET, &addr4->sin_addr, buf, sizeof(buf));
+#endif
+		return buf;
+	} else if (addr->ss_family == AF_INET6) {
+#ifdef _WIN32
+		char tmp[128];
+		DWORD len = sizeof(tmp);
+		if (WSAAddressToStringA((struct sockaddr *)addr6, sizeof(struct sockaddr_in6),
+		                        NULL, tmp, &len) == 0) {
+			snprintf(buf, sizeof(buf), "%s", tmp);
+			return buf;
+		}
+		return "[IPv6]";
+#else
+		inet_ntop(AF_INET6, &addr6->sin6_addr, buf, sizeof(buf));
+		return buf;
+#endif
+	}
+	return "[unknown]";
+}
+
 /* ---- Internal helpers ---- */
 
 static void net_set_nonblocking(SOCKET sock)
@@ -193,7 +227,7 @@ static void net_send_raw(SOCKET sock, const unsigned char *data, int len)
 }
 
 /* Accept with timeout (prevents crashed client from blocking host indefinitely) */
-static SOCKET net_accept_timeout(SOCKET server_sock, struct sockaddr_in *client_addr,
+static SOCKET net_accept_timeout(SOCKET server_sock, struct sockaddr_storage *client_addr,
                                  socklen_t *client_len, int timeout_sec)
 {
 	SOCKET client;
@@ -556,11 +590,12 @@ initmultiplayers(char damultioption, char dacomrateoption, char dapriority)
 #endif
 
 	if (is_host) {
-		struct sockaddr_in addr;
+		struct sockaddr_storage addr;
 		int opt = 1;
+		int v6only = 0;  /* Enable dual-stack: IPv6 socket accepts IPv4-mapped IPv6 addresses */
 		time_t start;
 
-		server_socket = socket(AF_INET, SOCK_STREAM, 0);
+		server_socket = socket(AF_INET6, SOCK_STREAM, 0);
 		if (server_socket == INVALID_SOCKET) {
 			printf("NET: Failed to create server socket\n");
 			goto singleplayer;
@@ -569,12 +604,20 @@ initmultiplayers(char damultioption, char dacomrateoption, char dapriority)
 		setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR,
 		           (const char *)&opt, sizeof(opt));
 
-		memset(&addr, 0, sizeof(addr));
-		addr.sin_family = AF_INET;
-		addr.sin_addr.s_addr = INADDR_ANY;
-		addr.sin_port = htons((unsigned short)host_port);
+		/* net-r3-ipv6: Disable IPV6_V6ONLY to enable dual-stack
+		   (IPv6 socket accepts both IPv6 and IPv4-mapped IPv6 connections) */
+#ifdef IPV6_V6ONLY
+		setsockopt(server_socket, IPPROTO_IPV6, IPV6_V6ONLY,
+		           (const char *)&v6only, sizeof(v6only));
+#endif
 
-		if (bind(server_socket, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
+		memset(&addr, 0, sizeof(addr));
+		struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *)&addr;
+		addr6->sin6_family = AF_INET6;
+		addr6->sin6_addr = in6addr_any;
+		addr6->sin6_port = htons((unsigned short)host_port);
+
+		if (bind(server_socket, (struct sockaddr *)&addr, sizeof(struct sockaddr_in6)) < 0) {
 			printf("NET: Failed to bind port %d\n", host_port);
 			net_close(server_socket);
 			server_socket = INVALID_SOCKET;
@@ -582,7 +625,7 @@ initmultiplayers(char damultioption, char dacomrateoption, char dapriority)
 		}
 
 		listen(server_socket, MAXPLAYERS - 1);
-		printf("NET: Hosting on port %d, waiting for %d player(s)...\n",
+		printf("NET: Hosting on port %d (IPv6 dual-stack), waiting for %d player(s)...\n",
 		       host_port, expected_players);
 
 		net_set_nonblocking(server_socket);
@@ -593,7 +636,7 @@ initmultiplayers(char damultioption, char dacomrateoption, char dapriority)
 		/* Accept connections until expected count or timeout */
 		start = time(NULL);
 		while (numplayers < expected_players) {
-			struct sockaddr_in client_addr;
+			struct sockaddr_storage client_addr;
 			socklen_t client_len = sizeof(client_addr);
 			SOCKET client;
 
@@ -609,7 +652,7 @@ initmultiplayers(char damultioption, char dacomrateoption, char dapriority)
 			}
 
 			client = net_accept_timeout(server_socket,
-			                            (struct sockaddr *)&client_addr, &client_len,
+			                            &client_addr, &client_len,
 			                            NET_HOST_ACCEPT_TIMEOUT_SEC);
 			if (client != INVALID_SOCKET) {
 				int idx = numplayers;
@@ -621,7 +664,7 @@ initmultiplayers(char damultioption, char dacomrateoption, char dapriority)
 
 				numplayers++;
 				printf("NET: Player %d connected from %s\n",
-				       idx, inet_ntoa(client_addr.sin_addr));
+				       idx, net_format_addr(&client_addr));
 			}
 
 			net_sleep(50);
@@ -672,38 +715,75 @@ initmultiplayers(char damultioption, char dacomrateoption, char dapriority)
 		}
 
 	} else if (join_addr) {
-		/* Client mode */
-		char ip[64];
+		/* Client mode: net-r3-ipv6 - dual-stack IPv4/IPv6 support via getaddrinfo */
+		char host[64], port_str[16];
 		int port = DEFAULT_PORT;
 		char *colon;
 		SOCKET sock;
-		struct sockaddr_in addr;
+		struct sockaddr_storage addr;
+		int addrlen;
 		int flag;
 		unsigned char msg[4];
+		struct addrinfo hints, *res, *rp;
+		int gai_status;
 
-		strncpy(ip, join_addr, sizeof(ip) - 1);
-		ip[sizeof(ip) - 1] = '\0';
-		colon = strchr(ip, ':');
-		if (colon) {
-			*colon = '\0';
-			port = atoi(colon + 1);
+		strncpy(host, join_addr, sizeof(host) - 1);
+		host[sizeof(host) - 1] = '\0';
+
+		/* Parse address: handle [IPv6]:port and IPv4:port formats */
+		if (host[0] == '[') {
+			/* IPv6 literal: [::1]:port or [fe80::1%eth0]:port */
+			char *bracket = strchr(host, ']');
+			if (bracket) {
+				*bracket = '\0';
+				memmove(host, host + 1, strlen(host + 1) + 1);
+				if (*(bracket + 1) == ':') {
+					port = atoi(bracket + 2);
+				}
+			}
+		} else {
+			/* IPv4 or hostname: 192.168.1.1:port or localhost:port */
+			colon = strchr(host, ':');
+			if (colon) {
+				*colon = '\0';
+				port = atoi(colon + 1);
+			}
 		}
 
-		sock = socket(AF_INET, SOCK_STREAM, 0);
-		if (sock == INVALID_SOCKET) {
-			printf("NET: Failed to create socket\n");
+		snprintf(port_str, sizeof(port_str), "%d", port);
+
+		/* Resolve hostname/IP using getaddrinfo (supports both IPv4 and IPv6) */
+		memset(&hints, 0, sizeof(hints));
+		hints.ai_family = AF_UNSPEC;     /* Allow both IPv4 and IPv6 */
+		hints.ai_socktype = SOCK_STREAM;
+		hints.ai_flags = 0;
+
+		gai_status = getaddrinfo(host, port_str, &hints, &res);
+		if (gai_status != 0) {
+			printf("NET: Failed to resolve %s:%d (%s)\n", host, port, gai_strerror(gai_status));
 			goto singleplayer;
 		}
 
-		memset(&addr, 0, sizeof(addr));
-		addr.sin_family = AF_INET;
-		addr.sin_addr.s_addr = inet_addr(ip);
-		addr.sin_port = htons((unsigned short)port);
+		/* Try each address until successful connection */
+		sock = INVALID_SOCKET;
+		for (rp = res; rp != NULL; rp = rp->ai_next) {
+			sock = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
+			if (sock == INVALID_SOCKET) continue;
 
-		printf("NET: Connecting to %s:%d...\n", ip, port);
-		if (connect(sock, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
-			printf("NET: Connection failed\n");
+			if (connect(sock, rp->ai_addr, (int)rp->ai_addrlen) == 0) {
+				/* Connection successful */
+				memcpy(&addr, rp->ai_addr, rp->ai_addrlen);
+				addrlen = (int)rp->ai_addrlen;
+				break;
+			}
 			net_close(sock);
+			sock = INVALID_SOCKET;
+		}
+
+		freeaddrinfo(res);
+
+		if (sock == INVALID_SOCKET) {
+			printf("NET: Connection to %s:%d failed\n", host, port);
 			goto singleplayer;
 		}
 

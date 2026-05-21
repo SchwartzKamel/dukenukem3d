@@ -1,4 +1,4 @@
-//-------------------------------------------------------------------------
+/* ------------------------------------------------------------------------- */
 /*
 Copyright (C) 1996, 2003 - 3D Realms Entertainment
 
@@ -22,7 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 Original Source: 1996 - Todd Replogle
 Prepared for public release: 03/21/2003 - Charlie Wiederhold, 3D Realms
 */
-//-------------------------------------------------------------------------
+/* ------------------------------------------------------------------------- */
 
 #include "compat.h"
 #include "pragmas_gcc.h"
@@ -41,7 +41,7 @@ short sh,onbar,buttonstat,deletespot;
 short last_zero,last_fifty,last_threehundred = 0;
 static char fileselect = 1, menunamecnt, menuname[256][17], curpath[80], menupath[80];
 
-// CTW - REMOVED
+/*  CTW - REMOVED */
 /* Error codes */
 /*
 #define eTenBnNotInWindows 3801
@@ -54,7 +54,7 @@ int  tenBnStart(void);
 void tenBnSetBrowseRtn(char *(*rtn)(char *str, int len));
 void tenBnSetExitRtn(void (*rtn)(void));
 void tenBnSetEndRtn(void (*rtn)(void));*/
-// CTW END - REMOVED
+/*  CTW END - REMOVED */
 
 void dummyfunc(void)
 {
@@ -64,7 +64,7 @@ void dummymess(int i,char *c)
 {
 }
 
-// CTW - REMOVED
+/*  CTW - REMOVED */
 /*
 void TENtext(void)
 {
@@ -98,7 +98,7 @@ void TENtext(void)
     }
 }
 */
-// CTW END - REMOVED
+/*  CTW END - REMOVED */
 
 void cmenu(short cm)
 {
@@ -319,7 +319,7 @@ loadplayer(signed char spot)
          ud.m_volume_number = ud.volume_number;
          ud.m_player_skill = ud.player_skill;
 
-                 //Fake read because lseek won't work with compression
+                 /* Fake read because lseek won't work with compression */
      walock[MAXTILES-3] = 1;
      if (waloff[MAXTILES-3] == 0) allocache(&waloff[MAXTILES-3],160*100,&walock[MAXTILES-3]);
      tilesizx[MAXTILES-3] = 100; tilesizy[MAXTILES-3] = 160;
@@ -1271,8 +1271,8 @@ int probe(int x,int y,int i,int n)
 
     if(centre)
     {
-//        rotatesprite(((320>>1)+(centre)+54)<<16,(y+(probey*i)-4)<<16,65536L,0,SPINNINGNUKEICON+6-((6+(totalclock>>3))%7),sh,0,10,0,0,xdim-1,ydim-1);
-//        rotatesprite(((320>>1)-(centre)-54)<<16,(y+(probey*i)-4)<<16,65536L,0,SPINNINGNUKEICON+((totalclock>>3)%7),sh,0,10,0,0,xdim-1,ydim-1);
+/*         rotatesprite(((320>>1)+(centre)+54)<<16,(y+(probey*i)-4)<<16,65536L,0,SPINNINGNUKEICON+6-((6+(totalclock>>3))%7),sh,0,10,0,0,xdim-1,ydim-1); */
+/*         rotatesprite(((320>>1)-(centre)-54)<<16,(y+(probey*i)-4)<<16,65536L,0,SPINNINGNUKEICON+((totalclock>>3)%7),sh,0,10,0,0,xdim-1,ydim-1); */
 
         rotatesprite(((320>>1)+(centre>>1)+70)<<16,(y+(probey*i)-4)<<16,65536L,0,SPINNINGNUKEICON+6-((6+(totalclock>>3))%7),sh,0,10,0,0,xdim-1,ydim-1);
         rotatesprite(((320>>1)-(centre>>1)-70)<<16,(y+(probey*i)-4)<<16,65536L,0,SPINNINGNUKEICON+((totalclock>>3)%7),sh,0,10,0,0,xdim-1,ydim-1);
@@ -1431,7 +1431,7 @@ int menutextc(int x,int y,short s,short p,char *t)
 
     i = centre = 0;
 
-//    if( x == (320>>1) )
+/*     if( x == (320>>1) ) */
     {
         while( *(t+i) )
         {
@@ -1538,7 +1538,7 @@ void bar(int x,int y,short *p,short dainc,char damodify,short s, short pa)
     {
         if(rev == 0)
         {
-            if( KB_KeyPressed( sc_LeftArrow ) || KB_KeyPressed( sc_kpad_4 ) || ((buttonstat&1) && minfo.dyaw < -256 ) ) // && onbar) )
+            if( KB_KeyPressed( sc_LeftArrow ) || KB_KeyPressed( sc_kpad_4 ) || ((buttonstat&1) && minfo.dyaw < -256 ) ) /*  && onbar) ) */
             {
                 KB_ClearKeyDown( sc_LeftArrow );
                 KB_ClearKeyDown( sc_kpad_4 );
@@ -1548,7 +1548,7 @@ void bar(int x,int y,short *p,short dainc,char damodify,short s, short pa)
                     *p = 0;
                 sound(KICK_HIT);
             }
-            if( KB_KeyPressed( sc_RightArrow ) || KB_KeyPressed( sc_kpad_6 ) || ((buttonstat&1) && minfo.dyaw > 256 ) )//&& onbar) )
+            if( KB_KeyPressed( sc_RightArrow ) || KB_KeyPressed( sc_kpad_6 ) || ((buttonstat&1) && minfo.dyaw > 256 ) )/* && onbar) ) */
             {
                 KB_ClearKeyDown( sc_RightArrow );
                 KB_ClearKeyDown( sc_kpad_6 );
@@ -1561,7 +1561,7 @@ void bar(int x,int y,short *p,short dainc,char damodify,short s, short pa)
         }
         else
         {
-            if( KB_KeyPressed( sc_RightArrow ) || KB_KeyPressed( sc_kpad_6 ) || ((buttonstat&1) && minfo.dyaw > 256 ))//&& onbar ))
+            if( KB_KeyPressed( sc_RightArrow ) || KB_KeyPressed( sc_kpad_6 ) || ((buttonstat&1) && minfo.dyaw > 256 ))/* && onbar )) */
             {
                 KB_ClearKeyDown( sc_RightArrow );
                 KB_ClearKeyDown( sc_kpad_6 );
@@ -1571,7 +1571,7 @@ void bar(int x,int y,short *p,short dainc,char damodify,short s, short pa)
                     *p = 0;
                 sound(KICK_HIT);
             }
-            if( KB_KeyPressed( sc_LeftArrow ) || KB_KeyPressed( sc_kpad_4 ) || ((buttonstat&1) && minfo.dyaw < -256 ))// && onbar) )
+            if( KB_KeyPressed( sc_LeftArrow ) || KB_KeyPressed( sc_kpad_4 ) || ((buttonstat&1) && minfo.dyaw < -256 ))/*  && onbar) ) */
             {
                 KB_ClearKeyDown( sc_LeftArrow );
                 KB_ClearKeyDown( sc_kpad_4 );
@@ -1594,9 +1594,9 @@ void bar(int x,int y,short *p,short dainc,char damodify,short s, short pa)
 }
 
 #define SHX(X) 0
-// ((x==X)*(-sh))
+/*  ((x==X)*(-sh)) */
 #define PHX(X) 0
-// ((x==X)?1:2)
+/*  ((x==X)?1:2) */
 #define MWIN(X) rotatesprite( 320<<15,200<<15,X,0,MENUSCREEN,-16,0,10+64,0,0,xdim-1,ydim-1)
 #define MWINXY(X,OX,OY) rotatesprite( ( 320+(OX) )<<15, ( 200+(OY) )<<15,X,0,MENUSCREEN,-16,0,10+64,0,0,xdim-1,ydim-1)
 
@@ -1690,9 +1690,9 @@ void menus(void)
 {
     short c,x;
     volatile long l;
-// CTW - REMOVED
-//  int tenerr;
-// CTW END - REMOVED
+/*  CTW - REMOVED */
+/*   int tenerr; */
+/*  CTW END - REMOVED */
 
     getpackets();
 
@@ -1762,7 +1762,7 @@ void menus(void)
 
             if( x >= -1 ) cmenu(100);
             break;
-// CTW - REMOVED
+/*  CTW - REMOVED */
 /*      case 20001:
             x = probe(188,80+32+32,0,0);
             gametext(160,86-8,"You must be in Windows 95 to",0,2+8+16);
@@ -1794,7 +1794,7 @@ void menus(void)
             gametext(160,86+32,"PRESS ANY KEY...",0,2+8+16);
             if(x >= -1) cmenu(0);
             break;*/
-// CTW END - REMOVED
+/*  CTW END - REMOVED */
 
         case 15001:
         case 15000:
@@ -2122,9 +2122,9 @@ void menus(void)
         case 996:
         case 997:
 
-//            rotatesprite(c<<16,200<<15,65536L,0,MENUSCREEN,16,0,10+64,0,0,xdim-1,ydim-1);
-//            rotatesprite(c<<16,19<<16,65536L,0,MENUBAR,16,0,10,0,0,xdim-1,ydim-1);
-//            menutext(c,24,0,0,"CREDITS");
+/*             rotatesprite(c<<16,200<<15,65536L,0,MENUSCREEN,16,0,10+64,0,0,xdim-1,ydim-1); */
+/*             rotatesprite(c<<16,19<<16,65536L,0,MENUBAR,16,0,10,0,0,xdim-1,ydim-1); */
+/*             menutext(c,24,0,0,"CREDITS"); */
 
             if(KB_KeyPressed(sc_Escape)) { cmenu(0); break; }
 
@@ -2185,10 +2185,10 @@ void menus(void)
             c = (320>>1);
             rotatesprite(c<<16,28<<16,65536L,0,INGAMEDUKETHREEDEE,0,0,10,0,0,xdim-1,ydim-1);
             rotatesprite((c+100)<<16,36<<16,65536L,0,PLUTOPAKSPRITE+2,(sintable[(totalclock<<4)&2047]>>11),0,2+8,0,0,xdim-1,ydim-1);
-// CTW - MODIFICATION
-//          x = probe(c,67,16,7);
+/*  CTW - MODIFICATION */
+/*           x = probe(c,67,16,7); */
             x = probe(c,67,16,6);
-// CTW END - MODIFICATION
+/*  CTW END - MODIFICATION */
             if(x >= 0)
             {
                 if( ud.multimode > 1 && x == 0 && ud.recstat != 2)
@@ -2207,8 +2207,8 @@ void menus(void)
                         case 0:
                             cmenu(100);
                             break;
-// CTW - MODIFICATION
-// Shifted the entire menu input results up one.
+/*  CTW - MODIFICATION */
+/*  Shifted the entire menu input results up one. */
 /*                      case 1:
                             if(movesperpacket == 4 || numplayers > 1)
                                 break;
@@ -2249,7 +2249,7 @@ void menus(void)
                         case 3: KB_FlushKeyboardQueue();cmenu(400);break;
                         case 4: cmenu(990);break;
                         case 5: cmenu(500);break;
-// CTW END - MODIFICATION
+/*  CTW END - MODIFICATION */
                     }
                 }
             }
@@ -2276,16 +2276,16 @@ void menus(void)
             else
                 menutext(c,67,SHX(-2),PHX(-2),"NEW GAME");
 
-// CTW - REMOVED
+/*  CTW - REMOVED */
 /*          if(movesperpacket != 4 && numplayers < 2)
                 menutext(c,67+16,SHX(-3),PHX(-3),"PLAY ON TEN");
             else
                 menutext(c,67+16,SHX(-3),1,"PLAY ON TEN");*/
-// CTW END - REMOVED
+/*  CTW END - REMOVED */
 
-// CTW - MODIFICATION - Not going to comment out the exact old code here.
-// I shifted up every menu option by 16.
-// I shifted up every menu result by 1.
+/*  CTW - MODIFICATION - Not going to comment out the exact old code here. */
+/*  I shifted up every menu option by 16. */
+/*  I shifted up every menu result by 1. */
             menutext(c,67+16,SHX(-3),PHX(-3),"OPTIONS");
 
             if(movesperpacket == 4 && connecthead != myconnectindex)
@@ -2302,7 +2302,7 @@ void menus(void)
             menutext(c,67+16+16+16+16+16,SHX(-7),PHX(-7),"QUIT");
 
             break;
-// CTW END - MODIFICATION
+/*  CTW END - MODIFICATION */
 
         case 50:
             c = (320>>1);
@@ -2814,7 +2814,7 @@ void menus(void)
 
                 if(x == -1)
                 {
-            //        readsavenames();
+            /*         readsavenames(); */
                     ps[myconnectindex].gm = MODE_GAME;
                     if(ud.multimode < 2  && ud.recstat != 2)
                     {
@@ -3177,7 +3177,7 @@ void menus(void)
         case 602:
             if(menunamecnt == 0)
             {
-        //        getfilenames("SUBD");
+        /*         getfilenames("SUBD"); */
                 getfilenames("*.MAP");
                 sortfilenames();
                 if (menunamecnt == 0)
@@ -3507,12 +3507,12 @@ void palto(char r,char g,char b,long e)
             ps[myconnectindex].palette[i+2]+((((long)b-(long)ps[myconnectindex].palette[i+2])*(long)(e&127))>>6);
     }
 
-// CTW - MODIFICATION
+/*  CTW - MODIFICATION */
 /*  if( (e&128) == 0 )
         if ((vidoption != 1) || (vgacompatible == 1)) limitrate();*/
     if( (e&128) == 0 )
         if ((ScreenMode != 1) || (vgacompatible == 1)) limitrate();
-// CTW END - MODIFICATION
+/*  CTW END - MODIFICATION */
 
     setbrightness(ud.brightness>>2,temparray);
 }
@@ -3534,7 +3534,7 @@ void drawoverheadmap(long cposx, long cposy, long czoom, short cang)
         xvect2 = mulscale16(xvect,yxaspect);
         yvect2 = mulscale16(yvect,yxaspect);
 
-                //Draw red lines
+                /* Draw red lines */
         for(i=0;i<numsectors;i++)
         {
                 if (!(show2dsector[i>>3]&(1<<(i&7)))) continue;
@@ -3548,15 +3548,15 @@ void drawoverheadmap(long cposx, long cposy, long czoom, short cang)
                 {
                         k = wal->nextwall; if (k < 0) continue;
 
-                        //if ((show2dwall[j>>3]&(1<<(j&7))) == 0) continue;
-                        //if ((k > j) && ((show2dwall[k>>3]&(1<<(k&7))) > 0)) continue;
+                        /* if ((show2dwall[j>>3]&(1<<(j&7))) == 0) continue; */
+                        /* if ((k > j) && ((show2dwall[k>>3]&(1<<(k&7))) > 0)) continue; */
 
                         if (sector[wal->nextsector].ceilingz == z1)
                                 if (sector[wal->nextsector].floorz == z2)
                                         if (((wal->cstat|wall[wal->nextwall].cstat)&(16+32)) == 0) continue;
 
-                        col = 139; //red
-                        if ((wal->cstat|wall[wal->nextwall].cstat)&1) col = 234; //magenta
+                        col = 139; /* red */
+                        if ((wal->cstat|wall[wal->nextwall].cstat)&1) col = 234; /* magenta */
 
                         if (!(show2dsector[wal->nextsector>>3]&(1<<(wal->nextsector&7))))
                                 col = 24;
@@ -3575,20 +3575,20 @@ void drawoverheadmap(long cposx, long cposy, long czoom, short cang)
                 }
         }
 
-                //Draw sprites
+                /* Draw sprites */
         k = ps[screenpeek].i;
         for(i=0;i<numsectors;i++)
         {
                 if (!(show2dsector[i>>3]&(1<<(i&7)))) continue;
                 for(j=headspritesect[i];j>=0;j=nextspritesect[j])
-                        //if ((show2dsprite[j>>3]&(1<<(j&7))) > 0)
+                        /* if ((show2dsprite[j>>3]&(1<<(j&7))) > 0) */
                         {
                 spr = &sprite[j];
 
                 if (j == k || (spr->cstat&0x8000) || spr->cstat == 257 || spr->xrepeat == 0) continue;
 
-                                col = 71; //cyan
-                                if (spr->cstat&1) col = 234; //magenta
+                                col = 71; /* cyan */
+                                if (spr->cstat&1) col = 234; /* magenta */
 
                                 sprx = spr->x;
                                 spry = spr->y;
@@ -3700,7 +3700,7 @@ void drawoverheadmap(long cposx, long cposy, long czoom, short cang)
                         }
         }
 
-                //Draw white lines
+                /* Draw white lines */
         for(i=0;i<numsectors;i++)
         {
                 if (!(show2dsector[i>>3]&(1<<(i&7)))) continue;
@@ -3713,7 +3713,7 @@ void drawoverheadmap(long cposx, long cposy, long czoom, short cang)
                 {
                         if (wal->nextwall >= 0) continue;
 
-                        //if ((show2dwall[j>>3]&(1<<(j&7))) == 0) continue;
+                        /* if ((show2dwall[j>>3]&(1<<(j&7))) == 0) continue; */
 
                         if (tilesizx[wal->picnum] == 0) continue;
                         if (tilesizy[wal->picnum] == 0) continue;
@@ -3951,7 +3951,7 @@ void playanm(char *fn,char t)
     long i, j, k, length=0, numframes=0;
     int32 handle=-1;
 
-//    return;
+/*     return; */
 
     if(t != 7 && t != 9 && t != 10 && t != 11)
         KB_FlushKeyboardQueue();

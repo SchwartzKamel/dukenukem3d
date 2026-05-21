@@ -1,4 +1,4 @@
-//-------------------------------------------------------------------------
+/* ------------------------------------------------------------------------- */
 /*
 Copyright (C) 1996, 2003 - 3D Realms Entertainment
 
@@ -22,7 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 Original Source: 1996 - Todd Replogle
 Prepared for public release: 03/21/2003 - Charlie Wiederhold, 3D Realms
 */
-//-------------------------------------------------------------------------
+/* ------------------------------------------------------------------------- */
 
 #include "compat.h"
 #include "audio_stub.h"
@@ -34,14 +34,14 @@ Prepared for public release: 03/21/2003 - Charlie Wiederhold, 3D Realms
 #include "DUKE3D.H"
 #include "SCRIPLIB.H"
 
-// we load this in to get default button and key assignments
-// as well as setting up function mappings
+/*  we load this in to get default button and key assignments */
+/*  as well as setting up function mappings */
 
 #include "_FUNCTIO.H"
 
-//
-// Sound variables
-//
+/*  */
+/*  Sound variables */
+/*  */
 int32 FXDevice;
 int32 MusicDevice;
 int32 FXVolume;
@@ -61,9 +61,9 @@ int32 ReverseStereo;
 int32 ControllerType;
 int32 MouseAiming;
 
-//
-// Screen variables
-//
+/*  */
+/*  Screen variables */
+/*  */
 
 int32 ScreenMode;
 int32 ScreenWidth;
@@ -92,7 +92,7 @@ void CONFIG_GetSetupFilename( void )
    strncpy(setupfilename, SETUPFILENAME, sizeof(setupfilename) - 1);
    setupfilename[sizeof(setupfilename) - 1] = 0;
 
-   // determine extension
+   /*  determine extension */
 
    src = setupfilename + strlen(setupfilename) - 1;
 
@@ -420,7 +420,7 @@ void CONFIG_SetupMouse( int32 scripthandle )
       if (function != -1)
          CONTROL_MapButton( function, i, true );
       }
-   // map over the axes
+   /*  map over the axes */
    for (i=0;i<MAXMOUSEAXES;i++)
       {
       snprintf(str, sizeof(str), "MouseAnalogAxes%ld", i);
@@ -483,7 +483,7 @@ void CONFIG_SetupGamePad( int32 scripthandle )
       if (function != -1)
          CONTROL_MapButton( function, i, true );
       }
-   // map over the axes
+   /*  map over the axes */
    for (i=0;i<MAXGAMEPADAXES;i++)
       {
       snprintf(str, sizeof(str), "GamePadDigitalAxes%ld_0", i);
@@ -533,7 +533,7 @@ void CONFIG_SetupJoystick( int32 scripthandle )
       if (function != -1)
          CONTROL_MapButton( function, i, true );
       }
-   // map over the axes
+   /*  map over the axes */
    for (i=0;i<MAXJOYAXES;i++)
       {
       snprintf(str, sizeof(str), "JoystickAnalogAxes%ld", i);
@@ -560,10 +560,10 @@ void CONFIG_SetupJoystick( int32 scripthandle )
       SCRIPT_GetNumber(scripthandle, "Controls", str,&scale);
       CONTROL_SetAnalogAxisScale( i, scale );
       }
-   // read in JoystickPort
+   /*  read in JoystickPort */
    SCRIPT_GetNumber( scripthandle, "Controls","JoystickPort",&function);
    CONTROL_JoystickPort = function;
-   // read in rudder state
+   /*  read in rudder state */
    SCRIPT_GetNumber( scripthandle, "Controls","EnableRudder",&CONTROL_RudderEnabled);
    }
 

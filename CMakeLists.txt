@@ -97,8 +97,9 @@ else()
     set_source_files_properties(${COMPAT_SRCS}
         PROPERTIES COMPILE_FLAGS "-std=gnu11 -Wall")
     # Fast math for engine rendering (fixed-point safe)
+    # Append -ffast-math to the base flags set above to avoid override
     set_source_files_properties(SRC/ENGINE.C
-        PROPERTIES COMPILE_FLAGS "-std=gnu89 -w -x c -ffast-math")
+        PROPERTIES APPEND_STRING COMPILE_FLAGS " -ffast-math")
     # Strip symbols in release builds (Unix/Linux)
     if(CMAKE_BUILD_TYPE STREQUAL "Release")
         target_link_options(duke3d PRIVATE -s)

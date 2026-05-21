@@ -25,6 +25,13 @@ import struct
 import sys
 import time
 
+try:
+    import numpy as np
+    HAS_NUMPY = True
+except ImportError:
+    HAS_NUMPY = False
+    np = None
+
 from PIL import Image, ImageDraw, ImageFile, UnidentifiedImageError
 
 # Explicitly disable truncated image loading to catch corruption early
@@ -409,19 +416,72 @@ def generate_texture_ai(prompt, width, height, endpoint, api_key, model="FLUX.2-
         return None
 
 # ---------------------------------------------------------------------------
+# Vectorization helpers (perf-r7-procedural-numpy-vectorization)
+# ---------------------------------------------------------------------------
+
+def _randint_array(rng, low, high, size):
+    """Generate array of random integers using seeded RNG for determinism."""
+    return np.array([rng.randint(low, high) for _ in range(size)], dtype=np.int16)
+
+def _randint_interleaved(rng, ranges, size):
+    """Generate interleaved random integers for RGB channels.
+    
+    Args:
+        rng: seeded random.Random instance
+        ranges: list of (low, high) tuples for [r, g, b]
+        size: number of pixels (h * w)
+    
+    Returns:
+        tuple of (r_noise, g_noise, b_noise) numpy arrays
+    """
+    r_noise = np.zeros(size, dtype=np.int16)
+    g_noise = np.zeros(size, dtype=np.int16)
+    b_noise = np.zeros(size, dtype=np.int16)
+    
+    for i in range(size):
+        r_noise[i] = rng.randint(ranges[0][0], ranges[0][1])
+        g_noise[i] = rng.randint(ranges[1][0], ranges[1][1])
+        b_noise[i] = rng.randint(ranges[2][0], ranges[2][1])
+    
+    return r_noise, g_noise, b_noise
+
+def _pixels_from_rgb_array(rgb_array):
+    """Convert uint8 (H, W, 3) numpy array to PIL Image."""
+    rgb_array = np.clip(rgb_array, 0, 255).astype(np.uint8)
+    return Image.fromarray(rgb_array, "RGB")
+
+# ---------------------------------------------------------------------------
 # Procedural texture generators
 # ---------------------------------------------------------------------------
 
 def proc_dark_steel(w, h):
     """Dark brushed steel with subtle rivets."""
-    img = Image.new("RGB", (w, h))
-    px = img.load()
     rng = random.Random(42)
-    for y in range(h):
-        for x in range(w):
-            base = 45 + int(8 * math.sin(y * 0.8)) + rng.randint(-3, 3)
-            base += int(4 * math.sin(x * 0.5))
-            px[x, y] = (base, base, base + 2)
+    
+    if HAS_NUMPY:
+        y_arr = np.arange(h, dtype=np.float64)[:, np.newaxis]
+        x_arr = np.arange(w, dtype=np.float64)[np.newaxis, :]
+        
+        base = 45 + np.trunc(8 * np.sin(y_arr * 0.8)).astype(np.int16)
+        base = base + np.trunc(4 * np.sin(x_arr * 0.5)).astype(np.int16)
+        
+        noise = _randint_array(rng, -3, 3, w * h).reshape(h, w)
+        base = base + noise
+        
+        rgb = np.zeros((h, w, 3), dtype=np.int16)
+        rgb[:, :, 0] = base
+        rgb[:, :, 1] = base
+        rgb[:, :, 2] = base + 2
+        img = _pixels_from_rgb_array(rgb)
+    else:
+        img = Image.new("RGB", (w, h))
+        px = img.load()
+        for y in range(h):
+            for x in range(w):
+                base = 45 + int(8 * math.sin(y * 0.8)) + rng.randint(-3, 3)
+                base += int(4 * math.sin(x * 0.5))
+                px[x, y] = (base, base, base + 2)
+    
     draw = ImageDraw.Draw(img)
     rivet_spacing = w // 4
     for ry in range(rivet_spacing // 2, h, rivet_spacing):
@@ -542,18 +602,43 @@ def proc_hex_floor(w, h):
 
 def proc_neon_sky(w, h):
     """Cyberpunk night sky with neon-lit city."""
-    img = Image.new("RGB", (w, h))
-    px = img.load()
     rng = random.Random(48)
-    for y in range(h):
-        t = y / max(h - 1, 1)
-        r = int(15 + 20 * t)
-        g = int(8 + 15 * t)
-        b = int(35 + 30 * (1 - t))
-        for x in range(w):
-            px[x, y] = (max(0, r + rng.randint(-3, 3)),
-                        max(0, g + rng.randint(-2, 2)),
-                        min(255, b + rng.randint(-3, 3)))
+    
+    if HAS_NUMPY:
+        y_arr = np.arange(h, dtype=np.float64)[:, np.newaxis]
+        t = y_arr / max(h - 1, 1)
+        
+        r_base = np.trunc(15 + 20 * t).astype(np.int16)
+        g_base = np.trunc(8 + 15 * t).astype(np.int16)
+        b_base = np.trunc(35 + 30 * (1 - t)).astype(np.int16)
+        
+        noise_r, noise_g, noise_b = _randint_interleaved(rng, [(-3, 3), (-2, 2), (-3, 3)], w * h)
+        noise_r = noise_r.reshape(h, w)
+        noise_g = noise_g.reshape(h, w)
+        noise_b = noise_b.reshape(h, w)
+        
+        r = np.maximum(0, r_base + noise_r).astype(np.int16)
+        g = np.maximum(0, g_base + noise_g).astype(np.int16)
+        b = np.minimum(255, b_base + noise_b).astype(np.int16)
+        
+        rgb = np.zeros((h, w, 3), dtype=np.uint8)
+        rgb[:, :, 0] = np.clip(r, 0, 255).astype(np.uint8)
+        rgb[:, :, 1] = np.clip(g, 0, 255).astype(np.uint8)
+        rgb[:, :, 2] = np.clip(b, 0, 255).astype(np.uint8)
+        img = Image.fromarray(rgb, "RGB")
+    else:
+        img = Image.new("RGB", (w, h))
+        px = img.load()
+        for y in range(h):
+            t = y / max(h - 1, 1)
+            r = int(15 + 20 * t)
+            g = int(8 + 15 * t)
+            b = int(35 + 30 * (1 - t))
+            for x in range(w):
+                px[x, y] = (max(0, r + rng.randint(-3, 3)),
+                            max(0, g + rng.randint(-2, 2)),
+                            min(255, b + rng.randint(-3, 3)))
+    
     draw = ImageDraw.Draw(img)
     building_y = int(h * 0.55)
     for bx in range(0, w, rng.randint(6, 14)):
@@ -568,6 +653,8 @@ def proc_neon_sky(w, h):
                 if rng.random() > 0.5:
                     color = rng.choice([(0, 180, 220), (220, 0, 160), (180, 160, 0), (40, 40, 50)])
                     draw.point((wx, wy), fill=color)
+    
+    px = img.load()
     for x in range(w):
         glow_r = int(60 * max(0, 1 - abs(x - w//3) / (w/4)))
         glow_b = int(80 * max(0, 1 - abs(x - 2*w//3) / (w/4)))
@@ -597,16 +684,39 @@ def proc_blast_door(w, h):
 
 def proc_toxic_waste(w, h):
     """Glowing toxic green waste pool."""
-    img = Image.new("RGB", (w, h))
-    px = img.load()
     rng = random.Random(50)
-    for y in range(h):
-        for x in range(w):
-            wave = math.sin(x * 0.3 + y * 0.2) * 20 + math.sin(x * 0.1 - y * 0.4) * 15
-            g = int(140 + wave + rng.randint(-10, 10))
-            r = int(20 + wave * 0.3 + rng.randint(-5, 5))
-            b = int(5 + rng.randint(-3, 3))
-            px[x, y] = (max(0, min(255, r)), max(0, min(255, g)), max(0, b))
+    
+    if HAS_NUMPY:
+        y_arr = np.arange(h, dtype=np.float64)[:, np.newaxis]
+        x_arr = np.arange(w, dtype=np.float64)[np.newaxis, :]
+        
+        wave = np.sin(x_arr * 0.3 + y_arr * 0.2) * 20 + np.sin(x_arr * 0.1 - y_arr * 0.4) * 15
+        
+        noise_g, noise_r, noise_b = _randint_interleaved(rng, [(-10, 10), (-5, 5), (-3, 3)], w * h)
+        noise_g = noise_g.reshape(h, w)
+        noise_r = noise_r.reshape(h, w)
+        noise_b = noise_b.reshape(h, w)
+        
+        g = np.trunc(140 + wave + noise_g).astype(np.int16)
+        r = np.trunc(20 + wave * 0.3 + noise_r).astype(np.int16)
+        b = 5 + noise_b
+        
+        rgb = np.zeros((h, w, 3), dtype=np.uint8)
+        rgb[:, :, 0] = np.clip(r, 0, 255).astype(np.uint8)
+        rgb[:, :, 1] = np.clip(g, 0, 255).astype(np.uint8)
+        rgb[:, :, 2] = np.clip(b, 0, 255).astype(np.uint8)
+        img = Image.fromarray(rgb, "RGB")
+    else:
+        img = Image.new("RGB", (w, h))
+        px = img.load()
+        for y in range(h):
+            for x in range(w):
+                wave = math.sin(x * 0.3 + y * 0.2) * 20 + math.sin(x * 0.1 - y * 0.4) * 15
+                g = int(140 + wave + rng.randint(-10, 10))
+                r = int(20 + wave * 0.3 + rng.randint(-5, 5))
+                b = int(5 + rng.randint(-3, 3))
+                px[x, y] = (max(0, min(255, r)), max(0, min(255, g)), max(0, b))
+    
     draw = ImageDraw.Draw(img)
     for _ in range(8):
         bx, by = rng.randint(0, w-1), rng.randint(0, h-1)

@@ -1,4 +1,4 @@
-//-------------------------------------------------------------------------
+/* ------------------------------------------------------------------------- */
 /*
 Copyright (C) 1996, 2003 - 3D Realms Entertainment
 
@@ -22,18 +22,18 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 Original Source: 1996 - Todd Replogle
 Prepared for public release: 03/21/2003 - Charlie Wiederhold, 3D Realms
 */
-//-------------------------------------------------------------------------
+/* ------------------------------------------------------------------------- */
 
 #include "compat.h"
 #include "DUKE3D.H"
 
-//=============
-// STATICS
-//=============
+/* ============= */
+/*  STATICS */
+/* ============= */
 
 int32 numlumps;
 static void  **lumpcache;
-static lumpinfo_t *lumpinfo;              // location of each lump on disk
+static lumpinfo_t *lumpinfo;              /*  location of each lump on disk */
 static boolean RTS_Started = false;
 
 char lumplockbyte[11];
@@ -67,15 +67,15 @@ void RTS_AddFile (char *filename)
    int32      startlump;
    filelump_t *fileinfo;
 
-//
-// read the entire file in
-//      FIXME: shared opens
+/*  */
+/*  read the entire file in */
+/*       FIXME: shared opens */
 
    handle = SafeOpenRead( filename, filetype_binary );
 
    startlump = numlumps;
 
-   // WAD file
+   /*  WAD file */
    printf("    Adding %s.\n",filename);
    SafeRead( handle, &header, sizeof( header ) );
    if (strncmp(header.identification,"IWAD",4))
@@ -93,9 +93,9 @@ void RTS_AddFile (char *filename)
    SafeRead (handle, fileinfo, length);
    numlumps += header.numlumps;
 
-//
-// Fill in lumpinfo
-//
+/*  */
+/*  Fill in lumpinfo */
+/*  */
    SafeRealloc(&lumpinfo,numlumps*sizeof(lumpinfo_t));
    lump_p = &lumpinfo[startlump];
 
@@ -121,11 +121,11 @@ void RTS_AddFile (char *filename)
 void RTS_Init (char *filename)
    {
    int32 length;
-   //
-   // open all the files, load headers, and count lumps
-   //
+   /*  */
+   /*  open all the files, load headers, and count lumps */
+   /*  */
    numlumps = 0;
-   lumpinfo = SafeMalloc(5);   // will be realloced as lumps are added
+   lumpinfo = SafeMalloc(5);   /*  will be realloced as lumps are added */
 
    printf("RTS Manager Started.\n");
    if (SafeFileExists(filename))
@@ -133,9 +133,9 @@ void RTS_Init (char *filename)
 
    if (!numlumps) return;
 
-   //
-   // set up caching
-   //
+   /*  */
+   /*  set up caching */
+   /*  */
    length = (numlumps) * sizeof( *lumpcache );
    lumpcache = SafeMalloc(length);
    memset(lumpcache,0,length);

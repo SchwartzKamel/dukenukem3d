@@ -1,4 +1,4 @@
-//-------------------------------------------------------------------------
+/* ------------------------------------------------------------------------- */
 /*
 Copyright (C) 1996, 2003 - 3D Realms Entertainment
 
@@ -22,7 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 Original Source: 1996 - Todd Replogle
 Prepared for public release: 03/21/2003 - Charlie Wiederhold, 3D Realms
 */
-//-------------------------------------------------------------------------
+/* ------------------------------------------------------------------------- */
 
 #include "compat.h"
 #include "audio_stub.h"
@@ -36,7 +36,7 @@ short neartagsector, neartagwall, neartagsprite;
 
 long gc,neartaghitdist,lockclock,max_player_health,max_armour_amount,max_ammo_amount[MAX_WEAPONS];
 
-// long temp_data[MAXSPRITES][6];
+/*  long temp_data[MAXSPRITES][6]; */
 struct weaponhit hittype[MAXSPRITES];
 short spriteq[1024],spriteqloc,spriteqamount=64,moustat;
 struct animwalltype animwall[MAXANIMWALLS];
@@ -44,7 +44,7 @@ short numanimwalls;
 int32_t *animateptr[MAXANIMATES];
 int32_t animategoal[MAXANIMATES], animatevel[MAXANIMATES];
 long animatecnt;
-// long oanimateval[MAXANIMATES];
+/*  long oanimateval[MAXANIMATES]; */
 short animatesect[MAXANIMATES];
 long msx[2048],msy[2048];
 short cyclers[MAXCYCLERS][6],numcyclers;
@@ -101,12 +101,12 @@ input inputfifo[MOVEFIFOSIZ][MAXPLAYERS];
 
 long movefifosendplc;
 
-  //Multiplayer syncing variables
+  /* Multiplayer syncing variables */
 short screenpeek;
 long movefifoend[MAXPLAYERS];
 
 
-    //Game recording variables
+    /* Game recording variables */
 
 char playerreadyflag[MAXPLAYERS],ready2send;
 char playerquitflag[MAXPLAYERS];
@@ -147,7 +147,7 @@ short weaponsandammosprites[15] = {
 
 long impact_damage;
 
-        //GLOBAL.C - replace the end "my's" with this
+        /* GLOBAL.C - replace the end "my's" with this */
 int32_t myx, omyx, myxvel, myy, omyy, myyvel, myz, omyz, myzvel;
 short myhoriz, omyhoriz, myhorizoff, omyhorizoff;
 short myang, omyang, mycursectnum, myjumpingcounter,frags[MAXPLAYERS][MAXPLAYERS];
@@ -161,10 +161,10 @@ long myhorizbak[MOVEFIFOSIZ],dukefriction = 0xcc00, show_shareware;
 
 short myangbak[MOVEFIFOSIZ];
 char myname[32],camerashitable,freezerhurtowner=0,lasermode;
-// CTW - MODIFICATION
-// char networkmode = 255, movesperpacket = 1,gamequit = 0,playonten = 0,everyothertime;
+/*  CTW - MODIFICATION */
+/*  char networkmode = 255, movesperpacket = 1,gamequit = 0,playonten = 0,everyothertime; */
 char networkmode = 255, movesperpacket = 1,gamequit = 0,everyothertime;
-// CTW END - MODIFICATION
+/*  CTW END - MODIFICATION */
 long numfreezebounces=3,rpgblastradius,pipebombblastradius,tripbombblastradius,shrinkerblastradius,morterblastradius,bouncemineblastradius,seenineblastradius;
 STATUSBARTYPE sbar;
 

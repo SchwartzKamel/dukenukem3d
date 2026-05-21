@@ -1,4 +1,4 @@
-//-------------------------------------------------------------------------
+/* ------------------------------------------------------------------------- */
 /*
 Copyright (C) 1996, 2003 - 3D Realms Entertainment
 
@@ -22,7 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 Original Source: 1996 - Todd Replogle
 Prepared for public release: 03/21/2003 - Charlie Wiederhold, 3D Realms
 */
-//-------------------------------------------------------------------------
+/* ------------------------------------------------------------------------- */
 
 #include "compat.h"
 #include "audio_stub.h"
@@ -49,10 +49,10 @@ void SoundStartup( void )
    {
    int32 status;
 
-   // if they chose None lets return
+   /*  if they chose None lets return */
    if (FXDevice == NumSoundCards) return;
 
-   // Do special Sound Blaster, AWE32 stuff
+   /*  Do special Sound Blaster, AWE32 stuff */
    if (
          ( FXDevice == SoundBlaster ) ||
          ( FXDevice == Awe32 )
@@ -117,7 +117,7 @@ void SoundShutdown( void )
    {
    int32 status;
 
-   // if they chose None lets return
+   /*  if they chose None lets return */
    if (FXDevice == NumSoundCards)
       return;
 
@@ -140,14 +140,14 @@ void MusicStartup( void )
    {
    int32 status;
 
-   // if they chose None lets return
+   /*  if they chose None lets return */
    if ((MusicDevice == NumSoundCards) || (eightytwofifty && numplayers > 1) )
       return;
 
-   // satisfy AWE32 and WAVEBLASTER stuff
+   /*  satisfy AWE32 and WAVEBLASTER stuff */
    BlasterConfig.Midi = MidiPort;
 
-   // Do special Sound Blaster, AWE32 stuff
+   /*  Do special Sound Blaster, AWE32 stuff */
    if (
          ( FXDevice == SoundBlaster ) ||
          ( FXDevice == Awe32 )
@@ -196,7 +196,7 @@ void MusicShutdown( void )
    {
    int32 status;
 
-   // if they chose None lets return
+   /*  if they chose None lets return */
    if ((MusicDevice == NumSoundCards) || (eightytwofifty && numplayers > 1) )
       return;
 
@@ -310,7 +310,7 @@ int xyzsound(short num,short i,long x,long y,long z)
     short pitche,pitchs,cs;
     int voice, sndang, ca, pitch;
 
-//    if(num != 358) return 0;
+/*     if(num != 358) return 0; */
 
     if( num >= NUM_SOUNDS ||
         FXDevice == NumSoundCards ||

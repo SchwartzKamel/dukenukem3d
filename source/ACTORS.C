@@ -1,4 +1,4 @@
-//-------------------------------------------------------------------------
+/* ------------------------------------------------------------------------- */
 /*
 Copyright (C) 1996, 2003 - 3D Realms Entertainment
 
@@ -22,7 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 Original Source: 1996 - Todd Replogle
 Prepared for public release: 03/21/2003 - Charlie Wiederhold, 3D Realms
 */
-//-------------------------------------------------------------------------
+/* ------------------------------------------------------------------------- */
 
 #include "compat.h"
 #include "pragmas_gcc.h"
@@ -32,7 +32,7 @@ Prepared for public release: 03/21/2003 - Charlie Wiederhold, 3D Realms
 extern long numenvsnds; /* build-r16-lto-type: aligned to legacy K&R decl in SOUNDS.C */
 extern char actor_tog; /* build-r16-lto-type: aligned to legacy K&R decl in GAME.C */
 
-void updateinterpolations()  //Stick at beginning of domovethings
+void updateinterpolations()  /* Stick at beginning of domovethings */
 {
 	long i;
 
@@ -66,7 +66,7 @@ void stopinterpolation(int32_t *posptr)
 		}
 }
 
-void dointerpolations(long smoothratio)       //Stick at beginning of drawscreen
+void dointerpolations(long smoothratio)       /* Stick at beginning of drawscreen */
 {
 	long i, j, odelta, ndelta;
 
@@ -80,7 +80,7 @@ void dointerpolations(long smoothratio)       //Stick at beginning of drawscreen
 	}
 }
 
-void restoreinterpolations()  //Stick at end of drawscreen
+void restoreinterpolations()  /* Stick at end of drawscreen */
 {
 	long i;
 
@@ -240,7 +240,7 @@ void checkavailweapon( struct player_struct *p )
     /* Bounds check weap before assignment */
     if (!WEAPON_VALID(weap)) weap = WEAPON_CLAMP(weap);
     
-    // Found the weapon
+    /*  Found the weapon */
 
     p->last_weapon  = p->curr_weapon;
     p->random_club_frame = 0;
@@ -424,7 +424,7 @@ long ifsquished(short i, short p)
         if(sprite[i].pal == 1)
             squishme = floorceildist < (32<<8) && (sc->lotag&32768) == 0;
         else
-            squishme = floorceildist < (12<<8); // && (sc->lotag&32768) == 0;
+            squishme = floorceildist < (12<<8); /*  && (sc->lotag&32768) == 0; */
     }
     else squishme = 0;
 
@@ -719,7 +719,7 @@ movesprite(short spritenum, long xchange, long ychange, long zchange, unsigned l
 }
 
 
-short ssp(short i,unsigned long cliptype) //The set sprite function
+short ssp(short i,unsigned long cliptype) /* The set sprite function */
 {
     spritetype *s;
     long movetype;
@@ -885,7 +885,7 @@ void clearsectinterpolate(short i)
 
 void ms(short i)
 {
-    //T1,T2 and T3 are used for all the sector moving stuff!!!
+    /* T1,T2 and T3 are used for all the sector moving stuff!!! */
 
     short startwall,endwall,x;
     int32_t tx,ty;
@@ -964,7 +964,7 @@ void movefta(void)
                     else
                         j = cansee(s->x,s->y,s->z-((TRAND&31)<<8),s->sectnum,ps[p].oposx,ps[p].oposy,ps[p].oposz-((TRAND&31)<<8),ps[p].cursectnum);
 
-       //             j = 1;
+       /*              j = 1; */
 
                     if(j) switch(s->picnum)
                     {
@@ -1193,7 +1193,7 @@ void movedummyplayers(void)
 
 
 short otherp;
-void moveplayers(void) //Players
+void moveplayers(void) /* Players */
 {
     short i , nexti;
     long otherx;
@@ -1210,7 +1210,7 @@ void moveplayers(void) //Players
         p = &ps[s->yvel];
         if(s->owner >= 0)
         {
-            if(p->newowner >= 0 ) //Looking thru the camera
+            if(p->newowner >= 0 ) /* Looking thru the camera */
             {
                 s->x = p->oposx;
                 s->y = p->oposy;
@@ -1350,7 +1350,7 @@ void movefx(void)
                 if(sprite[i].extra == 66)
                 {
                     j = spawn(i,SHT);
-//                    sprite[j].pal = sprite[i].pal;
+/*                     sprite[j].pal = sprite[i].pal; */
                     KILLIT(i);
                 }
                 else if(sprite[i].extra > (66-13))
@@ -1554,12 +1554,12 @@ void movestandables(void)
 
         IFWITHIN(CRANE,CRANE+3)
         {
-            //t[0] = state
-            //t[1] = checking sector number
+            /* t[0] = state */
+            /* t[1] = checking sector number */
 
             if(s->xvel) getglobalz(i);
 
-            if( t[0] == 0 ) //Waiting to check the sector
+            if( t[0] == 0 ) /* Waiting to check the sector */
             {
                 j = headspritesect[t[1]];
                 while(j>=0)
@@ -1652,12 +1652,12 @@ void movestandables(void)
                         }
                     }
 
-                    t[0]++;//Grabbed the sprite
+                    t[0]++;/* Grabbed the sprite */
                     t[2]=0;
                     goto BOLT;
                 }
             }
-            else if(t[0]==4) //Delay before going up
+            else if(t[0]==4) /* Delay before going up */
             {
                 t[2]++;
                 if(t[2] > 10)
@@ -2312,7 +2312,7 @@ void movestandables(void)
                 goto BOLT;
 
             case TOUCHPLATE:
-                if( t[1] == 1 && s->hitag >= 0) //Move the sector floor
+                if( t[1] == 1 && s->hitag >= 0) /* Move the sector floor */
                 {
                     x = sector[sect].floorz;
 
@@ -2823,7 +2823,7 @@ void movetransports(void)
     short i, j, k, l, p, sect, sectlotag, nexti, nextj, nextk;
     long ll,onfloorz,q;
 
-    i = headspritestat[9]; //Transporters
+    i = headspritestat[9]; /* Transporters */
 
     while(i >= 0)
     {
@@ -2849,7 +2849,7 @@ void movetransports(void)
 
             switch(sprite[j].statnum)
             {
-                case 10:    // Player
+                case 10:    /*  Player */
 
                     if( sprite[j].owner != -1 )
                     {
@@ -2927,7 +2927,7 @@ void movetransports(void)
                         k = 0;
 
                         if( onfloorz && sectlotag == 1 && ps[p].on_ground && ps[p].posz > (sector[sect].floorz-(16<<8)) && ( (sync[p].bits&2) || ps[p].poszv > 2048 ) )
-//                        if( onfloorz && sectlotag == 1 && ps[p].posz > (sector[sect].floorz-(6<<8)) )
+/*                         if( onfloorz && sectlotag == 1 && ps[p].posz > (sector[sect].floorz-(6<<8)) ) */
                         {
                             k = 1;
                             if(screenpeek == p)
@@ -2948,7 +2948,7 @@ void movetransports(void)
                         if( onfloorz && sectlotag == 2 && ps[p].posz < (sector[sect].ceilingz+(6<<8)) )
                         {
                             k = 1;
-//                            if( sprite[j].extra <= 0) break;
+/*                             if( sprite[j].extra <= 0) break; */
                             if(screenpeek == p)
                             {
                                 FX_StopAllSounds();
@@ -3058,8 +3058,8 @@ void movetransports(void)
                                     break;
 
                             case WATERBUBBLE:
-//                                if( rnd(192) && sprite[j].picnum == WATERBUBBLE)
-  //                                 break;
+/*                                 if( rnd(192) && sprite[j].picnum == WATERBUBBLE) */
+  /*                                  break; */
 
                                 if(sectlotag > 0)
                                 {
@@ -3337,7 +3337,7 @@ void moveactors(void)
                     if( x < 1596)
                     {
 
-//                        if(s->pal == 12)
+/*                         if(s->pal == 12) */
                         {
                             j = getincangle(ps[p].ang,getangle(s->x-ps[p].posx,s->y-ps[p].posy));
                             if( j > -64 && j < 64 && (sync[p].bits&(1<<29)) )
@@ -3480,7 +3480,7 @@ void moveactors(void)
                 p = findplayer(s,&x);
                 j = s->owner;
 
-                // 3 = findplayerz, 4 = shoot
+                /*  3 = findplayerz, 4 = shoot */
 
                 if( t[0] >= 4 )
                 {
@@ -3540,14 +3540,14 @@ void moveactors(void)
                     }
                     else a = getangle(sprite[j].x-s->x,sprite[j].y-s->y);
 
-                    if(t[0] == 1 || t[0] == 4) // Found a locator and going with it
+                    if(t[0] == 1 || t[0] == 4) /*  Found a locator and going with it */
                     {
                         l = dist(&sprite[j],s);
 
                         if( l <= 1524 ) { if(t[0] == 1) t[0] = 0; else t[0] = 5; }
                         else
                         {
-                            // Control speed here
+                            /*  Control speed here */
                             if(l > 1524) { if( s->xvel < 256 ) s->xvel += 32; }
                             else
                             {
@@ -3624,7 +3624,7 @@ void moveactors(void)
             case GREENSLIME+6:
             case GREENSLIME+7:
 
-// #ifndef VOLUMEONE
+/*  #ifndef VOLUMEONE */
                 if( ud.multimode < 2 )
                 {
                     if( actor_tog == 1)
@@ -3634,7 +3634,7 @@ void moveactors(void)
                     }
                     else if(actor_tog == 2) s->cstat = 257;
                 }
-// #endif
+/*  #endif */
 
                 t[1]+=128;
 
@@ -3654,7 +3654,7 @@ void moveactors(void)
                     }
                 }
 
-                if(t[0] == -5) // FROZEN
+                if(t[0] == -5) /*  FROZEN */
                 {
                     t[3]++;
                     if(t[3] > 280)
@@ -3693,7 +3693,7 @@ void moveactors(void)
                     s->cstat = 0;
                 else s->cstat = 257;
 
-                if(t[0] == -4) //On the player
+                if(t[0] == -4) /* On the player */
                 {
                     if( sprite[ps[p].i].extra < 1 )
                     {
@@ -3794,9 +3794,9 @@ void moveactors(void)
                     if(ps[p].somethingonplayer == -1)
                     {
                         ps[p].somethingonplayer = i;
-                        if(t[0] == 3 || t[0] == 2) //Falling downward
+                        if(t[0] == 3 || t[0] == 2) /* Falling downward */
                             t[2] = (12<<8);
-                        else t[2] = -(13<<8); //Climbing up duke
+                        else t[2] = -(13<<8); /* Climbing up duke */
                         t[0] = -4;
                     }
                 }
@@ -3829,16 +3829,16 @@ void moveactors(void)
                         t[0] = -3;
                         KILLIT(i);
                     }
-                        // All weap
-                if(t[0] == -1) //Shrinking down
+                        /*  All weap */
+                if(t[0] == -1) /* Shrinking down */
                 {
                     makeitfall(i);
 
                     s->cstat &= 65535-8;
                     s->picnum = GREENSLIME+4;
 
-//                    if(s->yrepeat > 62)
-  //                      guts(s,JIBS6,5,myconnectindex);
+/*                     if(s->yrepeat > 62) */
+  /*                       guts(s,JIBS6,5,myconnectindex); */
 
                     if(s->xrepeat > 32) s->xrepeat -= TRAND&7;
                     if(s->yrepeat > 16) s->yrepeat -= TRAND&7;
@@ -3854,7 +3854,7 @@ void moveactors(void)
                 }
                 else if(t[0] != -2) getglobalz(i);
 
-                if(t[0] == -2) //On top of somebody
+                if(t[0] == -2) /* On top of somebody */
                 {
                     makeitfall(i);
                     sprite[t[5]].xvel = 0;
@@ -3882,7 +3882,7 @@ void moveactors(void)
                     goto BOLT;
                 }
 
-                //Check randomly to see of there is an actor near
+                /* Check randomly to see of there is an actor near */
                 if(rnd(32))
                 {
                     j = headspritesect[sect];
@@ -3894,7 +3894,7 @@ void moveactors(void)
                             case LIZMAN:
                             case PIGCOP:
                             case NEWBEAST:
-                                if( ldist(s,&sprite[j]) < 768 && (klabs(s->z-sprite[j].z)<8192) ) //Gulp them
+                                if( ldist(s,&sprite[j]) < 768 && (klabs(s->z-sprite[j].z)<8192) ) /* Gulp them */
                                 {
                                     t[5] = j;
                                     t[0] = -2;
@@ -3907,7 +3907,7 @@ void moveactors(void)
                     }
                 }
 
-                //Moving on the ground or ceiling
+                /* Moving on the ground or ceiling */
 
                 if(t[0] == 0 || t[0] == 2)
                 {
@@ -3948,7 +3948,7 @@ void moveactors(void)
 
                         s->ang += getincangle(s->ang,
                                getangle(ps[p].posx-s->x,ps[p].posy-s->y))>>3;
-// TJR
+/*  TJR */
                     }
 
                     s->xrepeat = 36 + (sintable[(t[1]+512)&2047]>>11);
@@ -4056,7 +4056,7 @@ void moveactors(void)
                             s->zvel >>= 2;
                         s->yvel++;
                     }
-                    if( s->z < hittype[i].ceilingz ) // && sector[sect].lotag != 2 )
+                    if( s->z < hittype[i].ceilingz ) /*  && sector[sect].lotag != 2 ) */
                     {
                         s->z = hittype[i].ceilingz+(3<<8);
                         s->zvel = 0;
@@ -4289,7 +4289,7 @@ void moveactors(void)
                     switch( t[1] )
                     {
                         case 3:
-                            //Turn on all of those flashing sectoreffector.
+                            /* Turn on all of those flashing sectoreffector. */
                             hitradius( i, 4096,
                                        impact_damage<<2,
                                        impact_damage<<2,
@@ -4368,7 +4368,7 @@ void moveactors(void)
                     {
                         IFHIT
                         {
-                            t[0] = 1; // static
+                            t[0] = 1; /*  static */
                             s->cstat = (short)32768;
                             for(x=0;x<5;x++) RANDOMSCRAP;
                             goto BOLT;
@@ -4394,7 +4394,7 @@ void moveactors(void)
         }
 
 
-// #ifndef VOLOMEONE
+/*  #ifndef VOLOMEONE */
         if( ud.multimode < 2 && badguy(s) )
         {
             if( actor_tog == 1)
@@ -4404,7 +4404,7 @@ void moveactors(void)
             }
             else if(actor_tog == 2) s->cstat = 257;
         }
-// #endif
+/*  #endif */
 
         p = findplayer(s,&x);
 
@@ -4418,7 +4418,7 @@ void moveactors(void)
 }
 
 
-void moveexplosions(void)  // STATNUM 5
+void moveexplosions(void)  /*  STATNUM 5 */
 {
     short i, j, k, nexti, sect, p;
     long l, x, *t;
@@ -4843,7 +4843,7 @@ void moveexplosions(void)  // STATNUM 5
                         t[0]++;
                         t[0] &= 3;
                     }
-                    if(s->zvel < 128) s->zvel += (gc/13); // 8
+                    if(s->zvel < 128) s->zvel += (gc/13); /*  8 */
                     else s->zvel -= 64;
                     if(s->xvel > 0)
                         s->xvel -= 4;
@@ -4858,7 +4858,7 @@ void moveexplosions(void)  // STATNUM 5
                         t[0]++;
                         t[0] &= 3;
                     }
-                    if(s->zvel < 512) s->zvel += (gc/3); // 52;
+                    if(s->zvel < 512) s->zvel += (gc/3); /*  52; */
                     if(s->xvel > 0)
                         s->xvel --;
                     else KILLIT(i);
@@ -4884,7 +4884,7 @@ void moveexplosions(void)  // STATNUM 5
                     s->yrepeat >>= 1;
                     if( rnd(96) )
                       setsprite(i,s->x,s->y,s->z);
-                    t[0]++;//Number of bounces
+                    t[0]++;/* Number of bounces */
                 }
                 else if( t[0] == 3 ) KILLIT(i);
 
@@ -4956,7 +4956,7 @@ void moveexplosions(void)  // STATNUM 5
     }
 }
 
-void moveeffectors(void)   //STATNUM 3
+void moveeffectors(void)   /* STATNUM 3 */
 {
     long q, l, m, x, st, j, *t;
     short i, k, nexti, nextk, p, sh, nextj;
@@ -5010,7 +5010,7 @@ void moveeffectors(void)   //STATNUM 3
                         }
                         else hittype[i].tempang = 256;
 
-                        if( sc->floorz > s->z ) //z's are touching
+                        if( sc->floorz > s->z ) /* z's are touching */
                         {
                             sc->floorz -= 512;
                             zchange = -512;
@@ -5018,7 +5018,7 @@ void moveeffectors(void)   //STATNUM 3
                                 sc->floorz = s->z;
                         }
 
-                        else if( sc->floorz < s->z ) //z's are touching
+                        else if( sc->floorz < s->z ) /* z's are touching */
                         {
                             sc->floorz += 512;
                             zchange = 512;
@@ -5038,7 +5038,7 @@ void moveeffectors(void)   //STATNUM 3
                         }
                         else hittype[i].tempang = 0;
 
-                        if( sc->floorz > T4 ) //z's are touching
+                        if( sc->floorz > T4 ) /* z's are touching */
                         {
                             sc->floorz -= 512;
                             zchange = -512;
@@ -5046,7 +5046,7 @@ void moveeffectors(void)   //STATNUM 3
                                 sc->floorz = T4;
                         }
 
-                        else if( sc->floorz < T4 ) //z's are touching
+                        else if( sc->floorz < T4 ) /* z's are touching */
                         {
                             sc->floorz += 512;
                             zchange = 512;
@@ -5139,8 +5139,8 @@ void moveeffectors(void)   //STATNUM 3
             }
 
             break;
-            case 1: //Nothing for now used as the pivot
-                if(s->owner == -1) //Init
+            case 1: /* Nothing for now used as the pivot */
+                if(s->owner == -1) /* Init */
                 {
                     s->owner = i;
 
@@ -5183,7 +5183,7 @@ void moveeffectors(void)   //STATNUM 3
                     if( (sprite[j].lotag == 14) && (sh == sprite[j].hitag) && (hittype[j].temp_data[0] == t[0]) )
                     {
                         sprite[j].xvel = s->xvel;
-//                        if( t[4] == 1 )
+/*                         if( t[4] == 1 ) */
                         {
                             if(hittype[j].temp_data[5] == 0)
                                 hittype[j].temp_data[5] = dist(&sprite[j],s);
@@ -5215,7 +5215,7 @@ void moveeffectors(void)   //STATNUM 3
                 {
                     if(st==6)
                         if(sprite[s->owner].hitag&1)
-                            t[4]=sc->extra; //Slow it down
+                            t[4]=sc->extra; /* Slow it down */
                     t[3]++;
                     s->owner = LocateTheLocator(t[3],t[0]);
                     if(s->owner==-1)
@@ -5388,7 +5388,7 @@ void moveeffectors(void)   //STATNUM 3
                 else
                 {
 
-                    if(t[4] == 1) // Starting to go
+                    if(t[4] == 1) /*  Starting to go */
                     {
                         if( ldist( &sprite[s->owner],s ) < (2048-128) )
                             t[4] = 2;
@@ -5535,7 +5535,7 @@ void moveeffectors(void)   //STATNUM 3
                             l = nextspritesect[j];
                             if (sprite[j].statnum == 1 && badguy(&sprite[j]) && sprite[j].picnum != SECTOREFFECTOR && sprite[j].picnum != LOCATORS )
                             {
-            //                    if(sprite[j].sectnum != s->sectnum)
+            /*                     if(sprite[j].sectnum != s->sectnum) */
                                 {
                                     k = sprite[j].sectnum;
                                     updatesector(sprite[j].x,sprite[j].y,&k);
@@ -5556,7 +5556,7 @@ void moveeffectors(void)   //STATNUM 3
                 break;
 
 
-            case 2://Quakes
+            case 2:/* Quakes */
                 if(t[4] > 0 && t[0] == 0 )
                 {
                     if( t[4] < sh )
@@ -5572,7 +5572,7 @@ void moveeffectors(void)   //STATNUM 3
 
                     if(t[0] > 96)
                     {
-                        t[0] = -1; //Stop the quake
+                        t[0] = -1; /* Stop the quake */
                         t[4] = -1;
                         KILLIT(i);
                     }
@@ -5621,25 +5621,25 @@ void moveeffectors(void)   //STATNUM 3
                 }
                 break;
 
-            //Flashing sector lights after reactor EXPLOSION2
+            /* Flashing sector lights after reactor EXPLOSION2 */
 
             case 3:
 
                 if( t[4] == 0 ) break;
                 p = findplayer(s,&x);
 
-            //    if(t[5] > 0) { t[5]--; break; }
+            /*     if(t[5] > 0) { t[5]--; break; } */
 
                 if( (global_random/(sh+1)&31) < 4 && !t[2])
                 {
-             //       t[5] = 4+(global_random&7);
+             /*        t[5] = 4+(global_random&7); */
                     sc->ceilingpal = s->owner>>8;
                     sc->floorpal = s->owner&0xff;
                     t[0] = s->shade + (global_random&15);
                 }
                 else
                 {
-             //       t[5] = 4+(global_random&3);
+             /*        t[5] = 4+(global_random&3); */
                     sc->ceilingpal = s->pal;
                     sc->floorpal = s->pal;
                     t[0] = t[3];
@@ -5668,7 +5668,7 @@ void moveeffectors(void)   //STATNUM 3
 
                 if((global_random/(sh+1)&31) < 4 )
                 {
-                    t[1] = s->shade + (global_random&15);//Got really bright
+                    t[1] = s->shade + (global_random&15);/* Got really bright */
                     t[0] = s->shade + (global_random&15);
                     sc->ceilingpal = s->owner>>8;
                     sc->floorpal = s->owner&0xff;
@@ -5720,7 +5720,7 @@ void moveeffectors(void)   //STATNUM 3
 
                 break;
 
-            //BOSS
+            /* BOSS */
             case 5:
                 p = findplayer(s,&x);
                 if(x < 8192)
@@ -5731,13 +5731,13 @@ void moveeffectors(void)   //STATNUM 3
                     s->ang = j;
                 }
 
-                if(s->owner==-1) //Start search
+                if(s->owner==-1) /* Start search */
                 {
                     t[4]=0;
                     l = 0x7fffffff;
-                    while(1) //Find the shortest dist
+                    while(1) /* Find the shortest dist */
                     {
-                        s->owner = LocateTheLocator((short)t[4],-1); //t[0] hold sectnum
+                        s->owner = LocateTheLocator((short)t[4],-1); /* t[0] hold sectnum */
 
                         if(s->owner==-1) break;
 
@@ -5804,7 +5804,7 @@ void moveeffectors(void)   //STATNUM 3
             case 8:
             case 9:
 
-                // work only if its moving
+                /*  work only if its moving */
 
                 j = -1;
 
@@ -5905,7 +5905,7 @@ void moveeffectors(void)   //STATNUM 3
                 }
                 else t[0]=0;
                 break;
-            case 11: //Swingdoor
+            case 11: /* Swingdoor */
 
                 if( t[5] > 0)
                 {
@@ -5935,7 +5935,7 @@ void moveeffectors(void)   //STATNUM 3
                         {
                             if( sprite[k].owner >= 0 && clipinsidebox(sprite[k].x,sprite[k].y,j,144L) == 1 )
                             {
-                                t[5] = 8; // Delay
+                                t[5] = 8; /*  Delay */
                                 k = (SP>>3)*t[3];
                                 t[2]-=k;
                                 t[4]-=k;
@@ -5964,7 +5964,7 @@ void moveeffectors(void)   //STATNUM 3
                 }
                 break;
             case 12:
-                if( t[0] == 3 || t[3] == 1 ) //Lights going off
+                if( t[0] == 3 || t[3] == 1 ) /* Lights going off */
                 {
                     sc->floorpal = 0;
                     sc->ceilingpal = 0;
@@ -5996,7 +5996,7 @@ void moveeffectors(void)   //STATNUM 3
 
                     if(t[3] == 1) KILLIT(i);
                 }
-                if( t[0] == 1 ) //Lights flickering on
+                if( t[0] == 1 ) /* Lights flickering on */
                 {
                     if( sc->floorshade > s->shade )
                     {
@@ -6063,7 +6063,7 @@ void moveeffectors(void)   //STATNUM 3
 
                     if( t[3] == 1 )
                     {
-                        //Change the shades
+                        /* Change the shades */
 
                         t[3]++;
                         sc->ceilingstat ^= 1;
@@ -6102,11 +6102,11 @@ void moveeffectors(void)   //STATNUM 3
                 {
                     s->xvel = 16;
 
-                    if(t[4] == 1) //Opening
+                    if(t[4] == 1) /* Opening */
                     {
                         if( t[3] >= (SP>>3) )
                         {
-                            t[4] = 0; //Turn off the sliders
+                            t[4] = 0; /* Turn off the sliders */
                             callsound(s->sectnum,i);
                             break;
                         }
@@ -6128,7 +6128,7 @@ void moveeffectors(void)   //STATNUM 3
                 }
                 break;
 
-            case 16: //Reactor
+            case 16: /* Reactor */
 
                 t[2]+=32;
                 if(sc->floorz<sc->ceilingz) s->shade=0;
@@ -6136,10 +6136,10 @@ void moveeffectors(void)   //STATNUM 3
                 else if( sc->ceilingz < t[3] )
                 {
 
-                    //The following code check to see if
-                    //there is any other sprites in the sector.
-                    //If there isn't, then kill this sectoreffector
-                    //itself.....
+                    /* The following code check to see if */
+                    /* there is any other sprites in the sector. */
+                    /* If there isn't, then kill this sectoreffector */
+                    /* itself..... */
 
                     j = headspritesect[s->sectnum];
                     while(j >= 0)
@@ -6196,7 +6196,7 @@ void moveeffectors(void)   //STATNUM 3
                     j = nextspritesect[j];
                 }
 
-                if( t[0] )                if(t[0]) //If in motion
+                if( t[0] )                if(t[0]) /* If in motion */
                 {
                     if( klabs(sc->floorz-t[2]) <= SP)
                     {
@@ -6368,7 +6368,7 @@ void moveeffectors(void)   //STATNUM 3
                 }
                 break;
 
-            case 19: //Battlestar galactia shields
+            case 19: /* Battlestar galactia shields */
 
                 if(t[0])
                 {
@@ -6414,7 +6414,7 @@ void moveeffectors(void)   //STATNUM 3
                         KILLIT(i);
                     }
                 }
-                else //Not hit yet
+                else /* Not hit yet */
                 {
                     IFHITSECT
                     {
@@ -6441,13 +6441,13 @@ void moveeffectors(void)   //STATNUM 3
 
                                 case 1:
                                 case 12:
-//                                case 18:
+/*                                 case 18: */
                                 case 19:
 
                                     if( sh == sprite[l].hitag )
                                         if( hittype[l].temp_data[0] == 0 )
                                         {
-                                            hittype[l].temp_data[0] = 1; //Shut them all on
+                                            hittype[l].temp_data[0] = 1; /* Shut them all on */
                                             sprite[l].owner = i;
                                         }
 
@@ -6460,13 +6460,13 @@ void moveeffectors(void)   //STATNUM 3
 
                 break;
 
-            case 20: //Extend-o-bridge
+            case 20: /* Extend-o-bridge */
 
                 if( t[0] == 0 ) break;
                 if( t[0] == 1 ) s->xvel = 8;
                 else s->xvel = -8;
 
-                if( s->xvel ) //Moving
+                if( s->xvel ) /* Moving */
                 {
                     x = (s->xvel*sintable[(s->ang+512)&2047])>>14;
                     l = (s->xvel*sintable[s->ang&2047])>>14;
@@ -6526,7 +6526,7 @@ void moveeffectors(void)   //STATNUM 3
 
                 break;
 
-            case 21: // Cascading effect
+            case 21: /*  Cascading effect */
             {
                 int32_t *zptr;
 
@@ -6537,7 +6537,7 @@ void moveeffectors(void)   //STATNUM 3
                 else
                     zptr = &sc->floorz;
 
-                if( t[0] == 1 ) //Decide if the s->sectnum should go up or down
+                if( t[0] == 1 ) /* Decide if the s->sectnum should go up or down */
                 {
                     s->zvel = ksgn(s->z-*zptr) * (SP<<4);
                     t[0]++;
@@ -6550,7 +6550,7 @@ void moveeffectors(void)   //STATNUM 3
                     if(klabs(*zptr-s->z) < 1024)
                     {
                         *zptr = s->z;
-                        KILLIT(i); //All done
+                        KILLIT(i); /* All done */
                     }
                 }
                 else sc->extra--;
@@ -6689,7 +6689,7 @@ void moveeffectors(void)   //STATNUM 3
                 }
                 break;
 
-            case 25: //PISTONS
+            case 25: /* PISTONS */
 
                 if( t[4] == 0 ) break;
 
@@ -6906,10 +6906,10 @@ void moveeffectors(void)   //STATNUM 3
                 l = mulscale12((long)s->yvel,sintable[s->hitag&2047]);
                 sc->floorz = s->z + l;
                 break;
-            case 31: // True Drop Floor
+            case 31: /*  True Drop Floor */
                 if(t[0] == 1)
                 {
-                    // Choose dir
+                    /*  Choose dir */
 
                     if(t[3] > 0)
                     {
@@ -6917,7 +6917,7 @@ void moveeffectors(void)   //STATNUM 3
                         break;
                     }
 
-                    if(t[2] == 1) // Retract
+                    if(t[2] == 1) /*  Retract */
                     {
                         if(SA != 1536)
                         {
@@ -7055,12 +7055,12 @@ void moveeffectors(void)   //STATNUM 3
                 }
                 break;
 
-           case 32: // True Drop Ceiling
+           case 32: /*  True Drop Ceiling */
                 if(t[0] == 1)
                 {
-                    // Choose dir
+                    /*  Choose dir */
 
-                    if(t[2] == 1) // Retract
+                    if(t[2] == 1) /*  Retract */
                     {
                         if(SA != 1536)
                         {
@@ -7133,7 +7133,7 @@ void moveeffectors(void)   //STATNUM 3
                 }
                 break;
 
-            case 128: //SE to control glass breakage
+            case 128: /* SE to control glass breakage */
 
                 wal = &wall[t[2]];
 
@@ -7200,7 +7200,7 @@ void moveeffectors(void)   //STATNUM 3
         i = nexti;
     }
 
-         //Sloped sin-wave floors!
+         /* Sloped sin-wave floors! */
      for(i=headspritestat[3];i>=0;i=nextspritestat[i])
      {
           s = &sprite[i];

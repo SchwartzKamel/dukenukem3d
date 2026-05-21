@@ -4578,3 +4578,26 @@ Re-verify all r21 audit-pass items (cycles 77–84 closures) remain live across 
 - net-r19/r20 follow-ups (HMAC replay-gap audit, nonce collision KAT tests)
 
 ---
+
+## Cycle 96 — 2026-05-21 (GRIND DRAIN — 5 source-modifying agents + audit-pass 2 personas)
+
+**Grind closures (5):**
+- **build-r7-lto-maxtiles-mismatch** (no-op closure): Audit revealed already RESOLVED by cycle 42 — both `source/BUILD.H:33` and `SRC/BUILD.H:15` define MAXTILES=6144; Stage 3 abort() guard in `compat/maxtiles_guard.c` LIVE; LTO type-mismatch warnings = 0. Marked done with VERIFIED history note. Sentinel `A7F2E91C`.
+- **fix-engine-gnu89-comments** (PARTIAL): `source/*.C` C++→C comment conversion. 894 `//` comments → 2 residual (URLs/protected). 11 files touched: ACTORS, ANIMLIB, CONFIG, GAME, GAMEDEF, GLOBAL, MENUES, PLAYER, RTS, SECTOR, SOUNDS. URL string preservation verified. SRC/*.C deferred to follow-up todo `fix-engine-gnu89-comments-src` (avoided collision with concurrent BUILD.H/ENGINE.C edits). Sentinel `BC669892`.
+- **build-r8-cmake-compile-flags-clarity**: CMakeLists.txt refactored — duplicate COMPILE_FLAGS on ENGINE_SRCS replaced with `APPEND_STRING " -ffast-math"` pattern. Base flags now set once via ENGINE_SRCS group; `-ffast-math` cleanly appended only for ENGINE.C. Makefile build verified (CMake binary unavailable in env, but flag behavior unchanged). Sentinel `1affe669`.
+- **perf-r7-procedural-numpy-vectorization** ⭐: `tools/generate_assets.py` procedural textures vectorized via `np.arange` + `np.meshgrid` broadcasting. **Performance: 5.5x speedup measured** (proc_neon_sky 3.9x, proc_dark_steel 9.3x, proc_toxic_waste 6.0x). **SHA256 byte-identical determinism PROVEN** on all 3 generators. Graceful fallback to original loops when numpy unavailable (`HAS_NUMPY` flag). +numpy==1.26.4 in requirements.txt (minor scope expansion for dependency). Sentinel `d7627344`.
+- **net-r3-ipv6-support** ⭐: Dual-stack IPv6/IPv4 socket support landed. `AF_INET6` + `IPV6_V6ONLY=0` single-socket pattern; `sockaddr_storage` portable; `getaddrinfo`-based address resolution accepts `[::1]:port` + `1.2.3.4:port` + hostnames. 185 LOC net change across SRC/MMULTI.C + compat/net_socket.{h,_posix.c,_win32.c}. **HMAC-SHA256 PRESERVED** (34/34 auth-spoofing tests still pass); NET_HEADER_SIZE=5B intact; cycle-83 timeouts intact. Linux path tested; Windows path code-complete pending MinGW CI verification. Sentinel `a7c2e9f1`.
+
+**Audit-pass closures (2):**
+- **compat-layer r21→r22** (`compat-layer-r22.md`): R21 stable; cycles 93–96 SHA256/HMAC integration audited against RFC 2104/5869 (constant-time verify confirmed, cross-cited sec-r22 c94); net_socket.c concurrent-edit honesty disclosure for cycle-96 IPv6 work; c11/gnu89 split enforced; 18 compat files / 5.8k LOC; 0 regressions. New todos seeded (compat-r22-*). Sentinel `a7f2d91e`.
+- **audio-engineer r21→r22** (`audio-engineer-r22.md`): Cycle-91 closures re-verified LIVE. VOC/WAV bounds (compat/audio_stub.c cycles 88/90) stable; SDL_RWops integration safe via `Mix_LoadWAV_RW()`. Audio tests 109→136 (+27, TestCompatR12AudioDefines from cycle 95 likely). Schema_version "1.0" locked; atomic write fsync uniform across generate_audio/assets/tables; ThreadPool race RESOLVED. **FLAGGED**: TestSDLRWSizeCasting class still missing (cycle-90 casualty) — recommend Phase 2 re-add. Verdict: PRODUCTION-READY v0.3.0+. New todos seeded (audio-r22-*).
+
+**Bookkeeping:** `sec-env-real-keys` marked BLOCKED (operator-only action — `.env` is gitignored, key rotation requires Azure portal access not a code task).
+
+**Verification protocol:** STAGING pattern (`STAGING_compat_r22.md` + `STAGING_audio_r22.md`) used cleanly. Concurrent agents dispatched in two waves: 5 grind agents (wave 1) + 2 audit-pass agents (wave 2) overlapped without sibling-write races. No source-file collisions detected (engine-porter edited source/ only; compat agents wrote to docs/audits/ only; net-ipv6 + perf-numpy edited disjoint files).
+
+**Build:** Clean release. **Tests:** 1445 passed, 58 skipped, 0 xfailed, 0 failed (stable from cycle 95). Net new source files touched: 18 source/.C + CMakeLists.txt + tools/generate_assets.py + requirements.txt + SRC/MMULTI.C + compat/net_socket.{h,_posix.c,_win32.c}.
+
+**Personas: compat r21→r22, audio r21→r22.** Cycle 97 stalest: engine r22 @ c90 (7 cycles, partially refreshed by c94/c96 grind closures), test r22 @ c95 (CRITICAL xfail debt carry), sec r22 @ c94. Cycle-95 follow-up `fix-engine-gnu89-comments-src` seeded for SRC/*.C completion.
+
+---

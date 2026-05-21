@@ -25,7 +25,14 @@ typedef SOCKET net_socket_t;
 #else
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
+#include <netdb.h>
 typedef int net_socket_t;
+#endif
+
+/* IPv6 support: struct sockaddr_storage (dual-stack container) */
+#ifndef _WIN32
+#include <netinet/in.h>
 #endif
 
 /* Portable invalid socket constant */
@@ -49,6 +56,9 @@ net_socket_t net_socket_accept(net_socket_t sock, struct sockaddr *addr, int *ad
 int net_socket_connect(net_socket_t sock, const struct sockaddr *addr, int addrlen);
 int net_socket_send(net_socket_t sock, const void *buf, int len);
 int net_socket_recv(net_socket_t sock, void *buf, int len);
+
+/* IPv6 support: address resolution via getaddrinfo */
+int net_socket_resolve_address(const char *host, const char *port, struct sockaddr_storage *addr, int *addrlen);
 
 /* Socket control */
 int net_socket_set_nonblocking(net_socket_t sock);

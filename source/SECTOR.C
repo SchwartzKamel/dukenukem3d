@@ -1,4 +1,4 @@
-//-------------------------------------------------------------------------
+/* ------------------------------------------------------------------------- */
 /*
 Copyright (C) 1996, 2003 - 3D Realms Entertainment
 
@@ -22,14 +22,14 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 Original Source: 1996 - Todd Replogle
 Prepared for public release: 03/21/2003 - Charlie Wiederhold, 3D Realms
 */
-//-------------------------------------------------------------------------
+/* ------------------------------------------------------------------------- */
 
 #include "compat.h"
 #include "pragmas_gcc.h"
 #include "audio_stub.h"
 #include "DUKE3D.H"
 
-// PRIMITIVE
+/*  PRIMITIVE */
 
 static int operatesectors_depth = 0;
 #define OPERATESECTORS_MAX_DEPTH 64
@@ -190,7 +190,7 @@ char isanearoperator(short lotag)
         case 23:
         case 25:
         case 26:
-        case 29://Toothed door
+        case 29:/* Toothed door */
             return 1;
     }
     return 0;
@@ -411,7 +411,7 @@ void animatewalls(void)
     long i, j, p, t;
 
     for(p=0;p < numanimwalls ;p++)
-//    for(p=numanimwalls-1;p>=0;p--)
+/*     for(p=numanimwalls-1;p>=0;p--) */
     {
         i = animwall[p].wallnum;
         j = wall[i].picnum;
@@ -471,8 +471,8 @@ void animatewalls(void)
 
                 if(wall[i].cstat&254)
                 {
-                    wall[i].xpanning -= t>>10; // sintable[(t+512)&2047]>>12;
-                    wall[i].ypanning -= t>>10; // sintable[t&2047]>>12;
+                    wall[i].xpanning -= t>>10; /*  sintable[(t+512)&2047]>>12; */
+                    wall[i].ypanning -= t>>10; /*  sintable[t&2047]>>12; */
 
                     if(wall[i].extra == 1)
                     {
@@ -501,13 +501,13 @@ void animatewalls(void)
     }
 }
 
-char activatewarpelevators(short s,short d) //Parm = sectoreffectornum
+char activatewarpelevators(short s,short d) /* Parm = sectoreffectornum */
 {
     short i, sn;
 
     sn = sprite[s].sectnum;
 
-    // See if the sector exists
+    /*  See if the sector exists */
 
     i = headspritestat[3];
     while(i >= 0)
@@ -523,7 +523,7 @@ char activatewarpelevators(short s,short d) //Parm = sectoreffectornum
     if(i==-1)
     {
         d = 0;
-        return 1; // No find
+        return 1; /*  No find */
     }
     else
     {
@@ -540,7 +540,7 @@ char activatewarpelevators(short s,short d) //Parm = sectoreffectornum
             if( SHT == sprite[s].hitag )
             {
                 T1 = d;
-                T2 = d; //Make all check warp
+                T2 = d; /* Make all check warp */
             }
         i = nextspritestat[i];
     }
@@ -590,9 +590,9 @@ void operatesectors(short sn,short ii)
             callsound(sn,ii);
             break;
 
-        case 26: //The split doors
+        case 26: /* The split doors */
             i = getanimationgoal(&sptr->ceilingz);
-            if(i == -1) //if the door has stopped
+            if(i == -1) /* if the door has stopped */
             {
                 haltsoundhack = 1;
                 sptr->lotag &= 0xff00;
@@ -616,7 +616,7 @@ void operatesectors(short sn,short ii)
 
             sp = sptr->extra>>4;
 
-            //first find center point by averaging all points
+            /* first find center point by averaging all points */
             dax = 0L, day = 0L;
             for(i=startwall;i<=endwall;i++)
             {
@@ -626,8 +626,8 @@ void operatesectors(short sn,short ii)
             dax /= (endwall-startwall+1);
             day /= (endwall-startwall+1);
 
-            //find any points with either same x or same y coordinate
-            //  as center (dax, day) - should be 2 points found.
+            /* find any points with either same x or same y coordinate */
+            /*   as center (dax, day) - should be 2 points found. */
             wallfind[0] = -1;
             wallfind[1] = -1;
             for(i=startwall;i<=endwall;i++)
@@ -642,8 +642,8 @@ void operatesectors(short sn,short ii)
             {
                 if ((wall[wallfind[j]].x == dax) && (wall[wallfind[j]].y == day))
                 {
-                    //find what direction door should open by averaging the
-                    //  2 neighboring points of wallfind[0] & wallfind[1].
+                    /* find what direction door should open by averaging the */
+                    /*   2 neighboring points of wallfind[0] & wallfind[1]. */
                     i = wallfind[j]-1; if (i < startwall) i = endwall;
                     dax2 = ((wall[i].x+wall[wall[wallfind[j]].point2].x)>>1)-wall[wallfind[j]].x;
                     day2 = ((wall[i].y+wall[wall[wallfind[j]].point2].y)>>1)-wall[wallfind[j]].y;
@@ -691,10 +691,10 @@ void operatesectors(short sn,short ii)
         }
         goto cleanup_operatesectors;
 
-        case 15://Warping elevators
+        case 15:/* Warping elevators */
 
             if(sprite[ii].picnum != APLAYER) return;
-//            if(ps[sprite[ii].yvel].select_dir == 1) return;
+/*             if(ps[sprite[ii].yvel].select_dir == 1) return; */
 
             i = headspritesect[sn];
             while(i >= 0)
@@ -772,7 +772,7 @@ void operatesectors(short sn,short ii)
             else
                 j = sector[nextsectorneighborz(sn,sptr->ceilingz,-1,-1)].ceilingz;
 
-            i = headspritestat[3]; //Effectors
+            i = headspritestat[3]; /* Effectors */
             while(i >= 0)
             {
                 if( (SLT == 22) &&
@@ -856,7 +856,7 @@ void operatesectors(short sn,short ii)
 
         case 22:
 
-            // REDODOOR22:
+            /*  REDODOOR22: */
 
             if ( (sptr->lotag&0x8000) )
             {
@@ -878,7 +878,7 @@ void operatesectors(short sn,short ii)
 
             goto cleanup_operatesectors;
 
-        case 23: //Swingdoor
+        case 23: /* Swingdoor */
 
             j = -1;
             q = 0;
@@ -918,13 +918,13 @@ void operatesectors(short sn,short ii)
             }
             goto cleanup_operatesectors;
 
-        case 25: //Subway type sliding doors
+        case 25: /* Subway type sliding doors */
 
             j = headspritestat[3];
-            while(j >= 0)//Find the sprite
+            while(j >= 0)/* Find the sprite */
             {
                 if( (sprite[j].lotag) == 15 && sprite[j].sectnum == sn )
-                    break; //Found the sectoreffector.
+                    break; /* Found the sectoreffector. */
                 j = nextspritestat[j];
             }
 
@@ -938,7 +938,7 @@ void operatesectors(short sn,short ii)
                 {
                     if( SLT == 15 )
                     {
-                        sector[SECT].lotag ^= 0x8000; // Toggle the open or close
+                        sector[SECT].lotag ^= 0x8000; /*  Toggle the open or close */
                         SA += 1024;
                         if(T5) callsound(SECT,i);
                         callsound(SECT,i);
@@ -950,16 +950,16 @@ void operatesectors(short sn,short ii)
             }
             goto cleanup_operatesectors;
 
-        case 27:  //Extended bridge
+        case 27:  /* Extended bridge */
 
             j = headspritestat[3];
             while(j >= 0)
             {
-                if( (sprite[j].lotag&0xff)==20 && sprite[j].sectnum == sn) //Bridge
+                if( (sprite[j].lotag&0xff)==20 && sprite[j].sectnum == sn) /* Bridge */
                 {
 
                     sector[sn].lotag ^= 0x8000;
-                    if(sector[sn].lotag&0x8000) //OPENING
+                    if(sector[sn].lotag&0x8000) /* OPENING */
                         hittype[j].temp_data[0] = 1;
                     else hittype[j].temp_data[0] = 2;
                     callsound(sn,ii);
@@ -971,13 +971,13 @@ void operatesectors(short sn,short ii)
 
 
         case 28:
-            //activate the rest of them
+            /* activate the rest of them */
 
             j = headspritesect[sn];
             while(j >= 0)
             {
                 if(sprite[j].statnum==3 && (sprite[j].lotag&0xff)==21)
-                    break; //Found it
+                    break; /* Found it */
                 j = nextspritesect[j];
             }
 
@@ -1018,7 +1018,7 @@ void operaterespawns(short low)
                 j = spawn(i,TRANSPORTERSTAR);
                 sprite[j].z -= (32<<8);
 
-                sprite[i].extra = 66-12;   // Just a way to killit
+                sprite[i].extra = 66-12;   /*  Just a way to killit */
                 break;
         }
         i = nexti;
@@ -1177,7 +1177,7 @@ char checkhitswitch(short snum,long w,char switchtype)
     correctdips = 1;
     numdips = 0;
 
-    if(switchtype == 1) // A wall sprite
+    if(switchtype == 1) /*  A wall sprite */
     {
         lotag = sprite[w].lotag; if(lotag == 0) return 0;
         hitag = sprite[w].hitag;
@@ -1556,7 +1556,7 @@ void activatebysector(short sect,short j)
         {
             operateactivators(SLT,-1);
             didit = 1;
-//            return;
+/*             return; */
         }
         i = nextspritesect[i];
     }
@@ -1610,7 +1610,7 @@ void checkhitwall(short spr,short dawallnum,long x,long y,long z,short atwith)
         case W_FORCEFIELD:
         case W_FORCEFIELD+1:
         case W_FORCEFIELD+2:
-            wal->extra = 1; // tell the forces to animate
+            wal->extra = 1; /*  tell the forces to animate */
         case BIGFORCE:
             updatesector(x,y,&sn);
             if( sn < 0 ) return;
@@ -2018,7 +2018,7 @@ void checkhitsprite(short i,short sn)
             }
             break;
         case CACTUS:
-//        case CACTUSBROKE:
+/*         case CACTUSBROKE: */
             switch(sprite[sn].picnum)
             {
                 case RADIUSEXPLOSION:
@@ -2035,7 +2035,7 @@ void checkhitsprite(short i,short sn)
                     if(PN == CACTUS)
                         PN = CACTUSBROKE;
                     CS &= ~257;
-             //       else deletesprite(i);
+             /*        else deletesprite(i); */
                     break;
             }
             break;
@@ -2185,11 +2185,11 @@ void checkhitsprite(short i,short sn)
             PN = BROKEFIREHYDRENT;
             spawn(i,TOILETWATER);
 
-//            for(k=0;k<5;k++)
-  //          {
-    //            j = EGS(SECT,SX,SY,SZ-(TRAND%(48<<8)),SCRAP3+(TRAND&3),-8,48,48,TRAND&2047,(TRAND&63)+64,-(TRAND&4095)-(sprite[i].zvel>>2),i,5);
-      //          sprite[j].pal = 2;
-        //    }
+/*             for(k=0;k<5;k++) */
+  /*           { */
+    /*             j = EGS(SECT,SX,SY,SZ-(TRAND%(48<<8)),SCRAP3+(TRAND&3),-8,48,48,TRAND&2047,(TRAND&63)+64,-(TRAND&4095)-(sprite[i].zvel>>2),i,5); */
+      /*           sprite[j].pal = 2; */
+        /*     } */
             spritesound(GLASS_HEAVYBREAK,i);
             break;
 
@@ -2771,7 +2771,7 @@ void cheatkeys(short snum)
                         addweapon(p, j);
                         break;
                     case HANDREMOTE_WEAPON:
-                        if(k >= 0) // Found in list of [1]'s
+                        if(k >= 0) /*  Found in list of [1]'s */
                         {
                             p->curr_weapon = HANDREMOTE_WEAPON;
                             p->last_weapon = -1;
@@ -2949,7 +2949,7 @@ void checksectors(short snum)
 
     }
 
-    //After this point the the player effects the map with space
+    /* After this point the the player effects the map with space */
 
     if(p->gm&MODE_TYPE || sprite[p->i].extra <= 0) return;
 
@@ -3131,7 +3131,7 @@ void checksectors(short snum)
                         {
                             if( PN == CAMERA1 && SP == 0 && sprite[neartagsprite].hitag == SLT )
                             {
-                                SP = 1; //Using this camera
+                                SP = 1; /* Using this camera */
                                 spritesound(MONITOR_ACTIVE,neartagsprite);
 
                                 sprite[neartagsprite].owner = i;
@@ -3143,7 +3143,7 @@ void checksectors(short snum)
                                 setpal(p);
                                 p->cursectnum = j;
 
-                                // parallaxtype = 2;
+                                /*  parallaxtype = 2; */
                                 p->newowner = i;
                                 return;
                             }

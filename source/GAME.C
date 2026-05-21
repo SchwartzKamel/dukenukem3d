@@ -1,4 +1,4 @@
-//-------------------------------------------------------------------------
+/* ------------------------------------------------------------------------- */
 /*
 Copyright (C) 1996, 2003 - 3D Realms Entertainment
 
@@ -22,7 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 Original Source: 1996 - Todd Replogle
 Prepared for public release: 03/21/2003 - Charlie Wiederhold, 3D Realms
 */
-//-------------------------------------------------------------------------
+/* ------------------------------------------------------------------------- */
 
 #include "compat.h"
 #include "pragmas_gcc.h"
@@ -57,8 +57,8 @@ Prepared for public release: 03/21/2003 - Charlie Wiederhold, 3D Realms
 #define HEAD2A "Duke Nukem 3D AUSSIE Full Version v"VERSION
 
 #define IDFSIZE 479985668
-// #define IDFSIZE 9961476
-// #define IDFSIZE 16384
+/*  #define IDFSIZE 9961476 */
+/*  #define IDFSIZE 16384 */
 #define IDFILENAME "DUKE3D.IDF"
 
 
@@ -284,7 +284,7 @@ int minitext(int x,int y,char *t,char p,char sb)
         else ac = *t - '!' + MINIFONT;
 
         rotatesprite(x<<16,y<<16,65536L,0,ac,0,p,sb,0,0,xdim-1,ydim-1);
-        x += 4; // tilesizx[ac]+1;
+        x += 4; /*  tilesizx[ac]+1; */
 
         t++;
     }
@@ -302,7 +302,7 @@ int minitextshade(int x,int y,char *t,char s,char p,char sb)
         else ac = *t - '!' + MINIFONT;
 
         rotatesprite(x<<16,y<<16,65536L,0,ac,s,p,sb,0,0,xdim-1,ydim-1);
-        x += 4; // tilesizx[ac]+1;
+        x += 4; /*  tilesizx[ac]+1; */
 
         t++;
     }
@@ -344,7 +344,7 @@ void allowtimetocorrecterrorswhenquitting(void)
 long quotebot, quotebotgoal;
 short user_quote_time[MAXUSERQUOTES];
 char user_quote[MAXUSERQUOTES][128];
-// char typebuflen,typebuf[41];
+/*  char typebuflen,typebuf[41]; */
 
 adduserquote(char *daquote)
 {
@@ -417,7 +417,7 @@ void getpackets(void)
                 loadplayer( multipos );
                 multiflag = 0;
                 break;
-            case 0:  //[0] (receive master sync buffer)
+            case 0:  /* [0] (receive master sync buffer) */
                 j = 1;
 
                 if ((movefifoend[other]&(TIMERUPDATESIZ-1)) == 0)
@@ -525,7 +525,7 @@ void getpackets(void)
                  movefifosendplc += movesperpacket;
 
                 break;
-            case 1:  //[1] (receive slave sync buffer)
+            case 1:  /* [1] (receive slave sync buffer) */
                 {
                     int required_len;
                     j = 2; k = packbuf[1];
@@ -852,7 +852,7 @@ void getpackets(void)
 void faketimerhandler()
 {
     long i, j, k, l;
-//    short who;
+/*     short who; */
     input *osyn, *nsyn;
 
     timer_update();
@@ -906,7 +906,7 @@ void faketimerhandler()
           if (ud.multimode > 1) for(i=connecthead;i>=0;i=connectpoint2[i])
               if(i != myconnectindex)
               {
-                  //clearbufbyte(&inputfifo[movefifoend[i]&(MOVEFIFOSIZ-1)][i],sizeof(input),0L);
+                  /* clearbufbyte(&inputfifo[movefifoend[i]&(MOVEFIFOSIZ-1)][i],sizeof(input),0L); */
                   if(ud.playerai)
                       computergetinput(i,&inputfifo[movefifoend[i]&(MOVEFIFOSIZ-1)][i]);
                   movefifoend[i]++;
@@ -935,7 +935,7 @@ void faketimerhandler()
         if ((movefifoend[myconnectindex]-1) == 0) packbuf[0] = 16;
         j = 1;
 
-            //Fix timers and buffer/jitter value
+            /* Fix timers and buffer/jitter value */
         if (((movefifoend[myconnectindex]-1)&(TIMERUPDATESIZ-1)) == 0)
         {
             if (myconnectindex != connecthead)
@@ -1002,9 +1002,9 @@ void faketimerhandler()
 
         return;
     }
-    if (myconnectindex != connecthead)   //Slave
+    if (myconnectindex != connecthead)   /* Slave */
     {
-            //Fix timers and buffer/jitter value
+            /* Fix timers and buffer/jitter value */
         if (((movefifoend[myconnectindex]-1)&(TIMERUPDATESIZ-1)) == 0)
         {
             i = myminlag[connecthead]-otherminlag;
@@ -1061,7 +1061,7 @@ void faketimerhandler()
         return;
     }
 
-        //This allows allow packet-resends
+        /* This allows allow packet-resends */
     for(i=connecthead;i>=0;i=connectpoint2[i])
         if (movefifoend[i] <= movefifosendplc)
         {
@@ -1071,7 +1071,7 @@ void faketimerhandler()
             return;
         }
 
-    while (1)  //Master
+    while (1)  /* Master */
     {
         for(i=connecthead;i>=0;i=connectpoint2[i])
             if (playerquitflag[i] && (movefifoend[i] <= movefifosendplc)) return;
@@ -1079,10 +1079,10 @@ void faketimerhandler()
         osyn = (input *)&inputfifo[(movefifosendplc-1)&(MOVEFIFOSIZ-1)][0];
         nsyn = (input *)&inputfifo[(movefifosendplc  )&(MOVEFIFOSIZ-1)][0];
 
-            //MASTER -> SLAVE packet
+            /* MASTER -> SLAVE packet */
         packbuf[0] = 0; j = 1;
 
-            //Fix timers and buffer/jitter value
+            /* Fix timers and buffer/jitter value */
         if ((movefifosendplc&(TIMERUPDATESIZ-1)) == 0)
         {
             for(i=connectpoint2[connecthead];i>=0;i=connectpoint2[i])
@@ -1521,7 +1521,7 @@ void weaponnum999(char ind,long x,long y,long num1, long num2,char ha)
 }
 
 
-    //REPLACE FULLY
+    /* REPLACE FULLY */
 void weapon_amounts(struct player_struct *p,long x,long y,long u)
 {
      int cw;
@@ -1798,7 +1798,7 @@ void coolgaugetext(short snum)
                 sbar.frag[i] = ps[i].frag;
     }
 
-    if (ss == 4)   //DRAW MINI STATUS BAR:
+    if (ss == 4)   /* DRAW MINI STATUS BAR: */
     {
         rotatesprite(5<<16,(200-28)<<16,65536L,0,HEALTHBOX,0,21,10+16,0,0,xdim-1,ydim-1);
         if (p->inven_icon)
@@ -1850,7 +1850,7 @@ void coolgaugetext(short snum)
         return;
     }
 
-        //DRAW/UPDATE FULL STATUS BAR:
+        /* DRAW/UPDATE FULL STATUS BAR: */
 
     if (pus) { pus = 0; u = 0xffffffff; } else u = 0;
 
@@ -1879,23 +1879,23 @@ void coolgaugetext(short snum)
     if (sbar.boot_amount != p->boot_amount) { sbar.boot_amount = p->boot_amount; u |= 8192; }
     if (u == 0) return;
 
-    //0 - update health
-    //1 - update armor
-    //2 - update PISTOL_WEAPON ammo
-    //3 - update SHOTGUN_WEAPON ammo
-    //4 - update CHAINGUN_WEAPON ammo
-    //5 - update RPG_WEAPON ammo
-    //6 - update HANDBOMB_WEAPON ammo
-    //7 - update SHRINKER_WEAPON ammo
-    //8 - update DEVISTATOR_WEAPON ammo
-    //9 - update TRIPBOMB_WEAPON ammo
-    //10 - update ammo display
-    //11 - update inventory icon
-    //12 - update inventory on/off
-    //13 - update inventory %
-    //14 - update keys
-    //15 - update kills
-    //16 - update FREEZE_WEAPON ammo
+    /* 0 - update health */
+    /* 1 - update armor */
+    /* 2 - update PISTOL_WEAPON ammo */
+    /* 3 - update SHOTGUN_WEAPON ammo */
+    /* 4 - update CHAINGUN_WEAPON ammo */
+    /* 5 - update RPG_WEAPON ammo */
+    /* 6 - update HANDBOMB_WEAPON ammo */
+    /* 7 - update SHRINKER_WEAPON ammo */
+    /* 8 - update DEVISTATOR_WEAPON ammo */
+    /* 9 - update TRIPBOMB_WEAPON ammo */
+    /* 10 - update ammo display */
+    /* 11 - update inventory icon */
+    /* 12 - update inventory on/off */
+    /* 13 - update inventory % */
+    /* 14 - update keys */
+    /* 15 - update kills */
+    /* 16 - update FREEZE_WEAPON ammo */
 
     if (u == 0xffffffff)
     {
@@ -2123,7 +2123,7 @@ void FTA(short q,struct player_struct *p)
         p->fta = 100;
 
         if( p->ftq != q || q == 26 )
-        // || q == 26 || q == 115 || q ==116 || q == 117 || q == 122 )
+        /*  || q == 26 || q == 115 || q ==116 || q == 117 || q == 122 ) */
         {
             p->ftq = q;
             pub = NUMPAGES;
@@ -2155,7 +2155,7 @@ void showtwoscreens(void)
     nextpage(); for(i=63;i>0;i-=7) palto(0,0,0,i);
     while( !KB_KeyWaiting() && !sdl_checkquit() ) getpackets();
 #else
-// CTW - REMOVED
+/*  CTW - REMOVED */
 /*  setview(0,0,xdim-1,ydim-1);
     flushperms();
     ps[myconnectindex].palette = palette;
@@ -2166,7 +2166,7 @@ void showtwoscreens(void)
     nextpage(); for(i=63;i>0;i-=7) palto(0,0,0,i);
     totalclock = 0;
     while( !KB_KeyWaiting() && totalclock < 2400) getpackets();*/
-// CTW END - REMOVED
+/*  CTW END - REMOVED */
 #endif
 }
 
@@ -2217,22 +2217,22 @@ void gameexit(char *t)
     if(playerswhenstarted > 1 && ud.coop != 1 && *t == ' ')
     {
         dobonus(1);
-// CTW - MODIFICATION
-//      setgamemode();
+/*  CTW - MODIFICATION */
+/*       setgamemode(); */
         setgamemode(ScreenMode,ScreenWidth,ScreenHeight);
-// CTW END - MODIFICATION
+/*  CTW END - MODIFICATION */
     }
 #ifdef ONELEVELDEMO
     doorders();
     t = "You have been playing a ONE LEVEL demo of Duke Nukem 3D.";
 #endif
 
-// CTW - MODIFICATION
+/*  CTW - MODIFICATION */
 /*  if( *t != 0 && *(t+1) != 'V' && *(t+1) != 'Y' && playonten == 0 )
         showtwoscreens();*/
     if( *t != 0 && *(t+1) != 'V' && *(t+1) != 'Y' && true)
         showtwoscreens();
-// CTW END - MODIFICATION
+/*  CTW END - MODIFICATION */
 
     GOTOHERE:
 
@@ -2242,7 +2242,7 @@ void gameexit(char *t)
     {
         setvmode(0x3);
         binscreen();
-// CTW - MODIFICATION
+/*  CTW - MODIFICATION */
 /*      if(playonten == 0)
         {
             if(*t == ' ' && *(t+1) == 0) *t = 0;
@@ -2257,7 +2257,7 @@ void gameexit(char *t)
                 printf("%s%s","\n",t);
             }
         }
-// CTW END - MODIFICATION        
+/*  CTW END - MODIFICATION */
     }
 
     uninitgroupfile();
@@ -2388,7 +2388,7 @@ void typemode(void)
                 j = 50;
                 gametext(320>>1,j,"SEND MESSAGE TO...",0,2+8+16); j += 8;
                 for(i=connecthead;i>=0;i=connectpoint2[i])
-//                for(i=0;i<ud.multimode;i++)
+/*                 for(i=0;i<ud.multimode;i++) */
                 {
                      if (i == myconnectindex)
                      {
@@ -2405,10 +2405,10 @@ void typemode(void)
                 minitextshade((320>>1)-40-4+1,j+1,"    ESC - Abort",26,0,2+8+16);
                 minitext((320>>1)-40-4,j,"    ESC - Abort",0,2+8+16); j += 7;
 
-                //sprintf(buf,"PRESS 1-%ld FOR INDIVIDUAL PLAYER.",ud.multimode);
-                //gametext(320>>1,j,buf,0,2+8+16); j += 8;
-                //gametext(320>>1,j,"'A' OR 'ENTER' FOR ALL PLAYERS",0,2+8+16); j += 8;
-                //gametext(320>>1,j,"ESC ABORTS",0,2+8+16); j += 8;
+                /* sprintf(buf,"PRESS 1-%ld FOR INDIVIDUAL PLAYER.",ud.multimode); */
+                /* gametext(320>>1,j,buf,0,2+8+16); j += 8; */
+                /* gametext(320>>1,j,"'A' OR 'ENTER' FOR ALL PLAYERS",0,2+8+16); j += 8; */
+                /* gametext(320>>1,j,"ESC ABORTS",0,2+8+16); j += 8; */
 
                 if (ud.screen_size > 0) j = 200-45; else j = 200-8;
                 gametext(320>>1,j,typebuf,0,2+8+16);
@@ -2793,7 +2793,7 @@ void view(struct player_struct *pp, long *vx, long *vy,long *vz,short *vsectnum,
      sp->cstat = bakcstat;
 }
      
-    //REPLACE FULLY
+    /* REPLACE FULLY */
 void drawbackground(void)
 {
      short dapicnum;
@@ -2857,26 +2857,26 @@ void drawbackground(void)
 }
 
 
-// Floor Over Floor
+/*  Floor Over Floor */
 
-// If standing in sector with SE42
-// then draw viewing to SE41 and raise all =hi SE43 cielings.
+/*  If standing in sector with SE42 */
+/*  then draw viewing to SE41 and raise all =hi SE43 cielings. */
 
-// If standing in sector with SE43
-// then draw viewing to SE40 and lower all =hi SE42 floors.
+/*  If standing in sector with SE43 */
+/*  then draw viewing to SE40 and lower all =hi SE42 floors. */
 
-// If standing in sector with SE44
-// then draw viewing to SE40.
+/*  If standing in sector with SE44 */
+/*  then draw viewing to SE40. */
 
-// If standing in sector with SE45
-// then draw viewing to SE41.
+/*  If standing in sector with SE45 */
+/*  then draw viewing to SE41. */
 
 #define FOFTILE 13
 #define FOFTILEX 32
 #define FOFTILEY 32
 int32_t tempsectorz[MAXSECTORS];
 short tempsectorpicnum[MAXSECTORS];
-//short tempcursectnum;
+/* short tempcursectnum; */
 
 SE40_Draw(int spnum,long x,long y,long z,short a,short h,long smoothratio)
 {
@@ -2886,7 +2886,7 @@ SE40_Draw(int spnum,long x,long y,long z,short a,short h,long smoothratio)
 
  if(sprite[spnum].ang!=512) return;
 
- i = FOFTILE;    //Effect TILE
+ i = FOFTILE;    /* Effect TILE */
  if (!(gotpic[i>>3]&(1<<(i&7)))) return;
  gotpic[i>>3] &= ~(1<<(i&7));
 
@@ -2897,10 +2897,10 @@ SE40_Draw(int spnum,long x,long y,long z,short a,short h,long smoothratio)
  if(sprite[spnum].lotag==44) fofmode=40;
  if(sprite[spnum].lotag==45) fofmode=41;
 
-// fofmode=sprite[spnum].lotag-2;
+/*  fofmode=sprite[spnum].lotag-2; */
 
-// sectnum=sprite[j].sectnum;
-// sectnum=cursectnum;
+/*  sectnum=sprite[j].sectnum; */
+/*  sectnum=cursectnum; */
  ok++;
 
 /*  recursive?
@@ -2914,7 +2914,7 @@ SE40_Draw(int spnum,long x,long y,long z,short a,short h,long smoothratio)
  }
 */
 
-// if(ok==0) { Message("no fof",RED); return; }
+/*  if(ok==0) { Message("no fof",RED); return; } */
 
  for(statnum=0;statnum<MAXSTATUS;statnum++)
  {
@@ -2928,7 +2928,7 @@ SE40_Draw(int spnum,long x,long y,long z,short a,short h,long smoothratio)
   }
   if (floor1!=spnum) break;
  }
-// if(ok==1) { Message("no floor1",RED); return; }
+/*  if(ok==1) { Message("no floor1",RED); return; } */
 
  if(fofmode==40) k=41; else k=40;
 
@@ -2945,7 +2945,7 @@ SE40_Draw(int spnum,long x,long y,long z,short a,short h,long smoothratio)
   if (floor2!=0) break;
  }
 
-// if(ok==2) { Message("no floor2",RED); return; }
+/*  if(ok==2) { Message("no floor2",RED); return; } */
 
  for(statnum=0;statnum<MAXSTATUS;statnum++)
  {
@@ -2999,11 +2999,11 @@ SE40_Draw(int spnum,long x,long y,long z,short a,short h,long smoothratio)
       {sector[sprite[j].sectnum].ceilingz=tempsectorz[sprite[j].sectnum];
        sector[sprite[j].sectnum].ceilingpicnum=tempsectorpicnum[sprite[j].sectnum];
       }
-     }// end if
+     }/*  end if */
   }
- }// end for
+ }/*  end for */
 
-} // end SE40
+} /*  end SE40 */
 
 
 
@@ -3017,10 +3017,10 @@ void se40code(long x,long y,long z,long a,long h, long smoothratio)
     {
         switch(sprite[i].lotag)
         {
-//            case 40:
-//            case 41:
-//                SE40_Draw(i,x,y,a,smoothratio);
-//                break;
+/*             case 40: */
+/*             case 41: */
+/*                 SE40_Draw(i,x,y,a,smoothratio); */
+/*                 break; */
             case 42:
             case 43:
             case 44:
@@ -3046,8 +3046,8 @@ void displayrooms(short snum,long smoothratio)
 
     p = &ps[snum];
 
-//    if(screencapt == 0 && (p->gm&MODE_MENU) && ( (current_menu/100) == 3 ) || (current_menu >= 1000 && current_menu < 2999 ) )
-  //      return;
+/*     if(screencapt == 0 && (p->gm&MODE_MENU) && ( (current_menu/100) == 3 ) || (current_menu >= 1000 && current_menu < 2999 ) ) */
+  /*       return; */
 
     if(pub > 0)
     {
@@ -3116,7 +3116,7 @@ void displayrooms(short snum,long smoothratio)
                 else
                     setviewtotile(MAXTILES-2,320L>>(1-ud.detail),320L>>(1-ud.detail));
                 if ((tang&1023) == 512)
-                {     //Block off unscreen section of 90� tilted screen
+                {     /* Block off unscreen section of 90� tilted screen */
                     j = ((320-60)>>(1-ud.detail));
                     for(i=(60>>(1-ud.detail))-1;i>=0;i--)
                     {
@@ -3219,7 +3219,7 @@ void displayrooms(short snum,long smoothratio)
                 display_mirror = 0;
 
                 drawmasks();
-                completemirror();   //Reverse screen x-wise in this function
+                completemirror();   /* Reverse screen x-wise in this function */
                 visibility = j;
             }
             gotpic[MIRROR>>3] &= ~(1<<(MIRROR&7));
@@ -3508,7 +3508,7 @@ short spawn( short j, short pn )
                         break;
                     }
 
-                        //  Init the size
+                        /*   Init the size */
                     if(sp->xrepeat == 0 || sp->yrepeat == 0)
                         sp->xrepeat = sp->yrepeat = 1;
 
@@ -3743,10 +3743,10 @@ short spawn( short j, short pn )
                     else if( sprite[j].pal != 6 && sprite[j].picnum != NUKEBARREL && sprite[j].picnum != TIRE )
                     {
                         if(sprite[j].picnum == FECES)
-                            sp->pal = 7; // Brown
-                        else sp->pal = 2; // Red
+                            sp->pal = 7; /*  Brown */
+                        else sp->pal = 2; /*  Red */
                     }
-                    else sp->pal = 0;  // green
+                    else sp->pal = 0;  /*  green */
 
                     if(sprite[j].picnum == TIRE)
                         sp->shade = 127;
@@ -3991,7 +3991,7 @@ short spawn( short j, short pn )
                 }
             case DUKECAR:
             case HELECOPT:
-//                if(sp->picnum == HELECOPT || sp->picnum == DUKECAR) sp->xvel = 1024;
+/*                 if(sp->picnum == HELECOPT || sp->picnum == DUKECAR) sp->xvel = 1024; */
                 sp->cstat = 0;
                 sp->extra = 1;
                 sp->xvel = 292;
@@ -4002,7 +4002,7 @@ short spawn( short j, short pn )
                 if(sp->picnum == RESPAWNMARKERRED)
                 {
                     sp->xrepeat = sp->yrepeat = 24;
-                    if(j >= 0) sp->z = hittype[j].floorz; // -(1<<4);
+                    if(j >= 0) sp->z = hittype[j].floorz; /*  -(1<<4); */
                 }
                 else
                 {
@@ -4045,7 +4045,7 @@ short spawn( short j, short pn )
                 changespritestat(i,6);
                 break;
 
-            case SHELL: //From the player
+            case SHELL: /* From the player */
             case SHOTGUNSHELL:
                 if( j >= 0 )
                 {
@@ -4054,7 +4054,7 @@ short spawn( short j, short pn )
                     if(sprite[j].picnum == APLAYER)
                     {
                         snum = sprite[j].yvel;
-                        a = ps[snum].ang-(TRAND&63)+8;  //Fine tune
+                        a = ps[snum].ang-(TRAND&63)+8;  /* Fine tune */
 
                         T1 = TRAND&1;
                         if(sp->picnum == SHOTGUNSHELL)
@@ -4124,7 +4124,7 @@ short spawn( short j, short pn )
                 }
                 else if( sp->picnum == SMALLSMOKE )
                 {
-                    // 64 "money"
+                    /*  64 "money" */
                     sp->xrepeat = 24;
                     sp->yrepeat = 24;
                 }
@@ -4502,7 +4502,7 @@ short spawn( short j, short pn )
                 if(sp->picnum == REACTOR || sp->picnum == REACTOR2)
                     sp->extra = impact_damage;
 
-                CS |= 257; // Make it hitable
+                CS |= 257; /*  Make it hitable */
 
                 if( ud.multimode < 2 && sp->pal != 0)
                 {
@@ -4606,7 +4606,7 @@ short spawn( short j, short pn )
             case TIRE:
             case CONE:
             case BOX:
-                CS = 257; // Make it hitable
+                CS = 257; /*  Make it hitable */
                 sprite[i].extra = 1;
                 changespritestat(i,6);
                 break;
@@ -4618,7 +4618,7 @@ short spawn( short j, short pn )
 
             case BOUNCEMINE:
                 sp->owner = i;
-                sp->cstat |= 1+256; //Make it hitable
+                sp->cstat |= 1+256; /* Make it hitable */
                 sp->xrepeat = sp->yrepeat = 24;
                 sp->shade = -127;
                 sp->extra = impact_damage<<2;
@@ -4670,10 +4670,10 @@ short spawn( short j, short pn )
                 switch(sp->lotag)
                 {
                     case 28:
-                        T6 = 65;// Delay for lightning
+                        T6 = 65;/*  Delay for lightning */
                         break;
-                    case 7: // Transporters!!!!
-                    case 23:// XPTR END
+                    case 7: /*  Transporters!!!! */
+                    case 23:/*  XPTR END */
                         if(sp->lotag != 23)
                         {
                             for(j=0;j<MAXSPRITES;j++)
@@ -4714,7 +4714,7 @@ short spawn( short j, short pn )
                     case 19:
                         sp->owner = -1;
                         break;
-                    case 25: // Pistons
+                    case 25: /*  Pistons */
                         T4 = sector[sect].ceilingz;
                         T5 = 1;
                         sector[sect].ceilingz = sp->z;
@@ -4783,7 +4783,7 @@ short spawn( short j, short pn )
                                             sector[x].ceilingpicnum;
                                         sector[sect].ceilingshade =
                                             sector[x].ceilingshade;
-                                        break; //Leave earily
+                                        break; /* Leave earily */
                                     }
                                 }
                             }
@@ -4793,7 +4793,7 @@ short spawn( short j, short pn )
 
                     case 17:
 
-                        T3 = sector[sect].floorz; //Stopping loc
+                        T3 = sector[sect].floorz; /* Stopping loc */
 
                         j = nextsectorneighborz(sect,sector[sect].floorz,-1,-1);
                         T4 = sector[j].ceilingz;
@@ -4821,7 +4821,7 @@ short spawn( short j, short pn )
                         startwall = sector[sect].wallptr;
                         endwall = startwall+sector[sect].wallnum;
 
-                        //find the two most clostest wall x's and y's
+                        /* find the two most clostest wall x's and y's */
                         q = 0x7fffffff;
 
                         for(s=startwall;s<endwall;s++)
@@ -4869,7 +4869,7 @@ short spawn( short j, short pn )
                         sp->owner = sector[sect].ceilingpal<<8;
                         sp->owner |= sector[sect].floorpal;
 
-                        //fix all the walls;
+                        /* fix all the walls; */
 
                         startwall = sector[sect].wallptr;
                         endwall = startwall+sector[sect].wallnum;
@@ -4885,7 +4885,7 @@ short spawn( short j, short pn )
 
                     case 31:
                         T2 = sector[sect].floorz;
-                    //    T3 = sp->hitag;
+                    /*     T3 = sp->hitag; */
                         if(sp->ang != 1536) sector[sect].floorz = sp->z;
 
                         startwall = sector[sect].wallptr;
@@ -4912,7 +4912,7 @@ short spawn( short j, short pn )
 
                         break;
 
-                    case 4: //Flashing lights
+                    case 4: /* Flashing lights */
 
                         T3 = sector[sect].floorshade;
 
@@ -4931,9 +4931,9 @@ short spawn( short j, short pn )
                     case 9:
                         if( sector[sect].lotag &&
                             labs(sector[sect].ceilingz-sp->z) > 1024)
-                                sector[sect].lotag |= 32768; //If its open
+                                sector[sect].lotag |= 32768; /* If its open */
                     case 8:
-                        //First, get the ceiling-floor shade
+                        /* First, get the ceiling-floor shade */
 
                         T1 = sector[sect].floorshade;
                         T2 = sector[sect].ceilingshade;
@@ -4945,22 +4945,22 @@ short spawn( short j, short pn )
                             if(wall[s].shade > T3)
                                 T3 = wall[s].shade;
 
-                        T4 = 1; //Take Out;
+                        T4 = 1; /* Take Out; */
 
                         break;
 
-                    case 11://Pivitor rotater
+                    case 11:/* Pivitor rotater */
                         if(sp->ang>1024) T4 = 2;
                         else T4 = -2;
                     case 0:
-                    case 2://Earthquakemakers
-                    case 5://Boss Creature
-                    case 6://Subway
-                    case 14://Caboos
-                    case 15://Subwaytype sliding door
-                    case 16://That rotating blocker reactor thing
-                    case 26://ESCELATOR
-                    case 30://No rotational subways
+                    case 2:/* Earthquakemakers */
+                    case 5:/* Boss Creature */
+                    case 6:/* Subway */
+                    case 14:/* Caboos */
+                    case 15:/* Subwaytype sliding door */
+                    case 16:/* That rotating blocker reactor thing */
+                    case 26:/* ESCELATOR */
+                    case 30:/* No rotational subways */
 
                         if(sp->lotag == 0)
                         {
@@ -5056,7 +5056,7 @@ short spawn( short j, short pn )
                         {
                             T4 = sp->x;
                             T5 = sp->y;
-                            if(sp->shade==sector[sect].floorshade) //UP
+                            if(sp->shade==sector[sect].floorshade) /* UP */
                                 sp->zvel = -256;
                             else
                                 sp->zvel = 256;
@@ -5293,8 +5293,8 @@ void animatesprites(long x,long y,short a,long smoothratio)
     }
 
 
-    for(j=0;j < spritesortcnt; j++ )  //Between drawrooms() and drawmasks()
-    {                             //is the perfect time to animate sprites
+    for(j=0;j < spritesortcnt; j++ )  /* Between drawrooms() and drawmasks() */
+    {                             /* is the perfect time to animate sprites */
         t = &tsprite[j];
         i = t->owner;
         s = &sprite[i];
@@ -5787,11 +5787,11 @@ void animatesprites(long x,long y,short a,long smoothratio)
                     tsprite[spritesortcnt].cstat |= 2;
 
                     tsprite[spritesortcnt].z = daz;
-                    xrep = tsprite[spritesortcnt].xrepeat;// - (klabs(daz-t->z)>>11);
+                    xrep = tsprite[spritesortcnt].xrepeat;/*  - (klabs(daz-t->z)>>11); */
                     tsprite[spritesortcnt].xrepeat = xrep;
                     tsprite[spritesortcnt].pal = 4;
 
-                    yrep = tsprite[spritesortcnt].yrepeat;// - (klabs(daz-t->z)>>11);
+                    yrep = tsprite[spritesortcnt].yrepeat;/*  - (klabs(daz-t->z)>>11); */
                     tsprite[spritesortcnt].yrepeat = yrep;
                     spritesortcnt++;
                 }
@@ -5937,12 +5937,12 @@ char cheatquotes[NUMCHEATCODES][14] = {
     {"beta"},
     {"hyper"},
     {"monsters"},
-// #ifndef VOLUMEONE
-//  {"bonus"},
-// #else
+/*  #ifndef VOLUMEONE */
+/*   {"bonus"}, */
+/*  #else */
     {"<RESERVED>"},
     {"<RESERVED>"},
-// #endif
+/*  #endif */
     {"todd"},
     {"showmap"},
     {"kroz"},
@@ -5952,7 +5952,7 @@ char cheatquotes[NUMCHEATCODES][14] = {
     {"inventory"},
     {"keys"},
     {"debug"}
-//    {"ending"}
+/*     {"ending"} */
 
 };
 
@@ -5979,7 +5979,7 @@ void cheats(void)
           if( !( (ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9') ) )
           {
              ps[myconnectindex].cheat_phase = 0;
-//             FTA(46,&ps[myconnectindex]);
+/*              FTA(46,&ps[myconnectindex]); */
              return;
           }
 
@@ -6144,7 +6144,7 @@ void cheats(void)
                         ps[myconnectindex].cheat_phase = 0;
 
 
-//                        FTA(21,&ps[myconnectindex]);
+/*                         FTA(21,&ps[myconnectindex]); */
                         ps[myconnectindex].cheat_phase = 0;
                         KB_FlushKeyBoardQueue();
                         ps[myconnectindex].inven_icon = 1;
@@ -6272,7 +6272,7 @@ void cheats(void)
                         return;
 #ifndef VOLUMEONE
                     case 6:
-                        for(i=numsectors-1;i>=0;i--) //Unlock
+                        for(i=numsectors-1;i>=0;i--) /* Unlock */
                         {
                             j = sector[i].lotag;
                             if(j == -1 || j == 32767) continue;
@@ -6312,7 +6312,7 @@ void cheats(void)
                         ps[myconnectindex].cheat_phase = 0;
                         KB_FlushKeyBoardQueue();
                         return;
-                    case 17: // SHOW ALL OF THE MAP TOGGLE;
+                    case 17: /*  SHOW ALL OF THE MAP TOGGLE; */
                         ud.showallmap = 1-ud.showallmap;
                         if(ud.showallmap)
                         {
@@ -6394,7 +6394,7 @@ void cheats(void)
                 else
                 {
                     ps[myconnectindex].cheat_phase = 1;
-//                    FTA(25,&ps[myconnectindex]);
+/*                     FTA(25,&ps[myconnectindex]); */
                     cheatbuflen = 0;
                 }
                 KB_FlushKeyboardQueue();
@@ -6610,7 +6610,7 @@ void nonsharedkeys(void)
             }
         }
 
-//        if(ud.multimode < 2)
+/*         if(ud.multimode < 2) */
         {
             if(ud.recstat != 2 && KB_KeyPressed( sc_F2 ) )
             {
@@ -6633,7 +6633,7 @@ void nonsharedkeys(void)
                 FX_StopAllSounds();
                 clearsoundlocks();
 
-//                setview(0,0,xdim-1,ydim-1);
+/*                 setview(0,0,xdim-1,ydim-1); */
                 ps[myconnectindex].gm |= MODE_MENU;
 
                 if(ud.multimode < 2)
@@ -6655,7 +6655,7 @@ void nonsharedkeys(void)
                 FX_StopAllSounds();
                 clearsoundlocks();
 
-//                setview(0,0,xdim-1,ydim-1);
+/*                 setview(0,0,xdim-1,ydim-1); */
                 ps[myconnectindex].gm |= MODE_MENU;
                 if(ud.multimode < 2 && ud.recstat != 2)
                 {
@@ -6937,7 +6937,7 @@ void checkcommandline(int argc,char **argv)
                 switch(*c)
                 {
                     default:
-  //                      printf("Unknown command line parameter '%s'\n",argv[i]);
+  /*                       printf("Unknown command line parameter '%s'\n",argv[i]); */
                     case '?':
                         comlinehelp(argv);
                         exit(0);
@@ -7417,11 +7417,11 @@ void Startup(void)
    startup_log("  CONTROL_Startup()");
    CONTROL_Startup( ControllerType, &GetTime, TICRATE );
 
-// CTW - MODIFICATION
-// initengine(ScreenMode,ScreenWidth,ScreenHeight);
+/*  CTW - MODIFICATION */
+/*  initengine(ScreenMode,ScreenWidth,ScreenHeight); */
    startup_log("  initengine()");
    initengine();
-// CTW END - MODIFICATION
+/*  CTW END - MODIFICATION */
    startup_log("  initengine done");
    startup_log("  hud_init()");
    hud_init();
@@ -7505,7 +7505,7 @@ void getnames(void)
             if( i != myconnectindex )
                 sendpacket(i,&buf[0],l);
 
-  //      getpackets();
+  /*       getpackets(); */
 
         l = 1;
         buf[0] = 9;
@@ -7521,7 +7521,7 @@ void getnames(void)
             if(i != myconnectindex)
                 sendpacket(i,&buf[0],11);
 
-//        getpackets();
+/*         getpackets(); */
 
         buf[0] = 10;
         buf[1] = ps[0].aim_mode;
@@ -7531,7 +7531,7 @@ void getnames(void)
             if(i != myconnectindex)
                 sendpacket(i,buf,2);
 
-//        getpackets();
+/*         getpackets(); */
 
         if(cp == 0)
         {
@@ -7612,7 +7612,7 @@ char testcd( char *fn )
 
   if ( fil < 0 ) return 1;
 
-  // ( DO A SEE/Byte check here.) (Not coded in this version)
+  /*  ( DO A SEE/Byte check here.) (Not coded in this version) */
 
 
   dalen = filelength(fil);
@@ -7713,7 +7713,7 @@ int main(int argc,char **argv)
     ud.multimode = 1;
     printstr(0,1,"                   Copyright (c) 1996 3D Realms Entertainment                   ",79);
 
-//    printstr(0,2,"  ***     DUKE NUKEM v1.4 BETA VERSION.  USED FOR INTERNAL USE ONLY!!!     ***  ",79);
+/*     printstr(0,2,"  ***     DUKE NUKEM v1.4 BETA VERSION.  USED FOR INTERNAL USE ONLY!!!     ***  ",79); */
 
     printf("\n\n");
 
@@ -7767,10 +7767,10 @@ int main(int argc,char **argv)
         printf("Using %ld bytes for heap.\n",totalmemory);
 
 #ifndef ONELEVELDEMO
-// CTW - REMOVED
+/*  CTW - REMOVED */
 /*  if(movesperpacket == 4)
         TENtext();*/
-// CTW END - REMOVED
+/*  CTW END - REMOVED */
 #endif
 
     RegisterShutdownFunction( ShutDown );
@@ -7832,7 +7832,7 @@ int main(int argc,char **argv)
    startup_log("Post-Startup: pre-setgamemode");
         puts("Loading palette/lookups.");
 
-// CTW - MODIFICATION
+/*  CTW - MODIFICATION */
     if(ScreenWidth <= 0 || ScreenHeight <= 0)
     {
         startup_log("Screen config invalid (%d x %d), using 640x480", ScreenWidth, ScreenHeight);
@@ -7856,7 +7856,7 @@ int main(int argc,char **argv)
         }
     }
     startup_log("setgamemode OK - xdim=%ld, ydim=%ld", xdim, ydim);
-// CTW END - MODIFICATION
+/*  CTW END - MODIFICATION */
 
     if (sdl_checkquit())
         gameexit(" ");
@@ -7901,7 +7901,7 @@ int main(int argc,char **argv)
             ud.warp_on = 0;
     }
 
-//    getpackets();
+/*     getpackets(); */
 
     MAIN_LOOP_RESTART:
 
@@ -7942,7 +7942,7 @@ int main(int argc,char **argv)
     setbrightness(ud.brightness>>2,&ps[myconnectindex].palette[0]);
     restorepalette = 0;
 
-    while ( !(ps[myconnectindex].gm&MODE_END) ) //The whole loop!!!!!!!!!!!!!!!!!!
+    while ( !(ps[myconnectindex].gm&MODE_END) ) /* The whole loop!!!!!!!!!!!!!!!!!! */
     {
         if (sdl_checkquit()) {
             ps[myconnectindex].gm = MODE_END;
@@ -8008,11 +8008,11 @@ int main(int argc,char **argv)
         displayrooms(screenpeek,i);
         displayrest(i);
 
-//        if( KB_KeyPressed(sc_F) )
-//        {
-//            KB_ClearKeyDown(sc_F);
-//            addplayer();
-//        }
+/*         if( KB_KeyPressed(sc_F) ) */
+/*         { */
+/*             KB_ClearKeyDown(sc_F); */
+/*             addplayer(); */
+/*         } */
 
         if(ps[myconnectindex].gm&MODE_DEMO)
             goto MAIN_LOOP_RESTART;
@@ -8031,7 +8031,7 @@ int main(int argc,char **argv)
     gameexit(" ");
 }
 
-char opendemoread(char which_demo) // 0 = mine
+char opendemoread(char which_demo) /*  0 = mine */
 {
     char d[] = "demo_.dmo";
     char ver;
@@ -8053,7 +8053,7 @@ char opendemoread(char which_demo) // 0 = mine
 
      { int32_t tmp32; kread(recfilep,&tmp32,4); ud.reccnt = tmp32; }
      kread(recfilep,&ver,sizeof(char));
-     if( (ver != BYTEVERSION) ) // || (ud.reccnt < 512) )
+     if( (ver != BYTEVERSION) ) /*  || (ud.reccnt < 512) ) */
      {
         kclose(recfilep);
         return 0;
@@ -8100,10 +8100,10 @@ void opendemowrite(void)
 
     ver = BYTEVERSION;
 
-// CTW - MODIFICATION
-//  if ((frecfilep = fopen(d,"wb")) == -1) return;
+/*  CTW - MODIFICATION */
+/*   if ((frecfilep = fopen(d,"wb")) == -1) return; */
     if ((frecfilep = fopen(d,"wb")) == NULL) return;
-// CTW END - MODIFICATION
+/*  CTW END - MODIFICATION */
     fwrite(&dummylong,4,1,frecfilep);
     fwrite(&ver,sizeof(char),1,frecfilep);
     fwrite((char *)&ud.volume_number,sizeof(char),1,frecfilep);
@@ -8161,18 +8161,18 @@ void closedemowrite(void)
     }
 }
 
-// CTW - MODIFICATION
-// On my XP machine, demo playback causes the game to crash shortly in.
-// Only bug found so far, not sure if it's OS dependent or compiler or what.
-// Seems to happen when player input starts being simulated, but just guessing.
-// This change effectively disables it. The related code is still enabled.
-// char which_demo = 1;
+/*  CTW - MODIFICATION */
+/*  On my XP machine, demo playback causes the game to crash shortly in. */
+/*  Only bug found so far, not sure if it's OS dependent or compiler or what. */
+/*  Seems to happen when player input starts being simulated, but just guessing. */
+/*  This change effectively disables it. The related code is still enabled. */
+/*  char which_demo = 1; */
 char which_demo = 0;
-// CTW END - MODIFICATION
+/*  CTW END - MODIFICATION */
 
 char in_menu = 0;
 
-// extern long syncs[];
+/*  extern long syncs[]; */
 long playback(void)
 {
     long i,j,k,l,t;
@@ -8556,14 +8556,14 @@ void fakedomovethings(void)
                  myhardlanding = 0;
 
                  if(p->jetpack_on < 11)
-                            myz -= (p->jetpack_on<<7); //Goin up
+                            myz -= (p->jetpack_on<<7); /* Goin up */
 
                  if(shrunk) j = 512;
                  else j = 2048;
 
-                 if (sb_snum&1)                            //A
+                 if (sb_snum&1)                            /* A */
                             myz -= j;
-                 if (sb_snum&(1<<1))                       //Z
+                 if (sb_snum&(1<<1))                       /* Z */
                             myz += j;
 
                  if(shrunk == 0 && ( psectlotag == 0 || psectlotag == 2 ) ) k = 32;
@@ -8581,7 +8581,7 @@ void fakedomovethings(void)
                  if(shrunk == 0) i = 34;
                  else i = 12;
             }
-                 if(myz < (fz-(i<<8)) && (floorspace(psect)|ceilingspace(psect)) == 0 ) //falling
+                 if(myz < (fz-(i<<8)) && (floorspace(psect)|ceilingspace(psect)) == 0 ) /* falling */
                  {
                             if( (sb_snum&3) == 0 && myonground && (sector[psect].floorstat&2) && myz >= (fz-(i<<8)-(16<<8) ) )
                                      myz = fz-(i<<8);
@@ -8603,17 +8603,17 @@ void fakedomovethings(void)
 
                             if(i==40)
                             {
-                                     //Smooth on the ground
+                                     /* Smooth on the ground */
 
                                      k = ((fz-(i<<8))-myz)>>1;
                                      if( klabs(k) < 256 ) k = 0;
-                                     myz += k; // ((fz-(i<<8))-myz)>>1;
-                                     myzvel -= 768; // 412;
+                                     myz += k; /*  ((fz-(i<<8))-myz)>>1; */
+                                     myzvel -= 768; /*  412; */
                                      if(myzvel < 0) myzvel = 0;
                             }
                             else if(myjumpingcounter == 0)
                             {
-                                myz += ((fz-(i<<7))-myz)>>1; //Smooth on the water
+                                myz += ((fz-(i<<7))-myz)>>1; /* Smooth on the water */
                                 if(p->on_warping_sector == 0 && myz > fz-(16<<8))
                                 {
                                     myz = fz-(16<<8);
@@ -8692,8 +8692,8 @@ void fakedomovethings(void)
                  myxvel = 0;
                  myyvel = 0;
         }
-        else if ( syn->avel )          //p->ang += syncangvel * constant
-        {                         //ENGINE calculates angvel for you
+        else if ( syn->avel )          /* p->ang += syncangvel * constant */
+        {                         /* ENGINE calculates angvel for you */
             long tempang;
 
             tempang = syn->avel<<1;
@@ -8855,7 +8855,7 @@ char domovethings(void)
         }
         else
         {
-//            waitforeverybody();
+/*             waitforeverybody(); */
 
             j = loadplayer( multipos );
 
@@ -8966,7 +8966,7 @@ char domovethings(void)
     if( ud.pause_on == 0 )
     {
         global_random = TRAND;
-        movedummyplayers();//ST 13
+        movedummyplayers();/* ST 13 */
     }
 
     for(i=connecthead;i>=0;i=connectpoint2[i])
@@ -8982,20 +8982,20 @@ char domovethings(void)
 
     if( ud.pause_on == 0 )
     {
-        movefta();//ST 2
-        moveweapons();          //ST 5 (must be last)
-        movetransports();       //ST 9
+        movefta();/* ST 2 */
+        moveweapons();          /* ST 5 (must be last) */
+        movetransports();       /* ST 9 */
 
-        moveplayers();          //ST 10
-        movefallers();          //ST 12
-        moveexplosions();       //ST 4
+        moveplayers();          /* ST 10 */
+        movefallers();          /* ST 12 */
+        moveexplosions();       /* ST 4 */
 
-        moveactors();           //ST 1
-        moveeffectors();        //ST 3
+        moveactors();           /* ST 1 */
+        moveeffectors();        /* ST 3 */
 
-        movestandables();       //ST 6
+        movestandables();       /* ST 6 */
         doanimations();
-        movefx();               //ST 11
+        movefx();               /* ST 11 */
     }
 
     fakedomovethingscorrect();
@@ -9105,7 +9105,7 @@ void dobonus(char bonusonly)
                     clearview(0L);
                     rotatesprite(0,50<<16,65536L,0,VICTORY1,0,0,2+8+16+64+128,0,0,xdim-1,ydim-1);
 
-                    // boss
+                    /*  boss */
                     if( totalclock > 390 && totalclock < 780 )
                         for(t=0;t<35;t+=5) if( bossmove[t+2] && (totalclock%390) > bossmove[t] && (totalclock%390) <= bossmove[t+1] )
                     {
@@ -9113,7 +9113,7 @@ void dobonus(char bonusonly)
                         rotatesprite(bossmove[t+3]<<16,bossmove[t+4]<<16,65536L,0,bossmove[t+2],0,0,2+8+16+64+128,0,0,xdim-1,ydim-1);
                     }
 
-                    // Breathe
+                    /*  Breathe */
                     if( totalclock < 450 || totalclock >= 750 )
                     {
                         if(totalclock >= 750)
@@ -9896,73 +9896,73 @@ void CenterRudder(void)
    printf("Center the rudder control and press a button\n");
 }
 
-// Rare Multiplayer, when dead, total screen screwup back again!
-// E3l1 (Coop /w monsters) sprite list corrupt 50%
-// Univbe exit, instead, default to screen buffer.
-// Check all caches bounds and memory usages
-// Fix enlarger weapon selections to perfection
-// Need sounds.c
-// Spawning a couple of sounds at the same time
-// Check Weapon Switching
-// FIRE and FIRE2
-// Where should I flash the screen white???
-// Jittery on subs in mp?
-// Check accurate memory amounts!
-// Why squish sound at hit space when dead?
-// Falling Counter Not reset in mp
-// Wierd small freezer
-// Double freeze on player?, still firing
-// Do Mouse Flip option
-// Save mouse aiming
-// Laser bounce off mirrors
-// GEORGE:   Ten in text screen.
-// Alien:
-// Freeze: change
-// Press space holding player
-// Press space
-// tank broke
-// 2d mode fucked in fake mp mode
-// 207
-// Mail not rolling up on conveyers
-// Fix all alien animations
-// Do episode names in .CONS
-// do syntak check for "{?????"
-// Make commline parms set approiate multiplayer flags
+/*  Rare Multiplayer, when dead, total screen screwup back again! */
+/*  E3l1 (Coop /w monsters) sprite list corrupt 50% */
+/*  Univbe exit, instead, default to screen buffer. */
+/*  Check all caches bounds and memory usages */
+/*  Fix enlarger weapon selections to perfection */
+/*  Need sounds.c */
+/*  Spawning a couple of sounds at the same time */
+/*  Check Weapon Switching */
+/*  FIRE and FIRE2 */
+/*  Where should I flash the screen white??? */
+/*  Jittery on subs in mp? */
+/*  Check accurate memory amounts! */
+/*  Why squish sound at hit space when dead? */
+/*  Falling Counter Not reset in mp */
+/*  Wierd small freezer */
+/*  Double freeze on player?, still firing */
+/*  Do Mouse Flip option */
+/*  Save mouse aiming */
+/*  Laser bounce off mirrors */
+/*  GEORGE:   Ten in text screen. */
+/*  Alien: */
+/*  Freeze: change */
+/*  Press space holding player */
+/*  Press space */
+/*  tank broke */
+/*  2d mode fucked in fake mp mode */
+/*  207 */
+/*  Mail not rolling up on conveyers */
+/*  Fix all alien animations */
+/*  Do episode names in .CONS */
+/*  do syntak check for "{?????" */
+/*  Make commline parms set approiate multiplayer flags */
 
-// Check all breakables to see if they are exploding properly
-// Fix freezing palette on Alien
+/*  Check all breakables to see if they are exploding properly */
+/*  Fix freezing palette on Alien */
 
-// Do a demo make run overnite
-// Fix Super Duck
-// Slime Guies, use quickkick.
+/*  Do a demo make run overnite */
+/*  Fix Super Duck */
+/*  Slime Guies, use quickkick. */
 
-// Make Lasers from trip bombs reflect off mirrors
-// Remember for lockout of sound swears
-// Pass sender in packed, NOT
-// Fatal sync give no message for TEN
-// Hitting TEN BUTTON(OPTION) no TEN SCreen
-// Check multioperateswitches for se 31,32
-// Fix pal for ceilings (SE#18)
-// case 31: sprites up one high
-// E1l1 No Kill All troops in room, sleep time
+/*  Make Lasers from trip bombs reflect off mirrors */
+/*  Remember for lockout of sound swears */
+/*  Pass sender in packed, NOT */
+/*  Fatal sync give no message for TEN */
+/*  Hitting TEN BUTTON(OPTION) no TEN SCreen */
+/*  Check multioperateswitches for se 31,32 */
+/*  Fix pal for ceilings (SE#18) */
+/*  case 31: sprites up one high */
+/*  E1l1 No Kill All troops in room, sleep time */
 
-// Fifo for message list
+/*  Fifo for message list */
 
-// Bloodsplat on conveyers
+/*  Bloodsplat on conveyers */
 
-// Meclanical
-// Increase sound
-// Mouse Delay at death
-// Wierd slowdown
+/*  Meclanical */
+/*  Increase sound */
+/*  Mouse Delay at death */
+/*  Wierd slowdown */
 
-// Footprints on stuff floating
+/*  Footprints on stuff floating */
 
-// Ken, The inside function is called a lot in -1 sectors
-// No loading Univbe message rewrite
-// Expander must cycle with rest of weapons
-// Duck SHOOT PIPEBOMB, red wall
+/*  Ken, The inside function is called a lot in -1 sectors */
+/*  No loading Univbe message rewrite */
+/*  Expander must cycle with rest of weapons */
+/*  Duck SHOOT PIPEBOMB, red wall */
 
-// Get commit source from mark
+/*  Get commit source from mark */
 
 /*
 1. fix pipebomb bug
@@ -10011,31 +10011,31 @@ setpackettimeout(0x3fffffff,0x3fffffff);
 }
 remember, netcode load
 */
-//  Ai Problem in god mode.
-// Checkplayerhurtwall for forcefields bigforce
-// Nuddie, posters. IMF
-// Release commit.c to public?
-// Document Save bug with mp
-// Check moves per packet /f4 waitforeverybody over net?
-// Kill IDF OBJ
-// No shotguns under water @ tanker
-// Unrem copyprotect
-// Look for printf and puts
-// Check con rewrites
-// erase mmulti.c, or get newest objs
-// Why nomonsters screwy in load menu in mp
-// load last > 'y' == NOT
-// Check xptr oos when dead rising to surface.
-//    diaginal warping with shotguns
-// Test white room.  Lasertripbomb arming crash
-// The Bog
-// Run Duke Out of windows
-// Put Version number in con files
-// Test diff. version playing together
-// Reorganize dukecd
-// Put out patch w/ two weeks testing
-// Print draw3d
-// Double Klick
+/*   Ai Problem in god mode. */
+/*  Checkplayerhurtwall for forcefields bigforce */
+/*  Nuddie, posters. IMF */
+/*  Release commit.c to public? */
+/*  Document Save bug with mp */
+/*  Check moves per packet /f4 waitforeverybody over net? */
+/*  Kill IDF OBJ */
+/*  No shotguns under water @ tanker */
+/*  Unrem copyprotect */
+/*  Look for printf and puts */
+/*  Check con rewrites */
+/*  erase mmulti.c, or get newest objs */
+/*  Why nomonsters screwy in load menu in mp */
+/*  load last > 'y' == NOT */
+/*  Check xptr oos when dead rising to surface. */
+/*     diaginal warping with shotguns */
+/*  Test white room.  Lasertripbomb arming crash */
+/*  The Bog */
+/*  Run Duke Out of windows */
+/*  Put Version number in con files */
+/*  Test diff. version playing together */
+/*  Reorganize dukecd */
+/*  Put out patch w/ two weeks testing */
+/*  Print draw3d */
+/*  Double Klick */
 
 /*
 Duke Nukem V
@@ -10134,22 +10134,22 @@ Programming:   ( the functions I need )
 */
 
 
-// Test frag screen name fuckup
-// Test all xptrs
-// Make Jibs stick to ceiling
-// Save Game menu crash
-// Cache len sum err
-// Loading in main (MP), reset totalclock?
-// White Room
-// Sound hitch with repeat bits
-// Rewrite saved menues so no crash
-// Put a getpackets after loadplayer in menus
-// Put "loading..." before waitfor in loadpla
-// No ready2send = 0 for loading
-// Test Joystick
-// Ten
-// Bog
-// Test Blimp respawn
-// move 1 in player???
+/*  Test frag screen name fuckup */
+/*  Test all xptrs */
+/*  Make Jibs stick to ceiling */
+/*  Save Game menu crash */
+/*  Cache len sum err */
+/*  Loading in main (MP), reset totalclock? */
+/*  White Room */
+/*  Sound hitch with repeat bits */
+/*  Rewrite saved menues so no crash */
+/*  Put a getpackets after loadplayer in menus */
+/*  Put "loading..." before waitfor in loadpla */
+/*  No ready2send = 0 for loading */
+/*  Test Joystick */
+/*  Ten */
+/*  Bog */
+/*  Test Blimp respawn */
+/*  move 1 in player??? */
 
 
