@@ -2576,11 +2576,12 @@ Recommendation: leave for now, surface in next session. Adding tighter "NEVER ca
 
 ---
 
-## 2026-05-21T02:15Z — Cycle 73 audit-pass (documentation-curator r18 + performance-profiler r18)
+## 2026-05-21T02:15Z — Cycle 73 audit-pass (documentation-curator r18 + performance-profiler r18 + engine-porter r19)
 
 **Dispatched:**
 - `docs-r18-audit` (Haiku, v7) → **EXCELLENT verdict: 0 CRITICAL, 1 MEDIUM drift, 1 LOW index maintenance, 2 NEW todos**
 - `perf-r18-audit` (Haiku, v7) → **EXCELLENT verdict: 0 CRITICAL, 7 findings, 2 NEW todos, 36% wallclock improvement sustained**
+- `engine-r19-audit` (Haiku, v7) → **SOLID verdict: 0 CRITICAL, 3 MEDIUM findings, 3 NEW todos**
 
 **docs-r18 Summary:**
 - All 4 r17 remediation todos CLOSED: NET_HEADER_SIZE cycle 70 fix ✅, compat/net_socket documented in compat/README.md ✅, compat/README.md CREATED (150L) ✅, tools/README.md CREATED (180L) ✅
@@ -2600,26 +2601,44 @@ Recommendation: leave for now, surface in next session. Adding tighter "NEVER ca
 - ⚠️ **Slow test marking HYGIENE GAP:** test_build_lto_warnings (15.86s, slowest single test, 67% of next) unmarked; @pytest.mark.playtest semantics undocumented
 - ⚠️ **CONTRIBUTING.md SPRAWL:** 855 lines (+25.7% since r16, +175 lines cycles 70–73 GRP Determinism Contract). Nesting 4–5 levels acceptable but approaching 1000-line split threshold
 
-**Persona freshness after cycle 73:**
+**asset-r19 Summary (Cycle 73 verification pass):**
+- ✅ **2 r18 findings CLOSED:** sound-manifest Pydantic schema (cycle 68 tools/sound_manifest.py, 152L, 22 tests) + GRP determinism contract (cycle 73 CONTRIBUTING.md §277–350, 73+ lines, test coverage verified)
+- ✅ **Atomic write hardening VERIFIED:** tools/generate_assets.py + tools/generate_audio.py both use _atomic_write_bytes/_atomic_write_json with fsync (cycles 70–73 hardening complete)
+- 🔴 **1 NEW atomic-write gap:** tools/generate_tables.py line 153 (TABLES.DAT) + line 168 (manifest json.dump) NOT atomic; risk: process kill → corrupted TABLES.DAT blocks engine startup
+- 🔵 **2 r18 findings remain open:** voice-manifest schema_version rejection test missing (LOW), GENERATION_LOG.jsonl queryability guide missing (LOW)
+- ✅ **Test count:** 1234 (r18 baseline 1189, +45 net; sound_manifest +22, atomic_writes +20, misc +3)
+- ✅ **tools/README.md index verified:** 18 scripts indexed, all validated against actual tools/
+- ✅ **Determinism contract scope:** GRP complete; ART/MAP/PALETTE deferred to cycle 75+ (low risk, scope expansion)
+
+**engine-r19 Summary (Cycle 73 follow-up audit):**
+- ✅ **CYCLE-68 PEER_GAME_MODE HANDSHAKE VERIFIED**: 3 marker sites LIVE (GLOBAL.C:113 declaration + GAME.C:398/770 validate/set); zero-init safe, packet-drop fail-safe, no race detected
+- ✅ **CYCLE-65 NET_HEADER=5 FULL ADOPTION VERIFIED**: Header size `NET_HEADER_SIZE=5` correctly applied at 6+ critical sites (MMULTI.C lines 45, 268, 297, 302, 324, 759); game code insulated from header format abstraction ✅
+- ✅ **NEW TEST COVERAGE EXPANSION (cycles 68–73)**: SE40 status list +15 tests (all PASS), allocache buffer reuse +29 tests (all PASS), menues critical paths +13 tests, binary file I/O +22 tests; total test growth 1189→1234 (+3.8%)
+- 🟠 **FAINT QUESTIONS MEDIUM findings**: (1) fta_quotes[122] unguarded raw strcpy (lines 8845, 8862 — cycle 68 partial fix at [26] but [122] sites unprotected), (2) K&R Phase 2 drift +9 lines (1062→1071 // comments, net gain from cycle 68 validation sentinels), (3) allocache static analysis complete but runtime concurrency not tested (flag for cycle 74+ investigation)
+- ✅ **ALL R18 SENTINELS VERIFIED LIVE**: Prior-cycle closures (cycle 60 numwalls, cycle 65 tile-mult overflow, cycle 65 net-seqnum) confirmed functional; BUILD.H struct sizes stable (40/32/44 bytes)
+
+**Persona freshness after cycle 73 tick #2:**
 - documentation-curator: **r18** (FRESH) ✅
 - performance-profiler: **r18** (FRESH) ✅
+- engine-porter: **r19** (FRESH) ✅
+- asset-pipeline: **r19** (FRESH) ✅
 - test-engineer: r18 @ cycle 72 ✅
 - security-and-secrets: r18 @ cycle 72 (v7-clean) ✅ ⭐
-- engine-porter: r18 @ cycle 67
-- asset-pipeline: r18 @ cycle 67
 - audio-engineer: r17 @ cycle 69
 - build-system: r18 @ cycle 68
 - network-multiplayer: r16 @ cycle 71
 - compat-layer: r17 @ cycle 71
 
-**New todos seeded (cycle 73 r18 findings):**
+**New todos seeded (cycle 73 r18/r19 findings):**
 - docs-r18 (2 NEW): `docs-r18-cross-reference-new-readmes` (MEDIUM), `docs-r18-summary-r-level-update` (LOW)
 - perf-r18 (2 NEW): `perf-r18-slow-test-marking-hygiene` (MEDIUM), `perf-r18-contributing-documentation-scaling-advisory` (MEDIUM)
+- engine-r19 (3 NEW): `engine-r19-fta-quotes-122-bound` (MEDIUM, 30 min), `engine-r19-allocache-concurrent-race-investigation` (MEDIUM, 2 h), `engine-r19-net-header-5-legacy-path-doc` (LOW, 15 min)
+- asset-r19 (3 NEW): `asset-r19-atomic-write-coverage-gap-generate-tables` (LOW, 15 min), `asset-r19-sound-manifest-schema-version-rejection-test` (LOW, 10 min), `asset-r19-generation-log-queryability-guide` (LOW, 20 min)
 
-**Backlog delta:** ~324 → ~328 pending (+4 intake, 0 closures).
+**Backlog delta:** ~334 → ~337 pending (+3 intake from asset-r19, 0 closures).
 
 **Test count:** 1234 collected (1197 passed, 35 skipped, 2 xfailed). Build green (17.29s).
 
-**Next audit-pass targets (cycle 74):** engine-porter r19 + audio-engineer r18 (both 5-6 cycles stale @ cycle 67-69).
+**Next audit-pass targets (cycle 74):** audio-engineer r18 + network-multiplayer r17 (both 4-5 cycles stale @ cycle 69-71).
 
 **Human-attention items:** None this cycle.
