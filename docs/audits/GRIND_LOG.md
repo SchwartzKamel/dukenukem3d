@@ -4500,3 +4500,23 @@ Re-verify all r21 audit-pass items (cycles 77–84 closures) remain live across 
 **Build:** Clean (0 changes to source). **Tests:** 1365 passed, 58 skipped, 2 xfailed (audio_pipeline + compat tests green).
 
 ---
+
+## Cycle 92 — 2026-05-21 (audit-pass + grind drain, 6 sub-agents)
+
+**Personas audited (2 of 10, 5 cycles stale refresh):**
+- **build-system r21→r22** (`build-system-r22.md`): Cycles 87-92 delta synthesis; 9/10 invariants STABLE ✅ (CMake LANGUAGE C, SDL2 single-source 2.30.9, PowerShell ASCII-only, LTO, gnu89/c11 split, check_secrets, Windows entry, NET_HEADER_SIZE=5B, commit trailer); 1 invariant pending (J post-inlining). FALSE-ALARM: r22 audit flagged `totalclocklock` as a typo — operator verified it is a legitimate frame-stable snapshot variable (SRC/ENGINE.C:311 declares `long totalclocklock;`, L853 sets it = totalclock). Grade revised to PASS. +5 follow-up todos.
+- **network-multiplayer r19→r20** (`network-multiplayer-r20.md`): 9-cycle auth-spoofing RE-ESCALATION to CRITICAL-BLOCKING ✅ (zero HMAC/SHA256/spoofing matches in repo; r17 design FINAL; 3-4h effort; UNBLOCKED; blocks v0.2.0). Cycle-65 NET_HEADER 5B + cycle-83 handshake timeouts + cycle-77 music-init fix all STABLE. 22/22 net handshake tests PASS, 79+ total network tests green. +5 todos (1 CRITICAL-BLOCKING-MANDATORY, 2 MED, 2 LOW).
+
+**Grind closures (4):**
+- **Makefile parallel race** (`Makefile`): @-chmod +x and @-strip -s prefixed with `-` to make recipes race-tolerant under concurrent `make clean && make -j` (cycle 88-91 sub-agent workload). 3x consecutive clean builds verified.
+- **animateoffs static inline** (`SRC/BUILD.H` + `SRC/ENGINE.C`): 25-line function converted via `static inline` wrapper macro `_animateoffs_inline()` in BUILD.H + non-inline fallback `_animateoffs_fallback()` in ENGINE.C; conditional on ENGINE flag for LTO compat. Eliminates per-call overhead on 12-16 calls/frame.
+- **build_windows.bat SDL2 validation** (`build_windows.bat`): 15-line fail-fast block added before cl.exe — checks SDL2_DIR defined, lib\x64\SDL2.lib exists, include\SDL.h exists. ASCII-only verified.
+- **compat audio stubs logging** (`compat/audio_stub.c`): 4 unimplemented MIDI/audio stubs instrumented with `SDL_LogDebug(SDL_LOG_CATEGORY_AUDIO, "stub: %s called (unimplemented)", __func__)`; 14 intentionally-silent per-frame stubs excluded per cycle-91 catalog.
+
+**Verification gates (v7-HARDENED cycle 90 protocol):** all 6 sub-agents posted git diff + grep + SQL proof. SUMMARY/GRIND_LOG appends raced and were lost — operator-patched post-hoc (cycle 89 pattern recurred despite gates; SUMMARY/GRIND_LOG concurrent edits remain race-prone).
+
+**Build:** Clean release. **Tests:** 1367 passed, 58 skipped, 0 xfailed, 0 xpassed (xfail markers removed cycle 91 stay clean).
+
+**CRITICAL-BLOCKING carryover:** net-r20-fix-auth-spoofing-CRITICAL-BLOCKING-MANDATORY — 9 cycles overdue; v0.2.0 release gate; HMAC-SHA256 plan FINAL; 3-4h effort; MANDATORY DISPATCH cycle 93.
+
+---

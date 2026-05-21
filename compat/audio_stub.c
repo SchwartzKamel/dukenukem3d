@@ -532,7 +532,12 @@ void FX_SetReverbDelay(int delay)
 #endif
 }
 
-int FX_VoiceAvailable(int priority)  { (void)priority; return 1; }
+int FX_VoiceAvailable(int priority)
+{
+    SDL_LogDebug(SDL_LOG_CATEGORY_AUDIO, "stub: %s called (unimplemented)", __func__);
+    (void)priority;
+    return 1;
+}
 
 int FX_EndLooping(int handle)
 {
@@ -564,12 +569,14 @@ int FX_SetPan(int handle, int vol, int left, int right)
 
 int FX_SetPitch(int handle, int pitchoffset)
 {
+    SDL_LogDebug(SDL_LOG_CATEGORY_AUDIO, "stub: %s called (unimplemented)", __func__);
     (void)handle; (void)pitchoffset;
     return FX_Ok;
 }
 
 int FX_SetFrequency(int handle, int frequency)
 {
+    SDL_LogDebug(SDL_LOG_CATEGORY_AUDIO, "stub: %s called (unimplemented)", __func__);
     (void)handle; (void)frequency;
     return FX_Ok;
 }
@@ -993,6 +1000,7 @@ void MUSIC_StopFade(void)
 
 void MUSIC_RerouteMidiChannel(int channel, int (*function)(int, int, int))
 {
+    SDL_LogDebug(SDL_LOG_CATEGORY_AUDIO, "stub: %s called (unimplemented)", __func__);
     (void)channel; (void)function;
 }
 

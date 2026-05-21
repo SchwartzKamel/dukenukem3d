@@ -9151,3 +9151,30 @@ void setfirstwall(short sectnum, short newfirstwall)
 	for(i=startwall;i<endwall;i++)
 		if (wall[i].nextwall >= 0) wall[wall[i].nextwall].nextwall = i;
 }
+
+long
+_animateoffs_fallback(short tilenum, short fakevar)
+{
+long i, k, offs;
+offs = 0;
+i = (totalclocklock>>((picanm[tilenum]>>24)&15));
+if ((picanm[tilenum]&63) > 0)
+{
+switch(picanm[tilenum]&192)
+{
+case 64:
+k = (i%((picanm[tilenum]&63)<<1));
+if (k < (picanm[tilenum]&63))
+offs = k;
+else
+offs = (((picanm[tilenum]&63)<<1)-k);
+break;
+case 128:
+offs = (i%((picanm[tilenum]&63)+1));
+break;
+case 192:
+offs = -(i%((picanm[tilenum]&63)+1));
+}
+}
+return(offs);
+}
