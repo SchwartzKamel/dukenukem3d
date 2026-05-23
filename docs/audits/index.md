@@ -55,6 +55,7 @@
 | r26 | [asset-pipeline-r26.md](asset-pipeline-r26.md) |
 | r27 | [asset-pipeline-r27.md](asset-pipeline-r27.md) |
 | r28 | [asset-pipeline-r28.md](asset-pipeline-r28.md) |
+| r29 | [asset-pipeline-r29.md](asset-pipeline-r29.md) |
 
 ## Audio Engineer
 {#audio-engineer}
@@ -183,6 +184,7 @@
 | r25 | [documentation-curator-r25.md](documentation-curator-r25.md) |
 | r26 | [documentation-curator-r26.md](documentation-curator-r26.md) |
 | r27 | [documentation-curator-r27.md](documentation-curator-r27.md) |
+| r28 | [documentation-curator-r28.md](documentation-curator-r28.md) |
 
 ## Engine Porter
 {#engine-porter}
@@ -247,6 +249,7 @@
 | r23 | [network-multiplayer-r23.md](network-multiplayer-r23.md) |
 | r24 | [network-multiplayer-r24.md](network-multiplayer-r24.md) |
 | r27 | [network-multiplayer-r27.md](network-multiplayer-r27.md) |
+| r28 | [network-multiplayer-r28.md](network-multiplayer-r28.md) |
 
 ## Performance Profiler
 {#performance-profiler}
@@ -280,6 +283,7 @@
 | r26 | [performance-profiler-r26.md](performance-profiler-r26.md) |
 | r27 | [performance-profiler-r27.md](performance-profiler-r27.md) |
 | r28 | [performance-profiler-r28.md](performance-profiler-r28.md) |
+| r29 | [performance-profiler-r29.md](performance-profiler-r29.md) |
 
 ## Performance Profiler Allocache
 {#performance-profiler-allocache}
@@ -318,6 +322,7 @@
 | r24 | [security-and-secrets-r24.md](security-and-secrets-r24.md) |
 | r25 | [security-and-secrets-r25.md](security-and-secrets-r25.md) |
 | r27 | [security-and-secrets-r27.md](security-and-secrets-r27.md) |
+| r28 | [security-and-secrets-r28.md](security-and-secrets-r28.md) |
 
 ## Test Engineer
 {#test-engineer}
@@ -350,6 +355,7 @@
 | r25 | [test-engineer-r25.md](test-engineer-r25.md) |
 | r26 | [test-engineer-r26.md](test-engineer-r26.md) |
 | r27 | [test-engineer-r27.md](test-engineer-r27.md) |
+| r28 | [test-engineer-r28.md](test-engineer-r28.md) |
 
 ---
 
@@ -403,4 +409,4 @@ RUN_*.md files document investigation plans and diagnostic strategies for specif
 - **RUN Documents:** Cycle-specific investigation plans and diagnostic strategies.
 - **Grind Log:** See [GRIND_LOG.md](GRIND_LOG.md) for master cycle timeline and all audit events.
 
-**Generated:** Cycle 111 — Documentation Curator Persona (Index Manifest Creation)
+**Generated:** Cycle 121 — Documentation Curator Persona (Index Manifest Creation)

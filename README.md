@@ -398,7 +398,7 @@ See [docs/ARCHITECTURE.md § Recent Improvements](docs/ARCHITECTURE.md#recent-im
 ## 🗺️ Roadmap
 
 - [x] 🔊 AI-generated audio assets via GPT Audio 1.5 (voice lines + SFX)
-- [ ] 🔊 Runtime audio playback via SDL2_mixer
+- [x] 🔊 Runtime audio playback via SDL2_mixer (OPTIONAL; gracefully falls back to silent stub if unavailable)
 - [ ] 🗺️ More map levels
 - [ ] 🎨 Full tile set covering all `DEFS.CON` references
 - [ ] 🌐 Multiplayer over TCP/IP

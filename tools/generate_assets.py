@@ -390,6 +390,20 @@ def _is_retryable_error(status_code=None, error=None):
     return False
 
 
+def _redact_hostname(hostname: str) -> str:
+    """Redact a hostname for logging.
+    
+    Returns only the first label of the hostname; e.g. 'api.example.invalid' -> 'api.***'
+    """
+    if not hostname:
+        return "***"
+    try:
+        first_label = hostname.split(".")[0]
+        return f"{first_label}.***"
+    except Exception:
+        return "***"
+
+
 def _validate_flux_config(endpoint: str, api_key: str) -> tuple:
     """Validate FLUX endpoint and API key at startup.
     
@@ -426,9 +440,9 @@ def _validate_flux_config(endpoint: str, api_key: str) -> tuple:
     try:
         socket.gethostbyname(parsed.hostname)
     except socket.gaierror as e:
-        return False, f"FLUX_ENDPOINT hostname not resolvable ({parsed.hostname}): {e}"
+        return False, f"FLUX_ENDPOINT hostname not resolvable ({_redact_hostname(parsed.hostname)}): {e}"
     except socket.timeout:
-        return False, f"FLUX_ENDPOINT DNS lookup timed out ({parsed.hostname})"
+        return False, f"FLUX_ENDPOINT DNS lookup timed out ({_redact_hostname(parsed.hostname)})"
     except Exception as e:
         return False, f"FLUX_ENDPOINT DNS check failed: {e}"
     

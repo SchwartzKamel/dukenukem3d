@@ -516,7 +516,7 @@ kclose(long handle)
 
   /* Internal LZW variables */
 #define LZWSIZE 16384  /* Watch out for shorts! */
-#define LZW_LENG_WARN_THRESHOLD 16384
+#define LZW_LENG_WARN_THRESHOLD 14745  /* 90% of LZWSIZE (16384); tuned cycle 121 to suppress max-size FP spam */
 static char *lzwbuf1, *lzwbuf4, *lzwbuf5, lzwbuflock[5];
 static short *lzwbuf2, *lzwbuf3;
 

@@ -8,6 +8,7 @@ converting true-colour images to paletted pixel data.
 import struct
 import math
 import warnings
+import numpy as np
 
 
 def _ramp(start_rgb, end_rgb, steps):
@@ -310,17 +311,24 @@ def quantize_image(pil_image, palette=None):
 
     img = pil_image.convert("RGB")
     width, height = img.size
-    pixels = img.load()
-
-    # Build a small cache for speed
-    cache = {}
-    result = bytearray(width * height)
-
-    for y in range(height):
-        for x in range(width):
-            rgb = pixels[x, y]
-            if rgb not in cache:
-                cache[rgb] = _nearest_color(rgb[0], rgb[1], rgb[2], palette)
-            result[y * width + x] = cache[rgb]
-
-    return bytes(result)
+    
+    # Convert image to numpy array: shape (height, width, 3), dtype uint8
+    arr = np.asarray(img, dtype=np.uint8)
+    
+    # Reshape to flat array of pixels: (height*width, 3)
+    pixels_flat = arr.reshape(-1, 3)
+    
+    # Convert palette to numpy array for vectorized distance computation
+    palette_arr = np.array(palette, dtype=np.int32)
+    
+    # Compute squared Euclidean distances between each pixel and palette entry
+    # Shape: (num_pixels, 256)
+    # Use squared distances to avoid sqrt (argmin is identical for sqrt and squared)
+    pixels_int32 = pixels_flat.astype(np.int32)
+    diffs = pixels_int32[:, np.newaxis, :] - palette_arr[np.newaxis, :, :]
+    dists_squared = (diffs ** 2).sum(axis=2)
+    
+    # Find nearest palette index for each pixel
+    indices = dists_squared.argmin(axis=1).astype(np.uint8)
+    
+    return bytes(indices)

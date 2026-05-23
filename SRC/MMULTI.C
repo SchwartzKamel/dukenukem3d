@@ -25,13 +25,16 @@
 #include <ws2tcpip.h>
 #include <netdb.h>
 #include <bcrypt.h>
+#include <iphlpapi.h>  /* net-r28-ipv6-zone-id: if_nametoindex for zone parsing */
 #pragma comment(lib, "bcrypt.lib")
+#pragma comment(lib, "iphlpapi.lib")
 typedef int socklen_t;
 #define net_close closesocket
 #define net_sleep(ms) Sleep(ms)
 #else
 #include <sys/socket.h>
 #include <sys/select.h>
+#include <net/if.h>  /* net-r28-ipv6-zone-id: if_nametoindex for zone parsing */
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
@@ -662,7 +665,7 @@ initmultiplayers(char damultioption, char dacomrateoption, char dapriority)
 		int v6only = 0;  /* Enable dual-stack: IPv6 socket accepts IPv4-mapped IPv6 addresses */
 		time_t start;
 
-		server_socket = socket(AF_INET6, SOCK_STREAM, 0);
+		server_socket = net_socket_create(AF_INET6, SOCK_STREAM, 0);
 		if (server_socket == INVALID_SOCKET) {
 			printf("NET: Failed to create server socket\n");
 			goto singleplayer;
@@ -734,8 +737,8 @@ initmultiplayers(char damultioption, char dacomrateoption, char dapriority)
 				player_peer_addr_valid[idx] = 1;
 				/* net-r16-tcp-keepalive: enable TCP keepalive on accepted client socket */
 				net_socket_enable_keepalive(client);
-				setsockopt(client, IPPROTO_TCP, TCP_NODELAY,
-				           (const char *)&flag, sizeof(flag));
+				net_socket_set_option(client, IPPROTO_TCP, TCP_NODELAY,
+				                      (const char *)&flag, sizeof(flag));
 
 				numplayers++;
 				printf("NET: Player %d connected from %s\n",
@@ -792,6 +795,7 @@ initmultiplayers(char damultioption, char dacomrateoption, char dapriority)
 	} else if (join_addr) {
 		/* Client mode: net-r3-ipv6 - dual-stack IPv4/IPv6 support via getaddrinfo */
 		char host[64], port_str[16];
+		char zone_id[16];  /* net-r28-ipv6-zone-id: RFC 4007 link-local zone identifier */
 		int port = DEFAULT_PORT;
 		char *colon;
 		SOCKET sock;
@@ -802,6 +806,7 @@ initmultiplayers(char damultioption, char dacomrateoption, char dapriority)
 		struct addrinfo hints, *res, *rp;
 		int gai_status;
 
+		zone_id[0] = '\0';  /* Initialize zone_id as empty */
 		strncpy(host, join_addr, sizeof(host) - 1);
 		host[sizeof(host) - 1] = '\0';
 
@@ -811,6 +816,13 @@ initmultiplayers(char damultioption, char dacomrateoption, char dapriority)
 			char *bracket = strchr(host, ']');
 			if (bracket) {
 				*bracket = '\0';
+				/* Extract zone-id before stripping brackets (RFC 4007) */
+				char *percent = strchr(host + 1, '%');
+				if (percent) {
+					strncpy(zone_id, percent + 1, sizeof(zone_id) - 1);
+					zone_id[sizeof(zone_id) - 1] = '\0';
+					*percent = '\0';  /* Strip zone-id from host */
+				}
 				memmove(host, host + 1, strlen(host + 1) + 1);
 				if (*(bracket + 1) == ':') {
 					port = atoi(bracket + 2);
@@ -822,6 +834,13 @@ initmultiplayers(char damultioption, char dacomrateoption, char dapriority)
 			if (colon) {
 				*colon = '\0';
 				port = atoi(colon + 1);
+			}
+			/* Check for zone-id in non-bracketed format (fe80::1%eth0) */
+			char *percent = strchr(host, '%');
+			if (percent) {
+				strncpy(zone_id, percent + 1, sizeof(zone_id) - 1);
+				zone_id[sizeof(zone_id) - 1] = '\0';
+				*percent = '\0';  /* Strip zone-id from host */
 			}
 		}
 
@@ -842,13 +861,40 @@ initmultiplayers(char damultioption, char dacomrateoption, char dapriority)
 		/* Try each address until successful connection */
 		sock = INVALID_SOCKET;
 		for (rp = res; rp != NULL; rp = rp->ai_next) {
-			sock = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
+			sock = net_socket_create(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
 			if (sock == INVALID_SOCKET) continue;
 
 			if (connect(sock, rp->ai_addr, (int)rp->ai_addrlen) == 0) {
 				/* Connection successful */
 				memcpy(&addr, rp->ai_addr, rp->ai_addrlen);
 				addrlen = (int)rp->ai_addrlen;
+				
+				/* net-r28-ipv6-zone-id-parsing-fix: Populate sin6_scope_id for link-local (RFC 4007) */
+				if (zone_id[0] != '\0' && rp->ai_family == AF_INET6) {
+					struct sockaddr_in6 *sa6 = (struct sockaddr_in6 *)&addr;
+					uint32_t if_index = 0;
+#ifdef _WIN32
+					/* Windows: try if_nametoindex from iphlpapi.h */
+					if_index = (uint32_t)if_nametoindex(zone_id);
+#else
+					/* POSIX: if_nametoindex from net/if.h */
+					if_index = (uint32_t)if_nametoindex(zone_id);
+#endif
+					if (if_index == 0) {
+						/* Try parsing as numeric index */
+						char *end;
+						long numeric_index = strtol(zone_id, &end, 10);
+						if (end != zone_id && numeric_index > 0 && numeric_index <= 0xFFFFFFFFUL) {
+							if_index = (uint32_t)numeric_index;
+						}
+					}
+					if (if_index > 0) {
+						sa6->sin6_scope_id = if_index;
+						printf("NET: IPv6 link-local zone %%%s -> index %u\n", zone_id, if_index);
+					} else {
+						printf("NET: WARNING - IPv6 zone %%%s not found, using scope 0\n", zone_id);
+					}
+				}
 				break;
 			}
 			net_close(sock);
@@ -870,8 +916,8 @@ initmultiplayers(char damultioption, char dacomrateoption, char dapriority)
 		player_peer_addr_valid[0] = 1;
 
 		flag = 1;
-		setsockopt(sock, IPPROTO_TCP, TCP_NODELAY,
-		           (const char *)&flag, sizeof(flag));
+		net_socket_set_option(sock, IPPROTO_TCP, TCP_NODELAY,
+		                       (const char *)&flag, sizeof(flag));
 
 		/* Receive handshake from host.
 		 * net-r17-hmac: extended protocol (0x0002) sends 40 bytes:
