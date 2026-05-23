@@ -692,3 +692,160 @@ def pytest_collection_modifyitems(config, items):
     for item in items:
         if "slow" in item.keywords:
             item.add_marker(skip_slow)
+
+
+# ============================================================================
+# Shared headless playtest fixture
+# ============================================================================
+
+def sdl2_available():
+    """Check if libSDL2 is available in the runtime linker path."""
+    import ctypes
+
+    for lib_name in (
+        "libSDL2-2.0.so.0",
+        "libSDL2-2.0.0.dylib",
+        "SDL2.dll",
+    ):
+        try:
+            ctypes.CDLL(lib_name)
+            return True
+        except OSError:
+            pass
+    return False
+
+
+def get_sdl2_lib_path():
+    """Try to find SDL2 library path from ctypes/system locations."""
+    macos_paths = [
+        "/opt/homebrew/lib",
+        "/usr/local/lib",
+    ]
+    for path in macos_paths:
+        sdl2_file = os.path.join(path, "libSDL2-2.0.0.dylib")
+        if os.path.isfile(sdl2_file):
+            return path
+
+    linux_paths = [
+        "/home/linuxbrew/.linuxbrew/lib",
+        "/usr/lib",
+        "/usr/lib/x86_64-linux-gnu",
+        "/usr/local/lib",
+    ]
+    for path in linux_paths:
+        sdl2_file = os.path.join(path, "libSDL2-2.0.so.0")
+        if os.path.isfile(sdl2_file):
+            return path
+
+    try:
+        result = subprocess.run(
+            ["ldconfig", "-p"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        for line in result.stdout.split("\n"):
+            if "libSDL2-2.0.so.0" in line:
+                parts = line.split(" => ")
+                if len(parts) == 2:
+                    lib_path = parts[1].strip()
+                    if lib_path:
+                        return os.path.dirname(lib_path)
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        pass
+
+    try:
+        result = subprocess.run(
+            ["where", "SDL2.dll"] if os.name == "nt" else ["which", "SDL2.dll"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if result.returncode == 0:
+            dll_path = result.stdout.strip()
+            if dll_path:
+                return os.path.dirname(dll_path)
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        pass
+
+    return None
+
+
+@pytest.fixture(scope="session")
+def headless_run(worker_id):
+    """Launch Duke3D headless once, capture frames, return results dict."""
+    import glob
+    import shutil
+    from filelock import FileLock
+
+    binary_path_value = os.path.join(PROJECT_ROOT, "duke3d")
+    grp_path_value = os.path.join(PROJECT_ROOT, "DUKE3D.GRP")
+
+    if not os.path.isfile(binary_path_value):
+        pytest.skip(f"Game binary not found: {binary_path_value}")
+    if not os.path.isfile(grp_path_value):
+        pytest.skip(f"GRP file not found: {grp_path_value}")
+    if not sdl2_available():
+        pytest.skip("libSDL2-2.0.so.0 not found in runtime linker path")
+
+    captures_dir = os.path.join(PROJECT_ROOT, "captures")
+    lock_file = os.path.join(PROJECT_ROOT, ".headless_run.lock")
+    done_marker = os.path.join(PROJECT_ROOT, ".headless_run.done")
+
+    def _do_headless_run():
+        if os.path.isdir(captures_dir):
+            shutil.rmtree(captures_dir)
+        os.makedirs(captures_dir, exist_ok=True)
+
+        env = os.environ.copy()
+        env.update({
+            "SDL_VIDEODRIVER": "dummy",
+            "DUKE3D_HEADLESS": "1",
+            "DUKE3D_SKIP_LOGO": "1",
+            "DUKE3D_FRAME_LIMIT": "20",
+            "DUKE3D_CAPTURE_INTERVAL": "5",
+        })
+
+        sdl2_path = get_sdl2_lib_path()
+        if sdl2_path:
+            current_ld = env.get("LD_LIBRARY_PATH", "")
+            env["LD_LIBRARY_PATH"] = (
+                f"{sdl2_path}:{current_ld}" if current_ld else sdl2_path
+            )
+
+        try:
+            result = subprocess.run(
+                [binary_path_value],
+                cwd=PROJECT_ROOT,
+                env=env,
+                capture_output=True,
+                timeout=15,
+            )
+            exit_code = result.returncode
+        except subprocess.TimeoutExpired as exc:
+            exit_code = -1
+            result = exc
+
+        frame_paths = sorted(glob.glob(os.path.join(captures_dir, "*.bmp")))
+        stdout = getattr(result, "stdout", b"") or b""
+        stderr = getattr(result, "stderr", b"") or b""
+        return {
+            "exit_code": exit_code,
+            "frame_paths": frame_paths,
+            "stdout": stdout.decode(errors="replace"),
+            "stderr": stderr.decode(errors="replace"),
+        }
+
+    with FileLock(lock_file):
+        if not os.path.exists(done_marker):
+            result = _do_headless_run()
+            Path(done_marker).touch()
+            return result
+
+    frame_paths = sorted(glob.glob(os.path.join(captures_dir, "*.bmp")))
+    return {
+        "exit_code": 0,
+        "frame_paths": frame_paths,
+        "stdout": "",
+        "stderr": "",
+    }

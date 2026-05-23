@@ -56,6 +56,7 @@
 | r27 | [asset-pipeline-r27.md](asset-pipeline-r27.md) |
 | r28 | [asset-pipeline-r28.md](asset-pipeline-r28.md) |
 | r29 | [asset-pipeline-r29.md](asset-pipeline-r29.md) |
+| r30 | [asset-pipeline-r30.md](asset-pipeline-r30.md) |
 
 ## Audio Engineer
 {#audio-engineer}
@@ -120,6 +121,7 @@
 | r26 | [build-system-r26.md](build-system-r26.md) |
 | r27 | [build-system-r27.md](build-system-r27.md) |
 | r28 | [build-system-r28.md](build-system-r28.md) |
+| r29 | [build-system-r29.md](build-system-r29.md) |
 
 ## Compat Layer
 {#compat-layer}
@@ -153,6 +155,7 @@
 | r26 | [compat-layer-r26.md](compat-layer-r26.md) |
 | r27 | [compat-layer-r27.md](compat-layer-r27.md) |
 | r28 | [compat-layer-r28.md](compat-layer-r28.md) |
+| r29 | [compat-layer-r29.md](compat-layer-r29.md) |
 
 ## Documentation Curator
 {#documentation-curator}
@@ -219,6 +222,7 @@
 | r27 | [engine-porter-r27.md](engine-porter-r27.md) |
 | r28 | [engine-porter-r28.md](engine-porter-r28.md) |
 | r29 | [engine-porter-r29.md](engine-porter-r29.md) |
+| r30 | [engine-porter-r30.md](engine-porter-r30.md) |
 
 ## Network Multiplayer
 {#network-multiplayer}
@@ -323,6 +327,7 @@
 | r25 | [security-and-secrets-r25.md](security-and-secrets-r25.md) |
 | r27 | [security-and-secrets-r27.md](security-and-secrets-r27.md) |
 | r28 | [security-and-secrets-r28.md](security-and-secrets-r28.md) |
+| r29 | [security-and-secrets-r29.md](security-and-secrets-r29.md) |
 
 ## Test Engineer
 {#test-engineer}
@@ -369,6 +374,7 @@
 | Baseline (compat-layer) | [compat-layer.md](compat-layer.md) |
 | Baseline (engine-porter) | [engine-porter.md](engine-porter.md) |
 | Baseline (security-and-secrets) | [security-and-secrets.md](security-and-secrets.md) |
+| r29 | [test-engineer-r29.md](test-engineer-r29.md) |
 | Baseline (test-engineer) | [test-engineer.md](test-engineer.md) |
 | Deep-Dive (engine r22 palette bounds) | [engine-r22-palette-bounds-audit.md](engine-r22-palette-bounds-audit.md) |
 | Deep-Dive (network IPv6 scope r23) | [network-multiplayer-ipv6-scope-r23.md](network-multiplayer-ipv6-scope-r23.md) |

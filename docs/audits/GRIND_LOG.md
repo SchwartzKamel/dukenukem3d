@@ -5326,3 +5326,64 @@ Backlog: 468 pending / 493 done / 23 blocked.
 
 ### Staleness post-c120 audit-pass
 All 11 personas now refreshed within last 4 cycles. Stalest next: documentation-curator → tied with security/network at r28 c120. Next stalest: engine-porter r29 c118 (2 cycles ago).
+
+---
+
+## Cycle 122 — 2026-05-23 — Full shippability audit (5 personas) + LLM e2e harness landed
+
+**Dispatch**: Fleet mode. 6 background sub-agents in parallel: 5 doc-only persona audits (engine, compat, asset, test, build+security) + 1 LLM e2e implementation track. Sequential follow-up: llm-e2e-ci-docs (CI workflow + README + CONTRIBUTING wiring). HEAD before cycle: 82777af (c121).
+
+### Audit verdicts (6 reports landed)
+
+| Persona | Report | Verdict | P0 | P1 | P2 |
+|---------|--------|---------|----|----|----|
+| engine-porter | r30 | **NO-GO** | 2 | 3 | 3 |
+| compat-layer | r29 | Linux/macOS/MinGW READY; MSVC needs smoke | 0 | 1 | 6 |
+| asset-pipeline | r30 | Procedural READY; --ai path has 4 P1 | 0 | 4 | 5 |
+| test-engineer | r29 | NOT ship-ready (5 P0 coverage gaps) | 5 | 5 | 3 |
+| build-system | r29 | **NO-GO local Windows native** | 2 | 4 | 5 |
+| security-and-secrets | r29 | Shippable with P1 caveats | 0 | 2 | 4 |
+
+### P0 findings (ship-blockers)
+
+1. **engine SRC/CACHE1D.C:746-783** — uncompress() output-side OOB; three independent vectors triggerable via hostile savegame load (kdfread→uncompress chain). Potential RCE.
+2. **engine SRC/ENGINE.C:2383** — loadboard("") reads filename[strlen-1] without strlen>0 guard.
+3. **build build_windows.bat:113,160** — compat-source loops omit sha256.c, maxtiles_*, net_socket_win32.c (5 of 9 .c files dropped).
+4. **build build_windows.bat:45,90,130-136** — local script builds x64 while release.yml ships i686/Win32.
+
+### Major closures verified
+- **net-r28 c120 CRITICAL IPv6 zone-id stripping** — REBUTTED by engine-porter r30 (RFC 4007 if_nametoindex resolution already implemented in SRC/MMULTI.C:872-897 since cycle 118)
+- **compat-r28 sha256.c CMake gap** — CLOSED (CMakeLists.txt:54)
+- **compat-r28 net_socket adoption** — CLOSED (9 call-sites confirmed in SRC/MMULTI.C)
+- **security-r28 DNS endpoint redaction** — CLOSED (cycle-121 _redact_hostname wiring)
+- **10th totalclocklock re-affirmation** — `totalclocklock` is NOT a typo; rejected again
+
+### LLM e2e harness shipped
+
+New capability: LLM-driven semantic playtest validation. Captured BMP frames from headless mode are sent to a vision-API model that returns a structured pass verdict (renders_ok/hud_visible/geometry_coherent/no_error_overlays + confidence + description).
+
+Files added/modified:
+- `tools/llm_playtest.py` (vision API client with --stub mode)
+- `tests/test_llm_playtest.py` (@pytest.mark.playtest, 2 passed/1 skipped locally)
+- `tests/conftest.py` (headless_run fixture moved here for sharing across test files)
+- `tests/test_visual_playtest.py` (refactored to import shared fixture)
+- `docs/LLM_PLAYTEST.md` (~150 line doc)
+- `.env.example` (LLM_PLAYTEST_ENDPOINT/MODEL/API_KEY keys)
+- `tools/README.md` (new bullet)
+- `.github/workflows/build.yml` (stub test unconditional; live test gated on secrets.LLM_PLAYTEST_API_KEY)
+- `README.md` (LLM Playtest Validation subsection)
+- `CONTRIBUTING.md` (extended playtest marker docs + LLM E2E Setup section)
+
+Validation:
+- `python3 tools/llm_playtest.py --stub --frames-dir captures/ --report /tmp/verdict.json` → exit 0
+- `pytest tests/test_llm_playtest.py -v -m playtest` → 2 passed, 1 skipped
+- `bash tools/check_secrets.sh` → clean
+
+### Total new mined todos: ~28 (across 6 audits)
+Per-persona: engine ~6, compat 6, asset 6, test 13, build 11, security 6.
+
+### Orchestration notes
+- All 6 audit STAGING files used `<!-- SUMMARY_ROW -->` delimiters per cycle-93 race-avoidance pattern; orchestrator merged into SUMMARY.md and GRIND_LOG.md post-hoc.
+- 7 of 7 sub-agents updated their own todo SQL status (zero hallucinated edits this cycle).
+- index.md sectional appends had no sibling collisions (each persona's row landed in its own table).
+- STAGING_*.md files removed post-merge.

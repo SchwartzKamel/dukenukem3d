@@ -16,6 +16,8 @@ concurrency:
 jobs:
   build-linux:
     runs-on: ubuntu-latest
+    env:
+      LLM_PLAYTEST_API_KEY_SET: ${{ secrets.LLM_PLAYTEST_API_KEY != '' }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       
@@ -46,7 +48,18 @@ jobs:
       
       - name: Generate assets
         run: python3 tools/generate_assets.py --no-ai
-      
+
+      - name: Run LLM playtest (stub)
+        run: python3 -m pytest tests/test_llm_playtest.py -v -m playtest --tb=short
+
+      - name: Run LLM playtest (live, optional)
+        if: ${{ env.LLM_PLAYTEST_API_KEY_SET == 'true' }}
+        env:
+          LLM_PLAYTEST_ENDPOINT: ${{ secrets.LLM_PLAYTEST_ENDPOINT }}
+          LLM_PLAYTEST_MODEL: ${{ secrets.LLM_PLAYTEST_MODEL }}
+          LLM_PLAYTEST_API_KEY: ${{ secrets.LLM_PLAYTEST_API_KEY }}
+        run: python3 -m pytest tests/test_llm_playtest.py::test_llm_playtest_live_passes_when_configured -v -m playtest --tb=short
+
       - name: Validate generated artifacts
         run: python3 tools/validate_generated_artifacts.py --sets textures grp maps scripts --no-audio-manifest
 

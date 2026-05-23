@@ -427,6 +427,13 @@ When contributing code that touches a domain, work with the relevant persona. Se
 
 Audit reports for each agent are stored in [docs/audits/](docs/audits/) with a cross-cutting [SUMMARY.md](docs/audits/SUMMARY.md).
 
+### 🤖 LLM Playtest Validation
+
+The LLM e2e harness reviews headless gameplay screenshots for semantic issues that heuristic frame checks can miss.
+Run it locally with `pytest tests/test_llm_playtest.py -m playtest`.
+Stub mode runs in CI on every PR without credentials; live mode is opt-in and requires `LLM_PLAYTEST_*` env vars.
+See [docs/LLM_PLAYTEST.md](docs/LLM_PLAYTEST.md) for setup and report details.
+
 ---
 
 ## 📜 License

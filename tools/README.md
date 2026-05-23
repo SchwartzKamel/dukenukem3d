@@ -25,6 +25,7 @@ The `tools/` directory is organized into several functional domains:
 | **manifest_verification.py** | Load and verify manifest files with SHA256 checksums | Imported by other tools | none | Checksum validation | Internal utility |
 | **map_format.py** | CREATE BUILD engine MAP files (v7 format) with sectors, walls, sprites | Imported by generate_assets.py | none | Procedural level geometry | CONTRIBUTING.md L155-161 |
 | **frame_analyzer.py** | Analyse BMP frame captures for AI playtesting validation | Imported by tests | none | Frame histogram, edge detection | perf-r16-frame-analyzer-parametrization |
+| **llm_playtest.py** | LLM vision verdict harness for headless BMP captures | `python3 tools/llm_playtest.py` | `--stub`, `--frames-dir`, `--report` | JSON pass/fail report | docs/LLM_PLAYTEST.md |
 | **bundle_windows.sh** | Copy SDL2.dll and dependencies for self-contained Windows package (32-bit) | `bash tools/bundle_windows.sh [DEST]` | none | Bundled DLLs in DEST | CI packaging |
 | **check_secrets.sh** | Pre-commit hook: scan staged changes for API keys and secrets | `bash tools/check_secrets.sh` | none | Exits 1 if secrets detected | CONTRIBUTING.md L91-103 |
 | **install_hooks.sh** | Install Git pre-commit hook (idempotent) | `bash tools/install_hooks.sh` | none | .git/hooks/pre-commit shim | CONTRIBUTING.md L81-84 |

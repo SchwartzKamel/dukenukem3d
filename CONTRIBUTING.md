@@ -874,6 +874,8 @@ This project uses pytest markers to organize test execution. All markers are reg
 - **CI:** Included in nightly or full regression runs (configured per workflow).
 - **Note:** Playtest tests are typically slow and require X11 or headless display; they are separated to avoid blocking fast feedback.
 
+There are now two playtest categories: heuristic frame validation in `tests/test_visual_playtest.py`, and LLM-driven semantic validation in `tests/test_llm_playtest.py`. See [docs/LLM_PLAYTEST.md](docs/LLM_PLAYTEST.md) for the new harness setup, stub mode, and live provider configuration.
+
 ### Serial Marker
 
 **Marker:** `@pytest.mark.serial`
@@ -920,3 +922,15 @@ git commit --no-verify
 Bypassing is considered a security violation; discuss with the team before doing so.
 
 For full details on secret handling and the audit context, see [docs/audits/security-and-secrets-r16.md](docs/audits/security-and-secrets-r16.md#pre-commit-hook-integrity).
+
+## LLM E2E Playtest Setup
+
+To run the live LLM semantic playtest, copy `.env.example` to `.env` and configure:
+
+```bash
+LLM_PLAYTEST_ENDPOINT=<provider-endpoint>
+LLM_PLAYTEST_MODEL=<vision-model>
+LLM_PLAYTEST_API_KEY=<provider-api-key>
+```
+
+The same test file also supports offline validation through `--stub`, so `pytest tests/test_llm_playtest.py -m playtest` can run without credentials and is exercised in CI on every PR. Live mode is opt-in and skips unless `LLM_PLAYTEST_API_KEY` is present; see [docs/LLM_PLAYTEST.md](docs/LLM_PLAYTEST.md) for provider-specific details.

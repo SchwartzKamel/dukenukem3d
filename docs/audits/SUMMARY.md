@@ -522,3 +522,42 @@ Note: r9 and r10 entries added below build-system r8.
          - **r22:** Cycles 85–90 re-audit + cycle 89/88/85 RUN_*.md follow-up (bit-shift overflow, RTS shared opens, allocache race carry). ✅ **ALL 4 R21 AUDIT-PASS CLOSURES RE-VERIFIED LIVE**: fta_quotes[122] 3-site bounds protection VERIFIED (GAME.C L8850/L8868, MENUES.C L1202), _Noreturn expansion VERIFIED (source/FUNCT.H:372, SRC/BUILD.H:352), music-init order VERIFIED race-free (source/GAME.C L7462–L7472), build invariants A–J all 10 PASSING ✅. ✅ **CYCLE-89 BIT-SHIFT OVERFLOW AUDIT COMPLETE**: 3 rendering sites audited (hlineasm4 clamped=SAFE, mhline/thline unclamped=THEORETICAL UB); Sites 2&3 show low practical risk in-game (tile-size constraints), recommend defensive clamping per Site-1 pattern (deferred to grind phase). ✅ **CYCLE-88 RTS SHARED OPENS INVESTIGATION VERIFIED STALE COMMENT**: File-handle lifecycle safe in single-threaded context (verified zero threading primitives), "FIXME: shared opens" is design note not bug, resource leak negligible (OS cleanup on exit), comment-only advisory. ✅ **CYCLE-85 ALLOCACHE RACE CARRY + SINGLE-THREAD INVARIANT**: Static analysis complete; single-thread verification confirmed (zero pthread/CreateThread, all allocache callers synchronous); profiling baseline established cycle 89; runtime test deferred to r23 advisory (not blocking). ✅ **TODO/FIXME DENSITY**: Zero comments in engine source (clean). Build CLEAN + 3 expected warnings. 0 NEW REGRESSIONS. (0 NEW todos — all findings documented in RUN_*.md; 3 carry advisories for r22/r23 grind prioritization)
      - **r22:** Cycle 90 audit-pass tick (5 cycles stale: r21→r22 span). ✅ **R21 CLOSURE VERIFICATION COMPLETE**: Audio manifest schema test assertion STABLE ✅; manifest_verification.py fallback OPERATIONAL ✅; CONTRIBUTING.md TABLES.DAT determinism docs PRESENT ✅; atomic write pattern UNIFORM across 3 tools ✅; cycles 85–89 delta review CLEAN ✅. ✅ **CYCLES 85–89 DELTA SYNTHESIS**: (1) Cycle 88 audio VOC dataoff validation (compat/audio_stub.c L123–128) CORRECT FORMAT CHECK ✅; (2) Cycle 88 manifest freshness tracking (OPTION A) DEFERRAL CONSENSUS REAFFIRMED (freshness insufficient to justify 1–2d effort) ✅; (3) Cycle 88 test parametrization +89 tests COMPREHENSIVE COVERAGE + ALL PASSING ✅; (4) Cycles 87–89 atomic write fsync uniformity VERIFIED across generate_*.py ✅; (5) Cycle 85 audio schema migration plan PLANNING COMPLETE (implementation deferred) ✅; (6) Cycle 87 GRP CRC enhancement DEFERRAL CONFIRMED ✅. 🔵 **0 NEW CRITICAL/HIGH findings.** Asset pipeline STABLE + PRODUCTION-READY. 4 deferred backlog items (all LOW/MEDIUM, defer cycles 95–100). Test suite 1365 PASSING, build CLEAN. (4 NEW deferred todos: audio-freshness-design, grp-crc-future, schema-v2-migration, generation-log-guide)
 
+
+---
+
+## Cycle 122 — 2026-05-23 — Full shippability audit + LLM e2e harness
+
+**Dispatch**: 5 doc-only persona audits in parallel + 1 LLM e2e implementation track. Goal: full shippability verdict + add LLM-driven semantic playtest validation. HEAD before cycle: 82777af (c121).
+
+| Persona | Round | Verdict |
+|---------|-------|---------|
+| engine-porter | r30 | **NO-GO**: 2 fresh P0 ship-blockers (uncompress() output-side OOB in SRC/CACHE1D.C:746-783 triggerable via hostile savegames → potential RCE; SRC/ENGINE.C:2383 loadboard("") filename[-1] OOB read), 3 P1, 3 P2, 14 prior bounds-guards re-verified live, 10th totalclocklock re-affirmation |
+| compat-layer | r29 | Ship-ready Linux/macOS/MinGW; Windows-MSVC still needs win_build.ps1 smoke. 1 P1 (mixer_channel_chunk[32] overshot when numvoices>32 → Mix_Chunk leak + missed fx_callback) + 6 P2. r28 CRITICAL+MED both CLOSED |
+| asset-pipeline | r30 | Procedural (--no-ai) path ship-ready + byte-reproducible; AI/CI path has 4 P1 secret-leak + reliability gaps blocking --ai rollout (dead-code sync generate_audio path leaking endpoints; unreachable error block in tools/ci/generate_assets.sh:53-62; runtime exception-string redaction gaps) |
+| test-engineer | r29 | Suite NOT yet ship-ready: 5 P0 coverage gaps (GRP byte-identical determinism; IPv6 zone-id parsing; raw-socket adoption regression guard; CSPRNG POSIX fallback; MAXTILES guard runtime fire) + M-1 xdist hazard (test_build_warnings.py needs @pytest.mark.serial) |
+| build-system | r29 | **NO-GO for local Windows native**: 2 P0 in build_windows.bat (compat-source loops drop 5/9 .c files including sha256.c; x64 vs CI i686 arch mismatch) + 4 P1 + 5 P2. CI build/release pipelines remain green |
+| security-and-secrets | r29 | Shippable with P1 caveats: 0 P0, 2 P1, 4 P2. r28 DNS-redaction finding verified RESOLVED |
+
+### Headline cross-cutting findings (P0 ship-blockers)
+
+1. **Engine — savegame OOB (P0, potential RCE)**: SRC/CACHE1D.C:746-783 uncompress() lacks bounds against 16 KiB lzwbuf4 arena; three independent overflow vectors triggered by hostile savegame share via kdfread() (source/MENUES.C:170+).
+2. **Engine — empty filename OOB (P0)**: SRC/ENGINE.C:2383 loadboard("") computes filename[strlen-1] without strlen>0 guard.
+3. **Build — Windows native broken (P0)**: build_windows.bat drops sha256.c, maxtiles_*, net_socket_win32.c — local Windows users get a binary missing HMAC verification.
+4. **Build — arch mismatch (P0)**: build_windows.bat builds x64 while release.yml ships i686/Win32.
+
+### New capability shipped this cycle
+
+**LLM e2e playtest harness**: `tools/llm_playtest.py` + `tests/test_llm_playtest.py` + `tests/conftest.py` (headless_run fixture moved for sharing) + `docs/LLM_PLAYTEST.md` + `.env.example` LLM_PLAYTEST_* keys + CI integration in `.github/workflows/build.yml`. Stub mode runs unconditionally on every PR; live mode opt-in via secrets. Closes the long-standing LLM-semantic-validation gap in test-engineer audit. Validation: pytest tests/test_llm_playtest.py -m playtest → 2 passed, 1 skipped (live test skipped without API key).
+
+### Verdict and next-cycle priorities
+
+**Ship status: NO-GO until 4 P0 fixes land**. Recommended cycle-123 grind targets, prioritized:
+1. engine-r30 uncompress() bounds guards (P0, ~1h)
+2. engine-r30 loadboard() filename underflow guard (P0, ~15min)
+3. build-r29 build_windows.bat compat-source loop fix (P0, ~30min)
+4. build-r29 build_windows.bat i686 arch alignment (P0, ~30min)
+5. test-r29 P0 coverage gap closures (5 new test files, ~3h)
+6. asset-r30 4 P1 secret-leak/reliability fixes (~1h)
+7. compat-r29 mixer channel clamp + %lu printf fixes (~30min)
+
+Total estimated remediation: ~6-8h focused work to clear P0/P1 backlog and re-audit for ship readiness.
