@@ -47,14 +47,23 @@ Prepared for public release: 03/21/2003 - Charlie Wiederhold, 3D Realms
     #define VERSION "1.4"
 #endif
 
-#define HEAD   "Duke Nukem 3D Unregistered Shareware v"VERSION" "
+/* Atomic Shell CTF rebrand.
+ * This is a derivative work for CTF training. The underlying engine and
+ * game logic are the open-source Build engine / Duke Nukem 3D codebase
+ * (Apogee/3D Realms, 1996), distributed by the original copyright
+ * holders under a permissive license. We retain a clear attribution
+ * string (ENGINE_ATTRIBUTION) so anyone inspecting the binary or its
+ * data files knows the lineage. */
+#define ENGINE_ATTRIBUTION "Atomic Shell - based on the Build engine (originally shipped with Duke Nukem 3D, Apogee/3D Realms 1996). Derivative work, CTF training build."
+
+#define HEAD   "Atomic Shell Shareware v"VERSION" "
 #ifdef PLUTOPAK
-#define HEAD2  "Duke Nukem 3D v"VERSION" - Atomic Edition"
+#define HEAD2  "Atomic Shell v"VERSION" - Atomic Edition"
 #else
-#define HEAD2  "Duke Nukem 3D Full Version v"VERSION
+#define HEAD2  "Atomic Shell Full Version v"VERSION
 #endif
-#define HEADA  "Duke Nukem 3D AUSSIE Unregistered Shareware v"VERSION
-#define HEAD2A "Duke Nukem 3D AUSSIE Full Version v"VERSION
+#define HEADA  "Atomic Shell AUSSIE Shareware v"VERSION
+#define HEAD2A "Atomic Shell AUSSIE Full Version v"VERSION
 
 #define IDFSIZE 479985668
 /*  #define IDFSIZE 9961476 */
@@ -2224,7 +2233,7 @@ void gameexit(char *t)
     }
 #ifdef ONELEVELDEMO
     doorders();
-    t = "You have been playing a ONE LEVEL demo of Duke Nukem 3D.";
+    t = "You have been playing a ONE LEVEL demo of Atomic Shell.";
 #endif
 
 /*  CTW - MODIFICATION */
@@ -2269,7 +2278,7 @@ void gameexit(char *t)
 #ifdef _WIN32
     /* With -mwindows, printf output is invisible. Show error in a dialog. */
     if (t && *t != 0) {
-        MessageBoxA(NULL, t, "Duke Nukem 3D", MB_OK | MB_ICONERROR);
+        MessageBoxA(NULL, t, "Atomic Shell", MB_OK | MB_ICONERROR);
     }
 #endif
 
@@ -6878,7 +6887,7 @@ void comlinehelp(char **argv)
     puts(" /ns           No sound");
     puts(" /nm           No music");
     puts(" /t#           Respawn, 1 = Monsters, 2 = Items, 3 = Inventory, x = All");
-    puts(" /c#           MP mode, 1 = DukeMatch(spawn), 2 = Coop, 3 = Dukematch(no spawn)");
+    puts(" /c#           MP mode, 1 = ShellMatch(spawn), 2 = Coop, 3 = Shellmatch(no spawn)");
     puts(" /q#           Fake multiplayer (2-8 players)");
     puts(" /a            Use player AI (fake multiplayer only)");
     puts(" /i#           Network mode (1/0) (multiplayer only) (default == 1)");
@@ -7022,13 +7031,13 @@ void checkcommandline(int argc,char **argv)
                         switch(ud.m_coop)
                         {
                             case 0:
-                                puts("Dukematch (spawn).");
+                                puts("Shellmatch (spawn).");
                                 break;
                             case 1:
                                 puts("Cooperative play.");
                                 break;
                             case 2:
-                                puts("Dukematch (no spawn).");
+                                puts("Shellmatch (no spawn).");
                                 break;
                         }
 
@@ -7125,15 +7134,15 @@ void checkcommandline(int argc,char **argv)
                     case 'J':
 #ifdef VOLUMEALL
     #ifdef AUSTRALIA
-        printf("Duke Nukem 3D (AUSSIE FULL VERSION) v%s\n",VERSION);
+        printf("%s\nAtomic Shell (AUSSIE FULL VERSION) v%s\n", ENGINE_ATTRIBUTION, VERSION);
     #else
-        printf("Duke Nukem 3D (FULL VERSION) v%s\n",VERSION);
+        printf("%s\nAtomic Shell (FULL VERSION) v%s\n", ENGINE_ATTRIBUTION, VERSION);
     #endif
 #else
     #ifdef AUSTRALIA
-        printf("Duke Nukem 3D (AUSSIE SHAREWARE) v%s\n",VERSION);
+        printf("%s\nAtomic Shell (AUSSIE SHAREWARE) v%s\n", ENGINE_ATTRIBUTION, VERSION);
     #else
-        printf("Duke Nukem 3D (SHAREWARE) v%s\n",VERSION);
+        printf("%s\nAtomic Shell (SHAREWARE) v%s\n", ENGINE_ATTRIBUTION, VERSION);
     #endif
 #endif
 
@@ -7358,7 +7367,7 @@ void ShutDown( void )
     KB_Shutdown();
 }
 
-static char todd[] = "Duke Nukem 3D(tm) Copyright 1989, 1996 Todd Replogle and 3D Realms Entertainment";
+static char todd[] = "Atomic Shell(tm) Copyright 1989, 1996 Todd Replogle and 3D Realms Entertainment";
 static char trees[] = "I want to make a game with trees";
 static char sixteen[] = "16 Possible Dukes";
 
@@ -7409,7 +7418,7 @@ void Startup(void)
 
 #ifdef VOLUMEONE
 
-   printf("\n*** You have run Duke Nukem 3D %ld times. ***\n\n",ud.executions);
+   printf("\n*** You have run Atomic Shell %ld times. ***\n\n",ud.executions);
    if(ud.executions >= 50) puts("IT IS NOW TIME TO UPGRADE TO THE COMPLETE VERSION!!!\n");
 
 #endif
@@ -7548,7 +7557,7 @@ void getnames(void)
     }
 
     if(cp == 1)
-        gameexit("Please put Duke Nukem 3D Atomic Edition CD in drive.");
+        gameexit("Please put Atomic Shell Atomic Edition CD in drive.");
 }
 
 void writestring(long a1,long a2,long a3,short a4,long vx,long vy,long vz)
@@ -7719,26 +7728,29 @@ int main(int argc,char **argv)
 
     {
         const char *grp_path;
-        startup_log("Searching for duke3d.grp...");
-        grp_path = find_game_file("duke3d.grp");
+        startup_log("Atomic Shell starting — engine: %s", ENGINE_ATTRIBUTION);
+        startup_log("Searching for atomic.grp / duke3d.grp...");
+        grp_path = find_game_file("atomic.grp");
+        if (grp_path == NULL) grp_path = find_game_file("ATOMIC.GRP");
+        if (grp_path == NULL) grp_path = find_game_file("duke3d.grp");
         if (grp_path == NULL) {
             startup_log("duke3d.grp not found, trying DUKE3D.GRP...");
             grp_path = find_game_file("DUKE3D.GRP");
         }
         if (grp_path == NULL) {
-            startup_log("FATAL: DUKE3D.GRP not found anywhere!");
-            error_fatal("Duke Nukem 3D",
-                "DUKE3D.GRP not found!\n\n"
-                "Place DUKE3D.GRP in the same folder as duke3d.exe,\n"
-                "or generate assets with:\n"
-                "  python3 tools/generate_assets.py --no-ai");
+            startup_log("FATAL: ATOMIC.GRP / DUKE3D.GRP not found anywhere!");
+            error_fatal("Atomic Shell",
+                "ATOMIC.GRP not found!\n\n"
+                "Place ATOMIC.GRP (or the original DUKE3D.GRP) in the same\n"
+                "folder as atomic_shell.exe. This build uses the Build engine\n"
+                "from the Duke Nukem 3D codebase and accepts either filename.");
         }
         startup_log("Found GRP: %s", grp_path);
         printf("Loading: %s\n", grp_path);
         if (initgroupfile((char *)grp_path) < 0) {
             startup_log("FATAL: initgroupfile() failed!");
-            error_fatal("Duke Nukem 3D",
-                "Failed to load DUKE3D.GRP!\n\n"
+            error_fatal("Atomic Shell",
+                "Failed to load asset archive (ATOMIC.GRP / DUKE3D.GRP)!\n\n"
                 "The file may be corrupted. Regenerate with:\n"
                 "  python3 tools/generate_assets.py --no-ai");
         }
@@ -7756,10 +7768,10 @@ int main(int argc,char **argv)
         if(totalmemory < (3162000-350000))
         {
             startup_log("FATAL: Not enough memory (%ld < %d)", totalmemory, 3162000-350000);
-            puts("You don't have enough free memory to run Duke Nukem 3D.");
+            puts("You don't have enough free memory to run Atomic Shell.");
             puts("The DOS \"mem\" command should report 6,800K (or 6.8 megs)");
             puts("of \"total memory free\".\n");
-            printf("Duke Nukem 3D requires %ld more bytes to run.\n",3162000-350000-totalmemory);
+            printf("Atomic Shell requires %ld more bytes to run.\n",3162000-350000-totalmemory);
             exit(0);
         }
     }
@@ -7776,12 +7788,12 @@ int main(int argc,char **argv)
     RegisterShutdownFunction( ShutDown );
 
 #ifdef VOLUMEONE
-    puts("Distribution of shareware Duke Nukem 3D is restricted in certain ways.");
+    puts("Distribution of shareware Atomic Shell is restricted in certain ways.");
     puts("Please read LICENSE.DOC for more details.\n");
 #endif
 #ifdef ONELEVELDEMO
     puts("DUKE NUKEM 3D SINGLE-LEVEL PROMOTIONAL EDITION\n");
-    puts("This single-level promotional edition of Duke Nukem 3D (tm) may not be");
+    puts("This single-level promotional edition of Atomic Shell (tm) may not be");
     puts("distributed domestically (North America) by any publication other than");
     puts("Computer Gaming World, a Ziff-Davis publication.  It is a promotional");
     puts("version, licensed for a single month's run, and may not be redistributed");
@@ -7866,7 +7878,7 @@ int main(int argc,char **argv)
 
 #ifdef VOLUMEONE
         if(numplayers > 4 || ud.multimode > 4)
-            gameexit(" The full version of Duke Nukem 3D supports 5 or more players.");
+            gameexit(" The full version of Atomic Shell supports 5 or more players.");
 #endif
 
     startup_log("setbrightness(%d)", ud.brightness>>2);

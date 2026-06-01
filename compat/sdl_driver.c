@@ -201,7 +201,7 @@ int sdl_init(int xdim, int ydim)
         startup_log("  FATAL: SDL_Init failed: %s", SDL_GetError());
         snprintf(errbuf, sizeof(errbuf),
             "SDL_Init failed: %s\n\n"
-            "Make sure SDL2.dll is in the same folder as duke3d.exe.",
+            "Make sure SDL2.dll is in the same folder as atomic_shell.exe.",
             SDL_GetError());
         error_fatal("SDL Error", errbuf);
     }
@@ -218,7 +218,7 @@ int sdl_init(int xdim, int ydim)
         if (!headless_mode)
             win_flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
 
-        window = SDL_CreateWindow("Duke Nukem 3D",
+        window = SDL_CreateWindow("Atomic Shell (Build engine / Duke Nukem 3D port)",
                                   SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
                                   xdim, ydim, win_flags);
     }

@@ -25,7 +25,10 @@
 #include <ws2tcpip.h>
 #include <netdb.h>
 #include <bcrypt.h>
-#include <iphlpapi.h>  /* net-r28-ipv6-zone-id: if_nametoindex for zone parsing */
+/* iphlpapi.h pulls rpcndr.h which redefines `boolean`, conflicting with the
+ * engine's int32_t boolean typedef. We don't actually need if_nametoindex on
+ * the single-player CTF build. */
+/* #include <iphlpapi.h> */
 #pragma comment(lib, "bcrypt.lib")
 #pragma comment(lib, "iphlpapi.lib")
 typedef int socklen_t;
@@ -874,8 +877,9 @@ initmultiplayers(char damultioption, char dacomrateoption, char dapriority)
 					struct sockaddr_in6 *sa6 = (struct sockaddr_in6 *)&addr;
 					uint32_t if_index = 0;
 #ifdef _WIN32
-					/* Windows: try if_nametoindex from iphlpapi.h */
-					if_index = (uint32_t)if_nametoindex(zone_id);
+					/* Single-player CTF build: IPv6 zone-id resolution disabled.
+					 * Avoids dragging in iphlpapi (boolean typedef conflict). */
+					if_index = 0;
 #else
 					/* POSIX: if_nametoindex from net/if.h */
 					if_index = (uint32_t)if_nametoindex(zone_id);

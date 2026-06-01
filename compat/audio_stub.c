@@ -23,6 +23,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <limits.h>
+#include <inttypes.h>
 
 #include "SDL.h"
 
@@ -154,13 +155,13 @@ static uint32_t wav_file_size(const unsigned char *p)
     
     /* Sanity check: chunk size must be >= 12 (for minimal WAVE format) */
     if (sz < 12) {
-        fprintf(stderr, "wav_file_size: invalid chunk size %lu (< 12 bytes)\n", sz);
+        fprintf(stderr, "wav_file_size: invalid chunk size %" PRIu32 " (< 12 bytes)\n", sz);
         return 0;
     }
     
     /* Sanity check: chunk size must be reasonable */
     if (sz > MAX_SOUND_FILE_SIZE - 8) {
-        fprintf(stderr, "wav_file_size: chunk size %lu exceeds max (%u bytes)\n", 
+        fprintf(stderr, "wav_file_size: chunk size %" PRIu32 " exceeds max (%u bytes)\n", 
                 sz, MAX_SOUND_FILE_SIZE - 8);
         return 0;
     }
@@ -323,6 +324,10 @@ static int mixer_play_3d(const char *ptr, int angle, int distance,
 
 #endif /* HAVE_SDL2_MIXER */
 
+#ifndef MIXER_MAX_CHANNELS
+#define MIXER_MAX_CHANNELS 32
+#endif
+
 /* ── FX function implementations ─────────────────────────────────── */
 
 char *FX_ErrorString(int ErrorNumber)
@@ -372,6 +377,17 @@ int FX_Init(int SoundCard, int numvoices, int numchannels,
             int samplebits, unsigned mixrate)
 {
     (void)SoundCard; (void)samplebits;
+    /* Clamp numvoices to MIXER_MAX_CHANNELS: our static channel-tracking
+     * arrays (mixer_channel_chunk, mixer_channel_cbval) are sized at
+     * MIXER_MAX_CHANNELS.  If a caller requests more voices, channels
+     * beyond the array bounds would leak Mix_Chunk* pointers and never
+     * fire fx_callback (see audit compat-layer-r29 P1). */
+    if (numvoices > MIXER_MAX_CHANNELS) {
+        fprintf(stderr,
+                "FX_Init: requested numvoices=%d exceeds MIXER_MAX_CHANNELS=%d; clamping\n",
+                numvoices, MIXER_MAX_CHANNELS);
+        numvoices = MIXER_MAX_CHANNELS;
+    }
 #ifdef HAVE_SDL2_MIXER
     if (SDL_InitSubSystem(SDL_INIT_AUDIO) < 0) {
         FX_ErrorCode = FX_Error;
@@ -804,13 +820,13 @@ static uint32_t midi_file_size(const unsigned char *data,
     
     /* Bounds check: header_len should be between 6 and reasonable upper bound */
     if (header_len < 6 || header_len > max_size - 8) {
-        fprintf(stderr, "midi_file_size: invalid header length %lu (out of bounds)\n", header_len);
+        fprintf(stderr, "midi_file_size: invalid header length %" PRIu32 " (out of bounds)\n", header_len);
         return 0;
     }
     
     /* Bounds check: num_tracks should be non-negative and reasonable */
     if (num_tracks > 256) {
-        fprintf(stderr, "midi_file_size: invalid track count %lu (> 256)\n", num_tracks);
+        fprintf(stderr, "midi_file_size: invalid track count %" PRIu32 " (> 256)\n", num_tracks);
         return 0;
     }
     

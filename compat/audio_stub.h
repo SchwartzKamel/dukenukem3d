@@ -293,8 +293,9 @@ typedef struct task {
 /*
  * Validate task struct layout: int32_t fields ensure fixed size across
  * all platforms. volatile int32_t count is used in scheduler synchronization.
+ * Min size differs by pointer width: 40 bytes on LP64, 32 bytes on ILP32.
  */
-_Static_assert(sizeof(task) >= 40, "task struct must be at least 40 bytes");
+_Static_assert(sizeof(task) >= 32, "task struct must be at least 32 bytes");
 
 extern volatile int TS_InInterrupt;
 

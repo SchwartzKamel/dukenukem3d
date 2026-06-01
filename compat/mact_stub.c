@@ -74,7 +74,12 @@ int SCRIPT_Load(char *filename) {
     strncpy(sc->filename, filename, sizeof(sc->filename)-1);
 
     f = fopen(filename, "r");
-    if (!f) return (int)(sc - scripts);
+    if (!f) {
+        /* Release the slot we just claimed; otherwise repeated failures
+         * exhaust the MAX_SCRIPTS pool (audit compat-layer-r29 P2). */
+        sc->active = 0;
+        return -1;
+    }
 
     while (fgets(line, sizeof(line), f)) {
         char *p = line;
@@ -310,7 +315,7 @@ void Error(char *fmt, ...) {
         fflush(_startup_log);
     }
 #ifdef _WIN32
-    MessageBoxA(NULL, buf, "Duke Nukem 3D - Error", MB_OK | MB_ICONERROR);
+    MessageBoxA(NULL, buf, "Atomic Shell - Error", MB_OK | MB_ICONERROR);
 #endif
     exit(1);
 }

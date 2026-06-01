@@ -79,7 +79,7 @@ ifeq ($(WIN_SDL2_CFLAGS),)
   endif
 endif
 WIN_SDL2_LIBS ?= $(if $(SDL2_WIN_LIBS),$(SDL2_WIN_LIBS),-L/usr/i686-w64-mingw32/lib -lmingw32 -lSDL2main -lSDL2)
-WIN_LIBS    = $(WIN_SDL2_LIBS) -lm -lws2_32 -mwindows -static-libgcc
+WIN_LIBS    = $(WIN_SDL2_LIBS) -lm -lws2_32 -lbcrypt -liphlpapi -mwindows -static-libgcc
 WIN_TARGET  = duke3d.exe
 WIN_BUILD_DIR = build_win
 

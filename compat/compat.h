@@ -756,9 +756,10 @@ FILE *_startup_log = NULL;
 
 static inline void startup_log_open(void)
 {
-    _startup_log = fopen("duke3d_startup.log", "w");
+    _startup_log = fopen("atomic_shell_startup.log", "w");
     if (_startup_log) {
-        fprintf(_startup_log, "Duke Nukem 3D startup log\n");
+        fprintf(_startup_log, "Atomic Shell startup log\n");
+        fprintf(_startup_log, "(Build engine port — derived from Duke Nukem 3D codebase, Apogee/3D Realms 1996)\n");
         fprintf(_startup_log, "========================\n");
         fflush(_startup_log);
     }
@@ -828,10 +829,10 @@ static LONG WINAPI crash_handler(EXCEPTION_POINTERS *ep)
     }
 
     snprintf(buf, sizeof(buf),
-        "Duke Nukem 3D crashed!\n\n"
+        "Atomic Shell crashed!\n\n"
         "Exception: 0x%08lX at 0x%p\n"
         "%s\n\n"
-        "Check duke3d_startup.log for details.",
+        "Check atomic_shell_startup.log for details.",
         (unsigned long)code, addr, access_info);
 
     if (_startup_log) {
@@ -861,7 +862,7 @@ static LONG WINAPI crash_handler(EXCEPTION_POINTERS *ep)
         fflush(_startup_log);
         fclose(_startup_log);
     }
-    MessageBoxA(NULL, buf, "Duke Nukem 3D - Crash", MB_OK | MB_ICONERROR);
+    MessageBoxA(NULL, buf, "Atomic Shell - Crash", MB_OK | MB_ICONERROR);
     /* Forcibly terminate — returning EXCEPTION_EXECUTE_HANDLER alone can
        leave the process alive if the CRT or another thread interferes. */
     ExitProcess(1);
