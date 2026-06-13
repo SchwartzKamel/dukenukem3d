@@ -330,6 +330,8 @@ static char *rasm_trans;   /* translucency table */
 static long rasm_transmode;
 static long rasm_slabcnt, rasm_slabbpl;
 static long rasm_hshift1, rasm_hshift2;
+static long rasm_rh_step;
+static intptr_t rasm_rh_pal;
 
 /* Sprite vline state */
 static long rasm_svinc;
@@ -386,22 +388,50 @@ long hlineasm4(long cnt, long p2, long shade, long xv, long yv, intptr_t dest) {
 }
 
 long setuprhlineasm4(long a, long b, long c, intptr_t d, long e, intptr_t f) {
-	(void)a;(void)b;(void)c;(void)d;(void)e;(void)f; return 0;
+	(void)a; (void)b; (void)e; (void)f;
+	rasm_rh_step = c;
+	rasm_rh_pal = d;
+	return 0;
 }
-long rhlineasm4(long a, long b, long c, intptr_t d, long e, intptr_t f) {
-	(void)a;(void)b;(void)c;(void)d;(void)e;(void)f; return 0;
+long rhlineasm4(long a, intptr_t b, long c, intptr_t d, long e, intptr_t f) {
+	unsigned char *dst = (unsigned char *)(intptr_t)f;
+	const unsigned char *pal = (const unsigned char *)(intptr_t)rasm_rh_pal;
+	intptr_t src = b;
+	long i;
+	(void)c; (void)d; (void)e;
+	if (!dst) return 0;
+	for (i = a; i >= 0; i--) {
+		unsigned char texel = *((unsigned char *)(intptr_t)src);
+		*dst = pal ? pal[texel] : texel;
+		dst--;
+		src -= (intptr_t)rasm_rh_step;
+	}
+	return 0;
 }
 long setuprmhlineasm4(long a, long b, long c, intptr_t d, long e, intptr_t f) {
-	(void)a;(void)b;(void)c;(void)d;(void)e;(void)f; return 0;
+	return setuprhlineasm4(a,b,c,d,e,f);
 }
-long rmhlineasm4(long a, long b, long c, intptr_t d, long e, intptr_t f) {
-	(void)a;(void)b;(void)c;(void)d;(void)e;(void)f; return 0;
+long rmhlineasm4(long a, intptr_t b, long c, intptr_t d, long e, intptr_t f) {
+	unsigned char *dst = (unsigned char *)(intptr_t)f;
+	const unsigned char *pal = (const unsigned char *)(intptr_t)rasm_rh_pal;
+	intptr_t src = b;
+	long i;
+	(void)c; (void)d; (void)e;
+	if (!dst) return 0;
+	for (i = a; i >= 0; i--) {
+		unsigned char texel = *((unsigned char *)(intptr_t)src);
+		if (__builtin_expect(texel != 255, 1))
+			*dst = pal ? pal[texel] : texel;
+		dst--;
+		src -= (intptr_t)rasm_rh_step;
+	}
+	return 0;
 }
 long setupqrhlineasm4(long a, long b, long c, intptr_t d, long e, intptr_t f) {
-	(void)a;(void)b;(void)c;(void)d;(void)e;(void)f; return 0;
+	return setuprhlineasm4(a,b,c,d,e,f);
 }
-long qrhlineasm4(long a, long b, long c, intptr_t d, long e, intptr_t f) {
-	(void)a;(void)b;(void)c;(void)d;(void)e;(void)f; return 0;
+long qrhlineasm4(long a, intptr_t b, long c, intptr_t d, long e, intptr_t f) {
+	return rhlineasm4(a,b,c,d,e,f);
 }
 
 long setvlinebpl(long bpl) { rasm_bpl = bpl; return 0; }
