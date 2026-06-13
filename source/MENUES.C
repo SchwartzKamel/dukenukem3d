@@ -1220,41 +1220,102 @@ ControlInfo minfo;
 
 long mi;
 
-static void clear_probe_cursor_at(int x, int y)
+#define PROBE_CURSOR_CACHE_MAX_SIDE 64
+#define PROBE_CURSOR_CACHE_MAX_PIXELS (PROBE_CURSOR_CACHE_MAX_SIDE * PROBE_CURSOR_CACHE_MAX_SIDE)
+
+typedef struct probe_cursor_cache_s
 {
-    long x1, x2, y1, y2, yy, w;
-    intptr_t p;
+    char valid;
+    short x, y, w, h;
+    unsigned char pixels[PROBE_CURSOR_CACHE_MAX_PIXELS];
+} probe_cursor_cache_t;
 
-    x1 = x - 10; x2 = x + 10;
-    y1 = y - 12; y2 = y + 12;
-    if (x1 < 0) x1 = 0;
-    if (y1 < 0) y1 = 0;
-    if (x2 >= xdim) x2 = xdim - 1;
-    if (y2 >= ydim) y2 = ydim - 1;
-    w = x2 - x1 + 1;
-    if (w <= 0 || y2 < y1) return;
+static void probe_cursor_reset(probe_cursor_cache_t *cache)
+{
+    if (cache != NULL) cache->valid = 0;
+}
 
-    for (yy = y1; yy <= y2; yy++)
+static void probe_cursor_restore(probe_cursor_cache_t *cache)
+{
+    long row;
+    intptr_t dst;
+
+    if (cache == NULL || !cache->valid || cache->w <= 0 || cache->h <= 0)
+        return;
+
+    for (row = 0; row < cache->h; row++)
     {
-        p = ylookup[yy] + x1 + frameplace;
-        clearbufbyte((void *)p,w,0L);
+        dst = ylookup[cache->y + row] + cache->x + frameplace;
+        memcpy((void *)dst, cache->pixels + (row * cache->w), cache->w);
     }
+
+    cache->valid = 0;
+}
+
+static void probe_cursor_capture(probe_cursor_cache_t *cache, long x, long y, long picnum)
+{
+    long w, h, cx, cy, cw, ch, row;
+    intptr_t src;
+
+    if (cache == NULL)
+        return;
+
+    cache->valid = 0;
+
+    if (picnum < 0 || picnum >= MAXTILES)
+        return;
+
+    w = tilesizx[picnum];
+    h = tilesizy[picnum];
+    if (w <= 0 || h <= 0 || w > PROBE_CURSOR_CACHE_MAX_SIDE || h > PROBE_CURSOR_CACHE_MAX_SIDE)
+        return;
+
+    /* rotatesprite applies tile offsets; capture a padded region to fully restore previous cursor */
+    cx = x - 12; cy = y - 12;
+    cw = w + 24; ch = h + 24;
+
+    if (cx < 0) { cw += cx; cx = 0; }
+    if (cy < 0) { ch += cy; cy = 0; }
+    if (cx + cw > xdim) cw = xdim - cx;
+    if (cy + ch > ydim) ch = ydim - cy;
+
+    if (cw <= 0 || ch <= 0 || (cw * ch) > PROBE_CURSOR_CACHE_MAX_PIXELS)
+        return;
+
+    cache->x = (short)cx;
+    cache->y = (short)cy;
+    cache->w = (short)cw;
+    cache->h = (short)ch;
+
+    for (row = 0; row < ch; row++)
+    {
+        src = ylookup[cy + row] + cx + frameplace;
+        memcpy(cache->pixels + (row * cw), (void *)src, cw);
+    }
+
+    cache->valid = 1;
 }
 
 int probe(int x,int y,int i,int n)
 {
     short centre, s;
     static short probe_last_menu = -1;
-    static short probe_last_drawn = -1;
-    long cursor_x, cursor_y;
+    static probe_cursor_cache_t probe_cursor_cache[2];
+    long cursor_x, cursor_y, cursor_pic;
 
     s = 1+(CONTROL_GetMouseSensitivity()>>4);
 
     if (probe_last_menu != current_menu)
     {
+        probe_cursor_restore(&probe_cursor_cache[0]);
+        probe_cursor_restore(&probe_cursor_cache[1]);
+        probe_cursor_reset(&probe_cursor_cache[0]);
+        probe_cursor_reset(&probe_cursor_cache[1]);
         probe_last_menu = current_menu;
-        probe_last_drawn = -1;
     }
+
+    probe_cursor_restore(&probe_cursor_cache[0]);
+    probe_cursor_restore(&probe_cursor_cache[1]);
 
     if( ControllerType == 1 && CONTROL_MousePresent )
     {
@@ -1299,18 +1360,6 @@ int probe(int x,int y,int i,int n)
     if(probey >= n)
         probey = 0;
 
-    if (probe_last_drawn >= 0 && probe_last_drawn < n && probe_last_drawn != probey)
-    {
-        cursor_y = y + (probe_last_drawn * i) - 4;
-        if(centre)
-        {
-            clear_probe_cursor_at(((320>>1)+(centre>>1)+70),cursor_y);
-            clear_probe_cursor_at(((320>>1)-(centre>>1)-70),cursor_y);
-        }
-        else
-            clear_probe_cursor_at((x-tilesizx[BIGFNTCURSOR]-4),cursor_y);
-    }
-
     cursor_y = y + (probey * i) - 4;
     if(centre)
     {
@@ -1318,17 +1367,22 @@ int probe(int x,int y,int i,int n)
 /*         rotatesprite(((320>>1)-(centre)-54)<<16,(y+(probey*i)-4)<<16,65536L,0,SPINNINGNUKEICON+((totalclock>>3)%7),sh,0,10,0,0,xdim-1,ydim-1); */
 
         cursor_x = ((320>>1)+(centre>>1)+70);
-        rotatesprite(cursor_x<<16,cursor_y<<16,65536L,0,SPINNINGNUKEICON+6-((6+(totalclock>>3))%7),sh,0,10,0,0,xdim-1,ydim-1);
+        cursor_pic = SPINNINGNUKEICON+6-((6+(totalclock>>3))%7);
+        probe_cursor_capture(&probe_cursor_cache[0], cursor_x, cursor_y, cursor_pic);
+        rotatesprite(cursor_x<<16,cursor_y<<16,65536L,0,cursor_pic,sh,0,10,0,0,xdim-1,ydim-1);
+
         cursor_x = ((320>>1)-(centre>>1)-70);
-        rotatesprite(cursor_x<<16,cursor_y<<16,65536L,0,SPINNINGNUKEICON+((totalclock>>3)%7),sh,0,10,0,0,xdim-1,ydim-1);
+        cursor_pic = SPINNINGNUKEICON+((totalclock>>3)%7);
+        probe_cursor_capture(&probe_cursor_cache[1], cursor_x, cursor_y, cursor_pic);
+        rotatesprite(cursor_x<<16,cursor_y<<16,65536L,0,cursor_pic,sh,0,10,0,0,xdim-1,ydim-1);
     }
     else
     {
         cursor_x = (x-tilesizx[BIGFNTCURSOR]-4);
-        rotatesprite(cursor_x<<16,cursor_y<<16,65536L,0,SPINNINGNUKEICON+(((totalclock>>3))%7),sh,0,10,0,0,xdim-1,ydim-1);
+        cursor_pic = SPINNINGNUKEICON+(((totalclock>>3))%7);
+        probe_cursor_capture(&probe_cursor_cache[0], cursor_x, cursor_y, cursor_pic);
+        rotatesprite(cursor_x<<16,cursor_y<<16,65536L,0,cursor_pic,sh,0,10,0,0,xdim-1,ydim-1);
     }
-
-    probe_last_drawn = probey;
 
     if( KB_KeyPressed(sc_Space) || KB_KeyPressed( sc_kpad_Enter ) || KB_KeyPressed( sc_Enter ) || (LMB && !onbar) )
     {
