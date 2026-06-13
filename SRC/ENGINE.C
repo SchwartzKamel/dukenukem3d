@@ -330,6 +330,7 @@ static char *rasm_trans;   /* translucency table */
 static long rasm_transmode;
 static long rasm_slabcnt, rasm_slabbpl;
 static long rasm_hshift1, rasm_hshift2;
+static long rasm_h_bxinc, rasm_h_byinc;
 static long rasm_rh_xstep;
 static long rasm_rh_ystep;
 static long rasm_rh_step;
@@ -362,12 +363,13 @@ long setpalookupaddress(char *pal) {
 }
 
 long setuphlineasm4(long p1, long p2) {
-	(void)p1; (void)p2;
+	rasm_h_bxinc = p1;
+	rasm_h_byinc = p2;
 	return 0;
 }
 
 __attribute__((hot))
-long hlineasm4(long cnt, long p2, long shade, long xv, long yv, intptr_t dest) {
+long hlineasm4(long cnt, long p2, long shade, long by, long bx, intptr_t dest) {
 	unsigned char * __restrict__ d = (unsigned char *)(intptr_t)dest;
 	const unsigned char * __restrict__ src = (const unsigned char *)(intptr_t)asm3;
 	/* shade is an OFFSET into the palette, not a full address.
@@ -375,18 +377,23 @@ long hlineasm4(long cnt, long p2, long shade, long xv, long yv, intptr_t dest) {
 	const unsigned char * __restrict__ pal = rasm_paladdr
 		? (const unsigned char *)((intptr_t)rasm_paladdr + shade)
 		: NULL;
-	const long xinc = asm1, yinc = asm2;
+	long xinc, yinc;
 	const long llogx = rasm_logx, llogy = rasm_logy;
 	long i;
-	(void)p2;
+	if (!p2) {
+		rasm_h_bxinc = asm1;
+		rasm_h_byinc = asm2;
+	}
+	xinc = rasm_h_bxinc;
+	yinc = rasm_h_byinc;
 	if (!src || !d) return 0;
 	for (i = cnt; i >= 0; i--) {
-		long idx = (((uint32_t)yv >> (32 - llogx)) << llogy) +
-		           ((uint32_t)xv >> (32 - llogy));
+		long idx = (((uint32_t)bx >> (32 - llogx)) << llogy) +
+		           ((uint32_t)by >> (32 - llogy));
 		*d = pal ? pal[src[idx]] : src[idx];
 		d--;
-		xv -= xinc;
-		yv -= yinc;
+		bx -= xinc;
+		by -= yinc;
 	}
 	return 0;
 }
