@@ -96,7 +96,8 @@ def project_root():
 @pytest.fixture(scope="session")
 def binary_path(project_root):
     """Return path to the duke3d binary."""
-    return project_root / "duke3d"
+    exe_name = "duke3d.exe" if os.name == "nt" else "duke3d"
+    return project_root / exe_name
 
 
 @pytest.fixture(scope="session")
@@ -778,7 +779,8 @@ def headless_run(worker_id):
     import shutil
     from filelock import FileLock
 
-    binary_path_value = os.path.join(PROJECT_ROOT, "duke3d")
+    exe_name = "duke3d.exe" if os.name == "nt" else "duke3d"
+    binary_path_value = os.path.join(PROJECT_ROOT, exe_name)
     grp_path_value = os.path.join(PROJECT_ROOT, "DUKE3D.GRP")
 
     if not os.path.isfile(binary_path_value):

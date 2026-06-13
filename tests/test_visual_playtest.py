@@ -49,7 +49,7 @@ def test_headless_startup(headless_run):
     code = headless_run["exit_code"]
     # Accept 0 (clean exit), or small positive codes (non-crash).
     # Reject crash signals: SIGSEGV(-11/139), SIGABRT(-6/134), etc.
-    crash_signals = {-11, -6, 139, 134}
+    crash_signals = {-11, -6, 139, 134, 0xC0000005, 0xC0000409, -1073741819, -1073740791}
     assert code not in crash_signals, (
         f"Game crashed with exit code {code}\n"
         f"stderr: {headless_run['stderr'][-500:]}"
@@ -123,6 +123,10 @@ def test_no_crash_signals(headless_run):
         139: "SIGSEGV (128+11)",
         136: "SIGFPE (128+8)",
         132: "SIGILL (128+4)",
+        0xC0000005: "Access Violation (0xC0000005)",
+        0xC0000409: "Stack Buffer Overflow (0xC0000409)",
+        -1073741819: "Access Violation (0xC0000005)",
+        -1073740791: "Stack Buffer Overflow (0xC0000409)",
     }
     if code in signal_codes:
         pytest.fail(
