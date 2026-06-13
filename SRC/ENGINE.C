@@ -152,7 +152,7 @@ static short *dotp1[MAXYDIM], *dotp2[MAXYDIM];
 static unsigned char tempbuf[MAXWALLS];
 
 long ebpbak, espbak;
-long slopalookup[2048];
+intptr_t slopalookup[2048];
 
 static char permanentlock = 255;
 long artversion, mapversion;
@@ -232,12 +232,15 @@ char globparaceilclip, globparaflorclip;
 
 long xyaspect, viewingrangerecip;
 
-long asm1, asm2, asm3, asm4;
-long vplce[4], vince[4], palookupoffse[4], bufplce[4];
+long asm1, asm2, asm4;
+intptr_t asm3;
+long vplce[4], vince[4];
+intptr_t palookupoffse[4], bufplce[4];
 char globalxshift, globalyshift;
 long globalxpanning, globalypanning, globalshade;
 short globalpicnum, globalshiftval;
-long globalzd, globalbufplc, globalyscale, globalorientation;
+long globalzd, globalyscale, globalorientation;
+intptr_t globalbufplc;
 long globalx1, globaly1, globalx2, globaly2, globalx3, globaly3, globalzx;
 long globalx, globaly, globalz;
 
@@ -356,7 +359,7 @@ long setuphlineasm4(long p1, long p2) {
 }
 
 __attribute__((hot))
-long hlineasm4(long cnt, long p2, long shade, long xv, long yv, long dest) {
+long hlineasm4(long cnt, long p2, long shade, long xv, long yv, intptr_t dest) {
 	unsigned char * __restrict__ d = (unsigned char *)(intptr_t)dest;
 	const unsigned char * __restrict__ src = (const unsigned char *)(intptr_t)asm3;
 	/* shade is an OFFSET into the palette, not a full address.
@@ -380,22 +383,22 @@ long hlineasm4(long cnt, long p2, long shade, long xv, long yv, long dest) {
 	return 0;
 }
 
-long setuprhlineasm4(long a, long b, long c, long d, long e, long f) {
+long setuprhlineasm4(long a, long b, long c, intptr_t d, long e, intptr_t f) {
 	(void)a;(void)b;(void)c;(void)d;(void)e;(void)f; return 0;
 }
-long rhlineasm4(long a, long b, long c, long d, long e, long f) {
+long rhlineasm4(long a, long b, long c, intptr_t d, long e, intptr_t f) {
 	(void)a;(void)b;(void)c;(void)d;(void)e;(void)f; return 0;
 }
-long setuprmhlineasm4(long a, long b, long c, long d, long e, long f) {
+long setuprmhlineasm4(long a, long b, long c, intptr_t d, long e, intptr_t f) {
 	(void)a;(void)b;(void)c;(void)d;(void)e;(void)f; return 0;
 }
-long rmhlineasm4(long a, long b, long c, long d, long e, long f) {
+long rmhlineasm4(long a, long b, long c, intptr_t d, long e, intptr_t f) {
 	(void)a;(void)b;(void)c;(void)d;(void)e;(void)f; return 0;
 }
-long setupqrhlineasm4(long a, long b, long c, long d, long e, long f) {
+long setupqrhlineasm4(long a, long b, long c, intptr_t d, long e, intptr_t f) {
 	(void)a;(void)b;(void)c;(void)d;(void)e;(void)f; return 0;
 }
-long qrhlineasm4(long a, long b, long c, long d, long e, long f) {
+long qrhlineasm4(long a, long b, long c, intptr_t d, long e, intptr_t f) {
 	(void)a;(void)b;(void)c;(void)d;(void)e;(void)f; return 0;
 }
 
@@ -407,7 +410,7 @@ long fixtransluscence(long transptr) {
 }
 
 __attribute__((hot))
-long prevlineasm1(long vinc, long paloffs, long cnt, long vplc, long bufplc, long dest) {
+long prevlineasm1(long vinc, intptr_t paloffs, long cnt, long vplc, intptr_t bufplc, intptr_t dest) {
 	unsigned char * __restrict__ d = (unsigned char *)(intptr_t)dest;
 	const unsigned char * __restrict__ buf = (const unsigned char *)(intptr_t)bufplc;
 	const unsigned char * __restrict__ pal = (const unsigned char *)(intptr_t)paloffs;
@@ -425,7 +428,7 @@ long prevlineasm1(long vinc, long paloffs, long cnt, long vplc, long bufplc, lon
 }
 
 __attribute__((hot))
-long vlineasm1(long vinc, long paloffs, long cnt, long vplc, long bufplc, long dest) {
+long vlineasm1(long vinc, intptr_t paloffs, long cnt, long vplc, intptr_t bufplc, intptr_t dest) {
 	unsigned char * __restrict__ d = (unsigned char *)(intptr_t)dest;
 	const unsigned char * __restrict__ buf = (const unsigned char *)(intptr_t)bufplc;
 	const unsigned char * __restrict__ pal = (const unsigned char *)(intptr_t)paloffs;
@@ -445,7 +448,7 @@ long vlineasm1(long vinc, long paloffs, long cnt, long vplc, long bufplc, long d
 long setuptvlineasm(long shift) { rasm_shift = shift; return 0; }
 
 __attribute__((hot))
-long tvlineasm1(long vinc, long paloffs, long cnt, long vplc, long bufplc, long dest) {
+long tvlineasm1(long vinc, intptr_t paloffs, long cnt, long vplc, intptr_t bufplc, intptr_t dest) {
 	unsigned char * __restrict__ d = (unsigned char *)(intptr_t)dest;
 	const unsigned char * __restrict__ buf = (const unsigned char *)(intptr_t)bufplc;
 	const unsigned char * __restrict__ pal = (const unsigned char *)(intptr_t)paloffs;
@@ -465,14 +468,14 @@ long tvlineasm1(long vinc, long paloffs, long cnt, long vplc, long bufplc, long 
 	return vplc;
 }
 
-long setuptvlineasm2(long a, long b, long c) { (void)a;(void)b;(void)c; return 0; }
+long setuptvlineasm2(long a, intptr_t b, intptr_t c) { (void)a;(void)b;(void)c; return 0; }
 
-long tvlineasm2(long a, long b, long c, long d, long e, long f) {
+long tvlineasm2(long a, intptr_t b, long c, intptr_t d, intptr_t e, intptr_t f) {
 	(void)a;(void)b;(void)c;(void)d;(void)e;(void)f; return 0;
 }
 
 __attribute__((hot))
-long mvlineasm1(long vinc, long paloffs, long cnt, long vplc, long bufplc, long dest) {
+long mvlineasm1(long vinc, intptr_t paloffs, long cnt, long vplc, intptr_t bufplc, intptr_t dest) {
 	unsigned char * __restrict__ d = (unsigned char *)(intptr_t)dest;
 	const unsigned char * __restrict__ buf = (const unsigned char *)(intptr_t)bufplc;
 	const unsigned char * __restrict__ pal = (const unsigned char *)(intptr_t)paloffs;
@@ -493,7 +496,7 @@ long mvlineasm1(long vinc, long paloffs, long cnt, long vplc, long bufplc, long 
 long setupvlineasm(long shift) { rasm_shift = shift; return 0; }
 
 __attribute__((hot))
-long vlineasm4(long cnt, long dest) {
+long vlineasm4(long cnt, intptr_t dest) {
 	unsigned char *d = (unsigned char *)(intptr_t)dest;
 	const long lbpl = rasm_bpl;
 	const long lshift = rasm_shift;
@@ -526,7 +529,7 @@ long vlineasm4(long cnt, long dest) {
 long setupmvlineasm(long shift) { rasm_shift = shift; return 0; }
 
 __attribute__((hot))
-long mvlineasm4(long cnt, long dest) {
+long mvlineasm4(long cnt, intptr_t dest) {
 	unsigned char *d = (unsigned char *)(intptr_t)dest;
 	const long lbpl = rasm_bpl;
 	const long lshift = rasm_shift;
@@ -625,7 +628,7 @@ void tspritevline(long a, long b, long cnt, long d, long bufplc, long dest) {
 }
 
 __attribute__((hot))
-long mhline(long bufplc, long bx, long cntup, long junk, long by, long dest) {
+long mhline(intptr_t bufplc, long bx, long cntup, long junk, long by, intptr_t dest) {
 	unsigned char * __restrict__ d = (unsigned char *)(intptr_t)dest;
 	const unsigned char * __restrict__ buf = (const unsigned char *)(intptr_t)bufplc;
 	const unsigned char * __restrict__ pal = (const unsigned char *)(intptr_t)asm3;
@@ -647,7 +650,7 @@ long mhline(long bufplc, long bx, long cntup, long junk, long by, long dest) {
 	}
 	return 0;
 }
-long mhlineskipmodify(long a, long b, long c, long d, long e, long f) {
+long mhlineskipmodify(long a, long b, long c, long d, long e, intptr_t f) {
 	return mhline(a,b,c,d,e,f);
 }
 
@@ -657,7 +660,7 @@ long msethlineshift(long a, long b) {
 }
 
 __attribute__((hot))
-long thline(long bufplc, long bx, long cntup, long junk, long by, long dest) {
+long thline(intptr_t bufplc, long bx, long cntup, long junk, long by, intptr_t dest) {
 	unsigned char * __restrict__ d = (unsigned char *)(intptr_t)dest;
 	const unsigned char * __restrict__ buf = (const unsigned char *)(intptr_t)bufplc;
 	const unsigned char * __restrict__ pal = (const unsigned char *)(intptr_t)asm3;
@@ -682,7 +685,7 @@ long thline(long bufplc, long bx, long cntup, long junk, long by, long dest) {
 	}
 	return 0;
 }
-long thlineskipmodify(long a, long b, long c, long d, long e, long f) {
+long thlineskipmodify(long a, long b, long c, long d, long e, intptr_t f) {
 	return thline(a,b,c,d,e,f);
 }
 
@@ -691,12 +694,12 @@ long tsethlineshift(long a, long b) {
 	return 0;
 }
 
-long setupslopevlin(long a, long b, long c) {
+long setupslopevlin(long a, intptr_t b, long c) {
 	(void)a; (void)b; (void)c;
 	return 0;
 }
 
-long slopevlin(long a, long b, long c, long d, long e, long f) {
+long slopevlin(intptr_t a, long b, intptr_t c, long d, long e, long f) {
 	(void)a;(void)b;(void)c;(void)d;(void)e;(void)f;
 	return 0;
 }
@@ -710,7 +713,7 @@ long setupdrawslab(long a, long b) {
 }
 
 __attribute__((hot))
-long drawslab(long dx, long v, long cnt, long vinc, long bufplc, long dest) {
+long drawslab(long dx, long v, long cnt, long vinc, intptr_t bufplc, intptr_t dest) {
 	unsigned char *d = (unsigned char *)(intptr_t)dest;
 	const unsigned char *buf = (const unsigned char *)(intptr_t)bufplc;
 	const long lslabbpl = rasm_slabbpl;
@@ -7127,7 +7130,8 @@ rotatesprite (long sx, long sy, long z, short a, short picnum, signed char dasha
 dorotatesprite (long sx, long sy, long z, short a, short picnum, signed char dashade, char dapalnum, char dastat, long cx1, long cy1, long cx2, long cy2)
 {
 	long cosang, sinang, v, nextv, dax1, dax2, oy, bx, by, ny1, ny2;
-	long i, x, y, x1, y1, x2, y2, gx1, gy1, p, bufplc, palookupoffs;
+	long i, x, y, x1, y1, x2, y2, gx1, gy1;
+	intptr_t p, bufplc, palookupoffs;
 	long xsiz, ysiz, xoff, yoff, npoints, yplc, yinc, lx, rx, xx, xend;
 	long xv, yv, xv2, yv2, obuffermode, qlinemode, y1ve[4], y2ve[4], u4, d4;
 	char bad;
@@ -8818,7 +8822,8 @@ grouscan (long dax1, long dax2, long sectnum, char dastat)
 {
 	long i, j, k, l, m, n, x, y, dx, dy, wx, wy, x1, y1, x2, y2, daz;
 	long daslope, dasqr;
-	long dashade, shoffs, shinc, m1, m2, *mptr1, *mptr2, *nptr1, *nptr2;
+	long dashade, shoffs, shinc, m1, m2;
+	intptr_t *mptr1, *mptr2, *nptr1, *nptr2;
 	walltype *wal;
 	sectortype *sec;
 
@@ -8939,7 +8944,7 @@ grouscan (long dax1, long dax2, long sectnum, char dastat)
 		/* Avoid visibility overflow by crossing horizon */
 	if (globalzd > 0) m1 += (globalzd>>16); else m1 -= (globalzd>>16);
 	m2 = m1+l;
-	mptr1 = (long *)&slopalookup[y1+(shoffs>>15)]; mptr2 = mptr1+1;
+	mptr1 = (intptr_t *)&slopalookup[y1+(shoffs>>15)]; mptr2 = mptr1+1;
 
 	for(x=dax1;x<=dax2;x++)
 	{
@@ -8947,8 +8952,8 @@ grouscan (long dax1, long dax2, long sectnum, char dastat)
 						else { y1 = max(umost[x],dplc[x]); y2 = dmost[x]-1; }
 		if (y1 <= y2)
 		{
-			nptr1 = (long *)&slopalookup[y1+(shoffs>>15)];
-			nptr2 = (long *)&slopalookup[y2+(shoffs>>15)];
+			nptr1 = (intptr_t *)&slopalookup[y1+(shoffs>>15)];
+			nptr2 = (intptr_t *)&slopalookup[y2+(shoffs>>15)];
 			while (nptr1 <= mptr1)
 			{
 				*mptr1-- = j + (getpalookup((long)mulscale24(krecipasm(m1),globvis),globalshade)<<8);
@@ -8963,7 +8968,7 @@ grouscan (long dax1, long dax2, long sectnum, char dastat)
 			globalx3 = (globalx2>>10);
 			globaly3 = (globaly2>>10);
 			asm3 = mulscale16(y2,globalzd) + (globalzx>>6);
-			slopevlin(ylookup[y2]+x+frameoffset,krecipasm(asm3>>3),(long)nptr2,y2-y1+1,globalx1,globaly1);
+			slopevlin(ylookup[y2]+x+frameoffset,krecipasm(asm3>>3),(intptr_t)nptr2,y2-y1+1,globalx1,globaly1);
 
 			if ((x&15) == 0) faketimerhandler();
 		}
