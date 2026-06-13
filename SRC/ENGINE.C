@@ -330,7 +330,10 @@ static char *rasm_trans;   /* translucency table */
 static long rasm_transmode;
 static long rasm_slabcnt, rasm_slabbpl;
 static long rasm_hshift1, rasm_hshift2;
+static long rasm_rh_xstep;
+static long rasm_rh_ystep;
 static long rasm_rh_step;
+static long rasm_rh_tilesizy;
 static intptr_t rasm_rh_pal;
 
 /* Sprite vline state */
@@ -388,23 +391,39 @@ long hlineasm4(long cnt, long p2, long shade, long xv, long yv, intptr_t dest) {
 }
 
 long setuprhlineasm4(long a, long b, long c, intptr_t d, long e, intptr_t f) {
-	(void)a; (void)b; (void)e; (void)f;
+	(void)f;
+	rasm_rh_xstep = a;
+	rasm_rh_ystep = b;
 	rasm_rh_step = c;
+	rasm_rh_tilesizy = e;
 	rasm_rh_pal = d;
 	return 0;
 }
 long rhlineasm4(long a, intptr_t b, long c, intptr_t d, long e, intptr_t f) {
-	unsigned char *dst = (unsigned char *)(intptr_t)f;
+	unsigned char *dst = (unsigned char *)(intptr_t)f - 1;
 	const unsigned char *pal = (const unsigned char *)(intptr_t)rasm_rh_pal;
 	intptr_t src = b;
+	uint32_t xlo = (uint32_t)d;
+	uint32_t ylo = (uint32_t)e;
+	const uint32_t xstep = (uint32_t)rasm_rh_xstep;
+	const uint32_t ystep = (uint32_t)rasm_rh_ystep;
+	const long step = rasm_rh_step;
+	const long tilesizy = rasm_rh_tilesizy;
 	long i;
-	(void)c; (void)d; (void)e;
+	(void)c;
 	if (!dst) return 0;
-	for (i = a; i >= 0; i--) {
+	for (i = 0; i < a; i++) {
 		unsigned char texel = *((unsigned char *)(intptr_t)src);
 		*dst = pal ? pal[texel] : texel;
 		dst--;
-		src -= (intptr_t)rasm_rh_step;
+		{
+			uint32_t oldx = xlo;
+			uint32_t oldy = ylo;
+			xlo -= xstep;
+			ylo -= ystep;
+			src -= (intptr_t)(step + (oldy < ystep));
+			if (oldx < xstep) src -= (intptr_t)tilesizy;
+		}
 	}
 	return 0;
 }
@@ -412,18 +431,31 @@ long setuprmhlineasm4(long a, long b, long c, intptr_t d, long e, intptr_t f) {
 	return setuprhlineasm4(a,b,c,d,e,f);
 }
 long rmhlineasm4(long a, intptr_t b, long c, intptr_t d, long e, intptr_t f) {
-	unsigned char *dst = (unsigned char *)(intptr_t)f;
+	unsigned char *dst = (unsigned char *)(intptr_t)f - 1;
 	const unsigned char *pal = (const unsigned char *)(intptr_t)rasm_rh_pal;
 	intptr_t src = b;
+	uint32_t xlo = (uint32_t)d;
+	uint32_t ylo = (uint32_t)e;
+	const uint32_t xstep = (uint32_t)rasm_rh_xstep;
+	const uint32_t ystep = (uint32_t)rasm_rh_ystep;
+	const long step = rasm_rh_step;
+	const long tilesizy = rasm_rh_tilesizy;
 	long i;
-	(void)c; (void)d; (void)e;
+	(void)c;
 	if (!dst) return 0;
-	for (i = a; i >= 0; i--) {
+	for (i = 0; i < a; i++) {
 		unsigned char texel = *((unsigned char *)(intptr_t)src);
 		if (__builtin_expect(texel != 255, 1))
 			*dst = pal ? pal[texel] : texel;
 		dst--;
-		src -= (intptr_t)rasm_rh_step;
+		{
+			uint32_t oldx = xlo;
+			uint32_t oldy = ylo;
+			xlo -= xstep;
+			ylo -= ystep;
+			src -= (intptr_t)(step + (oldy < ystep));
+			if (oldx < xstep) src -= (intptr_t)tilesizy;
+		}
 	}
 	return 0;
 }
@@ -431,7 +463,26 @@ long setupqrhlineasm4(long a, long b, long c, intptr_t d, long e, intptr_t f) {
 	return setuprhlineasm4(a,b,c,d,e,f);
 }
 long qrhlineasm4(long a, intptr_t b, long c, intptr_t d, long e, intptr_t f) {
-	return rhlineasm4(a,b,c,d,e,f);
+	unsigned char *dst = (unsigned char *)(intptr_t)f - 1;
+	const unsigned char *pal = (const unsigned char *)(intptr_t)rasm_rh_pal;
+	intptr_t src = b;
+	uint32_t ylo = (uint32_t)e;
+	const uint32_t ystep = (uint32_t)rasm_rh_ystep;
+	const long step = rasm_rh_step;
+	long i;
+	(void)c; (void)d;
+	if (!dst) return 0;
+	for (i = 0; i < a; i++) {
+		unsigned char texel = *((unsigned char *)(intptr_t)src);
+		*dst = pal ? pal[texel] : texel;
+		dst--;
+		{
+			uint32_t oldy = ylo;
+			ylo -= ystep;
+			src -= (intptr_t)(step + (oldy < ystep));
+		}
+	}
+	return 0;
 }
 
 long setvlinebpl(long bpl) { rasm_bpl = bpl; return 0; }
