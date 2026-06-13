@@ -261,49 +261,26 @@ jobs:
           echo "SDL2_DIR=$PWD\$cachePath" >> $env:GITHUB_ENV
         shell: pwsh
 
-      - name: Configure with CMake (32-bit)
+      - name: Configure with CMake (x64)
         run: |
-          cmake -B build -A Win32 -DCMAKE_BUILD_TYPE=Release -DSDL2_DIR="$env:SDL2_DIR/cmake" -DCMAKE_PREFIX_PATH="$env:SDL2_DIR"
+          cmake -B build -A x64 -DCMAKE_BUILD_TYPE=Release -DSDL2_DIR="$env:SDL2_DIR/cmake" -DCMAKE_PREFIX_PATH="$env:SDL2_DIR"
         shell: pwsh
 
-      - name: Build with MSVC
+      - name: Build with MSVC (x64)
         run: cmake --build build --config Release
 
-      - name: Smoke test
+      - name: Generate test assets
+        run: python3 tools/generate_assets.py --no-ai
+
+      - name: Run E2E test suite (native MSVC x64)
         run: |
-          $exe = "build\Release\duke3d.exe"
-          if (Test-Path $exe) {
-            Write-Host "Binary exists: $exe"
-            Write-Host "File info:"
-            Get-Item $exe | Format-List Name, Length, LastWriteTime
-            # Copy SDL2.dll next to the exe so it can load (32-bit)
-            $sdlDll = "$env:SDL2_DIR\lib\x86\SDL2.dll"
-            if (Test-Path $sdlDll) {
-              Copy-Item $sdlDll -Destination "build\Release\"
-              Write-Host "Copied SDL2.dll to build\Release\"
-            }
-            # Run with timeout - expect it to exit with error (no GRP file)
-            # but it should NOT crash with missing DLL errors
-            $proc = Start-Process -FilePath $exe -PassThru -NoNewWindow
-            Start-Sleep -Seconds 3
-            if (!$proc.HasExited) {
-              Write-Host "Process still running after 3s - killing (this is OK)"
-              Stop-Process -Id $proc.Id -Force
-              Write-Host "PASS: Binary runs on Windows"
-            } else {
-              $code = $proc.ExitCode
-              Write-Host "Process exited with code: $code"
-              if ($code -eq -1073741515) {
-                Write-Host "FAIL: Missing DLL (STATUS_DLL_NOT_FOUND)"
-                exit 1
-              }
-              Write-Host "PASS: Binary executed (exited with $code, likely missing GRP)"
-            }
-          } else {
-            Write-Host "FAIL: Binary not found"
-            exit 1
+          $exe = "build\duke3d.exe"
+          $sdlDll = "$env:SDL2_DIR\lib\x64\SDL2.dll"
+          if (Test-Path $sdlDll) {
+            Copy-Item $sdlDll -Destination "."
+            Write-Host "Copied SDL2.dll to project root for pytest execution"
           }
-        shell: pwsh
+          python -m pytest tests/ -v --tb=short -m playtest
       
       - name: Run struct size tests (native MSVC)
         run: |
