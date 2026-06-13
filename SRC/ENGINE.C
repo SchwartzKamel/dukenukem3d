@@ -667,7 +667,7 @@ void spritevline(long a, long x, long cnt, long y, intptr_t bufplc, intptr_t des
 	long i;
 	(void)a;
 	if (!dd || !pal) return;
-	for (i = cnt; i > 0; i--) {
+	for (i = cnt; i > 1; i--) {
 		uint32_t oldx = xacc;
 		uint32_t carryx;
 		uint32_t oldy;
@@ -697,7 +697,7 @@ void mspritevline(long a, long x, long cnt, long y, intptr_t bufplc, intptr_t de
 	long i;
 	(void)a;
 	if (!dd || !pal) return;
-	for (i = cnt; i > 0; i--) {
+	for (i = cnt; i > 1; i--) {
 		uint32_t oldx = xacc;
 		uint32_t carryx;
 		uint32_t oldy;
@@ -729,7 +729,7 @@ void tspritevline(long a, long x, long cnt, long y, intptr_t bufplc, intptr_t de
 	long i;
 	(void)a;
 	if (!dd || !pal) return;
-	for (i = cnt; i > 0; i--) {
+	for (i = cnt; i > 1; i--) {
 		uint32_t oldx = xacc;
 		uint32_t carryx;
 		uint32_t oldy;
@@ -765,7 +765,7 @@ long mhline(intptr_t bufplc, long bx, long cntup, long junk, long by, intptr_t d
 	const long cnt = cntup >> 16;
 	long i;
 	(void)junk;
-	for (i = cnt; i >= 0; i--) {
+	for (i = cnt; i > 0; i--) {
 		long idx = (((uint32_t)bx >> (32 - lhs1)) << lhs2) +
 		           ((uint32_t)by >> (32 - lhs2));
 		unsigned char ch = buf[idx];
@@ -799,7 +799,7 @@ long thline(intptr_t bufplc, long bx, long cntup, long junk, long by, intptr_t d
 	long i;
 	(void)junk;
 	if (!ltrans) return mhline(bufplc,bx,cntup,junk,by,dest);
-	for (i = cnt; i >= 0; i--) {
+	for (i = cnt; i > 0; i--) {
 		long idx = (((uint32_t)bx >> (32 - lhs1)) << lhs2) +
 		           ((uint32_t)by >> (32 - lhs2));
 		unsigned char ch = buf[idx];
