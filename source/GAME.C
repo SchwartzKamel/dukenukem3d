@@ -2199,6 +2199,7 @@ void gameexit(char *t)
 {
     short i;
     static int exiting = 0;
+    const int has_exit_message = (t && *t != 0 && !(t[0] == ' ' && t[1] == 0));
 
     if (exiting) {
         Shutdown();
@@ -2207,9 +2208,9 @@ void gameexit(char *t)
     }
     exiting = 1;
 
-    startup_log("gameexit called: '%s'", t && *t ? t : "(empty)");
+    startup_log("gameexit called: '%s'", has_exit_message ? t : "(empty)");
 
-    if(*t != 0) ps[myconnectindex].palette = (char *) &palette[0];
+    if(has_exit_message) ps[myconnectindex].palette = (char *) &palette[0];
 
     if(numplayers > 1)
     {
@@ -2239,7 +2240,7 @@ void gameexit(char *t)
 /*  CTW - MODIFICATION */
 /*  if( *t != 0 && *(t+1) != 'V' && *(t+1) != 'Y' && playonten == 0 )
         showtwoscreens();*/
-    if( *t != 0 && *(t+1) != 'V' && *(t+1) != 'Y' && true)
+    if( has_exit_message && *(t+1) != 'V' && *(t+1) != 'Y' && true)
         showtwoscreens();
 /*  CTW END - MODIFICATION */
 
@@ -2247,7 +2248,7 @@ void gameexit(char *t)
 
     Shutdown();
 
-    if(*t != 0)
+    if(has_exit_message)
     {
         setvmode(0x3);
         binscreen();
@@ -2277,7 +2278,7 @@ void gameexit(char *t)
 
 #ifdef _WIN32
     /* With -mwindows, printf output is invisible. Show error in a dialog. */
-    if (t && *t != 0) {
+    if (has_exit_message) {
         MessageBoxA(NULL, t, "Atomic Shell", MB_OK | MB_ICONERROR);
     }
 #endif
@@ -10163,5 +10164,4 @@ Programming:   ( the functions I need )
 /*  Bog */
 /*  Test Blimp respawn */
 /*  move 1 in player??? */
-
 

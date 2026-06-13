@@ -7361,7 +7361,9 @@ dorotatesprite (long sx, long sy, long z, short a, short picnum, signed char das
 
 	if ((dastat&1) == 0)
 	{
-		if (((a&1023) == 0) && (ysiz <= 256))    /* vlineasm4 has 256 high limit! */
+		/* SDL mode still uses the C-ported blitters; prefer the generic
+		   path there to avoid fast-path artifacts during menu/logo draws. */
+		if (((a&1023) == 0) && (ysiz <= 256) && (vidoption != 2))
 		{
 			if (dastat&64) setupvlineasm(24L); else setupmvlineasm(24L);
 			by <<= 8; yv <<= 8; yv2 <<= 8;
