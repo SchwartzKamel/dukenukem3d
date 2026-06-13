@@ -52,6 +52,8 @@ void setstereo(long dastereomode);
  * VESA replacement layer - wraps SDL2 video driver
  * Variables that were originally provided by ves2.h
  * ============================================================ */
+#define SDL_EMU_PAGES 2
+
 char *screen = NULL;
 long bytesperline;
 intptr_t frameplace;
@@ -59,22 +61,50 @@ static long maxpages = 1;
 static long linearmode = 1;
 static long buffermode = 1;
 static long origbuffermode = 1;
+static long imageSize = 0;
+static long sdl_page_count = 1;
+static long sdl_page_bytes = 0;
 
 static int setvesa(long x, long y) {
 	if (sdl_init((int)x, (int)y) < 0) return -1;
 	bytesperline = x;
-	/* Don't overwrite 'screen' — it holds horizlookup/horizlookup2.
-	   Only update frameplace to point at the SDL pixel buffer. */
-	frameplace = (intptr_t)sdl_getscreen();
-	maxpages = 1;
+	sdl_page_bytes = x * y;
+	imageSize = sdl_page_bytes;
+	if (sdl_page_count < 1) sdl_page_count = 1;
+	maxpages = sdl_page_count;
+	if (screen != NULL)
+		frameplace = (intptr_t)screen;
 	linearmode = 1;
 	buffermode = 1;
 	origbuffermode = 1;
 	return 0;
 }
 static void uninitvesa(void) { sdl_shutdown(); }
-static void setactivepage(long p) { (void)p; }
-static void setvisualpage(long p) { (void)p; sdl_nextpage(); }
+static void setactivepage(long p) {
+	long pg;
+	if (screen == NULL || sdl_page_bytes <= 0) return;
+	pg = p;
+	if (sdl_page_count > 0) {
+		pg %= sdl_page_count;
+		if (pg < 0) pg += sdl_page_count;
+	}
+	frameplace = (intptr_t)(screen + pg * sdl_page_bytes);
+}
+static void setvisualpage(long p) {
+	long pg;
+	unsigned char *src, *dst;
+	if (screen == NULL || sdl_page_bytes <= 0) { sdl_nextpage(); return; }
+	pg = p;
+	if (sdl_page_count > 0) {
+		pg %= sdl_page_count;
+		if (pg < 0) pg += sdl_page_count;
+	}
+	src = (unsigned char *)(screen + pg * sdl_page_bytes);
+	dst = (unsigned char *)sdl_getscreen();
+	if (src != NULL && dst != NULL)
+		memcpy(dst, src, (size_t)sdl_page_bytes);
+	sdl_nextpage();
+}
 static void getvalidvesamodes(void) {
 	if (validmodecnt > 0) return;
 	validmode[0] = 0x100;
@@ -94,7 +124,6 @@ static long VBE_getPalette(long start, long num, char *dapal) {
 
 /* Additional ves2.h variables */
 static char permanentupdate = 0;
-static long imageSize = 0;
 
 /* DOS keywords that don't exist in GCC */
 #ifndef interrupt
@@ -2701,9 +2730,9 @@ setgamemode(char davidoption, long daxdim, long daydim)
 	activepage = visualpage = 0;
 	switch(vidoption)
 	{
-		case 1: i = xdim*ydim; break;
-		case 2: xdim = 320; ydim = 200; i = xdim*ydim; break;
-		case 6: xdim = 320; ydim = 200; i = 131072; break;
+		case 1: sdl_page_count = SDL_EMU_PAGES; i = xdim*ydim*sdl_page_count; break;
+		case 2: sdl_page_count = 1; xdim = 320; ydim = 200; i = xdim*ydim; break;
+		case 6: sdl_page_count = 1; xdim = 320; ydim = 200; i = 131072; break;
 		default: return(-1);
 	}
 	j = ydim*4*sizeof(long);    /* Leave room for horizlookup&horizlookup2 */
