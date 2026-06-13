@@ -6,7 +6,33 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
 
-# Find SDL2
+# Find SDL2 — on Windows, fall back to the vendored SDL2-devel-VC copy if the
+# user did not set SDL2_DIR explicitly. The SDL2-devel-VC zip places its
+# CMake config at <root>/cmake/sdl2-config.cmake and the runtime DLL at
+# <root>/lib/x64/SDL2.dll. The version is derived from build.mk so this stays
+# in sync with the Makefile / tools/win_build.ps1 / tools/get_sdl2_mingw.sh.
+if(WIN32 AND (NOT DEFINED SDL2_DIR OR SDL2_DIR STREQUAL ""))
+    set(_sdl2_version "2.30.9")  # fallback if build.mk goes missing
+    if(EXISTS "${CMAKE_SOURCE_DIR}/build.mk")
+        file(STRINGS "${CMAKE_SOURCE_DIR}/build.mk" _bmk_sdl
+             REGEX "^[ \t]*SDL2_VERSION[ \t]*=[ \t]*[^ \t#]+")
+        if(_bmk_sdl)
+            string(REGEX REPLACE "^[ \t]*SDL2_VERSION[ \t]*=[ \t]*([^ \t#]+).*$"
+                                 "\\1" _sdl2_version "${_bmk_sdl}")
+        endif()
+        unset(_bmk_sdl)
+    endif()
+    set(_vendored_sdl2_cmake
+        "${CMAKE_SOURCE_DIR}/third_party/SDL2-${_sdl2_version}/cmake")
+    if(EXISTS "${_vendored_sdl2_cmake}/sdl2-config.cmake")
+        set(SDL2_DIR "${_vendored_sdl2_cmake}"
+            CACHE PATH "Path to vendored SDL2 CMake config" FORCE)
+        message(STATUS "Using vendored SDL2 ${_sdl2_version} from ${SDL2_DIR}")
+    endif()
+    unset(_vendored_sdl2_cmake)
+    unset(_sdl2_version)
+endif()
+
 find_package(SDL2 REQUIRED)
 
 # Optionally find SDL2_mixer
@@ -74,6 +100,11 @@ if(_ipo_ok AND CMAKE_BUILD_TYPE STREQUAL "Release")
 	set_property(TARGET duke3d PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
 endif()
 
+# Force console subsystem on Windows so users see early-development crash output.
+if(WIN32)
+    set_target_properties(duke3d PROPERTIES WIN32_EXECUTABLE FALSE)
+endif()
+
 # Include directories
 target_include_directories(duke3d PRIVATE
     ${CMAKE_SOURCE_DIR}/compat
@@ -89,8 +120,10 @@ endif()
 # Compiler-specific flags
 if(MSVC)
     target_compile_options(duke3d PRIVATE /W0)
-    # Note: LANGUAGE C property (line 54) handles .C → C compilation for MSVC.
-    # Do NOT add /Tc flag here: it consumes the next token, triggering D8036 error.
+    # Note: do NOT add /Tc or /TC here. The LANGUAGE C source property set
+    # above already makes MSVC compile uppercase .C files as C. Adding /Tc
+    # as a COMPILE_FLAGS string causes "D8036: /Fo not allowed with
+    # multiple source files" because bare /Tc swallows the next token.
 else()
     # GCC/Clang: legacy code uses gnu89, compat uses gnu11
     set_source_files_properties(${ENGINE_SRCS} ${GAME_SRCS}
@@ -129,6 +162,39 @@ if(WIN32)
     target_link_libraries(duke3d PRIVATE ws2_32 bcrypt)
 elseif(UNIX)
     target_link_libraries(duke3d PRIVATE m)
+endif()
+
+# Copy SDL2.dll next to duke3d.exe on Windows so the binary runs from the build dir.
+if(WIN32)
+    set(SDL2_DLL "")
+    if(TARGET SDL2::SDL2)
+        get_target_property(_sdl2_imported_dll SDL2::SDL2 IMPORTED_LOCATION)
+        if(NOT _sdl2_imported_dll)
+            get_target_property(_sdl2_imported_dll SDL2::SDL2 IMPORTED_LOCATION_RELEASE)
+        endif()
+        if(_sdl2_imported_dll AND _sdl2_imported_dll MATCHES "\\.dll$" AND EXISTS "${_sdl2_imported_dll}")
+            set(SDL2_DLL "${_sdl2_imported_dll}")
+        endif()
+        unset(_sdl2_imported_dll)
+    endif()
+    if(NOT SDL2_DLL AND DEFINED SDL2_DIR AND SDL2_DIR)
+        get_filename_component(SDL2_ROOT "${SDL2_DIR}" DIRECTORY)
+        if(EXISTS "${SDL2_ROOT}/lib/x64/SDL2.dll")
+            set(SDL2_DLL "${SDL2_ROOT}/lib/x64/SDL2.dll")
+        endif()
+    endif()
+
+    if(SDL2_DLL AND EXISTS "${SDL2_DLL}")
+        add_custom_command(TARGET duke3d POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "${SDL2_DLL}" "$<TARGET_FILE_DIR:duke3d>/SDL2.dll"
+            COMMENT "Copying SDL2.dll next to duke3d.exe")
+    else()
+        message(WARNING
+            "SDL2.dll could not be located for post-build copy. "
+            "duke3d.exe may fail to launch unless SDL2.dll is on PATH. "
+            "Set SDL2_DIR to a folder whose parent contains lib/x64/SDL2.dll.")
+    endif()
 endif()
 
 # Install

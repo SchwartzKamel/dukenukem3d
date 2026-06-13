@@ -1,115 +1,118 @@
-# Copilot Instructions — DUKE3D: NEON NOIR
+# Copilot Instructions — Duke3D: Neon Noir
 
-Modernized port of Duke Nukem 3D (1996, GPL-2.0) on Ken Silverman's BUILD engine. Builds on Linux, macOS, and Windows with GCC/Clang/MSVC + SDL2. Ships a Python asset pipeline that regenerates all art/audio/maps so no copyrighted content lives in the repo.
+A modernized port of the original 1996 Duke Nukem 3D source on Ken Silverman's
+BUILD engine. This file captures the non-obvious things you need to know to
+work effectively here. See `docs/ARCHITECTURE.md` for the engine deep-dive and
+`CONTRIBUTING.md` for the human-facing version.
 
-## Repo Layout (Three Eras of Code, Three Sets of Rules)
+## Code is split into three tiers — treat them differently
 
-| Tree | Era | Standard | Rule |
-|------|-----|----------|------|
-| `SRC/` | Original BUILD engine (1996, Ken Silverman) | `-std=gnu89` (K&R C) | **Surgical fixes only.** Match brace style, indentation, naming. Never reformat or modernize. |
-| `source/` | Duke3D game code (1996) | `-std=gnu89` (K&R C) | Same as `SRC/`. |
-| `compat/` | Modern shim layer (DOS → POSIX/Win32/MSVC) | `-std=gnu11` | Clean modern C. Use `int32_t`-style fixed-width types for anything that touches engine structs. |
-| `tools/` | Asset/audio pipeline | Python 3.8+ | PEP 8-ish, self-contained, minimal deps. |
-| `tests/` | pytest suite (~60 files, 1300+ tests) | Python | See test commands below. |
+| Path | Era / Style | Std | Rule |
+|---|---|---|---|
+| `SRC/` (BUILD engine: `ENGINE.C`, `CACHE1D.C`, `MMULTI.C`) | 1996 K&R | `-std=gnu89` | **Do not reformat or modernize.** Keep edits surgical. |
+| `source/` (Duke3D game: `GAME.C`, `ACTORS.C`, …) | 1996 K&R | `-std=gnu89` | Same rule — match existing brace/indent style. |
+| `compat/` (`sdl_driver.c`, `audio_stub.c`, `mact_stub.c`, `hud.c`, `compat.h`) | Modern | `-std=gnu11` (`/std:c11` MSVC) | Modern C is expected here; use `int32_t`/fixed-width types when interacting with engine globals. |
+| `tools/` | Python 3.8+ | PEP 8 where reasonable | Asset pipeline. Keep deps minimal (only `Pillow`, `requests`, `pytest`). |
 
-Subsystem READMEs (`compat/README.md`, `tools/README.md`) and `docs/ARCHITECTURE.md` are the authoritative deep-dives — read them before architectural changes.
+**File-extension trap**: legacy files use uppercase `.C` but are **C, not C++**.
+The Makefile compiles them with `-x c`; `build_windows.bat` MSVC uses `/Tc`;
+CMake uses `set_source_files_properties(... LANGUAGE C)`. If you add a new
+legacy-style file with `.C`, replicate this. New modern code goes in `compat/`
+with lowercase `.c`.
 
-## Build & Test
+`ENGINE.C` is special — it's compiled with `-ffast-math -DENGINE` (see
+`ENGINE_EXTRA_FLAGS` in `build.mk`). Don't add `-ffast-math` globally; the
+fixed-point math elsewhere relies on standard FP semantics.
+
+## `build.mk` is the single source of truth for source lists
+
+`build.mk` defines `ENGINE_SRCS`, `GAME_SRCS`, `COMPAT_SRCS`, `COMMON_DEFINES`,
+`LEGACY_STD`, `COMPAT_STD`, and `SDL2_VERSION`. It is included by `Makefile`
+**and** mirrored by `CMakeLists.txt` and `build_windows.bat`. **When you add
+or rename a source file, update all three** — there is currently no
+auto-generation. The pinned `SDL2_VERSION = 2.30.9` is also read by CI scripts.
+
+## Build commands
+
+| Target | Command | Output |
+|---|---|---|
+| Linux native (default) | `make` | `./duke3d` |
+| Windows cross-compile from Linux (32-bit) | `make windows` | `./duke3d.exe` (uses `i686-w64-mingw32-gcc`) |
+| Windows native MSVC | `build_windows.bat msvc` (in VS Dev Cmd, with `SDL2_DIR` set) | `duke3d.exe` |
+| Windows native MinGW | `build_windows.bat mingw` (with `SDL2_DIR` set) | `duke3d.exe` |
+| CMake (any platform) | `cmake -B build && cmake --build build` | `build/duke3d[.exe]` |
+| Debug build | `make debug` (or `BUILD_TYPE=debug make`) | unstripped, `-O0 -g -DDEBUG` |
+| Both Linux + Windows | `make all-platforms` | both binaries |
+| Diagnostics | `make info` | prints SDL2 paths, MinGW path, source counts |
+
+`make windows` is **32-bit** on purpose — the BUILD engine stores pointers in
+`long`, which only matches `sizeof(void*)` on ILP32. Don't switch it to 64-bit
+without a porting pass.
+
+## Asset pipeline (the game won't run without it)
+
+The original copyrighted assets are **not** in the repo. The Python pipeline
+generates a complete `DUKE3D.GRP` from scratch:
 
 ```bash
-# Linux build (default)            -> ./duke3d
-make
-make BUILD_TYPE=debug            # -O0 -g -DDEBUG
-make clean
-
-# Cross-compile Windows from Linux -> ./duke3d.exe
-make windows
-
-# macOS / cross-platform via CMake -> build/duke3d
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build
-
-# Assets (procedural, no API keys needed)
-make assets                       # == python3 tools/generate_assets.py --no-ai
-python3 tools/generate_audio.py --no-ai
+python3 tools/generate_assets.py --no-ai   # procedural (no API, deterministic)
+make assets                                # alias for the above
+python3 tools/generate_assets.py           # AI textures via FLUX (needs .env)
+python3 tools/generate_audio.py [--no-ai]  # voice lines + SFX via Azure GPT Audio
 ```
 
-Release builds intentionally use `-w` (suppress warnings) for `SRC/` + `source/` because the 1996 K&R code produces 1200+ false-positive warnings; `compat/` is built with `-Wall`. Do not "fix" engine warnings without coordination.
+To add textures/maps/audio, follow the recipe in `CONTRIBUTING.md` —
+`generate_assets.py` is driven by `TEXTURE_DEFS` + `PROCEDURAL_MAP` tables,
+and `generate_audio.py` by `VOICE_LINES`.
 
-### Tests
+`.env` keys when using AI generation:
+`FLUX_ENDPOINT`, `FLUX_MODEL`, `FLUX_API_KEY`,
+`AUDIO_ENDPOINT`, `AUDIO_MODEL`, `AUDIO_API_KEY`.
+
+## Tests
+
+The Python test suite exercises the asset pipeline (file-format encoders,
+palette/table generators, GRP packing) and a headless-game smoke test.
 
 ```bash
-pytest                                              # full suite (xdist parallel, --runslow on by default)
-pytest -m "not slow"                                # fast dev loop
-pytest tests/test_palette.py                        # single file
-pytest tests/test_palette.py::test_build_palette    # single test
-pytest -k "quantize and not slow"                   # by keyword
-pytest -n0 tests/test_xxx.py                        # disable xdist (helpful for prints/pdb)
+python3 -m pytest tests/ -v --tb=short              # full suite
+python3 -m pytest tests/test_palette.py -v          # one file
+python3 -m pytest tests/test_palette.py::test_palette_size -v   # one test
+python3 -m pytest tests/ -k "asset or grp or map"   # CI's "test-assets" subset
+python3 -m pytest tests/ -m playtest                # visual playtest only (slow)
 ```
 
-Registered markers (see `pytest.ini`): `slow` (>1s, run by default), `playtest` (headless game launch, opt-in via `-m playtest`), `serial` (xdist-incompatible — avoid unless required).
+The `playtest` marker (declared in `pytest.ini`) launches the built game
+headless to capture and analyze frames. It needs:
 
-### Cross-compiler struct tests
+| Env var | Effect |
+|---|---|
+| `DUKE3D_HEADLESS=1` | SDL dummy driver, no window |
+| `DUKE3D_SKIP_LOGO=1` | bypass intro logo (see `source/GAME.C`) |
+| `DUKE3D_FRAME_LIMIT=N` | exit after N rendered frames |
+| `DUKE3D_CAPTURE_INTERVAL=N` | dump a `.bmp` every N frames to `captures/` |
+| `SDL_VIDEODRIVER=dummy` | required alongside `DUKE3D_HEADLESS` |
 
-`tests/test_build_structs.py` compiles a C harness to verify binary struct layout. Override the compiler via `STRUCT_TEST_CC=x86_64-w64-mingw32-gcc` to validate MinGW; non-native binaries are auto-skipped from execution.
+The capture/headless plumbing lives in `compat/sdl_driver.c`.
 
-## Pre-Commit Secret Scan (Mandatory)
+## CI shape (`.github/workflows/build.yml`)
 
-```bash
-bash tools/install_hooks.sh   # one-time: sets core.hooksPath to .githooks
-```
+Five jobs run on each push/PR — match their commands locally before opening
+a PR:
 
-The hook runs `tools/check_secrets.sh` against staged diffs. It greps for `^+` (added lines only) with exclusions for `check_secrets.sh`, `tests/test_check_secrets*`, `.env.example`, and `docs/audits/`.
+1. **build-linux** — `make` + pytest + `generate_assets.py --no-ai`
+2. **build-windows** — `make windows` (MinGW cross from Ubuntu) + DLL audit
+3. **test-assets** — pytest filtered to `asset|palette|art|grp|map|table`
+4. **test-windows-native** — `cmake -A Win32` + MSVC on `windows-latest`
+5. **playtest** — headless game run + frame analysis (non-blocking)
 
-When writing tests or docs that include realistic-looking secret patterns (Slack `xoxp-/xoxb-`, Stripe `rk_live_/sk_live_`, `BEG`+`IN PRIVATE KEY`, `npm_`, `hf_`, GitHub `ghp_`, Azure `DefaultEndpoints`+`Protocol`, `Account`+`Key=`, etc.), **token-split the literal** so the scanner (and GitHub server-side push protection) doesn't trip:
+`tools/get_sdl2_mingw.sh` and `tools/bundle_windows.sh` are CI helpers — the
+Windows release bundle audits `objdump -p` output to verify every required
+non-system DLL is shipped next to `duke3d.exe`.
 
-```python
-# test fixture
-slack_token = "xo" + "xp-1234567890..."
-```
+## Pull-request expectations
 
-```markdown
-<!-- audit doc -->
-`BEG` + `IN PRIVATE KEY` block was rotated...
-```
-
-## Generated Assets Are Never Committed
-
-`generated_assets/`, `DUKE3D.GRP`, and `GRP_MANIFEST.json` are gitignored and rebuilt on demand. The **source of truth** lives in:
-
-- `tools/generate_audio.py` → `VOICE_LINES`, `SOUND_MANIFEST` (21 WAVs)
-- `tools/generate_assets.py` → `TEXTURE_DEFS`, `PROCEDURAL_MAP` (20 walls, 10 sprites)
-- `tools/map_format.py` → procedural map builders
-- `tools/palette.py`, `tools/tables.py` → palette/lookup tables
-
-If `git status` ever shows these as dirty, run `git checkout -- generated_assets/ DUKE3D.GRP` — never commit them. Generator scripts must not write to project root; emit only to `generated_assets/`.
-
-## Architectural Contracts
-
-- **Watcom ASM → C translation:** `compat/pragmas_gcc.h` holds ~174 inline C functions replacing ~1,900 lines of Watcom `#pragma aux` inline assembly. These are hot rendering paths; do not modify without profiler-backed justification.
-- **MAXTILES mismatch is known:** `SRC/BUILD.H` = 9216, `source/BUILD.H` = 6144. `compat/maxtiles_guard.c` warns at launch; do not unify without coordinating with the Engine Porter persona.
-- **`totalclocklock` is NOT a typo** — it's a per-frame snapshot of `totalclock` (declared `SRC/BUILD.H:151`, assigned `SRC/ENGINE.C:853`). Reject any "fix" PR.
-- **64-bit packed structs:** Always `int32_t`, never `long` (long is 64-bit on Linux x86-64). Binary format compatibility relies on this.
-- **GRP archive determinism:** Byte-for-byte reproducible output is a hard contract — see `docs/GRP_DETERMINISM.md` before touching `tools/grp_format.py` or anything that feeds it.
-- **Networking abstraction:** Socket operations in `SRC/MMULTI.C` route through `net_socket_create()`, `net_socket_set_option()`, `net_close()` wrappers (not raw `socket()`/`setsockopt()`/`close()`); preserve this when adding code.
-- **CSPRNG:** Windows uses `BCryptGenRandom()` (`bcrypt.lib`); Linux uses `getrandom()`. Never `rand()` for nonces/checksums.
-
-## Persona-Based Ownership
-
-`.github/agents/*.agent.md` defines 10 specialized Copilot personas (Engine Porter, Compat Layer, Asset Pipeline, Audio Engineer, Build System, Test Engineer, Network & Multiplayer, Performance Profiler, Security & Secrets, Documentation Curator). When a task clearly falls under one persona's scope, prefer dispatching to that persona — each owns a specific tree and enforces its own conventions.
-
-## Audit-Grind Workflow
-
-The repo runs a recurring audit cycle (see `docs/audits/`, `docs/audits/SUMMARY.md`, `docs/audits/GRIND_LOG.md`, and the `audit-grind` skill at `.github/skills/`). Conventions:
-
-- Audit reports are versioned: `<persona>-r<N>.md`. New reports must be added to `docs/audits/index.md`.
-- Parallel sub-agents in a grind cycle **must not** run `git stash`, `git reset`, or `git checkout -- <file>` — they share the working tree and will destroy sibling work.
-- After any audit-pass cycle, verify claimed changes with `git status` + tree-wide `grep` for the patch's unique token; sub-agents occasionally hallucinate edits.
-- Staging-file pattern: parallel audit-pass agents write `STAGING_<persona>_r<N>.md` files with `<!-- SUMMARY_ROW -->` / `<!-- GRIND_LOG_ENTRY -->` delimiters; the orchestrator merges into `SUMMARY.md` / `GRIND_LOG.md` post-hoc to avoid sibling-write races.
-
-## Credentials
-
-`.env` is gitignored; `.env.example` is the template. Required keys for AI generation only (everything works with `--no-ai`):
-- `FLUX_ENDPOINT`, `FLUX_MODEL`, `FLUX_API_KEY` (textures via FLUX.2-pro)
-- `AUDIO_ENDPOINT`, `AUDIO_MODEL`, `AUDIO_API_KEY` (voice/SFX via GPT Audio on Azure)
-
-Hostnames in error messages must be redacted to first-label (e.g. `api.***`) — see `_redact_hostname()` in `tools/generate_{assets,audio}.py`.
+Before pushing, the `CONTRIBUTING.md` baseline is `make clean && make` plus
+`python3 tools/generate_assets.py --no-ai`. CI re-runs both. Don't commit
+generated artifacts (`duke3d`, `duke3d.exe`, `*.GRP`, `generated_assets/`,
+`build/`, `build_win/`, `captures/`).

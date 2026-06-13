@@ -1,7 +1,34 @@
 # Duke Nukem 3D - Modern GCC/SDL2 Makefile
-# Supports Linux (native) and Windows x86 (cross-compilation via MinGW)
+# Supports Linux (native), Windows native (via CMake/MSVC), and Windows x86 (cross-compilation via MinGW)
 
 include build.mk
+
+# ===== Host OS detection =====
+HOST_OS := $(shell uname -s 2>/dev/null | tr '[:upper:]' '[:lower:]')
+ifeq ($(OS),Windows_NT)
+  HOST_OS := windows
+else ifneq ($(findstring nt,$(HOST_OS)),)
+  HOST_OS := windows
+else ifneq ($(findstring mingw,$(HOST_OS)),)
+  HOST_OS := windows
+else ifneq ($(findstring msys,$(HOST_OS)),)
+  HOST_OS := windows
+endif
+
+# ===== Portable helpers =====
+ifeq ($(HOST_OS),windows)
+  EXE      := .exe
+  NULL_DEV := NUL
+  MKDIR_P   = if not exist $(subst /,\,$1) mkdir $(subst /,\,$1)
+  RM_RF     = if exist $(subst /,\,$1) rmdir /s /q $(subst /,\,$1)
+  RM_F      = if exist $(subst /,\,$1) del /q /f $(subst /,\,$1)
+else
+  EXE      :=
+  NULL_DEV := /dev/null
+  MKDIR_P   = mkdir -p $1
+  RM_RF     = rm -rf $1
+  RM_F      = rm -f $1
+endif
 
 # Build type configuration: release (default) or debug
 BUILD_TYPE ?= release
@@ -25,7 +52,8 @@ CC      = gcc
 DEPFLAGS = -MMD -MP
 CFLAGS  = $(LEGACY_STD) $(OPT_FLAGS) $(WARN_FLAGS) $(LTO_FLAGS) $(COMMON_DEFINES) -DPLATFORM_UNIX $(DEPFLAGS)
 
-# ===== Smart SDL2 Detection =====
+# ===== Smart SDL2 Detection (POSIX hosts only) =====
+ifneq ($(HOST_OS),windows)
 SDL2_CFLAGS := $(shell pkg-config --cflags sdl2 2>/dev/null || sdl2-config --cflags 2>/dev/null)
 SDL2_LIBS := $(shell pkg-config --libs sdl2 2>/dev/null || sdl2-config --libs 2>/dev/null)
 
@@ -80,6 +108,7 @@ ifeq ($(WIN_SDL2_CFLAGS),)
 endif
 WIN_SDL2_LIBS ?= $(if $(SDL2_WIN_LIBS),$(SDL2_WIN_LIBS),-L/usr/i686-w64-mingw32/lib -lmingw32 -lSDL2main -lSDL2)
 WIN_LIBS    = $(WIN_SDL2_LIBS) -lm -lws2_32 -lbcrypt -liphlpapi -mwindows -static-libgcc
+endif # HOST_OS != windows
 WIN_TARGET  = duke3d.exe
 WIN_BUILD_DIR = build_win
 
@@ -106,6 +135,34 @@ WIN_COMPAT_OBJS = $(patsubst compat/%.c,$(WIN_BUILD_DIR)/compat_%.o,$(COMPAT_SRC
 WIN_ALL_OBJS    = $(WIN_ENGINE_OBJS) $(WIN_GAME_OBJS) $(WIN_COMPAT_OBJS)
 
 .PHONY: all clean windows assets audio all-platforms debug release info test-compile
+
+ifeq ($(HOST_OS),windows)
+# ===== Windows native build (delegates to CMake via PowerShell helper) =====
+
+all:
+	powershell -NoProfile -ExecutionPolicy Bypass -File tools\win_build.ps1 -BuildType $(BUILD_TYPE) -Action build
+	if exist duke3d.exe copy /y duke3d.exe duke3d >NUL
+
+windows: all
+
+info:
+	powershell -NoProfile -ExecutionPolicy Bypass -File tools\win_build.ps1 -Action info
+
+clean:
+	$(call RM_RF,$(BUILD_DIR))
+	$(call RM_RF,$(WIN_BUILD_DIR))
+	$(call RM_F,$(TARGET)$(EXE))
+	$(call RM_F,$(TARGET))
+	$(call RM_F,SDL2.dll)
+
+debug:
+	$(MAKE) BUILD_TYPE=debug
+
+release:
+	$(MAKE) BUILD_TYPE=release
+
+else
+# ===== POSIX (Linux/macOS) native + MinGW cross-compile =====
 
 all: $(TARGET)
 
@@ -189,7 +246,6 @@ clean:
 
 # ===== Build info =====
 
-.PHONY: info
 info:
 	@echo "=== Duke3D Build Configuration ==="
 	@echo "Platform:      $(shell uname -s -m)"
@@ -222,3 +278,5 @@ test-compile: $(BUILD_DIR)
 # build-r14-header-deps: include auto-generated dependency files
 -include $(ALL_OBJS:.o=.d)
 -include $(WIN_ALL_OBJS:.o=.d)
+
+endif # HOST_OS

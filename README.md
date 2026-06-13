@@ -124,8 +124,9 @@ reproducibility.
 | Requirement | Install |
 |---|---|
 | Visual Studio Build Tools **or** MinGW-w64 | [VS Build Tools](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022) or [MinGW-w64](https://www.mingw-w64.org/) |
-| SDL2 development libraries | [SDL2 releases](https://github.com/libsdl-org/SDL/releases) — get the `-VC.zip` for MSVC or `-mingw.zip` for MinGW |
-| CMake *(optional)* | [cmake.org](https://cmake.org/download/) or via `winget install cmake` |
+| SDL2 development libraries | [SDL2 releases](https://github.com/libsdl-org/SDL/releases) — get the `-VC.zip` for MSVC or `-mingw.zip` for MinGW *(auto-downloaded by Option A)* |
+| CMake *(optional)* | [cmake.org](https://cmake.org/download/) or via `winget install cmake` *(bundled with VS 2022 for Option A)* |
+| `make.exe` *(for Option A)* | `choco install make` |
 
 ### macOS
 
@@ -152,9 +153,50 @@ make            # builds ./duke3d
 make windows    # builds ./duke3d.exe
 ```
 
-### Windows Native — Option A: CMake (Recommended)
+### Windows Native — Option A: `make` (Recommended)
 
-The cleanest approach for Windows. Works with Visual Studio, MinGW, or any CMake generator.
+Single command. Auto-locates Visual Studio 2022, downloads SDL2 if missing, builds via CMake + Ninja + MSVC.
+
+**Prerequisites** (one-time — see the [Windows (Native Build)](#windows-native-build) table above):
+- Visual Studio 2022 Community/Pro/Enterprise with the **Desktop development with C++** workload (provides MSVC, Windows SDK, bundled CMake, bundled Ninja)
+- `make.exe` on PATH (e.g., `choco install make`)
+- PowerShell 5.1+ (ships with Windows 10+)
+
+**Build:**
+
+```cmd
+make
+```
+
+That's it. The Makefile detects Windows, delegates to `tools\win_build.ps1`, which:
+
+1. Locates VS via `vswhere.exe`
+2. Auto-downloads SDL2 dev libraries (`SDL2-devel-2.30.9-VC.zip`) into `third_party\` on first build
+3. Imports the VS dev environment (vcvars64) into a subshell — no PATH pollution
+4. Configures with CMake + Ninja using bundled tools from VS
+5. Builds with MSVC (cl.exe)
+6. Copies `duke3d.exe` and `SDL2.dll` to the repo root
+
+**Other targets:**
+
+```cmd
+make clean              REM removes build\, duke3d.exe, SDL2.dll (preserves cached SDL2)
+make info               REM prints VS / MSVC / CMake / SDL2 versions
+make BUILD_TYPE=debug   REM debug build with -DDEBUG and console subsystem
+```
+
+**Override SDL2 location** (if you have your own copy):
+
+```cmd
+set SDL2_DIR=C:\path\to\SDL2-devel-2.30.9-VC
+make
+```
+
+> The remaining options (B/C/D) are fallbacks for users without `make.exe`, without VS 2022, or who prefer a different toolchain.
+
+### Windows Native — Option B: CMake
+
+The cleanest manual approach for Windows. Works with Visual Studio, MinGW, or any CMake generator.
 
 ```cmd
 REM Install SDL2 via vcpkg (one-time setup)
@@ -168,7 +210,7 @@ cmake --build . --config Release
 
 Or open the project directly in **Visual Studio 2019+** (File → Open → CMake) — it will auto-detect `CMakeLists.txt`.
 
-### Windows Native — Option B: Visual Studio Developer Command Prompt
+### Windows Native — Option C: Visual Studio Developer Command Prompt
 
 Open a **Developer Command Prompt for VS** (or **x64 Native Tools Command Prompt**), set `SDL2_DIR`, and run:
 
@@ -177,7 +219,7 @@ set SDL2_DIR=C:\SDL2
 build_windows.bat msvc
 ```
 
-### Windows Native — Option C: MinGW on Windows
+### Windows Native — Option D: MinGW on Windows
 
 ```cmd
 set SDL2_DIR=C:\SDL2
