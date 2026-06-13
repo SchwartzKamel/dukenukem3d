@@ -37,7 +37,7 @@ class TestAllocacheFunctionDeclaration:
         )
 
     def test_allocache_takes_three_params(self, repo_root):
-        """allocache(long *bufptr, long bufsiz, char *lockptr) signature."""
+        """allocache(intptr_t *bufptr, long bufsiz, char *lockptr) signature."""
         cache1d_c = repo_root / "SRC" / "CACHE1D.C"
         if not cache1d_c.exists():
             pytest.skip(f"{cache1d_c} not found")
@@ -45,12 +45,12 @@ class TestAllocacheFunctionDeclaration:
         content = cache1d_c.read_text(errors="replace")
 
         # Look for function signature with three parameters
-        has_bufptr = "long *" in content and "allocache" in content
+        has_bufptr = re.search(r"allocache\s*\(\s*(intptr_t|long)\s*\*", content)
         has_bufsiz = "long bufsiz" in content or "bufsiz" in content
         has_lockptr = "char *" in content and "lockptr" in content
 
         assert has_bufptr and has_bufsiz and has_lockptr, (
-            "allocache should accept (long *bufptr, long bufsiz, char *lockptr) parameters."
+            "allocache should accept (intptr_t *bufptr, long bufsiz, char *lockptr) parameters."
         )
 
 
@@ -269,10 +269,10 @@ class TestAllocacheCallSites:
 
         content = cache1d_c.read_text(errors="replace")
 
-        # Look for pattern: allocache((long *)&lzwbufN, ...
+        # Look for pattern: allocache((intptr_t *)&lzwbufN, ...
         has_lzwbuf = re.search(r"allocache\s*\(\s*\(.*\)&lzwbuf", content)
         assert has_lzwbuf, (
-            "CACHE1D.C should allocate LZW buffers using allocache((long *)&lzwbufN, ...)."
+            "CACHE1D.C should allocate LZW buffers using allocache((intptr_t *)&lzwbufN, ...)."
         )
 
     def test_allocache_guards_with_null_check(self, repo_root):

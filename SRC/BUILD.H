@@ -348,8 +348,9 @@ long FindDistance2D(long x, long y);
 long FindDistance3D(long x, long y, long z);
 
 /* Cache/file system */
-void initcache(long dacachestart, long dacachesize);
-void allocache(long *newhandle, long newbytes, char *newlockptr);
+void initcache(intptr_t dacachestart, long dacachesize);
+void allocache(intptr_t *newhandle, long newbytes, char *newlockptr);
+void suckcache(void *suckptr);
 _Noreturn void reportandexit(char *errormessage);
 int kopen4load(char *filename, char searchfirst);
 long kread(long handle, void *buffer, long leng);

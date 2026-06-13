@@ -16,6 +16,20 @@ sys.path.insert(0, os.path.join(PROJECT_ROOT, "tools"))
 from manifest_verification import load_and_verify_audio_manifest, load_and_verify_tables_manifest
 
 
+def resolve_binary_path(project_root: Path) -> Path:
+    """Resolve the most likely built game binary path across local/CI layouts."""
+    exe_name = "duke3d.exe" if os.name == "nt" else "duke3d"
+    candidates = [
+        project_root / "build" / "Release" / exe_name,
+        project_root / "build" / exe_name,
+        project_root / exe_name,
+    ]
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate
+    return candidates[0]
+
+
 # ============================================================================
 # Test Parametrization Conventions (perf-r16-frame-analyzer-parametrization)
 # ============================================================================
@@ -96,8 +110,7 @@ def project_root():
 @pytest.fixture(scope="session")
 def binary_path(project_root):
     """Return path to the duke3d binary."""
-    exe_name = "duke3d.exe" if os.name == "nt" else "duke3d"
-    return project_root / exe_name
+    return resolve_binary_path(project_root)
 
 
 @pytest.fixture(scope="session")
@@ -703,6 +716,19 @@ def sdl2_available():
     """Check if libSDL2 is available in the runtime linker path."""
     import ctypes
 
+    windows_candidates = [
+        Path(PROJECT_ROOT) / "SDL2.dll",
+        Path(PROJECT_ROOT) / "build" / "SDL2.dll",
+        Path(PROJECT_ROOT) / "build" / "Release" / "SDL2.dll",
+    ]
+    for dll_path in windows_candidates:
+        if dll_path.is_file():
+            try:
+                ctypes.CDLL(str(dll_path))
+                return True
+            except OSError:
+                pass
+
     for lib_name in (
         "libSDL2-2.0.so.0",
         "libSDL2-2.0.0.dylib",
@@ -718,6 +744,15 @@ def sdl2_available():
 
 def get_sdl2_lib_path():
     """Try to find SDL2 library path from ctypes/system locations."""
+    windows_candidates = [
+        Path(PROJECT_ROOT),
+        Path(PROJECT_ROOT) / "build",
+        Path(PROJECT_ROOT) / "build" / "Release",
+    ]
+    for path in windows_candidates:
+        if (path / "SDL2.dll").is_file():
+            return str(path)
+
     macos_paths = [
         "/opt/homebrew/lib",
         "/usr/local/lib",
@@ -779,8 +814,7 @@ def headless_run(worker_id):
     import shutil
     from filelock import FileLock
 
-    exe_name = "duke3d.exe" if os.name == "nt" else "duke3d"
-    binary_path_value = os.path.join(PROJECT_ROOT, exe_name)
+    binary_path_value = str(resolve_binary_path(Path(PROJECT_ROOT)))
     grp_path_value = os.path.join(PROJECT_ROOT, "DUKE3D.GRP")
 
     if not os.path.isfile(binary_path_value):

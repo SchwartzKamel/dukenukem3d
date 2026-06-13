@@ -18,7 +18,6 @@ from frame_analyzer import (
 )
 
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-BINARY_PATH = os.path.join(PROJECT_ROOT, "duke3d")
 GRP_PATH = os.path.join(PROJECT_ROOT, "DUKE3D.GRP")
 
 
@@ -28,11 +27,11 @@ GRP_PATH = os.path.join(PROJECT_ROOT, "DUKE3D.GRP")
 # ---------------------------------------------------------------------------
 
 @pytest.mark.playtest
-def test_game_binary_exists():
+def test_game_binary_exists(binary_path):
     """Game binary must be present to run any playtest."""
-    if not os.path.isfile(BINARY_PATH):
-        pytest.skip("Game binary not found — skipping all playtests")
-    assert os.access(BINARY_PATH, os.X_OK), "duke3d binary is not executable"
+    if not binary_path.is_file():
+        pytest.skip(f"Game binary not found: {binary_path}")
+    assert os.access(str(binary_path), os.X_OK), f"{binary_path} is not executable"
 
 
 @pytest.mark.playtest

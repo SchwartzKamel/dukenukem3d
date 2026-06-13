@@ -3969,9 +3969,9 @@ void playanm(char *fn,char t)
     walock[MAXTILES-3-t] = 219+t;
 
     if(anim == 0 || lastanimhack != (MAXTILES-3-t))
-        allocache((long *)&anim,length+sizeof(anim_t),&walock[MAXTILES-3-t]);
+        allocache((intptr_t *)&anim,length+sizeof(anim_t),&walock[MAXTILES-3-t]);
 
-    animbuf = (char *)(FP_OFF(anim)+sizeof(anim_t));
+    animbuf = (char *)((intptr_t)anim+sizeof(anim_t));
 
     lastanimhack = (MAXTILES-3-t);
 
@@ -4020,7 +4020,7 @@ void playanm(char *fn,char t)
        else if(ud.volume_number == 1) ototalclock += 18;
        else                           ototalclock += 10;
 
-       waloff[MAXTILES-3-t] = FP_OFF(ANIM_DrawFrame(i));
+       waloff[MAXTILES-3-t] = (intptr_t)(ANIM_DrawFrame(i));
        rotatesprite(0<<16,0<<16,65536L,512,MAXTILES-3-t,0,0,2+4+8+16+64, 0,0,xdim-1,ydim-1);
        nextpage();
 
@@ -4039,4 +4039,3 @@ void playanm(char *fn,char t)
     ANIM_FreeAnim ();
     walock[MAXTILES-3-t] = 1;
 }
-

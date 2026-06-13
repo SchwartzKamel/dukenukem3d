@@ -332,7 +332,9 @@ static long rasm_slabcnt, rasm_slabbpl;
 static long rasm_hshift1, rasm_hshift2;
 
 /* Sprite vline state */
-static long rasm_svinc, rasm_svplc, rasm_svpal;
+static long rasm_svinc;
+static intptr_t rasm_svpal;
+static long rasm_svplc;
 static long rasm_svbuf, rasm_svsiz;
 
 long mmxoverlay(void) { return 0; }
@@ -557,15 +559,15 @@ long mvlineasm4(long cnt, intptr_t dest) {
 	return 0;
 }
 
-void setupspritevline(long a, long b, long c, long d, long e, long f) {
+void setupspritevline(long a, intptr_t b, long c, long d, long e, long f) {
 	rasm_svinc = a; rasm_svpal = b; rasm_svsiz = c;
 	(void)d; (void)e; (void)f;
 }
 __attribute__((hot))
-void spritevline(long a, long b, long cnt, long d, long bufplc, long dest) {
-	unsigned char * __restrict__ dd = (unsigned char *)(intptr_t)dest;
-	const unsigned char * __restrict__ buf = (const unsigned char *)(intptr_t)bufplc;
-	const unsigned char * __restrict__ pal = (const unsigned char *)(intptr_t)rasm_svpal;
+void spritevline(long a, long b, long cnt, long d, intptr_t bufplc, intptr_t dest) {
+	unsigned char * __restrict__ dd = (unsigned char *)dest;
+	const unsigned char * __restrict__ buf = (const unsigned char *)bufplc;
+	const unsigned char * __restrict__ pal = (const unsigned char *)rasm_svpal;
 	long vplc = d;
 	const long lbpl = rasm_bpl;
 	const long lshift = rasm_shift;
@@ -578,14 +580,14 @@ void spritevline(long a, long b, long cnt, long d, long bufplc, long dest) {
 		vplc += lvinc;
 	}
 }
-void msetupspritevline(long a, long b, long c, long d, long e, long f) {
+void msetupspritevline(long a, intptr_t b, long c, long d, long e, long f) {
 	setupspritevline(a,b,c,d,e,f);
 }
 __attribute__((hot))
-void mspritevline(long a, long b, long cnt, long d, long bufplc, long dest) {
-	unsigned char * __restrict__ dd = (unsigned char *)(intptr_t)dest;
-	const unsigned char * __restrict__ buf = (const unsigned char *)(intptr_t)bufplc;
-	const unsigned char * __restrict__ pal = (const unsigned char *)(intptr_t)rasm_svpal;
+void mspritevline(long a, long b, long cnt, long d, intptr_t bufplc, intptr_t dest) {
+	unsigned char * __restrict__ dd = (unsigned char *)dest;
+	const unsigned char * __restrict__ buf = (const unsigned char *)bufplc;
+	const unsigned char * __restrict__ pal = (const unsigned char *)rasm_svpal;
 	long vplc = d;
 	const long lbpl = rasm_bpl;
 	const long lshift = rasm_shift;
@@ -601,14 +603,14 @@ void mspritevline(long a, long b, long cnt, long d, long bufplc, long dest) {
 		vplc += lvinc;
 	}
 }
-void tsetupspritevline(long a, long b, long c, long d, long e, long f) {
+void tsetupspritevline(long a, intptr_t b, long c, long d, long e, long f) {
 	setupspritevline(a,b,c,d,e,f);
 }
 __attribute__((hot))
-void tspritevline(long a, long b, long cnt, long d, long bufplc, long dest) {
-	unsigned char * __restrict__ dd = (unsigned char *)(intptr_t)dest;
-	const unsigned char * __restrict__ buf = (const unsigned char *)(intptr_t)bufplc;
-	const unsigned char * __restrict__ pal = (const unsigned char *)(intptr_t)rasm_svpal;
+void tspritevline(long a, long b, long cnt, long d, intptr_t bufplc, intptr_t dest) {
+	unsigned char * __restrict__ dd = (unsigned char *)dest;
+	const unsigned char * __restrict__ buf = (const unsigned char *)bufplc;
+	const unsigned char * __restrict__ pal = (const unsigned char *)rasm_svpal;
 	const unsigned char * __restrict__ ltrans = (const unsigned char *)rasm_trans;
 	long vplc = d;
 	const long lbpl = rasm_bpl;
@@ -1375,7 +1377,7 @@ drawalls (long bunch)
 						smostwall[smostwallcnt] = z;
 						smostwalltype[smostwallcnt] = 1;     /* 1 for umost */
 						smostwallcnt++;
-						copybufbyte((long)&umost[x1],(long)&smost[smostcnt],i*sizeof(smost[0]));
+						copybufbyte(&umost[x1],&smost[smostcnt],i*sizeof(smost[0]));
 						smostcnt += i;
 					}
 				}
@@ -1482,7 +1484,7 @@ drawalls (long bunch)
 						smostwall[smostwallcnt] = z;
 						smostwalltype[smostwallcnt] = 2;     /* 2 for dmost */
 						smostwallcnt++;
-						copybufbyte((long)&dmost[x1],(long)&smost[smostcnt],i*sizeof(smost[0]));
+						copybufbyte(&dmost[x1],&smost[smostcnt],i*sizeof(smost[0]));
 						smostcnt += i;
 					}
 				}
@@ -2003,7 +2005,8 @@ florscan (long x1, long x2, long sectnum)
 
 wallscan(long x1, long x2, short *uwal, short *dwal, long *swal, long *lwal)
 {
-	long i, x, xnice, ynice, fpalookup, shade;
+	long i, x, xnice, ynice, shade;
+	intptr_t fpalookup;
 	long y1ve[4], y2ve[4], u4, d4, dax, z, tsizx, tsizy, x_mask, y_is_pow2;
 	char bad;
 
@@ -2134,8 +2137,9 @@ wallscan(long x1, long x2, short *uwal, short *dwal, long *swal, long *lwal)
 
 maskwallscan(long x1, long x2, short *uwal, short *dwal, long *swal, long *lwal)
 {
-	long i, x, startx, xnice, ynice, fpalookup, shade;
-	long y1ve[4], y2ve[4], u4, d4, dax, z, p, tsizx, tsizy;
+	long i, x, startx, xnice, ynice, shade;
+	long y1ve[4], y2ve[4], u4, d4, dax, z, tsizx, tsizy;
+	intptr_t fpalookup, p;
 	char bad;
 
 	tsizx = tilesizx[globalpicnum];
@@ -2233,11 +2237,11 @@ maskwallscan(long x1, long x2, short *uwal, short *dwal, long *swal, long *lwal)
 
 		if (d4 >= u4) mvlineasm4(d4-u4+1,ylookup[u4]+p);
 
-		i = p+ylookup[d4+1];
-		if (y2ve[0] > d4) mvlineasm1(vince[0],palookupoffse[0],y2ve[0]-d4-1,vplce[0],bufplce[0],i+0);
-		if (y2ve[1] > d4) mvlineasm1(vince[1],palookupoffse[1],y2ve[1]-d4-1,vplce[1],bufplce[1],i+1);
-		if (y2ve[2] > d4) mvlineasm1(vince[2],palookupoffse[2],y2ve[2]-d4-1,vplce[2],bufplce[2],i+2);
-		if (y2ve[3] > d4) mvlineasm1(vince[3],palookupoffse[3],y2ve[3]-d4-1,vplce[3],bufplce[3],i+3);
+		intptr_t p_i = p+ylookup[d4+1];
+		if (y2ve[0] > d4) mvlineasm1(vince[0],palookupoffse[0],y2ve[0]-d4-1,vplce[0],bufplce[0],p_i+0);
+		if (y2ve[1] > d4) mvlineasm1(vince[1],palookupoffse[1],y2ve[1]-d4-1,vplce[1],bufplce[1],p_i+1);
+		if (y2ve[2] > d4) mvlineasm1(vince[2],palookupoffse[2],y2ve[2]-d4-1,vplce[2],bufplce[2],p_i+2);
+		if (y2ve[3] > d4) mvlineasm1(vince[3],palookupoffse[3],y2ve[3]-d4-1,vplce[3],bufplce[3],p_i+3);
 	}
 	for(;x<=x2;x++,p++)
 	{
@@ -2261,7 +2265,8 @@ maskwallscan(long x1, long x2, short *uwal, short *dwal, long *swal, long *lwal)
 
 transmaskvline (long x)
 {
-	long vplc, vinc, p, i, palookupoffs, shade, bufplc;
+	long vplc, vinc, i, shade;
+	intptr_t p, palookupoffs, bufplc;
 	short y1v, y2v;
 
 	if ((x < 0) || (x >= xdimen)) return;
@@ -2520,9 +2525,9 @@ loadpalette()
 
 
 	if ((palookup[0] = (char *)kkmalloc(numpalookups<<8)) == NULL)
-		allocache(&palookup[0],numpalookups<<8,&permanentlock);
+		allocache((intptr_t *)&palookup[0],numpalookups<<8,&permanentlock);
 	if ((transluc = (char *)kkmalloc(65536L)) == NULL)
-		allocache(&transluc,65536,&permanentlock);
+		allocache((intptr_t *)&transluc,65536,&permanentlock);
 
 	globalpalwritten = safe_palookup(0); globalpal = 0;
 	setpalookupaddress(globalpalwritten);
@@ -2586,13 +2591,13 @@ setgamemode(char davidoption, long daxdim, long daydim)
 	if (screen != NULL)
 	{
 		if (screenalloctype == 0) kkfree((void *)screen);
-		if (screenalloctype == 1) suckcache((long *)screen);
+		if (screenalloctype == 1) suckcache((void *)screen);
 		screen = NULL;
 	}
 	screenalloctype = 0;
 	if ((screen = (char *)kkmalloc(i+(j<<1))) == NULL)
 	{
-		 allocache((long *)&screen,i+(j<<1),&permanentlock);
+		 allocache((intptr_t *)&screen,i+(j<<1),&permanentlock);
 		 screenalloctype = 1;
 	}
 
@@ -3818,7 +3823,7 @@ drawsprite (long snum)
 			globalzd = (((globalposz-z2)*globalyscale)<<8);
 		}
 
-		qinterpolatedown16((long)&lwall[lx],rx-lx+1,linum,linuminc);
+		qinterpolatedown16(&lwall[lx],rx-lx+1,linum,linuminc);
 		clearbuf(&swall[lx],rx-lx+1,mulscale19(yp,xdimscale));
 
 		if ((cstat&2) == 0)
@@ -4274,7 +4279,7 @@ drawsprite (long snum)
 			{
 				yinc = divscale16(ysi[zz]-ysi[z],xsi[zz]-xsi[z]);
 				y = ysi[z] + mulscale16((dax1<<16)-xsi[z],yinc);
-				qinterpolatedown16short((long)(&uwall[dax1]),dax2-dax1,y,yinc);
+				qinterpolatedown16short(&uwall[dax1],dax2-dax1,y,yinc);
 			}
 		}
 
@@ -4289,7 +4294,7 @@ drawsprite (long snum)
 			{
 				yinc = divscale16(ysi[zz]-ysi[z],xsi[zz]-xsi[z]);
 				y = ysi[zz] + mulscale16((dax1<<16)-xsi[zz],yinc);
-				qinterpolatedown16short((long)(&dwall[dax1]),dax2-dax1,y,yinc);
+				qinterpolatedown16short(&dwall[dax1],dax2-dax1,y,yinc);
 			}
 		}
 
@@ -4513,7 +4518,8 @@ drawvox(long dasprx, long daspry, long dasprz, long dasprang,
 	long cosang, sinang, sprcosang, sprsinang, backx, backy, gxinc, gyinc;
 	long daxsiz, daysiz, dazsiz, daxpivot, daypivot, dazpivot;
 	long daxscalerecip, dayscalerecip, cnt, gxstart, gystart, odayscale;
-	long l1, l2, p, pend, slabxoffs, xyvoxoffs;
+	long l1, l2, p, pend, xyvoxoffs;
+	intptr_t slabxoffs;
 	int32_t *longptr;
 	long lx, rx, nx, ny, zx, zy, x1, y1, z1, x2, y2, z2, yplc, yinc, bufplc;
 	long yoff, xs, ys, xe, ye, xi, yi, cbackx, cbacky, dagxinc, dagyinc;
@@ -4648,7 +4654,7 @@ drawvox(long dasprx, long daspry, long dasprz, long dasprang,
 
 		for(x=xs;x!=xe;x+=xi)
 		{
-			slabxoffs = (long)&davoxptr[longptr[x]];
+			slabxoffs = (intptr_t)&davoxptr[longptr[x]];
 			shortptr = (short *)&davoxptr[((x*(daysiz+1))<<1)+xyvoxoffs];
 
 			nx = mulscale16(ggxstart+ggxinc[x],viewingrangerecip)+x1;
@@ -4708,7 +4714,7 @@ drawvox(long dasprx, long daspry, long dasprz, long dasprang,
 					if (z2 > dadmost[lx]) z2 = dadmost[lx];
 					z2 -= z1; if (z2 <= 0) continue;
 
-					drawslab(rx,yplc,z2,yinc,(long)&voxptr[3],ylookup[z1]+lx+frameoffset);
+					drawslab(rx,yplc,z2,yinc,(intptr_t)&voxptr[3],ylookup[z1]+lx+frameoffset);
 				}
 			}
 		}
@@ -7219,12 +7225,12 @@ dorotatesprite (long sx, long sy, long z, short a, short picnum, signed char das
 			if (dax2 > dax1)
 			{
 				yplc = y1 + mulscale16((dax1<<16)+65535-x1,yinc);
-				qinterpolatedown16short((long)(&uplc[dax1]),dax2-dax1,yplc,yinc);
+				qinterpolatedown16short(&uplc[dax1],dax2-dax1,yplc,yinc);
 			}
 			else
 			{
 				yplc = y2 + mulscale16((dax2<<16)+65535-x2,yinc);
-				qinterpolatedown16short((long)(&dplc[dax2]),dax1-dax2,yplc,yinc);
+				qinterpolatedown16short(&dplc[dax2],dax1-dax2,yplc,yinc);
 			}
 		}
 		nextv = v;
@@ -7329,11 +7335,11 @@ dorotatesprite (long sx, long sy, long z, short a, short picnum, signed char das
 
 					if (d4 >= u4) vlineasm4(d4-u4+1,ylookup[u4]+p);
 
-					i = p+ylookup[d4+1];
-					if (y2ve[0] > d4) prevlineasm1(vince[0],palookupoffse[0],y2ve[0]-d4-1,vplce[0],bufplce[0],i+0);
-					if (y2ve[1] > d4) prevlineasm1(vince[1],palookupoffse[1],y2ve[1]-d4-1,vplce[1],bufplce[1],i+1);
-					if (y2ve[2] > d4) prevlineasm1(vince[2],palookupoffse[2],y2ve[2]-d4-1,vplce[2],bufplce[2],i+2);
-					if (y2ve[3] > d4) prevlineasm1(vince[3],palookupoffse[3],y2ve[3]-d4-1,vplce[3],bufplce[3],i+3);
+					intptr_t p_i = p+ylookup[d4+1];
+					if (y2ve[0] > d4) prevlineasm1(vince[0],palookupoffse[0],y2ve[0]-d4-1,vplce[0],bufplce[0],p_i+0);
+					if (y2ve[1] > d4) prevlineasm1(vince[1],palookupoffse[1],y2ve[1]-d4-1,vplce[1],bufplce[1],p_i+1);
+					if (y2ve[2] > d4) prevlineasm1(vince[2],palookupoffse[2],y2ve[2]-d4-1,vplce[2],bufplce[2],p_i+2);
+					if (y2ve[3] > d4) prevlineasm1(vince[3],palookupoffse[3],y2ve[3]-d4-1,vplce[3],bufplce[3],p_i+3);
 				}
 				else
 				{
@@ -7353,11 +7359,11 @@ dorotatesprite (long sx, long sy, long z, short a, short picnum, signed char das
 
 					if (d4 >= u4) mvlineasm4(d4-u4+1,ylookup[u4]+p);
 
-					i = p+ylookup[d4+1];
-					if (y2ve[0] > d4) mvlineasm1(vince[0],palookupoffse[0],y2ve[0]-d4-1,vplce[0],bufplce[0],i+0);
-					if (y2ve[1] > d4) mvlineasm1(vince[1],palookupoffse[1],y2ve[1]-d4-1,vplce[1],bufplce[1],i+1);
-					if (y2ve[2] > d4) mvlineasm1(vince[2],palookupoffse[2],y2ve[2]-d4-1,vplce[2],bufplce[2],i+2);
-					if (y2ve[3] > d4) mvlineasm1(vince[3],palookupoffse[3],y2ve[3]-d4-1,vplce[3],bufplce[3],i+3);
+					intptr_t p_i = p+ylookup[d4+1];
+					if (y2ve[0] > d4) mvlineasm1(vince[0],palookupoffse[0],y2ve[0]-d4-1,vplce[0],bufplce[0],p_i+0);
+					if (y2ve[1] > d4) mvlineasm1(vince[1],palookupoffse[1],y2ve[1]-d4-1,vplce[1],bufplce[1],p_i+1);
+					if (y2ve[2] > d4) mvlineasm1(vince[2],palookupoffse[2],y2ve[2]-d4-1,vplce[2],bufplce[2],p_i+2);
+					if (y2ve[3] > d4) mvlineasm1(vince[3],palookupoffse[3],y2ve[3]-d4-1,vplce[3],bufplce[3],p_i+3);
 				}
 
 				faketimerhandler();
@@ -7590,7 +7596,7 @@ makepalookup(long palnum, char *remapbuf, signed char r, signed char g, signed c
 	{
 			/* Allocate palookup buffer */
 		if ((palookup[palnum] = (char *)kkmalloc(numpalookups<<8)) == NULL)
-			allocache(&palookup[palnum],numpalookups<<8,&permanentlock);
+			allocache((intptr_t *)&palookup[palnum],numpalookups<<8,&permanentlock);
 	}
 
 	if (dastat == 0) return;
@@ -8217,7 +8223,8 @@ clippoly (long npoints, long clipstat)
 fillpolygon(long npoints)
 {
 	long z, zz, zzz, x1, y1, x2, y2, miny, maxy, x, y, xinc, cnt;
-	long ox, oy, bx, by, bxinc, byinc, xend, p, r, day1, day2;
+	long ox, oy, bx, by, bxinc, byinc, xend, r, day1, day2;
+	intptr_t p;
 	short *ptr, *ptr2;
 
 	miny = 0x7fffffff; maxy = 0x80000000;
@@ -8807,7 +8814,7 @@ wallmost(short *mostbuf, long w, long sectnum, char dastat)
 
 	y = (scale(z1,xdimenscale,iy1)<<4);
 	yinc = ((scale(z2,xdimenscale,iy2)<<4)-y) / (ix2-ix1+1);
-	qinterpolatedown16short((long)&mostbuf[ix1],ix2-ix1+1,y+(globalhoriz<<16),yinc);
+	qinterpolatedown16short(&mostbuf[ix1],ix2-ix1+1,y+(globalhoriz<<16),yinc);
 
 	if (mostbuf[ix1] < 0) mostbuf[ix1] = 0;
 	if (mostbuf[ix1] > ydimen) mostbuf[ix1] = ydimen;

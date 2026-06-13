@@ -817,6 +817,8 @@ static LONG WINAPI crash_handler(EXCEPTION_POINTERS *ep)
     char buf[1024];
     DWORD code;
     void *addr;
+    uintptr_t module_base;
+    uintptr_t exception_rva;
     const char *access_type = "";
     char access_info[128] = "";
 
@@ -827,26 +829,28 @@ static LONG WINAPI crash_handler(EXCEPTION_POINTERS *ep)
 
     code = ep->ExceptionRecord->ExceptionCode;
     addr = ep->ExceptionRecord->ExceptionAddress;
+    module_base = (uintptr_t)GetModuleHandleA(NULL);
+    exception_rva = (uintptr_t)addr - module_base;
 
     if (code == 0xC0000005 && ep->ExceptionRecord->NumberParameters >= 2) {
         ULONG_PTR rw = ep->ExceptionRecord->ExceptionInformation[0];
         ULONG_PTR target = ep->ExceptionRecord->ExceptionInformation[1];
         access_type = (rw == 0) ? "READ" : (rw == 1) ? "WRITE" : "EXEC";
         snprintf(access_info, sizeof(access_info),
-            "Access violation %s address 0x%08lX",
-            access_type, (unsigned long)target);
+            "Access violation %s address %p",
+            access_type, (void *)target);
     }
 
     snprintf(buf, sizeof(buf),
         "Atomic Shell crashed!\n\n"
-        "Exception: 0x%08lX at 0x%p\n"
+        "Exception: 0x%08lX at %p (RVA 0x%llX)\n"
         "%s\n\n"
         "Check atomic_shell_startup.log for details.",
-        (unsigned long)code, addr, access_info);
+        (unsigned long)code, addr, (unsigned long long)exception_rva, access_info);
 
     if (_startup_log) {
-        fprintf(_startup_log, "CRASH: Exception 0x%08lX at %p\n",
-            (unsigned long)code, addr);
+        fprintf(_startup_log, "CRASH: Exception 0x%08lX at %p (module base %p, RVA 0x%llX)\n",
+            (unsigned long)code, addr, (void *)module_base, (unsigned long long)exception_rva);
         if (access_info[0])
             fprintf(_startup_log, "CRASH: %s\n", access_info);
 #ifdef _X86_
