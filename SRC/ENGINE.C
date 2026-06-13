@@ -215,7 +215,8 @@ static long swplc[MAXXDIM], lplc[MAXXDIM];
 static long swall[MAXXDIM], lwall[MAXXDIM+4];
 long xdimen = -1, xdimenrecip, halfxdimen, xdimenscale, xdimscale;
 long wx1, wy1, wx2, wy2, ydimen;
-long viewoffset, frameoffset;
+long viewoffset;
+intptr_t frameoffset;
 
 static long rxi[8], ryi[8], rzi[8], rxi2[8], ryi2[8], rzi2[8];
 static long xsi[8], ysi[8], *horizlookup, *horizlookup2, horizycent;
@@ -6168,7 +6169,8 @@ printscreeninterrupt()
 
 drawline256 (long x1, long y1, long x2, long y2, char col)
 {
-	long dx, dy, i, j, p, inc, plc, daend;
+	long dx, dy, i, j, inc, plc, daend;
+	intptr_t p;
 
 	col = safe_palookup(0)[col];
 
@@ -6214,7 +6216,7 @@ drawline256 (long x1, long y1, long x2, long y2, char col)
 		{
 			j = (plc>>12);
 			if ((j >= startumost[i]) && (j < startdmost[i]))
-				drawpixel(ylookup[j]+i+frameplace,col);
+				drawpixel((void *)(ylookup[j]+i+frameplace),col);
 			plc += inc;
 		}
 	}
@@ -6234,7 +6236,7 @@ drawline256 (long x1, long y1, long x2, long y2, char col)
 		{
 			j = (plc>>12);
 			if ((i >= startumost[j]) && (i < startdmost[j]))
-				drawpixel(j+p,col);
+				drawpixel((void *)(j+p),col);
 			plc += inc; p += ylookup[1];
 		}
 	}
@@ -8310,7 +8312,8 @@ fillpolygon(long npoints)
 
 clearview(long dacol)
 {
-	long i, p, y, x1, x2, dx;
+	long i, y, x1, x2, dx;
+	intptr_t p;
 	char *ptr;
 
 	if (qsetmode != 200) return;
@@ -8322,8 +8325,8 @@ clearview(long dacol)
 		p = FP_OFF(screen)+ylookup[windowy1]+windowx1;
 		for(y=windowy1;y<=windowy2;y++)
 		{
-			clearbufbyte(p,dx,dacol);
-			clearbufbyte(p+65536,dx,dacol);
+			clearbufbyte((void *)p,dx,dacol);
+			clearbufbyte((void *)(p+65536),dx,dacol);
 			p += ylookup[1];
 		}
 		faketimerhandler();
@@ -8331,7 +8334,7 @@ clearview(long dacol)
 	}
 	p = frameplace+ylookup[windowy1]+windowx1;
 	for(y=windowy1;y<=windowy2;y++)
-		{ clearbufbyte(p,dx,dacol); p += ylookup[1]; }
+		{ clearbufbyte((void *)p,dx,dacol); p += ylookup[1]; }
 	faketimerhandler();
 }
 
@@ -8348,14 +8351,14 @@ clearallviews(long dacol)
 			for(i=0;i<numpages;i++)
 			{
 				setactivepage(i);
-				clearbufbyte(frameplace,imageSize,0L);
+				clearbufbyte((void *)frameplace,imageSize,0L);
 			}
 			setactivepage(activepage);
 		case 2:
-			clearbuf(frameplace,(xdim*ydim)>>2,0L);
+			clearbuf((void *)frameplace,(xdim*ydim)>>2,0L);
 			break;
 		case 6:
-			clearbuf(screen,128000L>>2,dacol);
+			clearbuf((void *)screen,128000L>>2,dacol);
 			break;
 	}
 	faketimerhandler();
@@ -8465,7 +8468,8 @@ preparemirror(long dax, long day, long daz, short daang, long dahoriz, short daw
 
 completemirror()
 {
-	long i, dy, p;
+	long i, dy;
+	intptr_t p;
 
 		/* Can't reverse with uninitialized data */
 	if (inpreparemirror) { inpreparemirror = 0; return; }
@@ -8479,9 +8483,9 @@ completemirror()
 	i = windowx2-windowx1-mirrorsx2-mirrorsx1; mirrorsx2 -= mirrorsx1;
 	for(dy=mirrorsy2-mirrorsy1;dy>=0;dy--)
 	{
-		copybufbyte(p+1,tempbuf,mirrorsx2+1);
+		copybufbyte((void *)(p+1),tempbuf,mirrorsx2+1);
 		tempbuf[mirrorsx2] = tempbuf[mirrorsx2-1];
-		copybufreverse(&tempbuf[mirrorsx2],p+i,mirrorsx2+1);
+		copybufreverse(&tempbuf[mirrorsx2],(void *)(p+i),mirrorsx2+1);
 		p += ylookup[1];
 		faketimerhandler();
 	}

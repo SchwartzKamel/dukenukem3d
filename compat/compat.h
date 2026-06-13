@@ -51,7 +51,14 @@
 
   /* Suppress deprecation warnings for POSIX names */
   #pragma warning(disable: 4996)
-#endif
+  
+    /* MSVC C89 mode (/Tc) does not support C11 _Static_assert */
+    #if !defined(__cplusplus) && (!defined(_MSC_VER) || _MSC_VER < 1900 || !defined(_Static_assert))
+    #define _STATIC_ASSERT_GLUE(a, b) a ## b
+    #define _STATIC_ASSERT_JOIN(a, b) _STATIC_ASSERT_GLUE(a, b)
+    #define _Static_assert(expr, msg) typedef char _STATIC_ASSERT_JOIN(static_assertion_, __LINE__)[(expr) ? 1 : -1]
+    #endif
+  #endif
 
 /* ======================================================================
  * C11 feature compatibility
@@ -148,7 +155,9 @@ _Static_assert((sizeof(void *) == 4) || (sizeof(void *) == 8), "pointer must be 
   #include <direct.h>   /* _mkdir, _getcwd */
   #include <io.h>       /* filelength, tell, _findfirst, etc. */
   #ifdef _MSC_VER
-  #include "msvc_unistd.h"
+    #include <BaseTsd.h>
+    typedef SSIZE_T ssize_t;
+    #include "msvc_unistd.h"
   #endif
 #else
   #include <strings.h>  /* strcasecmp */

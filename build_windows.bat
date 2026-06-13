@@ -42,12 +42,14 @@ if not exist "%SDL2_DIR%\include\SDL2" (
     echo SDL2_DIR is currently set to: %SDL2_DIR%
     exit /b 1
 )
-if not exist "%SDL2_DIR%\lib\x64\SDL2.lib" (
-    echo.
-    echo ERROR: SDL2_DIR validation failed!
-    echo Missing library: %SDL2_DIR%\lib\x64\SDL2.lib
-    echo SDL2_DIR is currently set to: %SDL2_DIR%
-    exit /b 1
+if not exist "%SDL2_DIR%\lib\x86\SDL2.lib" (
+    if not exist "%SDL2_DIR%\lib\x64\SDL2.lib" (
+        echo.
+        echo ERROR: SDL2_DIR validation failed!
+        echo Missing library: %SDL2_DIR%\lib\x86\SDL2.lib or x64\SDL2.lib
+        echo SDL2_DIR is currently set to: %SDL2_DIR%
+        exit /b 1
+    )
 )
 if not exist "%SDL2_DIR%\x86_64-w64-mingw32\include\SDL2" (
     echo.
@@ -87,9 +89,9 @@ echo --- Building with MSVC ---
 set CC=cl
 set CFLAGS=/nologo /O2 /W0 /DSUPERBUILD /DPLATFORM_WIN32 /D_CRT_SECURE_NO_WARNINGS
 set SDL_INC=/I"%SDL2_DIR%\include"
-set SDL_LIB=/LIBPATH:"%SDL2_DIR%\lib\x64"
+set SDL_LIB=/LIBPATH:"%SDL2_DIR%\lib\x86"
 set INCLUDES=/Icompat /ISRC /Isource
-set LIBS=SDL2.lib SDL2main.lib shell32.lib
+set LIBS=SDL2.lib SDL2main.lib shell32.lib user32.lib ws2_32.lib
 
 REM Engine objects
 echo Compiling ENGINE.C...
@@ -110,9 +112,9 @@ for %%f in (GAME ACTORS GAMEDEF GLOBAL MENUES PLAYER PREMAP SECTOR SOUNDS RTS CO
 )
 
 REM Compat objects
-for %%f in (sdl_driver audio_stub mact_stub hud) do (
+for %%f in (sdl_driver audio_stub mact_stub hud maxtiles_engine_value maxtiles_game_value maxtiles_guard sha256 net_socket_win32) do (
     echo Compiling %%f.c...
-    %CC% /nologo /O2 /W3 /D_CRT_SECURE_NO_WARNINGS %SDL_INC% %INCLUDES% /c compat\%%f.c /Fo:build_win\compat_%%f.obj
+    %CC% /nologo /O2 /W3 /std:c11 /D_CRT_SECURE_NO_WARNINGS /DPLATFORM_WIN32 %SDL_INC% %INCLUDES% /c compat\%%f.c /Fo:build_win\compat_%%f.obj
     if errorlevel 1 goto :fail
 )
 

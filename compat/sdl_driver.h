@@ -3,6 +3,7 @@
 #define SDL_DRIVER_H
 
 #include <stdint.h>
+#include "compat.h"
 
 /* Validate int32_t size (compat layer convention) */
 _Static_assert(sizeof(int32_t) == 4, "int32_t must be exactly 4 bytes");

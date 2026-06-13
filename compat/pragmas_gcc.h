@@ -316,24 +316,21 @@ static inline void clearbuf(void *dst, long n, long val)
 
 static inline void clearbufbyte(void *dst, long n, long val)
 {
-    /* Original fills with a repeating dword pattern.
-       For the common case val < 256 this is equivalent to memset. */
-    if ((val & 0xFFFFFF00L) == 0 || val == -1L) {
-        memset(dst, (int)(val & 0xFF), (size_t)n);
+    /* Original filled with a repeating dword pattern.
+       Handle unaligned dst safely using a byte pointer. */
+    unsigned char *d = (unsigned char *)dst;
+    unsigned char vp[4];
+    long i;
+    vp[0] = (unsigned char)(val & 0xFF);
+    vp[1] = (unsigned char)((val >> 8) & 0xFF);
+    vp[2] = (unsigned char)((val >> 16) & 0xFF);
+    vp[3] = (unsigned char)((val >> 24) & 0xFF);
+    
+    if (vp[0] == vp[1] && vp[1] == vp[2] && vp[2] == vp[3]) {
+        memset(dst, vp[0], (size_t)n);
     } else {
-        /* Fill dwords, then remaining bytes */
-        int32_t *d32 = (int32_t *)dst;
-        int32_t val32 = (int32_t)val;
-        long ndwords = n >> 2;
-        long rem = n & 3;
-        long i;
-        for (i = 0; i < ndwords; i++)
-            d32[i] = val32;
-        if (rem > 0) {
-            char *tail = (char *)&d32[ndwords];
-            char *vp = (char *)&val32;
-            for (i = 0; i < rem; i++)
-                tail[i] = vp[i];
+        for (i = 0; i < n; i++) {
+            d[i] = vp[i & 3];
         }
     }
 }

@@ -16,6 +16,8 @@
 #ifndef AUDIO_STUB_H
 #define AUDIO_STUB_H
 
+#include "compat.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif

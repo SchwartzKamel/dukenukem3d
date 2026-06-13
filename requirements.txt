@@ -16,4 +16,4 @@ pytest-xdist>=3.5
 pydantic==2.12.5
 hypothesis==6.152.9
 filelock>=3.0
-numpy==1.26.4
+numpy==2.4.6

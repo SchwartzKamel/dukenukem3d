@@ -11,6 +11,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#ifndef __attribute__
+#define __attribute__(x)
+#endif
+
 // Import the MAXTILES values captured from both headers
 extern const int kEngineMaxTiles;
 extern const int kGameMaxTiles;

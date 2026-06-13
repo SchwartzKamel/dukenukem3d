@@ -19,6 +19,8 @@
 #include <stdint.h>   /* uint8_t, uint32_t, uint64_t -- available in GCC gnu89 */
 #include <stddef.h>   /* size_t */
 
+#include "compat.h"
+
 /*
  * Validate fixed-width types used in SHA256 cryptographic implementation.
  * These must be exact sizes to ensure correct hashing across platforms.

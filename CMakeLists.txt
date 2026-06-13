@@ -120,6 +120,7 @@ endif()
 # Compiler-specific flags
 if(MSVC)
     target_compile_options(duke3d PRIVATE /W0)
+    set_source_files_properties(${COMPAT_SRCS} PROPERTIES COMPILE_FLAGS "/std:c11")
     # Note: do NOT add /Tc or /TC here. The LANGUAGE C source property set
     # above already makes MSVC compile uppercase .C files as C. Adding /Tc
     # as a COMPILE_FLAGS string causes "D8036: /Fo not allowed with
