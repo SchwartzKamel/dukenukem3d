@@ -339,10 +339,9 @@ static intptr_t rasm_rh_pal;
 
 /* Sprite vline state */
 static intptr_t rasm_svpal;
-static long rasm_sv_xincshl16;
-static long rasm_sv_xincbase;
-static long rasm_sv_xincbase_daydime;
-static long rasm_sv_dayinc;
+static long rasm_sv_bxinc;
+static long rasm_sv_byinc;
+static long rasm_sv_ysiz;
 
 long mmxoverlay(void) { return 0; }
 
@@ -656,37 +655,31 @@ long mvlineasm4(long cnt, intptr_t dest) {
 
 void setupspritevline(intptr_t paloffs, long yalwaysinc, long yinc, long daydime, long xinc, long f) {
 	rasm_svpal = paloffs;
-	rasm_sv_xincshl16 = (long)((uint32_t)xinc << 16);
-	rasm_sv_xincbase = (xinc >> 16) + yalwaysinc;
-	rasm_sv_xincbase_daydime = rasm_sv_xincbase + daydime;
-	rasm_sv_dayinc = yinc;
+	rasm_sv_bxinc = xinc;
+	rasm_sv_byinc = yinc;
+	rasm_sv_ysiz = daydime;
+	(void)yalwaysinc;
 	(void)f;
 }
 __attribute__((hot))
 void spritevline(long a, long x, long cnt, long y, intptr_t bufplc, intptr_t dest) {
 	unsigned char * __restrict__ dd = (unsigned char *)(intptr_t)dest;
+	const unsigned char * __restrict__ buf = (const unsigned char *)(intptr_t)bufplc;
 	const unsigned char * __restrict__ pal = (const unsigned char *)rasm_svpal;
 	const long lbpl = rasm_bpl;
-	intptr_t src = bufplc;
-	uint32_t xacc = (uint32_t)x;
-	uint32_t yacc = (uint32_t)y;
-	uint32_t carryy = 0;
+	const long ysiz = rasm_sv_ysiz;
+	const long bxinc = rasm_sv_bxinc;
+	const long byinc = rasm_sv_byinc;
+	long bx = x, by = y;
 	long i;
 	(void)a;
-	if (!dd || !pal) return;
+	if (!dd || !pal || !buf) return;
 	for (i = cnt; i > 1; i--) {
-		uint32_t oldx = xacc;
-		uint32_t carryx;
-		uint32_t oldy;
-		unsigned char ch = *(const unsigned char *)(intptr_t)src;
-		xacc += (uint32_t)rasm_sv_xincshl16;
-		carryx = (xacc < oldx);
-		src += (carryy ? rasm_sv_xincbase_daydime : rasm_sv_xincbase) + (long)carryx;
+		unsigned char ch = buf[(uint32_t)(bx >> 16) * (uint32_t)ysiz + ((uint32_t)by >> 16)];
 		*dd = pal[ch];
 		dd += lbpl;
-		oldy = yacc;
-		yacc += (uint32_t)rasm_sv_dayinc;
-		carryy = (yacc < oldy);
+		bx += bxinc;
+		by += byinc;
 	}
 }
 void msetupspritevline(intptr_t a, long b, long c, long d, long e, long f) {
@@ -695,29 +688,23 @@ void msetupspritevline(intptr_t a, long b, long c, long d, long e, long f) {
 __attribute__((hot))
 void mspritevline(long a, long x, long cnt, long y, intptr_t bufplc, intptr_t dest) {
 	unsigned char * __restrict__ dd = (unsigned char *)(intptr_t)dest;
+	const unsigned char * __restrict__ buf = (const unsigned char *)(intptr_t)bufplc;
 	const unsigned char * __restrict__ pal = (const unsigned char *)rasm_svpal;
 	const long lbpl = rasm_bpl;
-	intptr_t src = bufplc;
-	uint32_t xacc = (uint32_t)x;
-	uint32_t yacc = (uint32_t)y;
-	uint32_t carryy = 0;
+	const long ysiz = rasm_sv_ysiz;
+	const long bxinc = rasm_sv_bxinc;
+	const long byinc = rasm_sv_byinc;
+	long bx = x, by = y;
 	long i;
 	(void)a;
-	if (!dd || !pal) return;
+	if (!dd || !pal || !buf) return;
 	for (i = cnt; i > 1; i--) {
-		uint32_t oldx = xacc;
-		uint32_t carryx;
-		uint32_t oldy;
-		unsigned char ch = *(const unsigned char *)(intptr_t)src;
-		xacc += (uint32_t)rasm_sv_xincshl16;
-		carryx = (xacc < oldx);
-		src += (carryy ? rasm_sv_xincbase_daydime : rasm_sv_xincbase) + (long)carryx;
+		unsigned char ch = buf[(uint32_t)(bx >> 16) * (uint32_t)ysiz + ((uint32_t)by >> 16)];
 		if (__builtin_expect(ch != 255, 1))
 			*dd = pal[ch];
 		dd += lbpl;
-		oldy = yacc;
-		yacc += (uint32_t)rasm_sv_dayinc;
-		carryy = (yacc < oldy);
+		bx += bxinc;
+		by += byinc;
 	}
 }
 void tsetupspritevline(intptr_t a, long b, long c, long d, long e, long f) {
@@ -726,24 +713,19 @@ void tsetupspritevline(intptr_t a, long b, long c, long d, long e, long f) {
 __attribute__((hot))
 void tspritevline(long a, long x, long cnt, long y, intptr_t bufplc, intptr_t dest) {
 	unsigned char * __restrict__ dd = (unsigned char *)(intptr_t)dest;
+	const unsigned char * __restrict__ buf = (const unsigned char *)(intptr_t)bufplc;
 	const unsigned char * __restrict__ pal = (const unsigned char *)rasm_svpal;
 	const unsigned char * __restrict__ ltrans = (const unsigned char *)rasm_trans;
 	const long lbpl = rasm_bpl;
-	intptr_t src = bufplc;
-	uint32_t xacc = (uint32_t)x;
-	uint32_t yacc = (uint32_t)y;
-	uint32_t carryy = 0;
+	const long ysiz = rasm_sv_ysiz;
+	const long bxinc = rasm_sv_bxinc;
+	const long byinc = rasm_sv_byinc;
+	long bx = x, by = y;
 	long i;
 	(void)a;
-	if (!dd || !pal) return;
+	if (!dd || !pal || !buf) return;
 	for (i = cnt; i > 1; i--) {
-		uint32_t oldx = xacc;
-		uint32_t carryx;
-		uint32_t oldy;
-		unsigned char ch = *(const unsigned char *)(intptr_t)src;
-		xacc += (uint32_t)rasm_sv_xincshl16;
-		carryx = (xacc < oldx);
-		src += (carryy ? rasm_sv_xincbase_daydime : rasm_sv_xincbase) + (long)carryx;
+		unsigned char ch = buf[(uint32_t)(bx >> 16) * (uint32_t)ysiz + ((uint32_t)by >> 16)];
 		if (__builtin_expect(ch != 255, 1)) {
 			unsigned char srcpal = pal[ch];
 			if (ltrans) {
@@ -756,9 +738,8 @@ void tspritevline(long a, long x, long cnt, long y, intptr_t bufplc, intptr_t de
 			}
 		}
 		dd += lbpl;
-		oldy = yacc;
-		yacc += (uint32_t)rasm_sv_dayinc;
-		carryy = (yacc < oldy);
+		bx += bxinc;
+		by += byinc;
 	}
 }
 
