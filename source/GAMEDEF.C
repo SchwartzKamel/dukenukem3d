@@ -37,7 +37,7 @@ static long last_used_size;
 
 static short g_i,g_p;
 static long g_x;
-static long *g_t;
+static intptr_t *g_t;
 static spritetype *g_sp;
 
 #define NUMKEYWORDS     112
@@ -446,7 +446,8 @@ void transnum(void)
 
 char parsecommand(void)
 {
-    long i, j, k, *tempscrptr;
+    long i, j, k;
+    intptr_t *tempscrptr; /* engine-r16-gamedef-scrptr-width: must be intptr_t* on x64 (long is 32-bit on MSVC) */
     char done, *origtptr, temp_ifelse_check, tw;
     short temp_line_number;
     int fp;
@@ -490,7 +491,7 @@ char parsecommand(void)
                     return 0;
                 }
                 
-                labelcode[labelcnt] = (long) scriptptr;
+                labelcode[labelcnt] = (intptr_t)scriptptr;
                 labelcnt++;
 
                 parsing_state = 1;
@@ -656,7 +657,7 @@ char parsecommand(void)
                         }
                         return 0;
                     }
-                    labelcode[labelcnt++] = (long) scriptptr;
+                    labelcode[labelcnt++] = (intptr_t)scriptptr;
                 }
                 for(j=0;j<2;j++)
                 {
@@ -828,7 +829,7 @@ char parsecommand(void)
                         }
                         return 0;
                     }
-                    labelcode[labelcnt++] = (long) scriptptr;
+                    labelcode[labelcnt++] = (intptr_t)scriptptr;
                 }
 
                 for(j=0;j<3;j++)
@@ -895,7 +896,7 @@ char parsecommand(void)
                         }
                         return 0;
                     }
-                    labelcode[labelcnt++] = (long) scriptptr;
+                    labelcode[labelcnt++] = (intptr_t)scriptptr;
                 }
 
                 for(j=0;j<5;j++)
@@ -1073,7 +1074,7 @@ char parsecommand(void)
                 tempscrptr = scriptptr;
                 scriptptr++; /* Leave a spot for the fail location */
                 parsecommand();
-                *tempscrptr = (long) scriptptr;
+                *tempscrptr = (intptr_t)scriptptr;
             }
             else
             {
@@ -1154,7 +1155,7 @@ char parsecommand(void)
 
             parsecommand();
 
-            *tempscrptr = (long) scriptptr;
+            *tempscrptr = (intptr_t)scriptptr;
 
             checking_ifelse++;
             return 0;
@@ -1592,7 +1593,7 @@ void loadefs(char *filenam,char *mptr)
     total_lines = 0;
 
     passone(); /* Tokenize */
-    *script = (long) scriptptr;
+    *script = (intptr_t)scriptptr;
 
     if(warning|error)
         printf("Found %ld warning(s), %ld error(s).\n",warning,error);
@@ -1754,9 +1755,10 @@ short furthestcanseepoint(short i,spritetype *ts,long *dax,long *day)
 void alterang(short a)
 {
     short aang, angdif, goalang,j;
-    long ticselapsed, *moveptr;
+    long ticselapsed;
+    intptr_t *moveptr;
 
-    moveptr = (long *)g_t[1];
+    moveptr = (intptr_t *)g_t[1];
 
     ticselapsed = (g_t[0])&31;
 
@@ -1821,7 +1823,8 @@ void alterang(short a)
 
 void move()
 {
-    long l, *moveptr;
+    long l;
+    intptr_t *moveptr;
     short j, a, goalang, angdif;
     long daxvel;
 
@@ -1888,7 +1891,7 @@ void move()
         return;
     }
 
-    moveptr = (long *)g_t[1];
+    moveptr = (intptr_t *)g_t[1];
 
     if(a&geth) g_sp->xvel += (*moveptr-g_sp->xvel)>>1;
     if(a&getv) g_sp->zvel += ((*(moveptr+1)<<4)-g_sp->zvel)>>1;
@@ -2018,6 +2021,11 @@ void move()
 
 char parse(void);
 
+static int script_ptr_valid(intptr_t *ptr)
+{
+    return (ptr >= script) && (ptr < (script + MAXSCRIPTSIZE));
+}
+
 void parseifelse(long condition)
 {
     if( condition )
@@ -2027,7 +2035,13 @@ void parseifelse(long condition)
     }
     else
     {
-        insptr = (long *) *(insptr+1);
+        intptr_t *target = (intptr_t *) *(insptr+1);
+        if (!script_ptr_valid(target))
+        {
+            killit_flag = 1;
+            return;
+        }
+        insptr = target;
         if(*insptr == 10)
         {
             insptr+=2;
@@ -2178,9 +2192,9 @@ char parse(void)
         case 24:
             insptr++;
             g_t[5] = *insptr;
-            g_t[4] = ((long *)g_t[5])[0];       /*  Action */
-            g_t[1] = ((long *)g_t[5])[1];       /*  move */
-            g_sp->hitag = ((long *)g_t[5])[2];    /*  Ai */
+            g_t[4] = ((intptr_t *)g_t[5])[0];       /*  Action */
+            g_t[1] = ((intptr_t *)g_t[5])[1];       /*  move */
+            g_sp->hitag = ((intptr_t *)g_t[5])[2];    /*  Ai */
             g_t[0] = g_t[2] = g_t[3] = 0;
             if(g_sp->hitag&random_angle)
                 g_sp->ang = TRAND&2047;
@@ -2207,7 +2221,15 @@ char parse(void)
                 hittype[g_i].timetosleep = SLEEPTIME;
             break;
         case 10:
-            insptr = (long *) *(insptr+1);
+            {
+                intptr_t *target = (intptr_t *) *(insptr+1);
+                if (!script_ptr_valid(target))
+                {
+                    killit_flag = 1;
+                    return 1;
+                }
+                insptr = target;
+            }
             break;
         case 100:
             insptr++;
@@ -2556,11 +2578,18 @@ char parse(void)
             break;
         case 17:
             {
-                long *tempscrptr;
+                intptr_t *tempscrptr;
+                intptr_t *target;
 
                 tempscrptr = insptr+2;
 
-                insptr = (long *) *(insptr+1);
+                target = (intptr_t *) *(insptr+1);
+                if (!script_ptr_valid(target))
+                {
+                    killit_flag = 1;
+                    return 1;
+                }
+                insptr = target;
                 while(1) if(parse()) break;
                 insptr = tempscrptr;
             }
@@ -3133,13 +3162,13 @@ void execute(short i,short p,long x)
     if(g_t[4])
     {
         g_sp->lotag += TICSPERFRAME;
-        if(g_sp->lotag > ((long *)g_t[4])[4] )
+        if(g_sp->lotag > ((intptr_t *)g_t[4])[4] )
         {
             g_t[2]++;
             g_sp->lotag = 0;
-            g_t[3] +=  ((long *)g_t[4])[3];
+            g_t[3] +=  ((intptr_t *)g_t[4])[3];
         }
-        if( klabs(g_t[3]) >= klabs( ((long *)g_t[4])[1] * ((long *)g_t[4])[3] ) )
+        if( klabs(g_t[3]) >= klabs( ((intptr_t *)g_t[4])[1] * ((intptr_t *)g_t[4])[3] ) )
             g_t[3] = 0;
     }
 
@@ -3291,4 +3320,3 @@ void execute(short i,short p,long x)
 /*  Pen Patrol           (TD SIM) */
 /*  97.5 KPIG! - Wanker County */
 /*  "Fauna" - Native Indiginouns Animal Life */
-

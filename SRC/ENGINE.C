@@ -374,7 +374,7 @@ static long rasm_sv_ysiz;
 
 long mmxoverlay(void) { return 0; }
 
-long sethlinesizes(long logx, long logy, long bufplc_arg) {
+long sethlinesizes(long logx, long logy, intptr_t bufplc_arg) {
 	/* Clamp logx and logy to [0, 31] to prevent undefined shift behavior */
 	if (logx < 0) logx = 0;
 	if (logx > 31) logx = 31;
@@ -390,6 +390,13 @@ long setpalookupaddress(char *pal) {
 	return 0;
 }
 
+static inline uint32_t hline_coord_bits(uint32_t value, long bits)
+{
+	if (bits <= 0) return 0;
+	if (bits >= 32) return value;
+	return value >> (32 - bits);
+}
+
 long setuphlineasm4(long p1, long p2) {
 	rasm_h_bxinc = p1;
 	rasm_h_byinc = p2;
@@ -400,10 +407,14 @@ __attribute__((hot))
 long hlineasm4(long cnt, long p2, long shade, long by, long bx, intptr_t dest) {
 	unsigned char * __restrict__ d = (unsigned char *)(intptr_t)dest;
 	const unsigned char * __restrict__ src = (const unsigned char *)(intptr_t)asm3;
+	long shade_off = shade;
+	long max_shade_off = (numpalookups > 0) ? ((numpalookups-1) << 8) : 0;
 	/* shade is an OFFSET into the palette, not a full address.
 	   The base palette address is rasm_paladdr (set by setpalookupaddress). */
+	if (shade_off < 0) shade_off = 0;
+	if (shade_off > max_shade_off) shade_off = max_shade_off;
 	const unsigned char * __restrict__ pal = rasm_paladdr
-		? (const unsigned char *)((intptr_t)rasm_paladdr + shade)
+		? (const unsigned char *)((intptr_t)rasm_paladdr + shade_off)
 		: NULL;
 	long xinc, yinc;
 	const long llogx = rasm_logx, llogy = rasm_logy;
@@ -416,8 +427,8 @@ long hlineasm4(long cnt, long p2, long shade, long by, long bx, intptr_t dest) {
 	yinc = rasm_h_byinc;
 	if (!src || !d) return 0;
 	for (i = cnt; i >= 0; i--) {
-		long idx = (((uint32_t)bx >> (32 - llogx)) << llogy) +
-		           ((uint32_t)by >> (32 - llogy));
+		long idx = (hline_coord_bits((uint32_t)bx, llogx) << llogy) +
+		           hline_coord_bits((uint32_t)by, llogy);
 		*d = pal ? pal[src[idx]] : src[idx];
 		d--;
 		bx -= xinc;
@@ -2154,7 +2165,8 @@ florscan (long x1, long x2, long sectnum)
 
 wallscan(long x1, long x2, short *uwal, short *dwal, long *swal, long *lwal)
 {
-	long i, x, xnice, ynice, shade;
+	long x, xnice, ynice, shade;
+	intptr_t i;   /* used both as texture x-index (small) and as framebuffer base (64-bit) */
 	intptr_t fpalookup;
 	long y1ve[4], y2ve[4], u4, d4, dax, z, tsizx, tsizy, x_mask, y_is_pow2;
 	char bad;
@@ -2444,7 +2456,8 @@ transmaskvline (long x)
 
 transmaskvline2 (long x)
 {
-	long i, y1, y2, x2;
+	intptr_t i;   /* used as texture x-index (small) AND framebuffer base (64-bit) */
+	long y1, y2, x2;
 	short y1ve[2], y2ve[2];
 
 	if ((x < 0) || (x >= xdimen)) return;
@@ -5240,7 +5253,8 @@ cansee(long x1, long y1, long z1, short sect1, long x2, long y2, long z2, short 
 			if ((z <= cz) || (z >= fz)) return(0);
 
 			for(i=danum-1;i>=0;i--) if (clipsectorlist[i] == nexts) break;
-			if (i < 0) clipsectorlist[danum++] = nexts;
+			if (i < 0)
+				if (danum < MAXCLIPNUM) clipsectorlist[danum++] = nexts;
 		}
 	}
 	for(i=danum-1;i>=0;i--) if (clipsectorlist[i] == sect2) return(1);
@@ -5383,7 +5397,8 @@ hitscan(long xs, long ys, long zs, short sectnum, long vx, long vy, long vz,
 
 			for(zz=tempshortnum-1;zz>=0;zz--)
 				if (clipsectorlist[zz] == nextsector) break;
-			if (zz < 0) clipsectorlist[tempshortnum++] = nextsector;
+			if (zz < 0)
+				if (tempshortnum < MAXCLIPNUM) clipsectorlist[tempshortnum++] = nextsector;
 		}
 
 		for(z=headspritesect[dasector];z>=0;z=nextspritesect[z])
@@ -5579,7 +5594,8 @@ neartag (long xs, long ys, long zs, short sectnum, short ange, short *neartagsec
 				{
 					for(zz=tempshortnum-1;zz>=0;zz--)
 						if (clipsectorlist[zz] == nextsector) break;
-					if (zz < 0) clipsectorlist[tempshortnum++] = nextsector;
+					if (zz < 0)
+						if (tempshortnum < MAXCLIPNUM) clipsectorlist[tempshortnum++] = nextsector;
 				}
 			}
 		}
@@ -5751,13 +5767,16 @@ lastwall(short point)
 	return(point);
 }
 
-#define addclipline(dax1, day1, dax2, day2, daoval)      \
-{                                                        \
-	clipit[clipnum].x1 = dax1; clipit[clipnum].y1 = day1; \
-	clipit[clipnum].x2 = dax2; clipit[clipnum].y2 = day2; \
-	clipobjectval[clipnum] = daoval;                      \
-	clipnum++;                                            \
-}                                                        \
+#define addclipline(dax1, day1, dax2, day2, daoval)              \
+{                                                                 \
+	if (clipnum < MAXCLIPNUM)                                     \
+	{                                                             \
+		clipit[clipnum].x1 = dax1; clipit[clipnum].y1 = day1;     \
+		clipit[clipnum].x2 = dax2; clipit[clipnum].y2 = day2;     \
+		clipobjectval[clipnum] = daoval;                          \
+		clipnum++;                                                \
+	}                                                             \
+}                                                                 \
 
 long clipmoveboxtracenum = 3;
 clipmove (int32_t *x, int32_t *y, int32_t *z, short *sectnum,
@@ -5863,7 +5882,8 @@ clipmove (int32_t *x, int32_t *y, int32_t *z, short *sectnum,
 			{
 				for(i=clipsectnum-1;i>=0;i--)
 					if (wal->nextsector == clipsectorlist[i]) break;
-				if (i < 0) clipsectorlist[clipsectnum++] = wal->nextsector;
+				if (i < 0)
+					if (clipsectnum < MAXCLIPNUM) clipsectorlist[clipsectnum++] = wal->nextsector;
 			}
 		}
 
@@ -6001,6 +6021,12 @@ clipmove (int32_t *x, int32_t *y, int32_t *z, short *sectnum,
 		intx = goalx; inty = goaly;
 		if ((hitwall = raytrace(*x, *y, &intx, &inty)) >= 0)
 		{
+			if ((hitwall >= clipnum) || (hitwall >= MAXCLIPNUM))
+			{
+				updatesector(*x,*y,sectnum);
+				return(retval);
+			}
+
 			lx = clipit[hitwall].x2-clipit[hitwall].x1;
 			ly = clipit[hitwall].y2-clipit[hitwall].y1;
 			templong2 = lx*lx + ly*ly;
@@ -6020,6 +6046,7 @@ clipmove (int32_t *x, int32_t *y, int32_t *z, short *sectnum,
 			for(i=cnt+1;i<=clipmoveboxtracenum;i++)
 			{
 				j = hitwalls[i];
+				if ((j < 0) || (j >= clipnum) || (j >= MAXCLIPNUM)) continue;
 				templong2 = dmulscale6(clipit[j].x2-clipit[j].x1,oxvect,clipit[j].y2-clipit[j].y1,oyvect);
 				if ((templong1^templong2) < 0)
 				{
@@ -6086,6 +6113,8 @@ keepaway (long *x, long *y, long w)
 {
 	long dx, dy, ox, oy, x1, y1;
 	char first;
+
+	if ((w < 0) || (w >= clipnum) || (w >= MAXCLIPNUM)) return;
 
 	x1 = clipit[w].x1; dx = clipit[w].x2-x1;
 	y1 = clipit[w].y1; dy = clipit[w].y2-y1;
@@ -6253,7 +6282,8 @@ pushmove (int32_t *x, int32_t *y, int32_t *z, short *sectnum,
 					{
 						for(j=clipsectnum-1;j>=0;j--)
 							if (wal->nextsector == clipsectorlist[j]) break;
-						if (j < 0) clipsectorlist[clipsectnum++] = wal->nextsector;
+						if (j < 0)
+							if (clipsectnum < MAXCLIPNUM) clipsectorlist[clipsectnum++] = wal->nextsector;
 					}
 				}
 
@@ -7003,7 +7033,8 @@ getzrange(long x, long y, long z, short sectnum,
 				}
 
 				for(i=clipsectnum-1;i>=0;i--) if (clipsectorlist[i] == k) break;
-				if (i < 0) clipsectorlist[clipsectnum++] = k;
+				if (i < 0)
+					if (clipsectnum < MAXCLIPNUM) clipsectorlist[clipsectnum++] = k;
 
 				if ((x1 < xmin+MAXCLIPDIST) && (x2 < xmin+MAXCLIPDIST)) continue;
 				if ((x1 > xmax-MAXCLIPDIST) && (x2 > xmax-MAXCLIPDIST)) continue;
