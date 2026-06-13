@@ -2966,6 +2966,10 @@ nextpage()
 						}
 						activepage++; if (activepage >= numpages) activepage = 0;
 						setactivepage(activepage);
+						if ((sdl_page_count > 1) && (sdl_page_bytes > 0) && (screen != NULL) && (activepage != visualpage))
+							memcpy(screen + activepage * sdl_page_bytes,
+							       screen + visualpage * sdl_page_bytes,
+							       (size_t)sdl_page_bytes);
 					}
 					break;
 				case 2:
