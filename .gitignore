@@ -68,6 +68,7 @@ build-sast/
 # Atomic Shell runtime artifacts (regenerated each run)
 SDL2.dll
 atomic_shell_startup.log
+atomic_shell_flags.log
 atomic_shell_memory_map.log
 ATOMIC.CFG
 ATOMIC.GRP
