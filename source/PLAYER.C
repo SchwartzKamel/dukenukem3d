@@ -1789,6 +1789,12 @@ void displayweapon(short snum)
 long myaimmode = 0, myaimstat = 0, omyaimstat = 0;
 static int autoplay_input = -1;
 
+static int env_flag_enabled(const char *name)
+{
+    char *value = getenv(name);
+    return (value && value[0] && value[0] != '0');
+}
+
 void getinput(short snum)
 {
 
@@ -1844,8 +1850,10 @@ void getinput(short snum)
 
     if (autoplay_input < 0)
     {
-        char *env_autoplay = getenv("DUKE3D_AUTOPLAY");
-        autoplay_input = (env_autoplay && env_autoplay[0] && env_autoplay[0] != '0');
+        /* Keep manual play responsive unless headless automation is explicitly requested. */
+        autoplay_input = env_flag_enabled("DUKE3D_AUTOPLAY") &&
+                         (env_flag_enabled("DUKE3D_HEADLESS") ||
+                          env_flag_enabled("DUKE3D_AUTOPLAY_FORCE"));
     }
 
     if (autoplay_input)

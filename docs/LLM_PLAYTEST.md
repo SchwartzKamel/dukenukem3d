@@ -80,7 +80,10 @@ DUKE3D_FRAME_LIMIT=360
 DUKE3D_CAPTURE_INTERVAL=3
 ```
 
-`DUKE3D_AUTOPLAY=1` enables scripted in-engine movement/fire input.  
+`DUKE3D_AUTOPLAY=1` enables scripted in-engine movement/fire input when
+`DUKE3D_HEADLESS=1` is also set.  
+For non-headless visual demos, add `DUKE3D_AUTOPLAY_FORCE=1` to force scripted
+input.
 `DUKE3D_SILENT_ERRORS=1` suppresses blocking Windows error dialogs and keeps
 failure details in `atomic_shell_startup.log`.
 

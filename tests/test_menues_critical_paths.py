@@ -352,3 +352,41 @@ class TestMenuesMaxConstantsUsage:
         assert has_maxsprites, (
             "MENUES.C should reference MAXSPRITES constant for sprite array operations."
         )
+
+
+class TestProbeCursorTransitionSafety:
+    """Verify probe() cache handling does not leak stale pixels across menu changes."""
+
+    def test_probe_menu_change_resets_cache_without_restore(self, repo_root):
+        """On menu transition, probe() must reset cursor cache and avoid restoring old pixels."""
+        menues_c = repo_root / "source" / "MENUES.C"
+        if not menues_c.exists():
+            pytest.skip(f"{menues_c} not found")
+
+        content = menues_c.read_text(errors="replace")
+        marker = "if (probe_last_menu != current_menu)"
+        marker_pos = content.find(marker)
+        assert marker_pos != -1, "probe() menu-change guard not found in MENUES.C."
+
+        window = content[marker_pos:marker_pos + 900]
+        if_match = re.search(
+            r"if\s*\(\s*probe_last_menu\s*!=\s*current_menu\s*\)\s*\{(?P<body>.*?)\}\s*else\s*\{(?P<else_body>.*?)\}",
+            window,
+            re.S,
+        )
+        assert if_match, (
+            "probe() should use an if/else guard around probe_last_menu/current_menu handling."
+        )
+
+        if_body = if_match.group("body")
+        else_body = if_match.group("else_body")
+
+        assert "probe_cursor_restore" not in if_body, (
+            "Menu-transition branch in probe() must not restore cached pixels from the previous menu."
+        )
+        assert if_body.count("probe_cursor_reset") >= 2, (
+            "Menu-transition branch in probe() should reset both cursor caches."
+        )
+        assert else_body.count("probe_cursor_restore") >= 2, (
+            "Same-menu branch in probe() should restore both cursor caches before redrawing cursor icons."
+        )

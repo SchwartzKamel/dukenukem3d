@@ -1307,15 +1307,16 @@ int probe(int x,int y,int i,int n)
 
     if (probe_last_menu != current_menu)
     {
-        probe_cursor_restore(&probe_cursor_cache[0]);
-        probe_cursor_restore(&probe_cursor_cache[1]);
+        /* Don't restore across menu transitions: cached pixels belong to the old menu frame. */
         probe_cursor_reset(&probe_cursor_cache[0]);
         probe_cursor_reset(&probe_cursor_cache[1]);
         probe_last_menu = current_menu;
     }
-
-    probe_cursor_restore(&probe_cursor_cache[0]);
-    probe_cursor_restore(&probe_cursor_cache[1]);
+    else
+    {
+        probe_cursor_restore(&probe_cursor_cache[0]);
+        probe_cursor_restore(&probe_cursor_cache[1]);
+    }
 
     if( ControllerType == 1 && CONTROL_MousePresent )
     {
