@@ -74,16 +74,35 @@ else:
     print(json.dumps({"elapsed": elapsed, "skipped": True}))
 """
     
-    result = subprocess.run(
-        [sys.executable, "-c", code],
-        cwd=str(Path(__file__).resolve().parent.parent),
-        capture_output=True,
-        text=True,
-        timeout=30
-    )
-    
-    if result.returncode != 0:
-        pytest.fail(f"Import test failed: {result.stderr}")
+    # The cold-import measurement spawns a subprocess. Under heavy parallel load
+    # (the full xdist suite, which already saturates CPU) the spawn itself can
+    # transiently fail or time out — an environment artifact, not a lazy-import
+    # regression — so retry a few times. A genuine regression (e.g. PIL/numpy/
+    # scipy imported at module top level) fails every attempt and still trips the
+    # assertion below.
+    last_err = ""
+    result = None
+    for _attempt in range(3):
+        if _attempt > 0:
+            time.sleep(0.5)  # decorrelate the retry from a brief load spike
+        try:
+            attempt_result = subprocess.run(
+                [sys.executable, "-c", code],
+                cwd=str(Path(__file__).resolve().parent.parent),
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+        except subprocess.TimeoutExpired as exc:
+            last_err = f"timeout after 30s: {exc}"
+            continue
+        if attempt_result.returncode == 0:
+            result = attempt_result
+            break
+        last_err = attempt_result.stderr
+
+    if result is None:
+        pytest.fail(f"Import test failed after 3 attempts: {last_err}")
     
     output = json.loads(result.stdout)
     
