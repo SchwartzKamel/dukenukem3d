@@ -41,7 +41,7 @@ def _startup_log_path() -> Path:
     return PROJECT_ROOT / "atomic_shell_startup.log"
 
 
-def _run_gameplay(extra_env=None, timeout=30) -> dict:
+def _run_gameplay(extra_env=None, timeout=30, frame_limit="5", autoplay=False) -> dict:
     """Run duke3d headless with /v1 /l1 /s2 (warp-to-level) and return result."""
     binary = _resolve_binary()
     if not binary.is_file():
@@ -55,10 +55,13 @@ def _run_gameplay(extra_env=None, timeout=30) -> dict:
         "SDL_VIDEODRIVER": "dummy",
         "DUKE3D_HEADLESS":  "1",
         "DUKE3D_SKIP_LOGO": "1",
-        # Run only 5 frames — enough to execute one script tick but fast
-        "DUKE3D_FRAME_LIMIT":      "5",
+        "DUKE3D_SILENT_ERRORS": "1",
+        # Default to a short run; callers can raise frame_limit for deeper coverage.
+        "DUKE3D_FRAME_LIMIT":      frame_limit,
         "DUKE3D_CAPTURE_INTERVAL": "5",
     })
+    if autoplay:
+        env["DUKE3D_AUTOPLAY"] = "1"
     if extra_env:
         env.update(extra_env)
 
@@ -128,5 +131,22 @@ def test_gameplay_warp_no_crash_marker_in_log():
     )
     assert "CRASH: Access violation" not in log_text, (
         "Startup log contains an access-violation crash marker after warp run.\n"
+        f"Log tail:\n{log_text[-800:]}"
+    )
+
+
+@pytest.mark.playtest
+@pytest.mark.serial
+def test_gameplay_warp_autoplay_no_crash():
+    """Focus-free autoplay path (DUKE3D_AUTOPLAY=1) must run without AV markers."""
+    result = _run_gameplay(timeout=45, frame_limit="120", autoplay=True)
+
+    log_text = _read_startup_log()
+    has_crash_marker = "CRASH: Exception 0xC0000005" in log_text or \
+                       "CRASH: Access violation" in log_text
+
+    assert result["exit_code"] != -9, "Autoplay run timed out"
+    assert not has_crash_marker, (
+        "Autoplay gameplay produced an access-violation crash marker.\n"
         f"Log tail:\n{log_text[-800:]}"
     )

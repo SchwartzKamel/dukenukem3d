@@ -37,8 +37,13 @@ static long last_used_size;
 
 static short g_i,g_p;
 static long g_x;
-static intptr_t *g_t;
+static long *g_t;
 static spritetype *g_sp;
+
+static int script_ptr_valid(intptr_t *ptr);
+static long script_ptr_to_temp_index(intptr_t *ptr);
+static long script_word_to_temp_index(intptr_t word);
+static intptr_t *temp_index_to_script_ptr(long idx);
 
 #define NUMKEYWORDS     112
 
@@ -1758,7 +1763,8 @@ void alterang(short a)
     long ticselapsed;
     intptr_t *moveptr;
 
-    moveptr = (intptr_t *)g_t[1];
+    moveptr = temp_index_to_script_ptr(g_t[1]);
+    if (moveptr == 0) return;
 
     ticselapsed = (g_t[0])&31;
 
@@ -1891,7 +1897,8 @@ void move()
         return;
     }
 
-    moveptr = (intptr_t *)g_t[1];
+    moveptr = temp_index_to_script_ptr(g_t[1]);
+    if (moveptr == 0) return;
 
     if(a&geth) g_sp->xvel += (*moveptr-g_sp->xvel)>>1;
     if(a&getv) g_sp->zvel += ((*(moveptr+1)<<4)-g_sp->zvel)>>1;
@@ -2024,6 +2031,24 @@ char parse(void);
 static int script_ptr_valid(intptr_t *ptr)
 {
     return (ptr >= script) && (ptr < (script + MAXSCRIPTSIZE));
+}
+
+static long script_ptr_to_temp_index(intptr_t *ptr)
+{
+    if (ptr == 0) return 0;
+    if (!script_ptr_valid(ptr)) return -1;
+    return (long)(ptr - script);
+}
+
+static long script_word_to_temp_index(intptr_t word)
+{
+    return script_ptr_to_temp_index((intptr_t *)word);
+}
+
+static intptr_t *temp_index_to_script_ptr(long idx)
+{
+    if (idx <= 0 || idx >= MAXSCRIPTSIZE) return (intptr_t *)0;
+    return script + idx;
 }
 
 void parseifelse(long condition)
@@ -2191,10 +2216,29 @@ char parse(void)
             break;
         case 24:
             insptr++;
-            g_t[5] = *insptr;
-            g_t[4] = ((intptr_t *)g_t[5])[0];       /*  Action */
-            g_t[1] = ((intptr_t *)g_t[5])[1];       /*  move */
-            g_sp->hitag = ((intptr_t *)g_t[5])[2];    /*  Ai */
+            {
+                intptr_t *aiptr;
+                long ai_idx, action_idx, move_idx;
+
+                aiptr = (intptr_t *)*insptr;
+                ai_idx = script_ptr_to_temp_index(aiptr);
+                action_idx = (aiptr && script_ptr_valid(aiptr)) ?
+                    script_word_to_temp_index(aiptr[0]) : -1;
+                move_idx = (aiptr && script_ptr_valid(aiptr)) ?
+                    script_word_to_temp_index(aiptr[1]) : -1;
+
+                if (ai_idx <= 0 || !script_ptr_valid(aiptr + 2) ||
+                    action_idx < 0 || move_idx < 0)
+                {
+                    killit_flag = 1;
+                    return 1;
+                }
+
+                g_t[5] = ai_idx;
+                g_t[4] = action_idx;       /*  Action */
+                g_t[1] = move_idx;         /*  move */
+                g_sp->hitag = (long)aiptr[2];    /*  Ai */
+            }
             g_t[0] = g_t[2] = g_t[3] = 0;
             if(g_sp->hitag&random_angle)
                 g_sp->ang = TRAND&2047;
@@ -2204,7 +2248,12 @@ char parse(void)
             insptr++;
             g_t[2] = 0;
             g_t[3] = 0;
-            g_t[4] = *insptr;
+            g_t[4] = script_word_to_temp_index(*insptr);
+            if (g_t[4] < 0)
+            {
+                killit_flag = 1;
+                return 1;
+            }
             insptr++;
             break;
 
@@ -2601,7 +2650,12 @@ char parse(void)
         case 32:
             g_t[0]=0;
             insptr++;
-            g_t[1] = *insptr;
+            g_t[1] = script_word_to_temp_index(*insptr);
+            if (g_t[1] < 0)
+            {
+                killit_flag = 1;
+                return 1;
+            }
             insptr++;
             g_sp->hitag = *insptr;
             insptr++;
@@ -2620,11 +2674,17 @@ char parse(void)
             break;
         case 21:
             insptr++;
-            parseifelse(g_t[5] == *insptr);
+            {
+                long ai_idx = script_word_to_temp_index(*insptr);
+                parseifelse(ai_idx >= 0 && g_t[5] == ai_idx);
+            }
             break;
         case 34:
             insptr++;
-            parseifelse(g_t[4] == *insptr);
+            {
+                long action_idx = script_word_to_temp_index(*insptr);
+                parseifelse(action_idx >= 0 && g_t[4] == action_idx);
+            }
             break;
         case 35:
             insptr++;
@@ -2684,7 +2744,10 @@ char parse(void)
             break;
         case 41:
             insptr++;
-            parseifelse(g_t[1] == *insptr);
+            {
+                long move_idx = script_word_to_temp_index(*insptr);
+                parseifelse(move_idx >= 0 && g_t[1] == move_idx);
+            }
             break;
         case 42:
             insptr++;
@@ -3138,6 +3201,7 @@ char parse(void)
 void execute(short i,short p,long x)
 {
     char done;
+    intptr_t *actionptr;
 
     g_i = i;
     g_p = p;
@@ -3161,15 +3225,23 @@ void execute(short i,short p,long x)
 
     if(g_t[4])
     {
+        actionptr = temp_index_to_script_ptr(g_t[4]);
+        if (actionptr == 0)
+        {
+            killit_flag = 1;
+        }
+        else
+        {
         g_sp->lotag += TICSPERFRAME;
-        if(g_sp->lotag > ((intptr_t *)g_t[4])[4] )
+        if(g_sp->lotag > actionptr[4] )
         {
             g_t[2]++;
             g_sp->lotag = 0;
-            g_t[3] +=  ((intptr_t *)g_t[4])[3];
+            g_t[3] +=  actionptr[3];
         }
-        if( klabs(g_t[3]) >= klabs( ((intptr_t *)g_t[4])[1] * ((intptr_t *)g_t[4])[3] ) )
+        if( klabs(g_t[3]) >= klabs( actionptr[1] * actionptr[3] ) )
             g_t[3] = 0;
+        }
     }
 
     do

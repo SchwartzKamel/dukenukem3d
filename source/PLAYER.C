@@ -33,6 +33,7 @@ Prepared for public release: 03/21/2003 - Charlie Wiederhold, 3D Realms
 
 int32 turnheldtime; /* MED */
 int32 lastcontroltime; /* MED */
+void computergetinput(long snum, input *syn);
 
 void setpal(struct player_struct *p)
 {
@@ -1786,6 +1787,7 @@ void displayweapon(short snum)
 #define MAXHORIZ     127
 
 long myaimmode = 0, myaimstat = 0, omyaimstat = 0;
+static int autoplay_input = -1;
 
 void getinput(short snum)
 {
@@ -1837,6 +1839,21 @@ void getinput(short snum)
         loc.bits |=   multiwhat<<18;
         loc.bits |=   multipos<<19;
         multiflag = 0;
+        return;
+    }
+
+    if (autoplay_input < 0)
+    {
+        char *env_autoplay = getenv("DUKE3D_AUTOPLAY");
+        autoplay_input = (env_autoplay && env_autoplay[0] && env_autoplay[0] != '0');
+    }
+
+    if (autoplay_input)
+    {
+        computergetinput(snum,&loc);
+        loc.bits &= ~(((long)1)<<2);   /* avoid runaway projectile spam in long autoplay runs */
+        loc.bits &= ~(((long)1)<<26);  /* keep autoplay runs from triggering quit */
+        loc.bits &= ~(((long)1)<<31);  /* ignore escape in scripted movement */
         return;
     }
 
@@ -4347,4 +4364,3 @@ void computergetinput(long snum, input *syn)
         syn->avel = min(max((((daang+1024-damyang)&2047)-1024)>>3,-127),127);
     }
 }
-

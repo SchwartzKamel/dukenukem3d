@@ -799,11 +799,26 @@ static inline void startup_log_close(void)
  * Fatal error reporting — shows MessageBox on Windows, stderr on Linux
  * ====================================================================== */
 
+static inline int startup_show_error_dialogs(void)
+{
+#ifdef _WIN32
+    const char *silent_errors = getenv("DUKE3D_SILENT_ERRORS");
+    if (silent_errors && silent_errors[0] && strcmp(silent_errors, "0") != 0)
+        return 0;
+    if (getenv("DUKE3D_HEADLESS"))
+        return 0;
+#endif
+    return 1;
+}
+
 static inline _Noreturn void error_fatal(const char *title, const char *msg)
 {
     startup_log("error_fatal: %s: %s", title, msg);
 #ifdef _WIN32
-    MessageBoxA(NULL, msg, title, MB_OK | MB_ICONERROR);
+    if (startup_show_error_dialogs())
+        MessageBoxA(NULL, msg, title, MB_OK | MB_ICONERROR);
+    else
+        fprintf(stderr, "%s: %s\n", title, msg);
 #else
     fprintf(stderr, "%s: %s\n", title, msg);
 #endif
@@ -875,7 +890,10 @@ static LONG WINAPI crash_handler(EXCEPTION_POINTERS *ep)
         fflush(_startup_log);
         fclose(_startup_log);
     }
-    MessageBoxA(NULL, buf, "Atomic Shell - Crash", MB_OK | MB_ICONERROR);
+    if (startup_show_error_dialogs())
+        MessageBoxA(NULL, buf, "Atomic Shell - Crash", MB_OK | MB_ICONERROR);
+    else
+        fprintf(stderr, "%s\n", buf);
     /* Forcibly terminate — returning EXCEPTION_EXECUTE_HANDLER alone can
        leave the process alive if the CRT or another thread interferes. */
     ExitProcess(1);

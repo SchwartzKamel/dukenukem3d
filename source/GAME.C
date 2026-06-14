@@ -2278,7 +2278,7 @@ void gameexit(char *t)
 
 #ifdef _WIN32
     /* With -mwindows, printf output is invisible. Show error in a dialog. */
-    if (has_exit_message) {
+    if (has_exit_message && startup_show_error_dialogs()) {
         MessageBoxA(NULL, t, "Atomic Shell", MB_OK | MB_ICONERROR);
     }
 #endif
@@ -10164,4 +10164,3 @@ Programming:   ( the functions I need )
 /*  Bog */
 /*  Test Blimp respawn */
 /*  move 1 in player??? */
-

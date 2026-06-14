@@ -9,6 +9,7 @@ import asyncio
 import base64
 import datetime
 import email.utils
+import io
 import json
 import logging
 import os
@@ -31,6 +32,8 @@ ENV_FILE = os.path.join(PROJECT_ROOT, ".env")
 DEFAULT_FRAMES_DIR = os.path.join(PROJECT_ROOT, "captures")
 DEFAULT_MODEL = "gpt-4o"
 API_VERSION = "2024-02-15-preview"
+INFERENCE_API_VERSION = "2024-05-01-preview"
+RESPONSES_API_VERSION = "2025-04-01-preview"
 MAX_RETRIES = 3
 MAX_BACKOFF = 8.0
 PASS_CONFIDENCE = 0.7
@@ -136,16 +139,81 @@ def validate_llm_config(endpoint: str, api_key: str) -> Tuple[bool, str]:
     return True, ""
 
 
-def build_chat_url(endpoint: str, model: str) -> str:
-    """Return an Azure OpenAI chat completions URL."""
-    if "/chat/completions" in endpoint:
-        return endpoint
-    base = endpoint.rstrip("/")
+def _append_unique(urls: List[str], url: str) -> None:
+    if url and url not in urls:
+        urls.append(url)
+
+
+def build_chat_urls(endpoint: str, model: str) -> List[str]:
+    """Return ordered endpoint candidates (responses/chat variants)."""
+    endpoint = endpoint.strip()
+    parsed = urllib.parse.urlsplit(endpoint)
+    path = parsed.path.rstrip("/")
+    base = urllib.parse.urlunsplit((parsed.scheme, parsed.netloc, path, "", ""))
     deployment = urllib.parse.quote(model, safe="")
-    return (
-        f"{base}/openai/deployments/{deployment}/chat/completions"
-        f"?api-version={API_VERSION}"
-    )
+    urls: List[str] = []
+
+    chat_base = base
+    if "/responses" in path:
+        if parsed.query:
+            _append_unique(urls, endpoint)
+        else:
+            _append_unique(
+                urls,
+                f"{base}?api-version={RESPONSES_API_VERSION}",
+            )
+        if path.endswith("/responses"):
+            chat_base = base[: -len("/responses")]
+
+    if "/chat/completions" in path:
+        _append_unique(urls, endpoint)
+        return urls
+
+    if "/openai/deployments/" in chat_base:
+        _append_unique(urls, f"{chat_base}/chat/completions?api-version={API_VERSION}")
+    else:
+        _append_unique(
+            urls,
+            f"{chat_base}/openai/deployments/{deployment}/chat/completions"
+            f"?api-version={API_VERSION}",
+        )
+
+    if "/openai/v1" in chat_base:
+        _append_unique(urls, f"{chat_base}/chat/completions")
+    else:
+        _append_unique(urls, f"{chat_base}/openai/v1/chat/completions")
+
+    if chat_base.endswith("/models"):
+        _append_unique(
+            urls,
+            f"{chat_base}/chat/completions?api-version={INFERENCE_API_VERSION}",
+        )
+    else:
+        _append_unique(
+            urls,
+            f"{chat_base}/models/chat/completions?api-version={INFERENCE_API_VERSION}",
+        )
+    return urls
+
+
+def _extract_response_text(data: Dict[str, Any]) -> str:
+    output_text = data.get("output_text")
+    if isinstance(output_text, str) and output_text.strip():
+        return output_text
+
+    for item in data.get("output", []):
+        if not isinstance(item, dict):
+            continue
+        if item.get("type") != "message":
+            continue
+        for content in item.get("content", []):
+            if not isinstance(content, dict):
+                continue
+            text = content.get("text")
+            if isinstance(text, str) and text.strip():
+                return text
+
+    raise HarnessError("invalid responses API response: missing output text")
 
 
 def parse_retry_after(header_value: str, max_wait: float = 60.0) -> Optional[float]:
@@ -224,12 +292,15 @@ def load_and_encode_frames(paths: Sequence[Path]) -> List[Dict[str, Any]]:
             raise HarnessError(
                 f"failed to load frame {path}: {type(exc).__name__}: {exc}"
             ) from exc
-        with open(path, "rb") as f:
-            frame_b64 = base64.b64encode(f.read()).decode("ascii")
+        # Some providers reject BMP uploads in vision endpoints. Normalize to PNG.
+        with io.BytesIO() as png_buffer:
+            img.convert("RGB").save(png_buffer, format="PNG")
+            frame_b64 = base64.b64encode(png_buffer.getvalue()).decode("ascii")
         encoded.append({
             "path": str(path),
             "width": img.width,
             "height": img.height,
+            "mime_type": "image/png",
             "b64": frame_b64,
         })
     return encoded
@@ -258,29 +329,52 @@ async def request_frame_verdict(
     total: int,
 ) -> FrameVerdict:
     """Call Azure OpenAI vision API for one frame with retry on rate limits."""
+    use_responses_api = "/responses" in urllib.parse.urlsplit(url).path
     headers = {
         "api-key": api_key,
+        "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
     }
-    payload = {
-        "model": model,
-        "messages": [{
-            "role": "user",
-            "content": [
-                {"type": "text", "text": frame_prompt(index, total)},
-                {
-                    "type": "image_url",
-                    "image_url": {
-                        "url": f"data:image/bmp;base64,{frame['b64']}",
-                        "detail": "low",
+    if use_responses_api:
+        payload = {
+            "model": model,
+            "input": [{
+                "role": "user",
+                "content": [
+                    {"type": "input_text", "text": frame_prompt(index, total)},
+                    {
+                        "type": "input_image",
+                        "image_url": (
+                            f"data:{frame.get('mime_type', 'image/png')};"
+                            f"base64,{frame['b64']}"
+                        ),
                     },
-                },
-            ],
-        }],
-        "temperature": 0,
-        "max_tokens": 300,
-        "response_format": {"type": "json_object"},
-    }
+                ],
+            }],
+            "temperature": 0,
+            "max_output_tokens": 300,
+            "text": {"format": {"type": "json_object"}},
+        }
+    else:
+        payload = {
+            "model": model,
+            "messages": [{
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": frame_prompt(index, total)},
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:{frame.get('mime_type', 'image/png')};base64,{frame['b64']}",
+                            "detail": "low",
+                        },
+                    },
+                ],
+            }],
+            "temperature": 0,
+            "max_tokens": 300,
+            "response_format": {"type": "json_object"},
+        }
 
     backoff = 1.0
     for attempt in range(MAX_RETRIES + 1):
@@ -289,8 +383,11 @@ async def request_frame_verdict(
                 text = await resp.text()
                 if resp.status == 200:
                     data = json.loads(text)
-                    content = data["choices"][0]["message"]["content"]
-                    verdict_data = json.loads(content)
+                    if use_responses_api:
+                        content = _extract_response_text(data)
+                    else:
+                        content = data["choices"][0]["message"]["content"]
+                    verdict_data = content if isinstance(content, dict) else json.loads(content)
                     return FrameVerdict.model_validate(verdict_data)
 
                 if resp.status == 429 and attempt < MAX_RETRIES:
@@ -322,6 +419,19 @@ async def request_frame_verdict(
                     await asyncio.sleep(sleep_time)
                     continue
 
+                if (
+                    resp.status == 400
+                    and "max_tokens" in text
+                    and "max_completion_tokens" in text
+                    and "max_completion_tokens" not in payload
+                ):
+                    payload.pop("max_tokens", None)
+                    payload["max_completion_tokens"] = 300
+                    logger.info(
+                        "Vision API rejected max_tokens; retrying with max_completion_tokens"
+                    )
+                    continue
+
                 raise HarnessError(
                     f"vision API returned HTTP {resp.status}: {text[:300]}"
                 )
@@ -349,14 +459,56 @@ async def request_frame_verdict(
 async def live_verdicts(
     encoded_frames: Sequence[Dict[str, Any]], endpoint: str, api_key: str, model: str
 ) -> List[FrameVerdict]:
-    url = build_chat_url(endpoint, model)
+    urls = build_chat_urls(endpoint, model)
+    if not urls:
+        raise HarnessError("unable to derive chat completions endpoint from config")
+
     timeout = aiohttp.ClientTimeout(total=90)
     async with aiohttp.ClientSession(timeout=timeout) as session:
-        verdicts = []
-        for idx, frame in enumerate(encoded_frames):
+        verdicts: List[FrameVerdict] = []
+        selected_url: Optional[str] = None
+        last_fallback_error: Optional[HarnessError] = None
+
+        for candidate in urls:
+            try:
+                first_verdict = await request_frame_verdict(
+                    session,
+                    candidate,
+                    api_key,
+                    model,
+                    encoded_frames[0],
+                    0,
+                    len(encoded_frames),
+                )
+                verdicts.append(first_verdict)
+                selected_url = candidate
+                break
+            except HarnessError as exc:
+                message = str(exc)
+                if "HTTP 404" in message or "Resource not found" in message:
+                    logger.info(
+                        "Vision endpoint unavailable at %s; trying fallback",
+                        _redact_endpoint(candidate),
+                    )
+                    last_fallback_error = exc
+                    continue
+                raise
+
+        if selected_url is None:
+            if last_fallback_error:
+                raise last_fallback_error
+            raise HarnessError("all chat endpoint candidates failed")
+
+        for idx, frame in enumerate(encoded_frames[1:], start=1):
             verdicts.append(
                 await request_frame_verdict(
-                    session, url, api_key, model, frame, idx, len(encoded_frames)
+                    session,
+                    selected_url,
+                    api_key,
+                    model,
+                    frame,
+                    idx,
+                    len(encoded_frames),
                 )
             )
         return verdicts

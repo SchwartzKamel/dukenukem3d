@@ -4,8 +4,9 @@
 
 `tools/llm_playtest.py` is an end-to-end vision check for the modern Duke
 Nukem 3D port. It reads BMP screenshots captured by the headless playtest
-fixture, sends sampled frames to an Azure OpenAI GPT-4o-class vision model,
-and requires a structured JSON verdict before declaring the build playable.
+fixture, transcodes sampled frames to PNG for provider compatibility, sends
+them to an Azure OpenAI GPT-4o-class vision model, and requires a structured
+JSON verdict before declaring the build playable.
 
 The harness is designed to complement the local frame analyzer. The local tests
 catch black frames and obvious rendering failures; the LLM pass checks whether a
@@ -39,6 +40,10 @@ uses it as-is. Otherwise it builds this URL:
 /openai/deployments/<LLM_PLAYTEST_MODEL>/chat/completions?api-version=2024-02-15-preview
 ```
 
+If that deployment-style URL returns `404 Resource not found`, the harness
+automatically retries Azure-compatible fallbacks (`/openai/v1/chat/completions`
+and `/models/chat/completions`) before failing.
+
 ## Local invocation
 
 Run the offline stub first. It validates that BMP files exist and are loadable,
@@ -62,6 +67,22 @@ Live mode removes `--stub` and requires the three environment variables:
 ```bash
 python3 tools/llm_playtest.py --frames-dir captures/ --report out.json
 ```
+
+For fully automated gameplay capture on Windows (no foreground-focus keyboard
+input), run the engine with:
+
+```bash
+DUKE3D_HEADLESS=1
+DUKE3D_SKIP_LOGO=1
+DUKE3D_AUTOPLAY=1
+DUKE3D_SILENT_ERRORS=1
+DUKE3D_FRAME_LIMIT=360
+DUKE3D_CAPTURE_INTERVAL=3
+```
+
+`DUKE3D_AUTOPLAY=1` enables scripted in-engine movement/fire input.  
+`DUKE3D_SILENT_ERRORS=1` suppresses blocking Windows error dialogs and keeps
+failure details in `atomic_shell_startup.log`.
 
 Exit codes are:
 
