@@ -15,6 +15,7 @@ the startup log).
 """
 
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -41,7 +42,8 @@ def _startup_log_path() -> Path:
     return PROJECT_ROOT / "atomic_shell_startup.log"
 
 
-def _run_gameplay(extra_env=None, timeout=30, frame_limit="5", autoplay=False) -> dict:
+def _run_gameplay(extra_env=None, timeout=30, frame_limit="5", autoplay=False, fire=False,
+                  capture_interval="5") -> dict:
     """Run duke3d headless with /v1 /l1 /s2 (warp-to-level) and return result."""
     binary = _resolve_binary()
     if not binary.is_file():
@@ -58,10 +60,13 @@ def _run_gameplay(extra_env=None, timeout=30, frame_limit="5", autoplay=False) -
         "DUKE3D_SILENT_ERRORS": "1",
         # Default to a short run; callers can raise frame_limit for deeper coverage.
         "DUKE3D_FRAME_LIMIT":      frame_limit,
-        "DUKE3D_CAPTURE_INTERVAL": "5",
+        "DUKE3D_CAPTURE_INTERVAL": capture_interval,
     })
     if autoplay:
         env["DUKE3D_AUTOPLAY"] = "1"
+    if fire:
+        # Keep the Fire bit set under autoplay so the weapon actually discharges.
+        env["DUKE3D_AUTOPLAY_FIRE"] = "1"
     if extra_env:
         env.update(extra_env)
 
@@ -148,5 +153,44 @@ def test_gameplay_warp_autoplay_no_crash():
     assert result["exit_code"] != -9, "Autoplay run timed out"
     assert not has_crash_marker, (
         "Autoplay gameplay produced an access-violation crash marker.\n"
+        f"Log tail:\n{log_text[-800:]}"
+    )
+
+
+@pytest.mark.playtest
+@pytest.mark.serial
+def test_gameplay_warp_autoplay_fire_no_crash():
+    """Discharging the weapon under autoplay must not crash.
+
+    The normal autoplay path masks out the Fire bit (PLAYER.C getinput) to avoid
+    projectile spam, so the weapon-fire code (shoot/hitscan/projectile-actor
+    spawn + impact) was never exercised by the headless soak. Setting
+    DUKE3D_AUTOPLAY_FIRE=1 keeps the Fire bit so the run actually fires for many
+    frames. This guards the user-reported "using the gun crashes us" defect and
+    the broader weapon-spawn pointer hazards on Win64.
+    """
+    # ~4000 render frames of sustained fire (a few wall-seconds, many game
+    # tics) — enough for the pistol to discharge repeatedly and for projectiles
+    # to spawn and impact. Captures disabled (we only care about not crashing).
+    result = _run_gameplay(timeout=120, frame_limit="4000", autoplay=True, fire=True,
+                           capture_interval="0")
+
+    log_text = _read_startup_log()
+    has_crash_marker = "CRASH: Exception 0xC0000005" in log_text or \
+                       "CRASH: Access violation" in log_text
+
+    assert result["exit_code"] != -9, "Autoplay-fire run timed out"
+    assert not has_crash_marker, (
+        "Autoplay weapon-fire produced an access-violation crash marker.\n"
+        f"Log tail:\n{log_text[-800:]}"
+    )
+
+    # Guard against a vacuous pass: the engine logs the number of frames the
+    # autoplay soak actually held the Fire bit. It must be > 0, otherwise the
+    # weapon-fire code was never exercised and "no crash" proves nothing.
+    fire_match = re.search(r"autoplay fire frames: (\d+)", log_text)
+    assert fire_match and int(fire_match.group(1)) > 0, (
+        "Fire soak did not actually discharge the weapon "
+        "(no 'autoplay fire frames: N>0' in startup log) — test would be vacuous.\n"
         f"Log tail:\n{log_text[-800:]}"
     )

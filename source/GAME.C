@@ -2212,6 +2212,11 @@ void gameexit(char *t)
     exiting = 1;
 
     startup_log("gameexit called: '%s'", has_exit_message ? t : "(empty)");
+    {
+        extern long autoplay_fire_frames;
+        if (autoplay_fire_frames > 0)
+            startup_log("autoplay fire frames: %ld", autoplay_fire_frames);
+    }
 
     if(has_exit_message) ps[myconnectindex].palette = (char *) &palette[0];
 

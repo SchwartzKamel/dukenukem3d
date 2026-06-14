@@ -1788,6 +1788,8 @@ void displayweapon(short snum)
 
 long myaimmode = 0, myaimstat = 0, omyaimstat = 0;
 static int autoplay_input = -1;
+static int autoplay_fire = -1;   /* DUKE3D_AUTOPLAY_FIRE: let headless soak exercise the weapon-fire path */
+long autoplay_fire_frames = 0;   /* diagnostic: # frames the autoplay soak actually requested fire */
 
 static int env_flag_enabled(const char *name)
 {
@@ -2282,6 +2284,21 @@ void processinput(short snum)
 
     if(p->cheat_phase <= 0) sb_snum = sync[snum].bits;
     else sb_snum = 0;
+
+    /* Headless fire-soak (DUKE3D_AUTOPLAY_FIRE): the normal autoplay path masks
+     * out the Fire bit, so the weapon-fire code (shoot/hitscan/projectile spawn
+     * + impact) is never exercised by CI. When explicitly requested AND already
+     * in a headless autoplay run, force sustained fire so the regression test
+     * actually discharges the weapon. Strictly gated -> no effect on real play. */
+    if (autoplay_fire < 0)
+        autoplay_fire = env_flag_enabled("DUKE3D_AUTOPLAY_FIRE") &&
+                        env_flag_enabled("DUKE3D_AUTOPLAY") &&
+                        env_flag_enabled("DUKE3D_HEADLESS");
+    if (autoplay_fire && snum == myconnectindex && p->cheat_phase <= 0)
+    {
+        sb_snum |= (((unsigned long)1)<<2);
+        autoplay_fire_frames++;
+    }
 
     psect = p->cursectnum;
     if(psect == -1)
