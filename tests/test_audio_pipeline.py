@@ -284,7 +284,7 @@ class TestSilencePlaceholderGeneration:
         manifest_path = os.path.join(PROJECT_ROOT, "generated_assets", "sounds", "MANIFEST.json")
         assert os.path.exists(manifest_path), f"Manifest not found: {manifest_path}"
         
-        with open(manifest_path, "r") as f:
+        with open(manifest_path, "r", encoding="utf-8") as f:
             manifest = json.load(f)
         
         # Verify manifest structure
@@ -314,7 +314,7 @@ class TestSilencePlaceholderGeneration:
         
         # Load the manifest
         manifest_path = os.path.join(PROJECT_ROOT, "generated_assets", "sounds", "MANIFEST.json")
-        with open(manifest_path, "r") as f:
+        with open(manifest_path, "r", encoding="utf-8") as f:
             manifest = json.load(f)
         
         # Verify each entry has a valid generation_method value
@@ -331,7 +331,7 @@ class TestNoSecretLeak:
     def test_no_hardcoded_audio_api_key(self):
         """generate_audio.py must not contain hardcoded AUDIO_API_KEY."""
         source_file = os.path.join(PROJECT_ROOT, "tools", "generate_audio.py")
-        with open(source_file, "r") as f:
+        with open(source_file, "r", encoding="utf-8") as f:
             content = f.read()
         
         # Pattern: AUDIO_API_KEY= followed by non-whitespace (hardcoded key)
@@ -343,7 +343,7 @@ class TestNoSecretLeak:
     def test_no_hardcoded_flux_api_key(self):
         """generate_audio.py must not contain hardcoded FLUX_API_KEY."""
         source_file = os.path.join(PROJECT_ROOT, "tools", "generate_audio.py")
-        with open(source_file, "r") as f:
+        with open(source_file, "r", encoding="utf-8") as f:
             content = f.read()
         
         hardcoded_pattern = r'FLUX_API_KEY\s*=\s*["\']'
@@ -362,7 +362,7 @@ class TestNoSecretLeak:
         - Direct dict access without fallback (os.environ["KEY"] can KeyError)
         """
         source_file = os.path.join(PROJECT_ROOT, "tools", "generate_audio.py")
-        with open(source_file, "r") as f:
+        with open(source_file, "r", encoding="utf-8") as f:
             content = f.read()
         
         # Check for any unsafe direct environment variable access without try/except
@@ -384,7 +384,7 @@ class TestNoSecretLeak:
     def test_no_uncaught_keyerror_on_missing_env(self):
         """generate_audio.py must handle missing env vars gracefully (no KeyError crash)."""
         source_file = os.path.join(PROJECT_ROOT, "tools", "generate_audio.py")
-        with open(source_file, "r") as f:
+        with open(source_file, "r", encoding="utf-8") as f:
             content = f.read()
         
         # Check that the module doesn't do direct dict access like os.environ["KEY"]
@@ -400,7 +400,7 @@ class TestAudioStubRWopsResourceLeaks:
     def test_mixer_play_frees_rwops_on_load_failure(self):
         """mixer_play must free SDL_RWops if Mix_LoadWAV_RW fails (audio-r7-sdl-rwops-mixer-play)."""
         audio_stub = os.path.join(PROJECT_ROOT, "compat", "audio_stub.c")
-        with open(audio_stub, "r") as f:
+        with open(audio_stub, "r", encoding="utf-8") as f:
             content = f.read()
         
         # Pattern: In mixer_play, after Mix_LoadWAV_RW(rw, 1),
@@ -420,7 +420,7 @@ class TestAudioStubRWopsResourceLeaks:
     def test_mixer_play_3d_frees_rwops_on_load_failure(self):
         """mixer_play_3d must free SDL_RWops if Mix_LoadWAV_RW fails (audio-r7-sdl-rwops-mixer-play-3d)."""
         audio_stub = os.path.join(PROJECT_ROOT, "compat", "audio_stub.c")
-        with open(audio_stub, "r") as f:
+        with open(audio_stub, "r", encoding="utf-8") as f:
             content = f.read()
         
         # Pattern: In mixer_play_3d, after Mix_LoadWAV_RW(rw, 1),
@@ -439,7 +439,7 @@ class TestAudioStubRWopsResourceLeaks:
     def test_music_playsong_frees_rwops_on_load_failure(self):
         """MUSIC_PlaySong must free SDL_RWops if Mix_LoadMUS_RW fails (audio-r7-sdl-rwops-music-playsong)."""
         audio_stub = os.path.join(PROJECT_ROOT, "compat", "audio_stub.c")
-        with open(audio_stub, "r") as f:
+        with open(audio_stub, "r", encoding="utf-8") as f:
             content = f.read()
         
         # Pattern: In MUSIC_PlaySong, after Mix_LoadMUS_RW(current_music_rw, 0),
@@ -457,7 +457,7 @@ class TestAudioStubRWopsResourceLeaks:
     def test_no_unmatched_sdl_rwfrommem_without_freedrw(self):
         """All SDL_RWFromConstMem calls in mixer functions should have matching SDL_FreeRW on error."""
         audio_stub = os.path.join(PROJECT_ROOT, "compat", "audio_stub.c")
-        with open(audio_stub, "r") as f:
+        with open(audio_stub, "r", encoding="utf-8") as f:
             lines = f.readlines()
         
         # Collect all SDL_RWFromConstMem calls with their line numbers
@@ -494,7 +494,7 @@ class TestManifestSchemaValidation:
         if not os.path.exists(manifest_path):
             pytest.skip("MANIFEST.json not generated (run with --no-ai to generate)")
         
-        with open(manifest_path) as f:
+        with open(manifest_path, encoding="utf-8") as f:
             data = json.load(f)
         
         assert isinstance(data, dict), \
@@ -723,7 +723,7 @@ class TestEndpointLoggingRedaction:
         by checking source code for both "Using:" and "_redact_endpoint(endpoint)".
         """
         source_file = os.path.join(PROJECT_ROOT, "tools", "generate_audio.py")
-        with open(source_file, "r") as f:
+        with open(source_file, "r", encoding="utf-8") as f:
             content = f.read()
         
         # Verify that logging uses _redact_endpoint for endpoint
@@ -751,7 +751,7 @@ class TestMixInitRetryBackoff:
         audio_stub = os.path.join(PROJECT_ROOT, "compat", "audio_stub.c")
         assert os.path.exists(audio_stub), f"File not found: {audio_stub}"
         
-        with open(audio_stub, "r") as f:
+        with open(audio_stub, "r", encoding="utf-8") as f:
             content = f.read()
         
         sentinel = "compat-r11-mix-init-retry-backoff: 3-attempt exp-backoff"
@@ -763,7 +763,7 @@ class TestMixInitRetryBackoff:
         """Verify SDL_Delay calls with exponential backoff (100, 200, 400 ms)."""
         audio_stub = os.path.join(PROJECT_ROOT, "compat", "audio_stub.c")
         
-        with open(audio_stub, "r") as f:
+        with open(audio_stub, "r", encoding="utf-8") as f:
             content = f.read()
         
         # Look for pattern: SDL_Delay with exponential backoff (1 << (attempt - 1))
@@ -791,7 +791,7 @@ class TestMixInitRetryBackoff:
         """Verify Mix_GetError() is called in the retry block."""
         audio_stub = os.path.join(PROJECT_ROOT, "compat", "audio_stub.c")
         
-        with open(audio_stub, "r") as f:
+        with open(audio_stub, "r", encoding="utf-8") as f:
             content = f.read()
         
         # Find the retry loop section (marked by sentinel comment)
@@ -810,7 +810,7 @@ class TestMixInitRetryBackoff:
         """Verify Mix_OpenAudio is called within a retry loop."""
         audio_stub = os.path.join(PROJECT_ROOT, "compat", "audio_stub.c")
         
-        with open(audio_stub, "r") as f:
+        with open(audio_stub, "r", encoding="utf-8") as f:
             content = f.read()
         
         # Check that Mix_OpenAudio is called with assignment to a variable
@@ -839,7 +839,7 @@ class TestParallelManifestRace:
 
     def test_sentinel_comment_in_parallel_local(self):
         """Verify sentinel comment is present in _generate_audio_parallel_local."""
-        with open(os.path.join(PROJECT_ROOT, "tools", "generate_audio.py"), "r") as f:
+        with open(os.path.join(PROJECT_ROOT, "tools", "generate_audio.py"), "r", encoding="utf-8") as f:
             content = f.read()
         
         assert "audio-r12-parallel-manifest-race: sequentialize manifest writes after pool exit" in content, \
@@ -847,7 +847,7 @@ class TestParallelManifestRace:
 
     def test_sentinel_comment_in_async_main(self):
         """Verify sentinel comment is present in _generate_audio_async_main."""
-        with open(os.path.join(PROJECT_ROOT, "tools", "generate_audio.py"), "r") as f:
+        with open(os.path.join(PROJECT_ROOT, "tools", "generate_audio.py"), "r", encoding="utf-8") as f:
             content = f.read()
         
         # Verify the sentinel appears in the async path as well
@@ -861,7 +861,7 @@ class TestParallelManifestRace:
         Pattern check: SOUND_MANIFEST[idx] mutation should NOT occur inside the
         as_completed() loop, only after executor.shutdown() (implicitly after with block).
         """
-        with open(os.path.join(PROJECT_ROOT, "tools", "generate_audio.py"), "r") as f:
+        with open(os.path.join(PROJECT_ROOT, "tools", "generate_audio.py"), "r", encoding="utf-8") as f:
             lines = f.readlines()
         
         # Find the _generate_audio_parallel_local function
@@ -967,7 +967,7 @@ class TestAudioR15SampleRateExtraction:
         audio_stub = os.path.join(PROJECT_ROOT, "compat", "audio_stub.c")
         assert os.path.exists(audio_stub), f"File not found: {audio_stub}"
         
-        with open(audio_stub, "r") as f:
+        with open(audio_stub, "r", encoding="utf-8") as f:
             content = f.read()
         
         # Check for the define with sentinel comment
@@ -989,7 +989,7 @@ class TestAudioR15SampleRateExtraction:
         """Verify literal 44100 no longer appears in compat/audio_stub.c code (only in define/comment)."""
         audio_stub = os.path.join(PROJECT_ROOT, "compat", "audio_stub.c")
         
-        with open(audio_stub, "r") as f:
+        with open(audio_stub, "r", encoding="utf-8") as f:
             lines = f.readlines()
         
         # Count occurrences outside of #define line and sentinel comment
@@ -1014,7 +1014,7 @@ class TestAudioR15SampleRateExtraction:
         """Verify AUDIO_DEFAULT_SAMPLE_RATE is used in Mix_OpenAudio call."""
         audio_stub = os.path.join(PROJECT_ROOT, "compat", "audio_stub.c")
         
-        with open(audio_stub, "r") as f:
+        with open(audio_stub, "r", encoding="utf-8") as f:
             content = f.read()
         
         # Check that Mix_OpenAudio uses either literal or AUDIO_DEFAULT_SAMPLE_RATE
@@ -1030,7 +1030,7 @@ class TestAudioR15SampleRateExtraction:
         """Verify all cycle-46 audio defines are still present."""
         audio_stub = os.path.join(PROJECT_ROOT, "compat", "audio_stub.c")
         
-        with open(audio_stub, "r") as f:
+        with open(audio_stub, "r", encoding="utf-8") as f:
             content = f.read()
         
         # Check for cycle-46 defines
@@ -1702,7 +1702,7 @@ class TestAtomicWriteHardening:
             generate_audio._atomic_write_json(path, obj)
             
             assert os.path.exists(path), "JSON file should exist after write"
-            with open(path, "r") as f:
+            with open(path, "r", encoding="utf-8") as f:
                 loaded = json.load(f)
             assert loaded == obj, "Loaded JSON should match original object"
     
@@ -1714,7 +1714,7 @@ class TestAtomicWriteHardening:
             
             generate_audio._atomic_write_json(path, obj, indent=2, sort_keys=True)
             
-            with open(path, "r") as f:
+            with open(path, "r", encoding="utf-8") as f:
                 content = f.read()
             
             # Check that keys are sorted (indent and sort_keys worked)
@@ -1784,7 +1784,7 @@ class TestSoundManifestSchemaVersion:
                     }
                 ]
             }
-            with open(manifest_path, "w") as f:
+            with open(manifest_path, "w", encoding="utf-8") as f:
                 json.dump(manifest, f)
             
             # Should load with warning, not raise (fallback to "1.0")
@@ -1815,7 +1815,7 @@ class TestSoundManifestSchemaVersion:
                     }
                 ]
             }
-            with open(manifest_path, "w") as f:
+            with open(manifest_path, "w", encoding="utf-8") as f:
                 json.dump(manifest, f)
             
             # Should raise ValueError for unsupported version
@@ -1842,7 +1842,7 @@ class TestSoundManifestSchemaVersion:
                     }
                 ]
             }
-            with open(manifest_path, "w") as f:
+            with open(manifest_path, "w", encoding="utf-8") as f:
                 json.dump(manifest, f)
             
             # Should raise ValueError for unsupported downgrade version
@@ -1870,7 +1870,7 @@ class TestSoundManifestSchemaVersion:
                     }
                 ]
             }
-            with open(manifest_path, "w") as f:
+            with open(manifest_path, "w", encoding="utf-8") as f:
                 json.dump(manifest, f)
             
             # This should succeed - the correct schema_version
@@ -1918,7 +1918,7 @@ class TestSchemaVersionFallback:
                 ]
                 # Note: no schema_version field
             }
-            with open(manifest_path, "w") as f:
+            with open(manifest_path, "w", encoding="utf-8") as f:
                 json.dump(manifest, f)
             
             # Create a dummy WAV file
@@ -1956,7 +1956,7 @@ class TestSchemaVersionFallback:
                     }
                 ]
             }
-            with open(manifest_path, "w") as f:
+            with open(manifest_path, "w", encoding="utf-8") as f:
                 json.dump(manifest, f)
             
             # Create a dummy WAV file
@@ -1991,7 +1991,7 @@ class TestSchemaVersionFallback:
                 "schema_version": "2.0",
                 "entries": []
             }
-            with open(manifest_path, "w") as f:
+            with open(manifest_path, "w", encoding="utf-8") as f:
                 json.dump(manifest, f)
             
             # Should raise ValueError for unsupported schema_version

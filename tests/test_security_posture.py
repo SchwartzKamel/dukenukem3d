@@ -32,7 +32,7 @@ def test_generate_audio_no_unsafe_subprocess_calls():
     
     assert generate_audio.exists(), f"File not found: {generate_audio}"
     
-    content = generate_audio.read_text()
+    content = generate_audio.read_text(encoding="utf-8")
     
     # Check if subprocess is imported
     has_subprocess_import = bool(
@@ -108,7 +108,7 @@ def test_workflow_secrets_have_sentinels():
     workflow_files = sorted(workflows_dir.glob("*.yml")) + sorted(workflows_dir.glob("*.yaml"))
     
     for workflow_file in workflow_files:
-        content = workflow_file.read_text()
+        content = workflow_file.read_text(encoding="utf-8")
         lines = content.split('\n')
         
         # Find all ${{ secrets.* }} references with their line numbers

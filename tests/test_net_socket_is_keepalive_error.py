@@ -33,14 +33,14 @@ class TestNetSocketIsKeepaliveErrorDeclaration:
     
     def test_is_keepalive_error_declared(self):
         """net_socket.h must declare net_socket_is_keepalive_error."""
-        with open('compat/net_socket.h') as f:
+        with open('compat/net_socket.h', encoding="utf-8") as f:
             content = f.read()
         assert 'net_socket_is_keepalive_error' in content
         assert 'int net_socket_is_keepalive_error' in content
     
     def test_posix_implementation_has_is_keepalive_error(self):
         """net_socket_posix.c must implement net_socket_is_keepalive_error."""
-        with open('compat/net_socket_posix.c') as f:
+        with open('compat/net_socket_posix.c', encoding="utf-8") as f:
             content = f.read()
         assert 'net_socket_is_keepalive_error' in content
         # Should check for ETIMEDOUT and ECONNRESET
@@ -48,7 +48,7 @@ class TestNetSocketIsKeepaliveErrorDeclaration:
     
     def test_win32_implementation_has_is_keepalive_error(self):
         """net_socket_win32.c must implement net_socket_is_keepalive_error."""
-        with open('compat/net_socket_win32.c') as f:
+        with open('compat/net_socket_win32.c', encoding="utf-8") as f:
             content = f.read()
         assert 'net_socket_is_keepalive_error' in content
         # Should check for Windows error codes
@@ -106,7 +106,7 @@ class TestNetSocketIsKeepaliveErrorPositiveCases:
     def test_keepalive_positive_cases(self, error_name, expected):
         """Test that ETIMEDOUT and ECONNRESET are recognized as keepalive errors."""
         # Verify the error codes are handled correctly in source
-        with open('compat/net_socket_posix.c') as f:
+        with open('compat/net_socket_posix.c', encoding="utf-8") as f:
             content = f.read()
         
         if error_name in content:
@@ -129,7 +129,7 @@ class TestNetSocketIsKeepaliveErrorNegativeCases:
     def test_keepalive_negative_cases(self, error_name, expected):
         """Test that other errors are NOT recognized as keepalive errors."""
         # These tests verify the logic in the implementation
-        with open('compat/net_socket_posix.c') as f:
+        with open('compat/net_socket_posix.c', encoding="utf-8") as f:
             content = f.read()
         
         # The implementation should only return true for ETIMEDOUT/ECONNRESET

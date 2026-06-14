@@ -50,7 +50,7 @@ class TestInstallHooks:
         # Create .githooks directory with pre-commit
         githooks_dst = repo / ".githooks"
         githooks_dst.mkdir()
-        (githooks_dst / "pre-commit").write_text("#!/bin/sh\necho 'test hook'\n")
+        (githooks_dst / "pre-commit").write_text("#!/bin/sh\necho 'test hook'\n", encoding="utf-8")
         os.chmod(githooks_dst / "pre-commit", 0o755)
         
         # Run the installer from the temp repo
@@ -95,7 +95,7 @@ class TestInstallHooks:
         # Create .githooks directory with pre-commit
         githooks_dst = repo / ".githooks"
         githooks_dst.mkdir()
-        (githooks_dst / "pre-commit").write_text("#!/bin/sh\necho 'test hook'\n")
+        (githooks_dst / "pre-commit").write_text("#!/bin/sh\necho 'test hook'\n", encoding="utf-8")
         os.chmod(githooks_dst / "pre-commit", 0o755)
         
         # Run installer first time

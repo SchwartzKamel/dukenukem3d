@@ -321,7 +321,7 @@ class TestNoAiCodePath:
         manifest_path = os.path.join(PROJECT_ROOT, "generated_assets", "sounds", "MANIFEST.json")
         assert os.path.exists(manifest_path), f"MANIFEST.json not created: {manifest_path}"
         
-        with open(manifest_path, "r") as f:
+        with open(manifest_path, "r", encoding="utf-8") as f:
             manifest = json.load(f)
         
         # Cycle 75-76: manifest schema evolved from list to dict with
@@ -470,7 +470,7 @@ class TestLoadEnv:
     def test_load_env_parses_key_value_pairs(self, tmp_path):
         """load_env() must parse key=value lines."""
         env_file = tmp_path / ".env"
-        env_file.write_text("KEY1=value1\nKEY2=value2\n")
+        env_file.write_text("KEY1=value1\nKEY2=value2\n", encoding="utf-8")
         
         result = generate_audio.load_env(str(env_file))
         assert result["KEY1"] == "value1"
@@ -479,7 +479,7 @@ class TestLoadEnv:
     def test_load_env_ignores_comments(self, tmp_path):
         """load_env() must ignore comment lines."""
         env_file = tmp_path / ".env"
-        env_file.write_text("# Comment\nKEY=value\n# Another comment\n")
+        env_file.write_text("# Comment\nKEY=value\n# Another comment\n", encoding="utf-8")
         
         result = generate_audio.load_env(str(env_file))
         assert "KEY" in result
@@ -489,7 +489,7 @@ class TestLoadEnv:
     def test_load_env_ignores_empty_lines(self, tmp_path):
         """load_env() must ignore empty lines."""
         env_file = tmp_path / ".env"
-        env_file.write_text("KEY1=value1\n\n\nKEY2=value2\n")
+        env_file.write_text("KEY1=value1\n\n\nKEY2=value2\n", encoding="utf-8")
         
         result = generate_audio.load_env(str(env_file))
         assert len(result) == 2
@@ -552,7 +552,7 @@ class TestNoSecretLeak:
         """generate_audio.py must not contain hardcoded AUDIO_API_KEY."""
         import re
         source_file = os.path.join(PROJECT_ROOT, "tools", "generate_audio.py")
-        with open(source_file, "r") as f:
+        with open(source_file, "r", encoding="utf-8") as f:
             content = f.read()
         
         hardcoded_pattern = r'AUDIO_API_KEY\s*=\s*["\']'
@@ -563,7 +563,7 @@ class TestNoSecretLeak:
         """generate_audio.py must not contain hardcoded AUDIO_ENDPOINT."""
         import re
         source_file = os.path.join(PROJECT_ROOT, "tools", "generate_audio.py")
-        with open(source_file, "r") as f:
+        with open(source_file, "r", encoding="utf-8") as f:
             content = f.read()
         
         hardcoded_pattern = r'AUDIO_ENDPOINT\s*=\s*["\']https?'
@@ -574,7 +574,7 @@ class TestNoSecretLeak:
         """generate_audio.py must use safe env lookup methods."""
         import re
         source_file = os.path.join(PROJECT_ROOT, "tools", "generate_audio.py")
-        with open(source_file, "r") as f:
+        with open(source_file, "r", encoding="utf-8") as f:
             content = f.read()
         
         unsafe_pattern = r'os\.environ\s*\[\s*["\'](?:AUDIO_API_KEY|AUDIO_ENDPOINT)'
@@ -638,7 +638,7 @@ class TestAsyncTimeoutRegression:
         assert result.returncode == 0, f"--no-ai failed: {result.stderr}"
         
         manifest_path = os.path.join(PROJECT_ROOT, "generated_assets", "sounds", "MANIFEST.json")
-        with open(manifest_path) as f:
+        with open(manifest_path, encoding="utf-8") as f:
             manifest = json.load(f)
         
         entries = manifest.get("entries", []) if isinstance(manifest, dict) else manifest
@@ -679,7 +679,7 @@ class TestManifestFreshnessSidecar:
         assert result.returncode == 0, f"--no-ai failed: {result.stderr}"
         
         sidecar_path = os.path.join(PROJECT_ROOT, "generated_assets", "sounds", "audio_manifest.freshness.json")
-        with open(sidecar_path) as f:
+        with open(sidecar_path, encoding="utf-8") as f:
             freshness_data = json.load(f)
         
         assert "generated_at" in freshness_data, "Freshness sidecar missing 'generated_at' field"
@@ -698,7 +698,7 @@ class TestManifestFreshnessSidecar:
         assert result.returncode == 0, f"--no-ai failed: {result.stderr}"
         
         sidecar_path = os.path.join(PROJECT_ROOT, "generated_assets", "sounds", "audio_manifest.freshness.json")
-        with open(sidecar_path) as f:
+        with open(sidecar_path, encoding="utf-8") as f:
             freshness_data = json.load(f)
         
         generated_at = freshness_data["generated_at"]
@@ -720,7 +720,7 @@ class TestManifestFreshnessSidecar:
         assert result.returncode == 0, f"--no-ai failed: {result.stderr}"
         
         manifest_path = os.path.join(PROJECT_ROOT, "generated_assets", "sounds", "MANIFEST.json")
-        with open(manifest_path) as f:
+        with open(manifest_path, encoding="utf-8") as f:
             manifest = json.load(f)
         
         entries = manifest.get("entries", []) if isinstance(manifest, dict) else manifest
@@ -744,10 +744,10 @@ class TestManifestFreshnessSidecar:
         manifest_path = os.path.join(PROJECT_ROOT, "generated_assets", "sounds", "MANIFEST.json")
         sidecar_path = os.path.join(PROJECT_ROOT, "generated_assets", "sounds", "audio_manifest.freshness.json")
         
-        with open(manifest_path) as f:
+        with open(manifest_path, encoding="utf-8") as f:
             manifest = json.load(f)
         
-        with open(sidecar_path) as f:
+        with open(sidecar_path, encoding="utf-8") as f:
             freshness_data = json.load(f)
         
         manifest_checksum = manifest.get("manifest_checksum")
@@ -773,7 +773,7 @@ class TestManifestFreshnessSidecar:
         manifest_path = os.path.join(PROJECT_ROOT, "generated_assets", "sounds", "MANIFEST.json")
         sidecar_path = os.path.join(PROJECT_ROOT, "generated_assets", "sounds", "audio_manifest.freshness.json")
         
-        with open(manifest_path) as f:
+        with open(manifest_path, encoding="utf-8") as f:
             manifest = json.load(f)
         
         # Manifest should NOT have a "freshness" key at top level
@@ -961,12 +961,12 @@ class TestAudioMainEndpointIntegration:
         # Backup original .env file
         backup_content = None
         if os.path.exists(env_file):
-            with open(env_file, "r") as f:
+            with open(env_file, "r", encoding="utf-8") as f:
                 backup_content = f.read()
         
         try:
             # Write temporary .env with unreachable endpoint
-            with open(env_file, "w") as f:
+            with open(env_file, "w", encoding="utf-8") as f:
                 f.write(
                     "AUDIO_ENDPOINT=https://nonexistent.invalid.test/\n"
                     "AUDIO_API_KEY=test_dummy_key_long_enough_16chars\n"
@@ -1001,7 +1001,7 @@ class TestAudioMainEndpointIntegration:
         finally:
             # Restore original .env file
             if backup_content is not None:
-                with open(env_file, "w") as f:
+                with open(env_file, "w", encoding="utf-8") as f:
                     f.write(backup_content)
             else:
                 # Remove the file if it didn't exist before
@@ -1022,12 +1022,12 @@ class TestAudioMainEndpointIntegration:
         # Backup original .env file
         backup_content = None
         if os.path.exists(env_file):
-            with open(env_file, "r") as f:
+            with open(env_file, "r", encoding="utf-8") as f:
                 backup_content = f.read()
         
         try:
             # Write temporary .env with invalid API key
-            with open(env_file, "w") as f:
+            with open(env_file, "w", encoding="utf-8") as f:
                 f.write(
                     "AUDIO_ENDPOINT=https://api.openai.com/v1/audio\n"
                     "AUDIO_API_KEY=short_key\n"
@@ -1062,7 +1062,7 @@ class TestAudioMainEndpointIntegration:
         finally:
             # Restore original .env file
             if backup_content is not None:
-                with open(env_file, "w") as f:
+                with open(env_file, "w", encoding="utf-8") as f:
                     f.write(backup_content)
             else:
                 # Remove the file if it didn't exist before

@@ -40,7 +40,7 @@ def test_fixture_isolation_no_shared_tmp_collision():
                     if not done_marker.exists():
                         # Simulate fixture initialization work
                         test_file = Path(tmpdir) / "shared_artifact.txt"
-                        test_file.write_text(f"Created by worker {worker_id}")
+                        test_file.write_text(f"Created by worker {worker_id}", encoding="utf-8")
                         done_marker.touch()
                 
                 # Now verify the artifact exists

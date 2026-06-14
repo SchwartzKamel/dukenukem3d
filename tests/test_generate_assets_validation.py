@@ -326,7 +326,7 @@ def test_worker_error_logging_to_jsonl(tmp_path, monkeypatch):
         log_file = tmp_path / "GENERATION_LOG.jsonl"
         assert log_file.exists(), "GENERATION_LOG.jsonl should be created"
         
-        with open(log_file) as f:
+        with open(log_file, encoding="utf-8") as f:
             log_lines = f.readlines()
         
         assert len(log_lines) > 0, "Log file should have at least one record"
@@ -385,7 +385,7 @@ def test_worker_catches_specific_exceptions(tmp_path, exception_type, exception_
         log_file = tmp_path / "GENERATION_LOG.jsonl"
         if log_file.exists():
             import json
-            with open(log_file) as f:
+            with open(log_file, encoding="utf-8") as f:
                 log_lines = f.readlines()
             if log_lines:
                 record = json.loads(log_lines[-1])
@@ -607,7 +607,7 @@ class TestAssetR16GenlogRotation:
                 "error_message": f"Test error {i}",
                 "worker_pid": 12345,
             }
-            with open(self.test_log_file, "a") as f:
+            with open(self.test_log_file, "a", encoding="utf-8") as f:
                 json.dump(record, f)
                 f.write("\n")
         
@@ -615,7 +615,7 @@ class TestAssetR16GenlogRotation:
         sys.modules['generate_assets']._rotate_generation_log()
         
         # Verify all 10 entries are still present
-        with open(self.test_log_file, "r") as f:
+        with open(self.test_log_file, "r", encoding="utf-8") as f:
             lines = f.readlines()
         
         assert len(lines) == 10, f"Expected 10 lines, got {len(lines)}"
@@ -637,7 +637,7 @@ class TestAssetR16GenlogRotation:
                 "error_message": f"Test error {i}",
                 "worker_pid": 12345,
             }
-            with open(self.test_log_file, "a") as f:
+            with open(self.test_log_file, "a", encoding="utf-8") as f:
                 json.dump(record, f)
                 f.write("\n")
         
@@ -653,12 +653,12 @@ class TestAssetR16GenlogRotation:
         # Trigger rotation before appending
         sys.modules['generate_assets']._rotate_generation_log()
         
-        with open(self.test_log_file, "a") as f:
+        with open(self.test_log_file, "a", encoding="utf-8") as f:
             json.dump(record, f)
             f.write("\n")
         
         # Verify post-rotation state
-        with open(self.test_log_file, "r") as f:
+        with open(self.test_log_file, "r", encoding="utf-8") as f:
             lines = f.readlines()
         
         # Should have at most 550 (50% of 1100) + 1 (log_rotated) + 1 (new entry)
@@ -697,7 +697,7 @@ class TestAssetR16GenlogRotation:
                 "error_message": "x" * entry_size,  # Large payload
                 "worker_pid": 12345,
             }
-            with open(self.test_log_file, "a") as f:
+            with open(self.test_log_file, "a", encoding="utf-8") as f:
                 json.dump(record, f)
                 f.write("\n")
         
@@ -718,7 +718,7 @@ class TestAssetR16GenlogRotation:
                 f"Post-rotation size {final_size} exceeds max {GENERATION_LOG_MAX_BYTES}"
             
             # Verify first entry is log_rotated
-            with open(self.test_log_file, "r") as f:
+            with open(self.test_log_file, "r", encoding="utf-8") as f:
                 first_line = f.readline()
             first_entry = json.loads(first_line)
             assert first_entry.get("event") == "log_rotated"
@@ -736,7 +736,7 @@ class TestAssetR16GenlogRotation:
                 "error_message": f"Entry {i}",
                 "worker_pid": 12345,
             }
-            with open(self.test_log_file, "a") as f:
+            with open(self.test_log_file, "a", encoding="utf-8") as f:
                 json.dump(record, f)
                 f.write("\n")
         
@@ -746,7 +746,7 @@ class TestAssetR16GenlogRotation:
         # Verify file still exists and is valid JSON
         assert os.path.exists(self.test_log_file)
         
-        with open(self.test_log_file, "r") as f:
+        with open(self.test_log_file, "r", encoding="utf-8") as f:
             lines = f.readlines()
         
         # All lines should be valid JSON
@@ -778,11 +778,11 @@ class TestAssetR16GenlogRotation:
             "error_message": "Post-rotation entry",
             "worker_pid": 12345,
         }
-        with open(self.test_log_file, "a") as f:
+        with open(self.test_log_file, "a", encoding="utf-8") as f:
             json.dump(new_record, f)
             f.write("\n")
         
         # Final check: file still parseable
-        with open(self.test_log_file, "r") as f:
+        with open(self.test_log_file, "r", encoding="utf-8") as f:
             final_lines = f.readlines()
         assert len(final_lines) > len(lines), "Should have added new entry"

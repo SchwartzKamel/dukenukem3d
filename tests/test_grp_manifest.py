@@ -71,7 +71,7 @@ class TestGrpManifestEmission(unittest.TestCase):
         _emit_grp_manifest(grp_path, grp_contents, manifest_path)
 
         # Read and validate structure
-        with open(manifest_path, "r") as f:
+        with open(manifest_path, "r", encoding="utf-8") as f:
             manifest = json.load(f)
 
         # Check required fields
@@ -99,7 +99,7 @@ class TestGrpManifestEmission(unittest.TestCase):
         manifest_path = os.path.join(self.temp_dir, "GRP_MANIFEST.json")
         _emit_grp_manifest(grp_path, grp_contents, manifest_path)
 
-        with open(manifest_path, "r") as f:
+        with open(manifest_path, "r", encoding="utf-8") as f:
             manifest = json.load(f)
 
         # Verify members
@@ -115,7 +115,7 @@ class TestGrpManifestEmission(unittest.TestCase):
     def test_sentinel_in_source(self):
         """Test that sentinel 'asset-r16-grp-manifest-emit' exists in source."""
         # sentinel: asset-r16-grp-manifest-emit
-        with open(os.path.join(TOOLS_DIR, "generate_assets.py"), "r") as f:
+        with open(os.path.join(TOOLS_DIR, "generate_assets.py"), "r", encoding="utf-8") as f:
             source = f.read()
         self.assertIn("asset-r16-grp-manifest-emit", source,
                       "Sentinel 'asset-r16-grp-manifest-emit' not found in generate_assets.py")
@@ -133,7 +133,7 @@ class TestGrpManifestEmission(unittest.TestCase):
         _emit_grp_manifest(grp_path, grp_contents, manifest_path)
 
         # Load manifest
-        with open(manifest_path, "r") as f:
+        with open(manifest_path, "r", encoding="utf-8") as f:
             manifest = json.load(f)
 
         # Verify manifest checksum validation
@@ -236,11 +236,11 @@ class TestGrpManifestVerification(unittest.TestCase):
         _emit_grp_manifest(grp_path, grp_contents, manifest_path)
 
         # Tamper with manifest checksum
-        with open(manifest_path, "r") as f:
+        with open(manifest_path, "r", encoding="utf-8") as f:
             manifest = json.load(f)
         manifest["manifest_checksum"] = "badbadbadbadbadbadbadbadbadbadbadbadbadbadbadbadbadbadbadbadbadb"
 
-        with open(manifest_path, "w") as f:
+        with open(manifest_path, "w", encoding="utf-8") as f:
             json.dump(manifest, f)
 
         # Verification should fail

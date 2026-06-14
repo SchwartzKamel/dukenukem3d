@@ -60,12 +60,14 @@ def git_repo(tmp_path):
 
 def run_check_secrets(repo_dir):
     """Run check_secrets.sh against staged changes in the test repo."""
-    script_path = repo_dir / "tools" / "check_secrets.sh"
     result = subprocess.run(
-        ["bash", str(script_path)],
+        # Relative forward-slash path: `bash` here is WSL (maps the Windows cwd
+        # to /mnt/c/...); a Windows absolute path would be mangled by the shell.
+        ["bash", "tools/check_secrets.sh"],
         cwd=repo_dir,
         capture_output=True,
-        text=True
+        text=True,
+        encoding="utf-8",  # the script prints a non-ASCII emoji; decode as UTF-8
     )
     return result
 

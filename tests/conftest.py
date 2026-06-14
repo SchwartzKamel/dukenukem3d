@@ -345,7 +345,7 @@ int main() {
     out_file = tmpdir / "makepalookup_bounds"
     
     # Write C code
-    c_file.write_text(c_code)
+    c_file.write_text(c_code, encoding="utf-8")
     
     # Compile
     result = subprocess.run(
@@ -500,7 +500,7 @@ def compiled_keepalive_error_harness(tmp_path_factory):
     exe_file = tmpdir / 'test_keepalive_error'
     
     # Write test source
-    src_file.write_text(test_code)
+    src_file.write_text(test_code, encoding="utf-8")
     
     # Compile
     compile_cmd = [
@@ -653,7 +653,7 @@ def compiled_sha256_harness(tmp_path_factory):
     exe_file = tmpdir / 'test_sha256'
     
     # Write test source
-    src_file.write_text(test_code)
+    src_file.write_text(test_code, encoding="utf-8")
     
     # Compile with compat/sha256.c
     project_root = Path(PROJECT_ROOT)

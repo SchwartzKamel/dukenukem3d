@@ -34,7 +34,7 @@ class TestManifestVerifierAdoption:
         
         # Check that the function imports and uses the verifier
         source_file = os.path.join(TOOLS_DIR, "generate_audio.py")
-        with open(source_file) as f:
+        with open(source_file, encoding="utf-8") as f:
             content = f.read()
         
         # Verify import is present
@@ -82,7 +82,7 @@ class TestManifestVerifierAdoption:
             for line in manifest_json_loads:
                 file_path, line_content = line.split(':', 1)
                 # Make sure the file uses the verifier somewhere
-                with open(file_path) as f:
+                with open(file_path, encoding="utf-8") as f:
                     file_content = f.read()
                 assert "load_and_verify_audio_manifest" in file_content or \
                        "load_and_verify_tables_manifest" in file_content, \
@@ -94,7 +94,7 @@ class TestManifestVerifierAdoption:
         sec-r15-manifest-loader-adoption: Ensures migrations are marked.
         """
         generate_audio_file = os.path.join(TOOLS_DIR, "generate_audio.py")
-        with open(generate_audio_file) as f:
+        with open(generate_audio_file, encoding="utf-8") as f:
             content = f.read()
         
         # Count migration sentinels (should be present in load_manifest)
@@ -117,7 +117,7 @@ class TestManifestLoaderBypassDocumentation:
         testing must have bypass comments.
         """
         test_audio_pipeline = os.path.join(TESTS_DIR, "test_audio_pipeline.py")
-        with open(test_audio_pipeline) as f:
+        with open(test_audio_pipeline, encoding="utf-8") as f:
             content = f.read()
         
         # Search for test methods that load manifests without checksums

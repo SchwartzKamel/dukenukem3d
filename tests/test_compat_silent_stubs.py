@@ -168,7 +168,7 @@ def test_silent_stub_fx_get_volume():
     # Note: Direct Python testing would require ctypes binding to C.
     # Instead, we verify the stub exists in source code.
     compat_audio = Path(__file__).parent.parent / 'compat' / 'audio_stub.c'
-    source = compat_audio.read_text()
+    source = compat_audio.read_text(encoding="utf-8")
     assert 'FX_GetVolume' in source, "FX_GetVolume not found in audio_stub.c"
     assert 'return fx_volume' in source, "FX_GetVolume should return fx_volume"
 
@@ -176,7 +176,7 @@ def test_silent_stub_fx_get_volume():
 def test_silent_stub_fx_get_max_reverb_delay():
     """Test FX_GetMaxReverbDelay() returns constant 256."""
     compat_audio = Path(__file__).parent.parent / 'compat' / 'audio_stub.c'
-    source = compat_audio.read_text()
+    source = compat_audio.read_text(encoding="utf-8")
     assert 'FX_GetMaxReverbDelay' in source
     # Should return 256
     assert '256' in source, "Expected constant 256 in audio_stub.c"
@@ -185,7 +185,7 @@ def test_silent_stub_fx_get_max_reverb_delay():
 def test_silent_stub_ts_lock_memory():
     """Test TS_LockMemory() returns TASK_Ok constant."""
     compat_audio = Path(__file__).parent.parent / 'compat' / 'audio_stub.c'
-    source = compat_audio.read_text()
+    source = compat_audio.read_text(encoding="utf-8")
     assert 'TS_LockMemory' in source
     assert 'TASK_Ok' in source, "TS_LockMemory should return TASK_Ok"
 
@@ -193,14 +193,14 @@ def test_silent_stub_ts_lock_memory():
 def test_silent_stub_ts_unlock_memory():
     """Test TS_UnlockMemory() is no-op."""
     compat_audio = Path(__file__).parent.parent / 'compat' / 'audio_stub.c'
-    source = compat_audio.read_text()
+    source = compat_audio.read_text(encoding="utf-8")
     assert 'TS_UnlockMemory' in source
 
 
 def test_silent_stub_deltatime1mhz():
     """Test deltatime1mhz() returns 0."""
     mact_stub = Path(__file__).parent.parent / 'compat' / 'mact_stub.c'
-    source = mact_stub.read_text()
+    source = mact_stub.read_text(encoding="utf-8")
     assert 'deltatime1mhz' in source
     # Should return 0
     assert '{ return 0; }' in source or 'return 0;' in source
@@ -209,56 +209,56 @@ def test_silent_stub_deltatime1mhz():
 def test_silent_stub_music_set_max_fm_midi_channel():
     """Test MUSIC_SetMaxFMMidiChannel() is no-op."""
     compat_audio = Path(__file__).parent.parent / 'compat' / 'audio_stub.c'
-    source = compat_audio.read_text()
+    source = compat_audio.read_text(encoding="utf-8")
     assert 'MUSIC_SetMaxFMMidiChannel' in source
 
 
 def test_silent_stub_music_set_midi_channel_volume():
     """Test MUSIC_SetMidiChannelVolume() is no-op."""
     compat_audio = Path(__file__).parent.parent / 'compat' / 'audio_stub.c'
-    source = compat_audio.read_text()
+    source = compat_audio.read_text(encoding="utf-8")
     assert 'MUSIC_SetMidiChannelVolume' in source
 
 
 def test_silent_stub_music_reset_midi_channel_volumes():
     """Test MUSIC_ResetMidiChannelVolumes() is no-op."""
     compat_audio = Path(__file__).parent.parent / 'compat' / 'audio_stub.c'
-    source = compat_audio.read_text()
+    source = compat_audio.read_text(encoding="utf-8")
     assert 'MUSIC_ResetMidiChannelVolumes' in source
 
 
 def test_silent_stub_music_set_song_tick():
     """Test MUSIC_SetSongTick() is no-op."""
     compat_audio = Path(__file__).parent.parent / 'compat' / 'audio_stub.c'
-    source = compat_audio.read_text()
+    source = compat_audio.read_text(encoding="utf-8")
     assert 'MUSIC_SetSongTick' in source
 
 
 def test_silent_stub_music_set_song_time():
     """Test MUSIC_SetSongTime() is no-op."""
     compat_audio = Path(__file__).parent.parent / 'compat' / 'audio_stub.c'
-    source = compat_audio.read_text()
+    source = compat_audio.read_text(encoding="utf-8")
     assert 'MUSIC_SetSongTime' in source
 
 
 def test_silent_stub_music_set_song_position():
     """Test MUSIC_SetSongPosition() is no-op."""
     compat_audio = Path(__file__).parent.parent / 'compat' / 'audio_stub.c'
-    source = compat_audio.read_text()
+    source = compat_audio.read_text(encoding="utf-8")
     assert 'MUSIC_SetSongPosition' in source
 
 
 def test_silent_stub_music_register_timbre_bank():
     """Test MUSIC_RegisterTimbreBank() is no-op."""
     compat_audio = Path(__file__).parent.parent / 'compat' / 'audio_stub.c'
-    source = compat_audio.read_text()
+    source = compat_audio.read_text(encoding="utf-8")
     assert 'MUSIC_RegisterTimbreBank' in source
 
 
 def test_silent_stub_testcallback():
     """Test testcallback() is no-op."""
     mact_stub = Path(__file__).parent.parent / 'compat' / 'mact_stub.c'
-    source = mact_stub.read_text()
+    source = mact_stub.read_text(encoding="utf-8")
     assert 'testcallback' in source
 
 
@@ -266,7 +266,7 @@ def test_compat_silent_stubs_doc_exists():
     """Verify SILENT_STUBS.md documentation exists."""
     compat_doc = Path(__file__).parent.parent / 'compat' / 'SILENT_STUBS.md'
     assert compat_doc.exists(), "compat/SILENT_STUBS.md should exist"
-    content = compat_doc.read_text()
+    content = compat_doc.read_text(encoding="utf-8")
     assert '14 silent stubs' in content.lower() or 'silent stubs' in content.lower()
     assert 'determinism' in content.lower()
 
@@ -274,7 +274,7 @@ def test_compat_silent_stubs_doc_exists():
 def test_compat_all_14_stubs_documented():
     """Verify all 14 stubs mentioned in documentation."""
     compat_doc = Path(__file__).parent.parent / 'compat' / 'SILENT_STUBS.md'
-    content = compat_doc.read_text()
+    content = compat_doc.read_text(encoding="utf-8")
 
     # Check for all 14 stubs
     stubs = [
@@ -301,7 +301,7 @@ def test_compat_all_14_stubs_documented():
 def test_compat_silent_stubs_determinism_guarantee():
     """Verify determinism guarantees documented."""
     compat_doc = Path(__file__).parent.parent / 'compat' / 'SILENT_STUBS.md'
-    content = compat_doc.read_text()
+    content = compat_doc.read_text(encoding="utf-8")
 
     # Check for key determinism concepts
     assert 'Return Value Constancy' in content
@@ -312,7 +312,7 @@ def test_compat_silent_stubs_determinism_guarantee():
 def test_compat_silent_stubs_per_frame_classification():
     """Verify per-frame stubs marked correctly."""
     compat_doc = Path(__file__).parent.parent / 'compat' / 'SILENT_STUBS.md'
-    content = compat_doc.read_text()
+    content = compat_doc.read_text(encoding="utf-8")
 
     per_frame_stubs = [
         'FX_GetVolume',
@@ -331,7 +331,7 @@ def test_compat_silent_stubs_per_frame_classification():
 def test_compat_silent_stubs_config_classification():
     """Verify config stubs marked correctly."""
     compat_doc = Path(__file__).parent.parent / 'compat' / 'SILENT_STUBS.md'
-    content = compat_doc.read_text()
+    content = compat_doc.read_text(encoding="utf-8")
 
     config_stubs = [
         'MUSIC_SetMaxFMMidiChannel',

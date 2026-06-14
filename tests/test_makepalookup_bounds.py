@@ -78,7 +78,7 @@ def test_makepalookup_guard_location_exists():
     if not os.path.exists(engine_c):
         pytest.skip(f"{engine_c} not found")
     
-    with open(engine_c, "r", errors="replace") as f:
+    with open(engine_c, "r", errors="replace", encoding="utf-8") as f:
         lines = f.readlines()
     
     # The guard should be in the makepalookup function
@@ -110,7 +110,7 @@ def test_premap_guard_location_exists():
     if not os.path.exists(premap_c):
         pytest.skip(f"{premap_c} not found")
     
-    with open(premap_c, "r", errors="replace") as f:
+    with open(premap_c, "r", errors="replace", encoding="utf-8") as f:
         lines = f.readlines()
     
     # Look for the guard in PREMAP.C
@@ -136,7 +136,7 @@ def test_maxpalookups_value():
     if not os.path.exists(build_h):
         pytest.skip(f"{build_h} not found")
     
-    with open(build_h, "r", errors="replace") as f:
+    with open(build_h, "r", errors="replace", encoding="utf-8") as f:
         content = f.read()
     
     # Check that MAXPALOOKUPS is defined as 256

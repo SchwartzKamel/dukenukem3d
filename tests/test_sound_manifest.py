@@ -191,7 +191,7 @@ class TestManifestFileGeneration:
         """MANIFEST.json must be valid JSON with schema_version."""
         manifest_path = os.path.join(PROJECT_ROOT, "generated_assets", "sounds", "MANIFEST.json")
         try:
-            with open(manifest_path) as f:
+            with open(manifest_path, encoding="utf-8") as f:
                 data = json.load(f)
             assert isinstance(data, dict), f"MANIFEST.json root must be a dict, got {type(data)}"
             assert "schema_version" in data, "MANIFEST.json missing schema_version field"
@@ -205,7 +205,7 @@ class TestManifestFileGeneration:
     def test_manifest_file_matches_constant(self):
         """MANIFEST.json file content must match SOUND_MANIFEST constant (except checksums)."""
         manifest_path = os.path.join(PROJECT_ROOT, "generated_assets", "sounds", "MANIFEST.json")
-        with open(manifest_path) as f:
+        with open(manifest_path, encoding="utf-8") as f:
             file_manifest = json.load(f)
         
         # New manifest has entries field
@@ -527,7 +527,7 @@ class TestManifestJsonRoundtrip:
         """Load MANIFEST.json, dump to JSON, reload, verify voice categories are identical."""
         manifest_path = os.path.join(PROJECT_ROOT, "generated_assets", "sounds", "MANIFEST.json")
         
-        with open(manifest_path, "r") as f:
+        with open(manifest_path, "r", encoding="utf-8") as f:
             original_manifest = json.load(f)
         
         # Extract entries from the new manifest structure
@@ -564,7 +564,7 @@ class TestManifestSchemaPydantic:
         """Load every manifest entry and validate through SoundManifestEntry model."""
         manifest_path = os.path.join(PROJECT_ROOT, "generated_assets", "sounds", "MANIFEST.json")
         
-        with open(manifest_path, "r") as f:
+        with open(manifest_path, "r", encoding="utf-8") as f:
             manifest = json.load(f)
         
         # Extract entries from the new manifest structure
@@ -591,7 +591,7 @@ class TestManifestChecksums:  # asset-r13-manifest-checksums: SHA256 integrity
     def test_manifest_file_has_checksums(self):
         """MANIFEST.json must have checksums for integrity validation."""
         manifest_path = os.path.join(PROJECT_ROOT, "generated_assets", "sounds", "MANIFEST.json")
-        with open(manifest_path) as f:
+        with open(manifest_path, encoding="utf-8") as f:
             manifest = json.load(f)
         
         # Check that manifest_checksum exists and is a valid hex string
@@ -610,7 +610,7 @@ class TestManifestChecksums:  # asset-r13-manifest-checksums: SHA256 integrity
     def test_manifest_entries_have_checksums(self):
         """Each manifest entry must have a checksum field with 64-char hex string."""
         manifest_path = os.path.join(PROJECT_ROOT, "generated_assets", "sounds", "MANIFEST.json")
-        with open(manifest_path) as f:
+        with open(manifest_path, encoding="utf-8") as f:
             manifest = json.load(f)
         
         entries = manifest.get("entries", [])
@@ -635,7 +635,7 @@ class TestManifestChecksums:  # asset-r13-manifest-checksums: SHA256 integrity
         import hashlib
         
         manifest_path = os.path.join(PROJECT_ROOT, "generated_assets", "sounds", "MANIFEST.json")
-        with open(manifest_path) as f:
+        with open(manifest_path, encoding="utf-8") as f:
             manifest = json.load(f)
         
         stored_checksum = manifest.get("manifest_checksum")
@@ -654,7 +654,7 @@ class TestManifestChecksums:  # asset-r13-manifest-checksums: SHA256 integrity
         import hashlib
         
         manifest_path = os.path.join(PROJECT_ROOT, "generated_assets", "sounds", "MANIFEST.json")
-        with open(manifest_path) as f:
+        with open(manifest_path, encoding="utf-8") as f:
             manifest = json.load(f)
         
         output_dir = os.path.dirname(manifest_path)
@@ -688,7 +688,7 @@ class TestManifestChecksums:  # asset-r13-manifest-checksums: SHA256 integrity
         import tempfile
         
         manifest_path = os.path.join(PROJECT_ROOT, "generated_assets", "sounds", "MANIFEST.json")
-        with open(manifest_path) as f:
+        with open(manifest_path, encoding="utf-8") as f:
             manifest = json.load(f)
         
         entries = manifest.get("entries", [])
@@ -782,7 +782,7 @@ class TestAssetR15SoundNameCollision:
     def test_sentinel_comment_present(self):
         """The sentinel comment 'asset-r15-sound-name-collision-detection' must be in generate_audio.py."""
         audio_file = os.path.join(PROJECT_ROOT, "tools", "generate_audio.py")
-        with open(audio_file) as f:
+        with open(audio_file, encoding="utf-8") as f:
             content = f.read()
         
         assert "asset-r15-sound-name-collision-detection" in content, \

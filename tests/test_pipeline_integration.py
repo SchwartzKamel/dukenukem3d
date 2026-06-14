@@ -595,7 +595,7 @@ class TestBuildR14HeaderDeps:
         """Assert -MMD -MP flags are defined and included in CFLAGS."""
         from pathlib import Path
         makefile = Path(__file__).parent.parent / "Makefile"
-        content = makefile.read_text()
+        content = makefile.read_text(encoding="utf-8")
         
         assert "DEPFLAGS = -MMD -MP" in content, (
             "Makefile must define DEPFLAGS = -MMD -MP to auto-generate .d files"

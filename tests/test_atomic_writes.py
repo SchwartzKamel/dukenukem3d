@@ -132,7 +132,7 @@ class TestAtomicWriteJson:
             
             _atomic_write_json(path, data)
             
-            with open(path, "r") as f:
+            with open(path, "r", encoding="utf-8") as f:
                 loaded = json.load(f)
             assert loaded == data
 
@@ -151,7 +151,7 @@ class TestAtomicWriteJson:
             
             _atomic_write_json(path, data)
             
-            with open(path, "r") as f:
+            with open(path, "r", encoding="utf-8") as f:
                 loaded = json.load(f)
             assert loaded == data
 
@@ -163,7 +163,7 @@ class TestAtomicWriteJson:
             
             _atomic_write_json(path, data, indent=2, sort_keys=True)
             
-            with open(path, "r") as f:
+            with open(path, "r", encoding="utf-8") as f:
                 content = f.read()
             
             # Should have indentation (2 spaces)
@@ -179,7 +179,7 @@ class TestAtomicWriteJson:
             
             _atomic_write_json(path, data, sort_keys=True)
             
-            with open(path, "r") as f:
+            with open(path, "r", encoding="utf-8") as f:
                 content = f.read()
             
             # Check that keys appear in sorted order
@@ -208,7 +208,7 @@ class TestAtomicWriteJson:
             # Overwrite with new content
             _atomic_write_json(path, {"version": 2, "extra": "field"})
             
-            with open(path, "r") as f:
+            with open(path, "r", encoding="utf-8") as f:
                 loaded = json.load(f)
             assert loaded == {"version": 2, "extra": "field"}
 
@@ -224,7 +224,7 @@ class TestAtomicWriteJson:
             
             _atomic_write_json(path, data)
             
-            with open(path, "r") as f:
+            with open(path, "r", encoding="utf-8") as f:
                 loaded = json.load(f)
             assert loaded == data
 
@@ -242,7 +242,7 @@ class TestAtomicWriteJson:
             
             _atomic_write_json(path, data)
             
-            with open(path, "r") as f:
+            with open(path, "r", encoding="utf-8") as f:
                 loaded = json.load(f)
             assert loaded == data
 
@@ -309,7 +309,7 @@ class TestAtomicWriteIntegration:
             _atomic_write_json(manifest_path, manifest, indent=2, sort_keys=True)
             
             # Verify can read back
-            with open(manifest_path, "r") as f:
+            with open(manifest_path, "r", encoding="utf-8") as f:
                 loaded = json.load(f)
             assert loaded == manifest
             assert loaded["manifest_checksum"] == "checksum_value"
@@ -369,7 +369,7 @@ class TestAtomicWritesTables:
             _atomic_write_json_tables(path, manifest, indent=2, sort_keys=True)
             
             assert os.path.exists(path)
-            with open(path, "r") as f:
+            with open(path, "r", encoding="utf-8") as f:
                 loaded = json.load(f)
             assert loaded == manifest
 
@@ -465,7 +465,7 @@ class TestAtomicWritesTables:
             _atomic_write_json_tables(path, manifest, indent=2, sort_keys=True)
             
             # Verify JSON is valid and formatted
-            with open(path, "r") as f:
+            with open(path, "r", encoding="utf-8") as f:
                 content = f.read()
             
             # Should have indentation

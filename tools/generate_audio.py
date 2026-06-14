@@ -16,6 +16,7 @@ import struct
 import sys
 import time
 import urllib.parse
+import uuid
 from datetime import datetime, timezone
 
 import aiohttp
@@ -125,13 +126,27 @@ def _atomic_write_bytes(path: str, data: bytes) -> None:
     
     # sec-r18-atomic-write-hardening: fsync for power-loss protection
     """
-    tmp_path = path + ".tmp"
+    # Unique temp name per process+call so concurrent writers (e.g. parallel
+    # test invocations, xdist workers) never collide on the same .tmp path —
+    # a shared name causes ERROR_SHARING_VIOLATION on Windows. os.replace is
+    # still atomic, so the final file is always complete (last writer wins).
+    tmp_path = f"{path}.{os.getpid()}.{uuid.uuid4().hex}.tmp"
     try:
         with open(tmp_path, "wb") as f:
             f.write(data)
             f.flush()
             os.fsync(f.fileno())
-        os.replace(tmp_path, path)
+        # os.replace can transiently fail with a sharing violation on Windows if
+        # another process holds the target open for reading (e.g. a concurrent
+        # checksum pass or test read). Retry briefly — readers release in ms.
+        for attempt in range(20):
+            try:
+                os.replace(tmp_path, path)
+                break
+            except PermissionError:
+                if attempt == 19:
+                    raise
+                time.sleep(0.05)
     except OSError:
         # Clean up temp file on error to avoid leaving stray .tmp files
         try:
@@ -315,7 +330,7 @@ def load_env(path):
     env = {}
     if not os.path.exists(path):
         return env
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if not line or line.startswith("#"):

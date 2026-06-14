@@ -314,7 +314,7 @@ def _test_sdl_driver_generic(c_code, test_name):
     
     try:
         # Write test source
-        with open(c_file, "w") as f:
+        with open(c_file, "w", encoding="utf-8") as f:
             f.write(c_code)
         
         # Find SDL2 include path

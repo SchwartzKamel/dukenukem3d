@@ -34,7 +34,7 @@ class TestGenerateAssetsShellParallelization:
 
     def test_script_contains_parallel_spawn(self):
         """Script should contain parallel spawn pattern (&)."""
-        with open(SCRIPT_PATH, "r") as f:
+        with open(SCRIPT_PATH, "r", encoding="utf-8") as f:
             content = f.read()
         
         # Look for both audio and assets commands with & background operator
@@ -50,7 +50,7 @@ class TestGenerateAssetsShellParallelization:
 
     def test_script_contains_wait_calls(self):
         """Script should contain wait calls for both background processes."""
-        with open(SCRIPT_PATH, "r") as f:
+        with open(SCRIPT_PATH, "r", encoding="utf-8") as f:
             content = f.read()
         
         # Count wait calls - should have at least 2 for AUDIO_PID and ASSETS_PID
@@ -60,7 +60,7 @@ class TestGenerateAssetsShellParallelization:
 
     def test_script_captures_exit_codes(self):
         """Script should capture exit codes from both background processes."""
-        with open(SCRIPT_PATH, "r") as f:
+        with open(SCRIPT_PATH, "r", encoding="utf-8") as f:
             content = f.read()
         
         # Look for patterns like: AUDIO_RC=$? and ASSETS_RC=$?
@@ -71,7 +71,7 @@ class TestGenerateAssetsShellParallelization:
 
     def test_script_checks_exit_codes(self):
         """Script should check both exit codes and exit with error if either fails."""
-        with open(SCRIPT_PATH, "r") as f:
+        with open(SCRIPT_PATH, "r", encoding="utf-8") as f:
             content = f.read()
         
         # Look for exit code validation logic
@@ -84,7 +84,7 @@ class TestGenerateAssetsShellParallelization:
 
     def test_script_contains_sentinel_comment(self):
         """Script should contain perf-ci-parallel-spawn sentinel comment."""
-        with open(SCRIPT_PATH, "r") as f:
+        with open(SCRIPT_PATH, "r", encoding="utf-8") as f:
             content = f.read()
         
         assert "perf-ci-parallel-spawn" in content, \
@@ -92,7 +92,7 @@ class TestGenerateAssetsShellParallelization:
 
     def test_script_handles_error_with_both_codes(self):
         """Script should report both error codes in error message."""
-        with open(SCRIPT_PATH, "r") as f:
+        with open(SCRIPT_PATH, "r", encoding="utf-8") as f:
             content = f.read()
         
         # Look for error reporting that includes both codes
@@ -101,7 +101,7 @@ class TestGenerateAssetsShellParallelization:
 
     def test_script_preserves_prepost_setup(self):
         """Script should preserve pre/post setup like GRP file size check."""
-        with open(SCRIPT_PATH, "r") as f:
+        with open(SCRIPT_PATH, "r", encoding="utf-8") as f:
             content = f.read()
         
         # Original functionality should be preserved
@@ -141,7 +141,7 @@ class TestGenerateAssetsShellIntegration:
         
         This indicates both processes are started in parallel, not sequentially.
         """
-        with open(SCRIPT_PATH, "r") as f:
+        with open(SCRIPT_PATH, "r", encoding="utf-8") as f:
             lines = f.readlines()
         
         # Find echo lines with messages
@@ -168,7 +168,7 @@ class TestGenerateAssetsShellIntegration:
 
     def test_script_uses_background_operator_correctly(self):
         """Script should use & operator to spawn processes in background."""
-        with open(SCRIPT_PATH, "r") as f:
+        with open(SCRIPT_PATH, "r", encoding="utf-8") as f:
             lines = f.readlines()
         
         # Find lines with $AUDIO_CMD and $ASSETS_CMD followed by &
@@ -183,7 +183,7 @@ class TestGenerateAssetsShellIntegration:
 
     def test_script_wait_pattern_correct(self):
         """Script should wait for both PIDs separately and capture codes."""
-        with open(SCRIPT_PATH, "r") as f:
+        with open(SCRIPT_PATH, "r", encoding="utf-8") as f:
             content = f.read()
         
         # Verify the pattern: PID=$! ... wait $PID ... RC=$?

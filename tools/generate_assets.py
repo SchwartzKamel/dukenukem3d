@@ -99,7 +99,7 @@ def _rotate_generation_log():
         file_size = os.path.getsize(GENERATION_LOG_FILE)
         
         # Read all lines to check line count
-        with open(GENERATION_LOG_FILE, "r") as f:
+        with open(GENERATION_LOG_FILE, "r", encoding="utf-8") as f:
             lines = f.readlines()
         
         line_count = len(lines)
@@ -155,7 +155,7 @@ def log_generation_error(tile_num, error_type, error_message, worker_pid=None):
         os.makedirs(OUTPUT_DIR, exist_ok=True)
         # Rotate log if needed before appending
         _rotate_generation_log()
-        with open(GENERATION_LOG_FILE, "a") as f:
+        with open(GENERATION_LOG_FILE, "a", encoding="utf-8") as f:
             json.dump(record, f)
             f.write("\n")
     except Exception as log_e:
@@ -242,7 +242,7 @@ def load_env(path):
     env = {}
     if not os.path.exists(path):
         return env
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if not line or line.startswith("#"):
@@ -1366,7 +1366,7 @@ def parse_names_h():
     """Parse source/NAMES.H to extract all #define NAME NUMBER entries."""
     names_h = os.path.join(PROJECT_ROOT, "source", "NAMES.H")
     result = {}
-    with open(names_h) as f:
+    with open(names_h, encoding="utf-8") as f:
         for line in f:
             stripped = line.strip()
             if stripped.startswith("//") or stripped.startswith("/*"):
@@ -2545,7 +2545,7 @@ def parse_music_filenames(user_con_path):
     midi_files = set()
     if not os.path.exists(user_con_path):
         return midi_files
-    with open(user_con_path, "r", errors="replace") as f:
+    with open(user_con_path, "r", errors="replace", encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if line.startswith("music "):
@@ -2564,7 +2564,7 @@ def parse_voc_filenames(*con_paths):
     for con_path in con_paths:
         if not os.path.exists(con_path):
             continue
-        with open(con_path, "r", errors="replace") as f:
+        with open(con_path, "r", errors="replace", encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
                 if line.startswith("definesound "):

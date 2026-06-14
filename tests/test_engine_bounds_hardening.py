@@ -1652,7 +1652,7 @@ def test_pytest_xdist_in_requirements():
     """Verify pytest-xdist>=3.5 is in requirements.txt for parallel test execution."""
     from pathlib import Path
     req_file = Path(__file__).parent.parent / "requirements.txt"
-    content = req_file.read_text()
+    content = req_file.read_text(encoding="utf-8")
     
     assert "pytest-xdist" in content, (
         "requirements.txt must contain pytest-xdist>=3.5 for parallel test execution"
@@ -1683,7 +1683,7 @@ def test_pytest_ini_documents_xdist_status():
     """
     from pathlib import Path
     pytest_ini = Path(__file__).parent.parent / "pytest.ini"
-    content = pytest_ini.read_text()
+    content = pytest_ini.read_text(encoding="utf-8")
 
     assert "perf-r12-pytest-xdist-integration" in content, (
         "pytest.ini must retain sentinel comment 'perf-r12-pytest-xdist-integration'"
@@ -1704,7 +1704,7 @@ def test_pytest_ini_has_serial_marker():
     """Verify pytest.ini has serial marker registration for xdist."""
     from pathlib import Path
     pytest_ini = Path(__file__).parent.parent / "pytest.ini"
-    content = pytest_ini.read_text()
+    content = pytest_ini.read_text(encoding="utf-8")
     
     assert "serial:" in content or "serial" in content, (
         "pytest.ini must have serial marker registered for tests incompatible with xdist"
@@ -1715,7 +1715,7 @@ def test_audio_pipeline_tests_marked_serial():
     """Verify stateful tests are marked with @pytest.mark.serial."""
     from pathlib import Path
     audio_pipeline = Path(__file__).parent / "test_audio_pipeline.py"
-    content = audio_pipeline.read_text()
+    content = audio_pipeline.read_text(encoding="utf-8")
     
     # Check for serial marker on tests that write to generated_assets/
     assert "@pytest.mark.serial" in content, (

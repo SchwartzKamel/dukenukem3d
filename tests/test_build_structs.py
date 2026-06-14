@@ -68,7 +68,7 @@ int main() {
     out_file = os.path.join(PROJECT_ROOT, "_test_structs")
     compiler = get_struct_test_compiler()
     try:
-        with open(c_file, "w") as f:
+        with open(c_file, "w", encoding="utf-8") as f:
             f.write(c_code)
 
         result = subprocess.run(
@@ -127,7 +127,7 @@ int main() {
     out_file = os.path.join(PROJECT_ROOT, "_test_weaponhit")
     compiler = get_struct_test_compiler()
     try:
-        with open(c_file, "w") as f:
+        with open(c_file, "w", encoding="utf-8") as f:
             f.write(c_code)
 
         result = subprocess.run(
@@ -187,7 +187,7 @@ int main() {
     out_file = os.path.join(PROJECT_ROOT, "_test_actortype")
     compiler = get_struct_test_compiler()
     try:
-        with open(c_file, "w") as f:
+        with open(c_file, "w", encoding="utf-8") as f:
             f.write(c_code)
 
         result = subprocess.run(
@@ -245,7 +245,7 @@ int main() {
     out_file = os.path.join(PROJECT_ROOT, "_test_hittype")
     compiler = get_struct_test_compiler()
     try:
-        with open(c_file, "w") as f:
+        with open(c_file, "w", encoding="utf-8") as f:
             f.write(c_code)
 
         result = subprocess.run(
@@ -292,7 +292,7 @@ int main() {
     out_file = os.path.join(PROJECT_ROOT, "_test_packbuf")
     compiler = get_struct_test_compiler()
     try:
-        with open(c_file, "w") as f:
+        with open(c_file, "w", encoding="utf-8") as f:
             f.write(c_code)
 
         result = subprocess.run(

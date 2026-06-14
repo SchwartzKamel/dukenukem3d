@@ -54,21 +54,21 @@ class TestCompatFunctions:
         # May or may not exist yet
         path = 'compat/msvc_unistd.h'
         if os.path.exists(path):
-            with open(path) as f:
+            with open(path, encoding="utf-8") as f:
                 content = f.read()
             assert 'io.h' in content, "msvc_unistd.h should include io.h"
             assert 'direct.h' in content, "msvc_unistd.h should include direct.h"
 
     def test_compat_guards_win32(self):
         """compat.h must guard Windows-only code with #ifdef _WIN32."""
-        with open('compat/compat.h') as f:
+        with open('compat/compat.h', encoding="utf-8") as f:
             content = f.read()
         assert '#ifdef _WIN32' in content or '#if defined(_WIN32)' in content
         assert 'windows.h' in content
 
     def test_compat_guards_inp_outp(self):
         """inp/outp stubs must be guarded with #ifndef _WIN32."""
-        with open('compat/compat.h') as f:
+        with open('compat/compat.h', encoding="utf-8") as f:
             content = f.read()
         # Verify inp/outp are guarded (they conflict with MinGW intrin.h)
         assert 'inp' in content
@@ -76,7 +76,7 @@ class TestCompatFunctions:
 
     def test_compat_error_fatal(self):
         """error_fatal() must be defined for error reporting."""
-        with open('compat/compat.h') as f:
+        with open('compat/compat.h', encoding="utf-8") as f:
             content = f.read()
         assert 'error_fatal' in content
         assert 'MessageBoxA' in content or 'MessageBox' in content
@@ -91,7 +91,7 @@ class TestBuildConfig:
 
     def test_build_mk_has_all_sources(self):
         """build.mk must list all source files."""
-        with open('build.mk') as f:
+        with open('build.mk', encoding="utf-8") as f:
             content = f.read()
         # Engine sources
         assert 'ENGINE.C' in content
@@ -109,19 +109,19 @@ class TestBuildConfig:
 
     def test_build_mk_sdl2_version(self):
         """build.mk must pin SDL2 version."""
-        with open('build.mk') as f:
+        with open('build.mk', encoding="utf-8") as f:
             content = f.read()
         assert 'SDL2_VERSION' in content
 
     def test_makefile_includes_build_mk(self):
         """Makefile must include build.mk."""
-        with open('Makefile') as f:
+        with open('Makefile', encoding="utf-8") as f:
             content = f.read()
         assert 'include build.mk' in content or '-include build.mk' in content
 
     def test_cmake_has_all_compat(self):
         """CMakeLists.txt must list all compat sources."""
-        with open('CMakeLists.txt') as f:
+        with open('CMakeLists.txt', encoding="utf-8") as f:
             content = f.read()
         assert 'sdl_driver.c' in content
         assert 'audio_stub.c' in content
@@ -138,7 +138,7 @@ class TestAudioAssets:
 
     def test_audio_script_has_voice_lines(self):
         """generate_audio.py must define voice line specs."""
-        with open('tools/generate_audio.py') as f:
+        with open('tools/generate_audio.py', encoding="utf-8") as f:
             content = f.read()
         assert 'TAUNT' in content
         assert 'PAIN' in content
@@ -151,7 +151,7 @@ class TestSecurityBasics:
 
     def test_env_in_gitignore(self):
         """.env must be in .gitignore."""
-        with open('.gitignore') as f:
+        with open('.gitignore', encoding="utf-8") as f:
             content = f.read()
         assert '.env' in content
 
@@ -159,7 +159,7 @@ class TestSecurityBasics:
         """No API keys should be hardcoded in Python scripts."""
         for script in ['tools/generate_assets.py', 'tools/generate_audio.py']:
             if os.path.exists(script):
-                with open(script) as f:
+                with open(script, encoding="utf-8") as f:
                     content = f.read()
                 # Should load from env, not hardcode
                 assert 'sk-' not in content.lower(), f"Possible API key in {script}"
@@ -179,13 +179,13 @@ class TestStubLogging:
 
     def test_log_stub_macro_defined(self):
         """log_stub.h must define STUB_LOG macro."""
-        with open('compat/log_stub.h') as f:
+        with open('compat/log_stub.h', encoding="utf-8") as f:
             content = f.read()
         assert '#define STUB_LOG' in content, "STUB_LOG macro not defined"
 
     def test_log_stub_macro_has_noop(self):
         """STUB_LOG macro must have a no-op fallback when DUKE3D_STUB_LOG is not defined."""
-        with open('compat/log_stub.h') as f:
+        with open('compat/log_stub.h', encoding="utf-8") as f:
             content = f.read()
         # Should have both the enabled and disabled versions
         assert '#ifdef DUKE3D_STUB_LOG' in content
@@ -193,19 +193,19 @@ class TestStubLogging:
 
     def test_log_stub_includes_in_mact_stub(self):
         """mact_stub.c must include log_stub.h."""
-        with open('compat/mact_stub.c') as f:
+        with open('compat/mact_stub.c', encoding="utf-8") as f:
             content = f.read()
         assert '#include "log_stub.h"' in content
 
     def test_log_stub_includes_in_audio_stub(self):
         """audio_stub.c must include log_stub.h."""
-        with open('compat/audio_stub.c') as f:
+        with open('compat/audio_stub.c', encoding="utf-8") as f:
             content = f.read()
         assert '#include "log_stub.h"' in content
 
     def test_music_setvol_has_logging(self):
         """Music_SetVolume() stub must call STUB_LOG."""
-        with open('compat/mact_stub.c') as f:
+        with open('compat/mact_stub.c', encoding="utf-8") as f:
             content = f.read()
         # Find the Music_SetVolume function
         assert 'void Music_SetVolume(int volume)' in content
@@ -216,7 +216,7 @@ class TestStubLogging:
 
     def test_playmusic_has_logging(self):
         """PlayMusic() stub must call STUB_LOG."""
-        with open('compat/mact_stub.c') as f:
+        with open('compat/mact_stub.c', encoding="utf-8") as f:
             content = f.read()
         # Find the PlayMusic function
         assert 'void PlayMusic(char *fn)' in content
@@ -227,7 +227,7 @@ class TestStubLogging:
 
     def test_control_waitrelease_has_logging(self):
         """CONTROL_WaitRelease() stub must call STUB_LOG."""
-        with open('compat/audio_stub.c') as f:
+        with open('compat/audio_stub.c', encoding="utf-8") as f:
             content = f.read()
         # Find the CONTROL_WaitRelease function
         assert 'void CONTROL_WaitRelease(void)' in content
@@ -238,7 +238,7 @@ class TestStubLogging:
 
     def test_control_ack_has_logging(self):
         """CONTROL_Ack() stub must call STUB_LOG."""
-        with open('compat/audio_stub.c') as f:
+        with open('compat/audio_stub.c', encoding="utf-8") as f:
             content = f.read()
         # Find the CONTROL_Ack function
         assert 'void CONTROL_Ack(void)' in content
@@ -249,7 +249,7 @@ class TestStubLogging:
 
     def test_fx_stoprecord_has_logging(self):
         """FX_StopRecord() stub must call STUB_LOG."""
-        with open('compat/audio_stub.c') as f:
+        with open('compat/audio_stub.c', encoding="utf-8") as f:
             content = f.read()
         # Find the FX_StopRecord function
         assert 'void FX_StopRecord(void)' in content
@@ -263,7 +263,7 @@ class TestStubLogging:
         # This is a compile-time test; if the header exists and is syntactically valid,
         # it will have passed during the build. We verify by checking the file content
         # is valid C preprocessor directives.
-        with open('compat/log_stub.h') as f:
+        with open('compat/log_stub.h', encoding="utf-8") as f:
             content = f.read()
         # Should have ifndef and endif
         assert '#ifndef COMPAT_LOG_STUB_H' in content
@@ -290,14 +290,14 @@ class TestCompatR12SdlErrorLogging:
 
     def test_compat_sdl_err_macro_exists(self):
         """compat/sdl_driver.c must define COMPAT_SDL_ERR macro."""
-        with open('compat/sdl_driver.c') as f:
+        with open('compat/sdl_driver.c', encoding="utf-8") as f:
             content = f.read()
         assert '#define COMPAT_SDL_ERR' in content, "COMPAT_SDL_ERR macro not defined"
         assert 'compat-r12-sdl2-error-logging' in content, "Missing compat-r12 sentinel comment"
 
     def test_compat_sdl_err_has_env_var_gating(self):
         """COMPAT_SDL_ERR macro must gate logging behind DUKE3D_LOG_SDL_ERRORS env var."""
-        with open('compat/sdl_driver.c') as f:
+        with open('compat/sdl_driver.c', encoding="utf-8") as f:
             content = f.read()
         # Find the macro definition
         import re
@@ -309,7 +309,7 @@ class TestCompatR12SdlErrorLogging:
 
     def test_sdl_lock_texture_has_error_logging(self):
         """SDL_LockTexture error path must use COMPAT_SDL_ERR."""
-        with open('compat/sdl_driver.c') as f:
+        with open('compat/sdl_driver.c', encoding="utf-8") as f:
             content = f.read()
         # Find the SDL_LockTexture call
         import re
@@ -322,7 +322,7 @@ class TestCompatR12SdlErrorLogging:
 
     def test_sdl_lock_texture_error_comment(self):
         """SDL_LockTexture error path must have compat-r12 sentinel comment."""
-        with open('compat/sdl_driver.c') as f:
+        with open('compat/sdl_driver.c', encoding="utf-8") as f:
             content = f.read()
         import re
         # Find the SDL_LockTexture block and check for comment
@@ -337,7 +337,7 @@ class TestCompatR12SdlErrorLogging:
 
     def test_sdl_getError_called_in_macro(self):
         """COMPAT_SDL_ERR macro must call SDL_GetError()."""
-        with open('compat/sdl_driver.c') as f:
+        with open('compat/sdl_driver.c', encoding="utf-8") as f:
             content = f.read()
         import re
         macro_match = re.search(r'#define COMPAT_SDL_ERR.*?\n.*?\n.*?\n', content, re.DOTALL)
@@ -347,7 +347,7 @@ class TestCompatR12SdlErrorLogging:
 
     def test_macro_uses_func_identifier(self):
         """COMPAT_SDL_ERR macro should use __func__ when called."""
-        with open('compat/sdl_driver.c') as f:
+        with open('compat/sdl_driver.c', encoding="utf-8") as f:
             content = f.read()
         import re
         # Check that macro invocation uses __func__
@@ -360,13 +360,13 @@ class TestErrorFatalNoreturn:
 
     def test_noreturn_macro_defined(self):
         """compat.h must define _Noreturn macro for compatibility."""
-        with open('compat/compat.h') as f:
+        with open('compat/compat.h', encoding="utf-8") as f:
             content = f.read()
         assert '#define _Noreturn' in content, "_Noreturn macro not defined"
 
     def test_noreturn_uses_attribute(self):
         """_Noreturn macro should use __attribute__((noreturn)) for GCC/Clang."""
-        with open('compat/compat.h') as f:
+        with open('compat/compat.h', encoding="utf-8") as f:
             content = f.read()
         # Should have GCC __attribute__((noreturn)) fallback
         assert '__attribute__((noreturn))' in content, \
@@ -374,7 +374,7 @@ class TestErrorFatalNoreturn:
 
     def test_error_fatal_has_noreturn(self):
         """error_fatal() must have _Noreturn annotation."""
-        with open('compat/compat.h') as f:
+        with open('compat/compat.h', encoding="utf-8") as f:
             content = f.read()
         # Find error_fatal function declaration
         import re
@@ -383,7 +383,7 @@ class TestErrorFatalNoreturn:
 
     def test_noreturn_macro_handles_msvc(self):
         """_Noreturn macro must handle MSVC compatibility."""
-        with open('compat/compat.h') as f:
+        with open('compat/compat.h', encoding="utf-8") as f:
             content = f.read()
         # Should have fallback for non-GCC compilers
         assert '#else' in content, "_Noreturn macro should have fallback for other compilers"

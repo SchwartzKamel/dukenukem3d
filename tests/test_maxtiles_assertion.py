@@ -24,7 +24,7 @@ def _extract_maxtiles(path: Path) -> int:
     Raises:
         ValueError: If MAXTILES is not found or value cannot be parsed as int
     """
-    content = path.read_text()
+    content = path.read_text(encoding="utf-8")
     match = re.search(r'#define\s+MAXTILES\s+(\d+)', content)
     if not match:
         raise ValueError(f"MAXTILES not found in {path}")
@@ -46,7 +46,7 @@ def test_maxtiles_guard_constructor_present(repo_root):
     guard_file = repo_root / "compat/maxtiles_guard.c"
     assert guard_file.exists(), "compat/maxtiles_guard.c does not exist"
     
-    content = guard_file.read_text()
+    content = guard_file.read_text(encoding="utf-8")
     assert "check_maxtiles_assertion" in content, \
         "Constructor function check_maxtiles_assertion not found in compat/maxtiles_guard.c"
     
@@ -96,7 +96,7 @@ def test_maxtiles_guard_aborts_on_mismatch(repo_root):
     guard_file = repo_root / "compat/maxtiles_guard.c"
     assert guard_file.exists(), "compat/maxtiles_guard.c does not exist"
     
-    content = guard_file.read_text()
+    content = guard_file.read_text(encoding="utf-8")
     assert "abort()" in content, \
         "abort() call not found in compat/maxtiles_guard.c (Stage 3 requirement)"
     

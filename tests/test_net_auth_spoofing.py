@@ -323,7 +323,7 @@ class TestForgedFromPlayerRejected:
 
     def test_mmulti_c_has_hmac_verification_sentinel(self):
         """SRC/MMULTI.C must contain the HMAC verification drop sentinel."""
-        with open("SRC/MMULTI.C", "r") as f:
+        with open("SRC/MMULTI.C", "r", encoding="utf-8") as f:
             content = f.read()
         assert "HMAC mismatch" in content, \
             "SRC/MMULTI.C must contain HMAC mismatch drop logic"
@@ -370,7 +370,7 @@ class TestHandshakeNoncesExchanged:
 
     def test_mmulti_c_has_host_nonce_send(self):
         """Host handshake must send 40 bytes (8 original + 32-byte nonce)."""
-        with open("SRC/MMULTI.C", "r") as f:
+        with open("SRC/MMULTI.C", "r", encoding="utf-8") as f:
             content = f.read()
         # The host must allocate a 40-byte handshake message
         assert "unsigned char msg[40]" in content, \
@@ -378,14 +378,14 @@ class TestHandshakeNoncesExchanged:
 
     def test_mmulti_c_client_receives_host_nonce(self):
         """Client handshake must receive the host nonce (32 bytes)."""
-        with open("SRC/MMULTI.C", "r") as f:
+        with open("SRC/MMULTI.C", "r", encoding="utf-8") as f:
             content = f.read()
         assert "host_nonce_buf" in content, \
             "Client handshake must receive host_nonce_buf"
 
     def test_mmulti_c_client_sends_nonce(self):
         """Client must send its own nonce back to the host."""
-        with open("SRC/MMULTI.C", "r") as f:
+        with open("SRC/MMULTI.C", "r", encoding="utf-8") as f:
             content = f.read()
         # Client sends local_nonce to host
         assert "net_send_raw(sock, local_nonce" in content, \
@@ -393,21 +393,21 @@ class TestHandshakeNoncesExchanged:
 
     def test_mmulti_c_nonce_size_is_32(self):
         """Nonce buffers must be exactly 32 bytes (HMAC_SHA256_SIZE)."""
-        with open("SRC/MMULTI.C", "r") as f:
+        with open("SRC/MMULTI.C", "r", encoding="utf-8") as f:
             content = f.read()
         assert "unsigned char local_nonce[HMAC_SHA256_SIZE]" in content, \
             "local_nonce must be declared as HMAC_SHA256_SIZE bytes"
 
     def test_mmulti_c_hkdf_context_string(self):
         """HKDF info must use the literal string 'AUTH_SPOOFING_V1'."""
-        with open("SRC/MMULTI.C", "r") as f:
+        with open("SRC/MMULTI.C", "r", encoding="utf-8") as f:
             content = f.read()
         assert "AUTH_SPOOFING_V1" in content, \
             "SRC/MMULTI.C must use AUTH_SPOOFING_V1 as HKDF info string"
 
     def test_mmulti_c_net_header_size_preserved(self):
         """NET_HEADER_SIZE must remain 5 (cycle-65 invariant)."""
-        with open("SRC/MMULTI.C", "r") as f:
+        with open("SRC/MMULTI.C", "r", encoding="utf-8") as f:
             content = f.read()
         match = re.search(r"#define\s+NET_HEADER_SIZE\s+(\d+)", content)
         assert match is not None, "NET_HEADER_SIZE must be defined"
@@ -416,7 +416,7 @@ class TestHandshakeNoncesExchanged:
 
     def test_mmulti_c_handshake_timeout_preserved(self):
         """Handshake timeout constants (cycle-83) must be unchanged."""
-        with open("SRC/MMULTI.C", "r") as f:
+        with open("SRC/MMULTI.C", "r", encoding="utf-8") as f:
             content = f.read()
         m_conn = re.search(r"#define\s+NET_CONNECT_TIMEOUT\s+(\d+)", content)
         m_hs   = re.search(r"#define\s+HANDSHAKE_TIMEOUT_SEC\s+(\d+)", content)
@@ -464,7 +464,7 @@ class TestSessionKeysDifferPerConnection:
 
     def test_sha256_h_declares_hmac_and_hkdf(self):
         """compat/sha256.h must declare hmac_sha256 and hkdf_sha256."""
-        with open("compat/sha256.h", "r") as f:
+        with open("compat/sha256.h", "r", encoding="utf-8") as f:
             content = f.read()
         assert "hmac_sha256" in content, "sha256.h must declare hmac_sha256"
         assert "hkdf_sha256" in content, "sha256.h must declare hkdf_sha256"
@@ -473,7 +473,7 @@ class TestSessionKeysDifferPerConnection:
 
     def test_build_mk_includes_sha256_c(self):
         """build.mk must include compat/sha256.c in COMPAT_SRCS."""
-        with open("build.mk", "r") as f:
+        with open("build.mk", "r", encoding="utf-8") as f:
             content = f.read()
         assert "sha256.c" in content, \
             "build.mk must include compat/sha256.c in COMPAT_SRCS"

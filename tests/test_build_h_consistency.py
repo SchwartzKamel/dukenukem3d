@@ -18,7 +18,7 @@ def _extract_define(path: Path, name: str) -> int:
     Raises:
         ValueError: If macro is not found or value cannot be parsed as int
     """
-    content = path.read_text()
+    content = path.read_text(encoding="utf-8")
     pattern = rf'#define\s+{re.escape(name)}\s+(\d+)'
     match = re.search(pattern, content)
     

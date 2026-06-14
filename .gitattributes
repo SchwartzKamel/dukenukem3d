@@ -1,0 +1,29 @@
+# Shell scripts must use LF line endings so they run under bash / WSL.
+# Without this, core.autocrlf=true checks them out with CRLF, and bash fails
+# with: $'\r': command not found  /  syntax error: unexpected end of file.
+*.sh text eol=lf
+
+# Other text defaults to native EOL on checkout; normalize on commit.
+*.py text
+*.c text
+*.h text
+*.C text
+*.H text
+*.md text
+*.txt text
+
+# Binary assets — never normalize.
+*.GRP binary
+*.MAP binary
+*.ART binary
+*.WAV binary
+*.wav binary
+*.VOC binary
+*.MID binary
+*.ANM binary
+*.webp binary
+*.png binary
+*.ico binary
+*.dll binary
+*.exe binary
+*.grp binary

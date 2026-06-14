@@ -380,7 +380,7 @@ class TestAssetPipelineIntegration:
         if not os.path.exists(manifest_path):
             pytest.skip("MANIFEST.json not found (may regenerate on next asset generation)")
         
-        with open(manifest_path) as f:
+        with open(manifest_path, encoding="utf-8") as f:
             file_manifest = json.load(f)
         
         # Manifest is now a dict with schema_version and entries
@@ -414,7 +414,7 @@ class TestCompatR12AudioDefines:
     def test_audio_buffer_size_define_exists(self):
         """AUDIO_BUFFER_SIZE #define is present in compat/audio_stub.c."""
         audio_stub_path = os.path.join(PROJECT_ROOT, "compat", "audio_stub.c")
-        with open(audio_stub_path, "r") as f:
+        with open(audio_stub_path, "r", encoding="utf-8") as f:
             content = f.read()
         
         assert "#define AUDIO_BUFFER_SIZE 2048" in content, \
@@ -423,7 +423,7 @@ class TestCompatR12AudioDefines:
     def test_audio_mix_init_max_retries_define_exists(self):
         """AUDIO_MIX_INIT_MAX_RETRIES #define is present in compat/audio_stub.c."""
         audio_stub_path = os.path.join(PROJECT_ROOT, "compat", "audio_stub.c")
-        with open(audio_stub_path, "r") as f:
+        with open(audio_stub_path, "r", encoding="utf-8") as f:
             content = f.read()
         
         assert "#define AUDIO_MIX_INIT_MAX_RETRIES 3" in content, \
@@ -432,7 +432,7 @@ class TestCompatR12AudioDefines:
     def test_audio_mix_init_base_delay_ms_define_exists(self):
         """AUDIO_MIX_INIT_BASE_DELAY_MS #define is present in compat/audio_stub.c."""
         audio_stub_path = os.path.join(PROJECT_ROOT, "compat", "audio_stub.c")
-        with open(audio_stub_path, "r") as f:
+        with open(audio_stub_path, "r", encoding="utf-8") as f:
             content = f.read()
         
         assert "#define AUDIO_MIX_INIT_BASE_DELAY_MS 100" in content, \
@@ -441,7 +441,7 @@ class TestCompatR12AudioDefines:
     def test_buffer_size_literal_replaced_in_mix_open_audio(self):
         """Literal 2048 is replaced by AUDIO_BUFFER_SIZE in Mix_OpenAudio call."""
         audio_stub_path = os.path.join(PROJECT_ROOT, "compat", "audio_stub.c")
-        with open(audio_stub_path, "r") as f:
+        with open(audio_stub_path, "r", encoding="utf-8") as f:
             lines = f.readlines()
         
         # Find the Mix_OpenAudio call and verify it uses AUDIO_BUFFER_SIZE
@@ -469,7 +469,7 @@ class TestCompatR12AudioDefines:
     def test_retry_count_literal_replaced(self):
         """Literal 3 is replaced by AUDIO_MIX_INIT_MAX_RETRIES in for loop."""
         audio_stub_path = os.path.join(PROJECT_ROOT, "compat", "audio_stub.c")
-        with open(audio_stub_path, "r") as f:
+        with open(audio_stub_path, "r", encoding="utf-8") as f:
             content = f.read()
         
         # Find the for loop that contains mix_open_attempt
@@ -479,7 +479,7 @@ class TestCompatR12AudioDefines:
     def test_delay_base_literal_replaced(self):
         """Literal 100 is replaced by AUDIO_MIX_INIT_BASE_DELAY_MS in delay calculation."""
         audio_stub_path = os.path.join(PROJECT_ROOT, "compat", "audio_stub.c")
-        with open(audio_stub_path, "r") as f:
+        with open(audio_stub_path, "r", encoding="utf-8") as f:
             content = f.read()
         
         # Find the delay calculation line

@@ -92,7 +92,7 @@ def load_and_verify_audio_manifest(manifest_path: str, base_dir: str = None) -> 
     if base_dir is None:
         base_dir = os.path.dirname(manifest_path)
     
-    with open(manifest_path, "r") as f:
+    with open(manifest_path, "r", encoding="utf-8") as f:
         manifest = json.load(f)
     
     # Enforce schema_version validation
@@ -188,7 +188,7 @@ def load_and_verify_tables_manifest(manifest_path: str, base_dir: str = None) ->
     if base_dir is None:
         base_dir = os.path.dirname(manifest_path)
 
-    with open(manifest_path, "r") as f:
+    with open(manifest_path, "r", encoding="utf-8") as f:
         manifest = json.load(f)
 
     # Verify manifest-level checksum
@@ -248,7 +248,7 @@ def load_and_verify_grp_manifest(manifest_path: str, base_dir: str = None) -> di
     if base_dir is None:
         base_dir = os.path.dirname(manifest_path)
 
-    with open(manifest_path, "r") as f:
+    with open(manifest_path, "r", encoding="utf-8") as f:
         manifest = json.load(f)
 
     # Verify manifest-level checksum

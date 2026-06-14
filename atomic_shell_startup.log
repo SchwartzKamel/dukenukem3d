@@ -1,0 +1,108 @@
+Atomic Shell startup log
+(Build engine port — derived from Duke Nukem 3D codebase, Apogee/3D Realms 1996)
+========================
+main() entered, argc=1
+Windows crash handler installed
+Propagating args to MMULTI
+Calling copyprotect()
+Calling setvmode(0x03)
+Atomic Shell starting — engine: Atomic Shell - built on the open-source BUILD engine. Derivative work, Game Hacking Village CTF build.
+Searching for atomic.grp / duke3d.grp...
+Found GRP: duke3d.grp
+  initgroupfile: opening 'duke3d.grp' (slot 0)
+  initgroupfile: open() returned fd=4
+  initgroupfile: loaded 451 files, total data 4120902 bytes
+  initgroupfile:   [0] '!BOSS.VOC' (offset 0)
+  initgroupfile:   [1] '!PIG.VOC' (offset 1135)
+  initgroupfile:   [2] '!PRISON.VOC' (offset 2270)
+  initgroupfile:   [3] '2BWILD.VOC' (offset 3405)
+  initgroupfile:   [4] '2RIDE06.VOC' (offset 4540)
+GRP loaded successfully
+Calling checkcommandline()
+Z_AvailHeap() = 16777216
+Calling Startup()
+  KB_Startup()
+  compilecons()
+  kopen4load: 'GAME.CON' not on disk, searching 1 GRP(s)
+  kopen4load: GRP[0] has 451 files
+  kopen4load: found 'GAME.CON' in GRP[0] entry 182
+  kopen4load: 'DEFS.CON' not on disk, searching 1 GRP(s)
+  kopen4load: GRP[0] has 451 files
+  kopen4load: found 'DEFS.CON' in GRP[0] entry 96
+  kopen4load: 'USER.CON' not on disk, searching 1 GRP(s)
+  kopen4load: GRP[0] has 451 files
+  kopen4load: found 'USER.CON' in GRP[0] entry 417
+  CONFIG_GetSetupFilename()
+  CONFIG_ReadSetup()
+  CONTROL_Startup()
+  initengine()
+  initengine: mmxoverlay
+  initengine: loadtables
+  kopen4load: 'tables.dat' not on disk, searching 1 GRP(s)
+  kopen4load: GRP[0] has 451 files
+  kopen4load: found 'tables.dat' in GRP[0] entry 397
+  initengine: lowrecip/voxoff init
+  initengine: clearbuf waloff
+  initengine: clearbuf show2d
+  initengine: loadpalette
+  kopen4load: 'palette.dat' not on disk, searching 1 GRP(s)
+  kopen4load: GRP[0] has 451 files
+  kopen4load: found 'palette.dat' in GRP[0] entry 308
+  initengine: done
+  initengine done
+  hud_init()
+  inittimer()
+  loadpics(tiles000.art)
+  loadpics: filename='tiles000.art'
+  loadpics: trying 'tiles000.art' (k=0)
+  kopen4load: 'tiles000.art' not on disk, searching 1 GRP(s)
+  kopen4load: GRP[0] has 451 files
+  kopen4load: found 'tiles000.art' in GRP[0] entry 409
+  loadpics: opened 'tiles000.art' as handle 63
+  loadpics: artversion=1
+  loadpics: numtiles=4944, start=0, end=4943
+  loadpics: trying 'tiles001.art' (k=1)
+  kopen4load: 'tiles001.art' not on disk, searching 1 GRP(s)
+  kopen4load: GRP[0] has 451 files
+  kopen4load: 'tiles001.art' NOT FOUND anywhere
+  loadpics done, numtiles=4944
+  readsavenames()
+  readsavenames done
+  tilesizx[MIRROR]=0 (MIRROR=560, MAXTILES=6144)
+  clearing playerreadyflag
+  initmultiplayers(0,0,0)
+  initmultiplayers done, numplayers=1
+  ps[0].palette = &palette[0]
+  SetupGameButtons()
+  SetupGameButtons done
+  SoundStartup()
+  MusicStartup()
+  loadtmb()
+  kopen4load: 'd3dtimbr.tmb' not on disk, searching 1 GRP(s)
+  kopen4load: GRP[0] has 451 files
+  kopen4load: found 'd3dtimbr.tmb' in GRP[0] entry 88
+  Startup() complete
+Startup() complete
+Post-Startup: getnames()
+Post-Startup: RTS_Init
+Post-Startup: pre-setgamemode
+Calling setgamemode(2, 640, 480)
+  sdl_init(320, 200) called
+  SDL_Init(VIDEO|TIMER)...
+  SDL_Init OK
+  SDL_CreateWindow(320 x 200)...
+  Window created OK
+setgamemode OK - xdim=320, ydim=200
+genspriteremaps()
+  kopen4load: 'lookup.dat' not on disk, searching 1 GRP(s)
+  kopen4load: GRP[0] has 451 files
+  kopen4load: found 'lookup.dat' in GRP[0] entry 266
+setbrightness(0)
+ESCESCAPE check
+FX_StopAllSounds + clearsoundlocks
+Entering game loop setup (warp_on=0)
+Calling Logo()
+  kopen4load: 'tiles000.art' not on disk, searching 1 GRP(s)
+  kopen4load: GRP[0] has 451 files
+  kopen4load: found 'tiles000.art' in GRP[0] entry 409
+gameexit called: '(empty)'

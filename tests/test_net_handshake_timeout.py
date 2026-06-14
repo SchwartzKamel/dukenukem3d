@@ -26,14 +26,14 @@ class TestHandshakeTimeoutConstants:
 
     def test_handshake_timeout_constant_defined(self):
         """HANDSHAKE_TIMEOUT_SEC must be defined in SRC/MMULTI.C."""
-        with open('SRC/MMULTI.C', 'r') as f:
+        with open('SRC/MMULTI.C', 'r', encoding="utf-8") as f:
             content = f.read()
         assert '#define HANDSHAKE_TIMEOUT_SEC' in content, \
             "HANDSHAKE_TIMEOUT_SEC constant not found in SRC/MMULTI.C"
 
     def test_handshake_timeout_value_is_positive(self):
         """HANDSHAKE_TIMEOUT_SEC must be positive."""
-        with open('SRC/MMULTI.C', 'r') as f:
+        with open('SRC/MMULTI.C', 'r', encoding="utf-8") as f:
             content = f.read()
         match = re.search(r'#define\s+HANDSHAKE_TIMEOUT_SEC\s+(\d+)', content)
         assert match is not None, "Could not extract HANDSHAKE_TIMEOUT_SEC value"
@@ -42,7 +42,7 @@ class TestHandshakeTimeoutConstants:
 
     def test_handshake_timeout_value_is_sane(self):
         """HANDSHAKE_TIMEOUT_SEC should be < 60 seconds (reasonable upper bound)."""
-        with open('SRC/MMULTI.C', 'r') as f:
+        with open('SRC/MMULTI.C', 'r', encoding="utf-8") as f:
             content = f.read()
         match = re.search(r'#define\s+HANDSHAKE_TIMEOUT_SEC\s+(\d+)', content)
         assert match is not None
@@ -52,14 +52,14 @@ class TestHandshakeTimeoutConstants:
 
     def test_host_accept_timeout_constant_defined(self):
         """NET_HOST_ACCEPT_TIMEOUT_SEC must be defined in SRC/MMULTI.C."""
-        with open('SRC/MMULTI.C', 'r') as f:
+        with open('SRC/MMULTI.C', 'r', encoding="utf-8") as f:
             content = f.read()
         assert '#define NET_HOST_ACCEPT_TIMEOUT_SEC' in content, \
             "NET_HOST_ACCEPT_TIMEOUT_SEC constant not found in SRC/MMULTI.C"
 
     def test_host_accept_timeout_value_is_positive(self):
         """NET_HOST_ACCEPT_TIMEOUT_SEC must be positive."""
-        with open('SRC/MMULTI.C', 'r') as f:
+        with open('SRC/MMULTI.C', 'r', encoding="utf-8") as f:
             content = f.read()
         match = re.search(r'#define\s+NET_HOST_ACCEPT_TIMEOUT_SEC\s+(\d+)', content)
         assert match is not None, "Could not extract NET_HOST_ACCEPT_TIMEOUT_SEC value"
@@ -68,14 +68,14 @@ class TestHandshakeTimeoutConstants:
 
     def test_connect_timeout_constant_defined(self):
         """NET_CONNECT_TIMEOUT must be defined in SRC/MMULTI.C."""
-        with open('SRC/MMULTI.C', 'r') as f:
+        with open('SRC/MMULTI.C', 'r', encoding="utf-8") as f:
             content = f.read()
         assert '#define NET_CONNECT_TIMEOUT' in content, \
             "NET_CONNECT_TIMEOUT constant not found in SRC/MMULTI.C"
 
     def test_connect_timeout_value_is_positive(self):
         """NET_CONNECT_TIMEOUT must be positive."""
-        with open('SRC/MMULTI.C', 'r') as f:
+        with open('SRC/MMULTI.C', 'r', encoding="utf-8") as f:
             content = f.read()
         match = re.search(r'#define\s+NET_CONNECT_TIMEOUT\s+(\d+)', content)
         assert match is not None, "Could not extract NET_CONNECT_TIMEOUT value"
@@ -88,7 +88,7 @@ class TestHandshakeTimeoutRelationships:
 
     def extract_timeout_value(self, constant_name):
         """Extract numeric value of a timeout constant from SRC/MMULTI.C."""
-        with open('SRC/MMULTI.C', 'r') as f:
+        with open('SRC/MMULTI.C', 'r', encoding="utf-8") as f:
             content = f.read()
         match = re.search(rf'#define\s+{constant_name}\s+(\d+)', content)
         if match:
@@ -138,7 +138,7 @@ class TestHandshakeTimeoutUsage:
 
     def test_handshake_timeout_used_in_recv(self):
         """HANDSHAKE_TIMEOUT_SEC must be checked in net_recv_all()."""
-        with open('SRC/MMULTI.C', 'r') as f:
+        with open('SRC/MMULTI.C', 'r', encoding="utf-8") as f:
             content = f.read()
         # Look for the timeout check in net_recv_all
         assert 'HANDSHAKE_TIMEOUT_SEC' in content, \
@@ -148,14 +148,14 @@ class TestHandshakeTimeoutUsage:
 
     def test_connect_timeout_used_in_connect(self):
         """NET_CONNECT_TIMEOUT must be checked during connection phase."""
-        with open('SRC/MMULTI.C', 'r') as f:
+        with open('SRC/MMULTI.C', 'r', encoding="utf-8") as f:
             content = f.read()
         assert 'NET_CONNECT_TIMEOUT' in content, \
             "NET_CONNECT_TIMEOUT is defined but not used"
 
     def test_host_accept_timeout_used_in_accept(self):
         """NET_HOST_ACCEPT_TIMEOUT_SEC must be checked during accept phase."""
-        with open('SRC/MMULTI.C', 'r') as f:
+        with open('SRC/MMULTI.C', 'r', encoding="utf-8") as f:
             content = f.read()
         assert 'NET_HOST_ACCEPT_TIMEOUT_SEC' in content, \
             "NET_HOST_ACCEPT_TIMEOUT_SEC is defined but not used"
@@ -180,7 +180,7 @@ class TestHandshakeTimeoutEdgeCases:
 
     def test_handshake_uses_wall_clock(self):
         """Verify that SRC/MMULTI.C uses time(NULL) for timeout (not cached)."""
-        with open('SRC/MMULTI.C', 'r') as f:
+        with open('SRC/MMULTI.C', 'r', encoding="utf-8") as f:
             content = f.read()
         
         # Find net_recv_all function and check it has the expected timeout pattern
@@ -200,7 +200,7 @@ class TestHandshakeTimeoutEdgeCases:
 
     def test_no_hardcoded_timeout_values_in_recv_all(self):
         """Verify timeout values are NOT hardcoded; they use constants."""
-        with open('SRC/MMULTI.C', 'r') as f:
+        with open('SRC/MMULTI.C', 'r', encoding="utf-8") as f:
             content = f.read()
         # Extract net_recv_all function
         match = re.search(
@@ -216,7 +216,7 @@ class TestHandshakeTimeoutEdgeCases:
 
     def test_timeout_constants_not_zero(self):
         """Verify no timeout constant is 0 (would disable timeout)."""
-        with open('SRC/MMULTI.C', 'r') as f:
+        with open('SRC/MMULTI.C', 'r', encoding="utf-8") as f:
             content = f.read()
         
         for const in ['HANDSHAKE_TIMEOUT_SEC', 'NET_CONNECT_TIMEOUT', 'NET_HOST_ACCEPT_TIMEOUT_SEC']:
@@ -227,7 +227,7 @@ class TestHandshakeTimeoutEdgeCases:
 
     def test_timeout_constants_not_negative(self):
         """Verify no timeout constant is negative (all use unsigned semantics)."""
-        with open('SRC/MMULTI.C', 'r') as f:
+        with open('SRC/MMULTI.C', 'r', encoding="utf-8") as f:
             content = f.read()
         
         # All defines use positive numbers (no minus sign before number)
@@ -243,7 +243,7 @@ class TestHandshakeTimeoutDocumentation:
 
     def test_handshake_timeout_has_comment(self):
         """HANDSHAKE_TIMEOUT_SEC should have an explanatory comment."""
-        with open('SRC/MMULTI.C', 'r') as f:
+        with open('SRC/MMULTI.C', 'r', encoding="utf-8") as f:
             lines = f.readlines()
         
         found = False
@@ -271,7 +271,7 @@ class TestHandshakeTimeoutDocumentation:
 
     def test_asymmetric_timeouts_documented(self):
         """Documentation should explain why timeouts are asymmetric."""
-        with open('SRC/MMULTI.C', 'r') as f:
+        with open('SRC/MMULTI.C', 'r', encoding="utf-8") as f:
             content = f.read()
         
         # Should have comment about asymmetry
@@ -286,7 +286,7 @@ class TestNetSocketCompatTimeout:
         """compat/net_socket*.c should not redefine timeout constants."""
         for filepath in ['compat/net_socket_posix.c', 'compat/net_socket_win32.c']:
             if os.path.exists(filepath):
-                with open(filepath, 'r') as f:
+                with open(filepath, 'r', encoding="utf-8") as f:
                     content = f.read()
                 # Should not define these constants (defined in MMULTI.C)
                 assert '#define HANDSHAKE_TIMEOUT_SEC' not in content, \
@@ -296,7 +296,7 @@ class TestNetSocketCompatTimeout:
 
     def test_timeout_header_not_in_compat(self):
         """compat/net_socket.h should not define timeout constants."""
-        with open('compat/net_socket.h', 'r') as f:
+        with open('compat/net_socket.h', 'r', encoding="utf-8") as f:
             content = f.read()
         # These are MMULTI.C internal constants, not exposed in header
         assert '#define HANDSHAKE_TIMEOUT_SEC' not in content, \
