@@ -8157,6 +8157,39 @@ int main(int argc,char **argv)
         startup_log("CTF: vault_code=%d  addr=0x%llX", ctf_vault_code,
                     (unsigned long long)(uintptr_t)&ctf_vault_code);
     }
+
+    /* CTF-1: sync the Flag-3 ghost teleport target to the *actual* ghost sector
+       (lotag 0x4754) so the published target always matches the generated map.
+       The hardcoded GLOBAL.C default drifted out of the map and pointed into the
+       void, which broke the documented ghost-walk hack (teleport -> no sector ->
+       spawn failure). Use the sector's wall centroid (it is a convex room). */
+    {
+        int gs;
+        for (gs = 0; gs < numsectors; gs++)
+        {
+            if (sector[gs].lotag == 0x4754)
+            {
+                long sx = 0, sy = 0, n = 0;
+                int w, wp = sector[gs].wallptr, wn = sector[gs].wallnum;
+                for (w = 0; w < wn; w++)
+                {
+                    sx += wall[wp + w].x;
+                    sy += wall[wp + w].y;
+                    n++;
+                }
+                if (n > 0)
+                {
+                    ctf_ghost_target_x = (int32_t)(sx / n);
+                    ctf_ghost_target_y = (int32_t)(sy / n);
+                    ctf_ghost_target_z = sector[gs].floorz - (24 << 8);
+                    startup_log("CTF-1: ghost target synced to sector %d -> (%d,%d,%d)",
+                                gs, ctf_ghost_target_x, ctf_ghost_target_y,
+                                ctf_ghost_target_z);
+                }
+                break;
+            }
+        }
+    }
     ctf_reset();
 
     /* Force palette refresh for first frame of gameplay */

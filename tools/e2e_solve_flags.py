@@ -13,9 +13,8 @@ This is the project's demo-validation backbone and the holdout for the attended
 `intptr_t` migration (E1). Built one flag at a time per
 `docs/plans/2026-06-14_I1_SPEC.md`.
 
-Currently implemented: Flags 0 & 1 (boss god-mode — validated end-to-end). Flag 3
-(ghost teleport) is WIP (the far-teleport trips an engine spawn edge case); flags
-4 & 2 are not yet implemented. Windows-only (WriteProcessMemory).
+Currently implemented: Flags 0, 1 & 3 (boss god-mode + ghost teleport — validated
+end-to-end). Flags 4 & 2 are not yet implemented. Windows-only (WriteProcessMemory).
 """
 import argparse
 import ctypes
@@ -192,14 +191,10 @@ def solve_flag1(mem, mm):
 
 def solve_flag3(mem, mm):
     """Flag 3 — Ghost walk: teleport into the sealed room by copying the exposed
-    ctf_ghost_target_{x,y,z} into player_pos{x,y,z}, held for >=5 ticks.
-
-    WIP: the raw far-teleport currently destabilizes the engine (the player lands
-    in the isolated ghost sector and a spawn from that state trips the
-    "Too many sprites spawned." exit — an engine edge case, see
-    docs/plans/2026-06-14_I1_SPEC.md / SAST_TRIAGE.md). Needs an engine-side
-    teleport that resyncs the player sector (setsprite/updatesector) before this
-    flag is reliable headless."""
+    ctf_ghost_target_{x,y,z} into player_pos{x,y,z}, held for a few ticks. The
+    ghost sector is large, so re-writing position keeps cursectnum there while
+    the engine accumulates the >=5 ghost ticks. (Works since CTF-1 synced the
+    target to the real ghost sector at level load.)"""
     gx = mem.read_i32(mm["ctf_ghost_target_x"])
     gy = mem.read_i32(mm["ctf_ghost_target_y"])
     gz = mem.read_i32(mm["ctf_ghost_target_z"])
@@ -257,9 +252,9 @@ def solve(flags, verbose=True):
 
 def main():
     ap = argparse.ArgumentParser(description="Solve Atomic Shell CTF flags headless")
-    ap.add_argument("--flags", default="0,1",
-                    help="comma-separated flag indices to solve (default: 0,1 — "
-                         "the validated boss god-mode flags; 3/4/2 are WIP)")
+    ap.add_argument("--flags", default="0,1,3",
+                    help="comma-separated flag indices to solve (default: 0,1,3 — "
+                         "the validated boss + ghost flags; 4/2 are WIP)")
     args = ap.parse_args()
     flags = [int(x) for x in args.flags.split(",") if x.strip() != ""]
     captured = solve(flags)
