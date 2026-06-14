@@ -2227,7 +2227,7 @@ void gameexit(char *t)
     if(qe || cp)
         goto GOTOHERE;
 
-    if(playerswhenstarted > 1 && ud.coop != 1 && *t == ' ')
+    if(playerswhenstarted > 1 && ud.coop != 1 && t && *t == ' ')
     {
         dobonus(1);
 /*  CTW - MODIFICATION */

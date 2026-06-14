@@ -410,6 +410,10 @@ int xyzsound(short num,short i,long x,long y,long z)
        else Sound[num].lock++;
     }
 
+    /* sec-sast-C6011: loadsound() can return success without populating ptr for a
+       missing/empty (AI-regen) asset; never dereference a NULL sound buffer. */
+    if (Sound[num].ptr == 0) return 0;
+
     if( soundm[num]&16 ) sndist = 0;
 
     if(sndist < ((255-LOUDESTVOLUME)<<6) )
@@ -493,6 +497,9 @@ void sound(short num)
           Sound[num].lock = 200;
        else Sound[num].lock++;
     }
+
+    /* sec-sast-C6011: guard against a NULL sound buffer after on-demand load. */
+    if (Sound[num].ptr == 0) return;
 
     if( soundm[num]&1 )
     {

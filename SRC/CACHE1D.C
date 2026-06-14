@@ -200,7 +200,7 @@ suckcache (void *suckptr)
 
 	/*Can't exit early, because invalid pointer might be same even though lock = 0*/
 	for(i=0;i<cacnum;i++)
-		if (*cac[i].hand == (intptr_t)suckptr)
+		if (cac[i].hand != 0 && *cac[i].hand == (intptr_t)suckptr)
 		{
 			freed_bytes = cac[i].leng;
 			if (*cac[i].lock) *cac[i].hand = 0;
