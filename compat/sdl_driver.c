@@ -187,13 +187,12 @@ int sdl_init(int xdim, int ydim)
     env_val = getenv("DUKE3D_HEADLESS");
     headless_mode = (env_val && atoi(env_val) == 1) ? 1 : 0;
 
-    env_val = getenv("DUKE3D_FRAME_LIMIT");
-    frame_limit = env_val ? atoi(env_val) : 0;
-    if (frame_limit < 0) frame_limit = 0;
+    /* Counts use validated parsing so a typo fails loudly (see compat_env_uint):
+       a malformed DUKE3D_FRAME_LIMIT silently disabling the limit is a footgun
+       for unattended soaks. */
+    frame_limit = compat_env_uint("DUKE3D_FRAME_LIMIT", 0);
 
-    env_val = getenv("DUKE3D_CAPTURE_INTERVAL");
-    capture_interval = env_val ? atoi(env_val) : 0;
-    if (capture_interval < 0) capture_interval = 0;
+    capture_interval = compat_env_uint("DUKE3D_CAPTURE_INTERVAL", 0);
 
     frame_count = 0;
     frame_limit_hit = 0;

@@ -796,6 +796,33 @@ static inline void startup_log_close(void)
     }
 }
 
+/* engine-r1-env-parse-hardening: read an env var as a non-negative integer with
+ * validation. Returns `def` if the var is unset/empty. On malformed input
+ * (non-numeric, trailing junk, or outside [0, INT_MAX]) it logs a warning to the
+ * startup log and returns `def` — so a typo'd count such as DUKE3D_FRAME_LIMIT
+ * fails loudly instead of silently parsing as 0 (which would disable the limit
+ * during an unattended soak). Use this instead of bare atoi() for headless/
+ * automation count env vars. */
+static inline int compat_env_uint(const char *name, int def)
+{
+    const char *v = getenv(name);
+    char *end;
+    long n;
+
+    if (!v || !v[0])
+        return def;
+
+    n = strtol(v, &end, 10);
+    while (*end == ' ' || *end == '\t' || *end == '\r' || *end == '\n')
+        end++;
+    if (end == v || *end != '\0' || n < 0 || n > 2147483647L) {
+        startup_log("  WARNING: %s='%s' is not a valid non-negative integer; using default %d",
+                    name, v, def);
+        return def;
+    }
+    return (int)n;
+}
+
 /* ======================================================================
  * Fatal error reporting — shows MessageBox on Windows, stderr on Linux
  * ====================================================================== */

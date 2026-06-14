@@ -2293,10 +2293,9 @@ void processinput(short snum)
      * regardless of wall-clock/parallel-load timing. N=0/unset -> off. */
     if (autoplay_fire < 0)
     {
-        const char *v = getenv("DUKE3D_AUTOPLAY_FIRE");
-        autoplay_fire = (v && env_flag_enabled("DUKE3D_AUTOPLAY") &&
-                         env_flag_enabled("DUKE3D_HEADLESS")) ? atoi(v) : 0;
-        if (autoplay_fire < 0) autoplay_fire = 0;
+        autoplay_fire = (env_flag_enabled("DUKE3D_AUTOPLAY") &&
+                         env_flag_enabled("DUKE3D_HEADLESS"))
+                        ? compat_env_uint("DUKE3D_AUTOPLAY_FIRE", 0) : 0;
     }
     if (autoplay_fire > 0 && autoplay_fire_frames < autoplay_fire &&
         snum == myconnectindex && p->cheat_phase <= 0)
