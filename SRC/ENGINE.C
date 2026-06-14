@@ -160,7 +160,14 @@ void kloadvoxel(long voxindex) { loadvoxel(voxindex); }
 #define MAXZSIZ 200
 #define MAXVOXELS 512
 #define MAXVOXMIPS 5
-long voxoff[MAXVOXELS][MAXVOXMIPS], voxlock[MAXVOXELS][MAXVOXMIPS];
+/* voxoff stores cache POINTERS written by allocache(intptr_t *newhandle, ...),
+ * so it must be pointer-sized. On Win64 `long` is 32-bit (LLP64): declaring
+ * voxoff as long made allocache write 8 bytes into a 4-byte slot (corrupting
+ * the adjacent element) and truncated every voxel pointer. Mirror waloff
+ * (intptr_t) - see engine-sast-r* / BUILD.H waloff. voxlock stays a small
+ * lock counter (allocache only touches its low byte via char*). */
+intptr_t voxoff[MAXVOXELS][MAXVOXMIPS];
+long voxlock[MAXVOXELS][MAXVOXMIPS];
 static long ggxinc[MAXXSIZ+1], ggyinc[MAXXSIZ+1];
 static long lowrecip[1024], nytooclose, nytoofar;
 static unsigned long distrecip[16384];

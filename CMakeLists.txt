@@ -47,6 +47,14 @@ endif()
 
 add_compile_definitions(SUPERBUILD)
 
+# Static-analysis (SAST) opt-in. When ON, the MSVC build re-enables the
+# pointer/integer truncation warnings that the normal /W0 build suppresses.
+# These flag the 32-bit long <-> 64-bit pointer truncation hazards that this
+# 1996-era code is prone to under Win64 (the historical renderer crash class).
+# The default build is unaffected (stays /W0).
+option(ATOMIC_SAST "Enable MSVC truncation/static-analysis warnings" OFF)
+option(ATOMIC_SAST_ANALYZE "Also run MSVC /analyze (slower)" OFF)
+
 # Source files — keep in sync with build.mk
 set(ENGINE_SRCS
     SRC/ENGINE.C
@@ -124,7 +132,21 @@ endif()
 
 # Compiler-specific flags
 if(MSVC)
-    target_compile_options(duke3d PRIVATE /W0)
+    if(ATOMIC_SAST)
+        # SAST mode: force-enable the truncation warnings even though the rest
+        # of the tree is noisy. C4311/C4312/C4302/C4826 are the crash-class
+        # (pointer<->long truncation + sign-extension); C4244/C4267 are narrowing.
+        target_compile_options(duke3d PRIVATE
+            /W3
+            /w14311 /w14312 /w14302 /w14826 /w14244 /w14267)
+        if(ATOMIC_SAST_ANALYZE)
+            # Full /analyze (NOT /analyze:only - :only skips codegen, which both
+            # drops the C4xxx truncation warnings and breaks the Ninja link).
+            target_compile_options(duke3d PRIVATE /analyze)
+        endif()
+    else()
+        target_compile_options(duke3d PRIVATE /W0)
+    endif()
     set_source_files_properties(${COMPAT_SRCS} PROPERTIES COMPILE_FLAGS "/std:c11")
     # Note: do NOT add /Tc or /TC here. The LANGUAGE C source property set
     # above already makes MSVC compile uppercase .C files as C. Adding /Tc

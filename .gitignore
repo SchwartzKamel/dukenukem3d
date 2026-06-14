@@ -62,3 +62,5 @@ headless_run-worker-*.done
 
 # session SQLite artifact
 .session.db
+
+build-sast/
