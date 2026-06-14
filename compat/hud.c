@@ -8,6 +8,7 @@
  */
 
 #include "hud.h"
+#include "ctf.h"   /* G3: CTF flag-capture state for the HUD tracker */
 #include <string.h>
 #include <stdio.h>
 
@@ -211,6 +212,31 @@ void hud_draw(unsigned char *framebuf, int pitch, int width, int height,
                 ammo_x, y_base, "AMMO", col_yellow, scale);
     draw_number(framebuf, pitch, width, height,
                 ammo_x + 24 * scale, y_base, ammo, col_yellow, scale);
+
+    /* CTF flag tracker — top-left overlay: "FLAGS n/5" (green when all captured).
+     * Reads ctf_flag_captured() so it tracks live progress; a dark background
+     * box keeps it readable over the game view. */
+    {
+        int fi, captured = 0;
+        int tx = margin, ty = margin;
+        unsigned char fcol;
+        for (fi = 0; fi < CTF_NUM_FLAGS; fi++)
+            if (ctf_flag_captured(fi)) captured++;
+        fcol = (captured >= CTF_NUM_FLAGS) ? col_green : col_yellow;
+
+        fill_rect(framebuf, pitch, width, height,
+                  tx - scale, ty - scale, 50 * scale, 8 * scale, col_darkgray);
+
+        draw_string(framebuf, pitch, width, height, tx, ty, "FLAGS", fcol, scale);
+        tx += 5 * 5 * scale + 2 * scale;        /* past "FLAGS" (5 glyphs) + gap */
+        draw_number(framebuf, pitch, width, height, tx, ty, captured, fcol, scale);
+        tx += 5 * scale;                        /* past the count digit */
+        for (fi = 0; fi < 6; fi++)              /* slash separator */
+            fill_rect(framebuf, pitch, width, height,
+                      tx + (3 - fi / 2) * scale, ty + fi * scale, scale, scale, fcol);
+        tx += 5 * scale;
+        draw_number(framebuf, pitch, width, height, tx, ty, CTF_NUM_FLAGS, fcol, scale);
+    }
 
     /* Crosshair in screen center */
     draw_crosshair(framebuf, pitch, width, height);

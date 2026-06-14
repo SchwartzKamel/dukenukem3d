@@ -29,11 +29,19 @@
 #endif
 #ifdef _WIN32
 #include <direct.h>
-#define MKDIR_CAPTURES() _mkdir("captures")
+#define MKDIR_DIR(d) _mkdir(d)
 #else
 #include <sys/stat.h>
-#define MKDIR_CAPTURES() mkdir("captures", 0755)
+#define MKDIR_DIR(d) mkdir(d, 0755)
 #endif
+
+/* Capture output directory: DUKE3D_CAPTURE_DIR (default "captures").
+ * Configurable so parallel tests can each isolate their frames. */
+static const char *capture_dir(void)
+{
+    const char *d = getenv("DUKE3D_CAPTURE_DIR");
+    return (d && d[0]) ? d : "captures";
+}
 
 /* ── Video state ────────────────────────────────────────────────── */
 static SDL_Window   *window   = NULL;
@@ -379,8 +387,8 @@ static void auto_capture(int fnum, int is_last)
     /* Capture first frame, every N-th frame, and last frame */
     if (fnum == 1 || is_last ||
         (capture_interval > 0 && (fnum % capture_interval) == 0)) {
-        MKDIR_CAPTURES();
-        snprintf(path, sizeof(path), "captures/frame_%04d.bmp", fnum);
+        MKDIR_DIR(capture_dir());
+        snprintf(path, sizeof(path), "%s/frame_%04d.bmp", capture_dir(), fnum);
         sdl_capture_frame(path);
     }
 }
