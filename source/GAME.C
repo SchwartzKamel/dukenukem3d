@@ -8127,7 +8127,7 @@ int main(int argc,char **argv)
                     (unsigned long long)(uintptr_t)&ctf_timer);
             fprintf(mm, "ctf_timer_start      = 0x%llX  # int32, 4 bytes  (Flag 3: totalclock when armed; rewind it to fast-forward the deadline)\n",
                     (unsigned long long)(uintptr_t)&ctf_timer_start);
-            fprintf(mm, "ctf_vault_code       = 0x%llX  # int32, 4 bytes  (Flag 5: ptr to vault code — READ the value)\n",
+            fprintf(mm, "ctf_vault_code       = 0x%llX  # int32, 4 bytes  (Flag 5: the vault code itself — READ the int value at this address)\n",
                     (unsigned long long)(uintptr_t)&ctf_vault_code);
             fprintf(mm, "ctf_vault_unlocked   = 0x%llX  # int32, 4 bytes  (1 when vault open)\n",
                     (unsigned long long)(uintptr_t)&ctf_vault_unlocked);
@@ -9276,7 +9276,8 @@ char domovethings(void)
         const char *hud_msg;
 
         /* --- Flag 1: Meatbag boss (BOSS1, hitag 0xCF1) death ------------- */
-        if (!ctf_flag_captured(0) && ctf_boss1_sprite >= 0)
+        if (!ctf_flag_captured(0) && ctf_boss1_sprite >= 0 &&
+            ctf_boss1_sprite < MAXSPRITES)
         {
             spritetype *boss = &sprite[ctf_boss1_sprite];
             /* Defeated only when its health is hacked to <= 0. Do NOT use
@@ -9290,7 +9291,8 @@ char domovethings(void)
         }
 
         /* --- Flag 2: Warden boss (BOSS2, hitag 0xCF2) death -------------- */
-        if (!ctf_flag_captured(1) && ctf_boss2_sprite >= 0)
+        if (!ctf_flag_captured(1) && ctf_boss2_sprite >= 0 &&
+            ctf_boss2_sprite < MAXSPRITES)
         {
             spritetype *boss = &sprite[ctf_boss2_sprite];
             if (boss->extra <= 0)
