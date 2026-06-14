@@ -49,39 +49,35 @@ def _make_colorful_image(size=(32, 32)):
 
 
 def test_frame_analyzer_import_time():
-    """Regression test: frame_analyzer module imports in under 200ms.
-    
-    Ensures lazy imports are working and PIL/numpy/scipy are not
-    imported at module top level.
-    
-    Note: Measures import overhead in subprocess which includes Python 
-    startup time. The actual lazy import loading is much faster.
+    """Regression test: frame_analyzer does not import PIL/numpy/scipy eagerly.
+
+    The module promises lazy imports — PIL/numpy/scipy must NOT be loaded at
+    module top level (they are pulled in on first use via singleton-cached
+    helpers). This is the real contract behind the historical "import time"
+    name.
+
+    We verify it DIRECTLY and deterministically: import the module in a clean
+    subprocess and assert none of the heavy deps appear in ``sys.modules``.
+    (The previous wall-clock import-time budget was an unreliable proxy — under
+    the parallel xdist suite, CPU saturation inflated the measured time well past
+    the budget even at best-of-N, producing false failures. The sys.modules check
+    is load-independent and more precise: it fails iff a heavy dep is genuinely
+    imported at top level.)
     """
-    # Import in a fresh subprocess to measure cold import time
-    # This includes Python interpreter startup overhead (~100ms)
+    # A clean subprocess is required: this test process already imports
+    # frame_analyzer (top of file) and PIL, so its sys.modules is polluted.
     code = """
-import time
-import sys
-import json
-start = time.perf_counter()
-from tools.frame_analyzer import analyze_frame
-elapsed = time.perf_counter() - start
-# Skip if process_time is too low (caching artifacts)
-cpu_time = time.process_time()
-if cpu_time >= 0.001:
-    print(json.dumps({"elapsed": elapsed}))
-else:
-    print(json.dumps({"elapsed": elapsed, "skipped": True}))
+import sys, json
+import tools.frame_analyzer  # noqa: F401  (import for its side effects)
+heavy = sorted(m for m in ("numpy", "scipy", "PIL") if m in sys.modules)
+print(json.dumps({"heavy": heavy}))
 """
-    
-    # The cold-import measurement spawns a subprocess. Under heavy parallel load
-    # (the full xdist suite, which already saturates CPU) the spawn itself can
-    # transiently fail or time out — an environment artifact, not a lazy-import
-    # regression — so retry a few times. A genuine regression (e.g. PIL/numpy/
-    # scipy imported at module top level) fails every attempt and still trips the
-    # assertion below.
+
+    # Retry past transient subprocess-spawn failures under heavy parallel load
+    # (an environment artifact, not a regression). A real eager import fails the
+    # assertion on every attempt.
     last_err = ""
-    result = None
+    output = None
     for _attempt in range(3):
         if _attempt > 0:
             time.sleep(0.5)  # decorrelate the retry from a brief load spike
@@ -96,23 +92,19 @@ else:
         except subprocess.TimeoutExpired as exc:
             last_err = f"timeout after 30s: {exc}"
             continue
-        if attempt_result.returncode == 0:
-            result = attempt_result
-            break
-        last_err = attempt_result.stderr
+        if attempt_result.returncode != 0:
+            last_err = attempt_result.stderr
+            continue
+        output = json.loads(attempt_result.stdout)
+        break
 
-    if result is None:
+    if output is None:
         pytest.fail(f"Import test failed after 3 attempts: {last_err}")
-    
-    output = json.loads(result.stdout)
-    
-    # Skip assertion if caching artifacts detected
-    if output.get("skipped"):
-        pytest.skip("Import time skipped due to low process_time (caching)")
-    
-    elapsed = output["elapsed"]
-    # Total time is <400ms which includes Python startup (~100ms) + actual module import
-    assert elapsed < 0.400, f"Import time {elapsed:.3f}s exceeds 400ms budget"
+
+    assert output["heavy"] == [], (
+        "frame_analyzer eagerly imported heavy deps at module top level "
+        f"(lazy-import regression): {output['heavy']}"
+    )
 
 
 class TestLoadFrame:
