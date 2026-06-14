@@ -218,7 +218,7 @@ int sdl_init(int xdim, int ydim)
         if (!headless_mode)
             win_flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
 
-        window = SDL_CreateWindow("Atomic Shell (Build engine / Duke Nukem 3D port)",
+        window = SDL_CreateWindow("Atomic Shell",
                                   SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
                                   xdim, ydim, win_flags);
     }

@@ -2648,6 +2648,10 @@ void cheatkeys(short snum)
                         if(i == 10)
                         {
                             addweapon( p, KNEE_WEAPON );
+                            j = KNEE_WEAPON; /* fix: j was still holding the scan direction
+                                               (-1 or +1); reset it to the selected weapon so
+                                               the gotweapon[j] check below gets a valid index
+                                               instead of 0xFFFFFFFF → access violation. */
                             break;
                         }
                     }

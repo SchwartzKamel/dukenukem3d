@@ -1422,7 +1422,7 @@ def _classify_tile(name, tile_num):
     if name in ('MENUSCREEN', 'BETASCREEN', 'LOADSCREEN', 'BONUSSCREEN',
                 'VICTORY1', 'ORDERING', 'TEXTSTORY', 'BORNTOBEWILDSCREEN',
                 'F1HELP', 'TENSCREEN', 'BETAVERSION', 'DUKECAR', 'DREALMS',
-                'VIEWBORDER'):
+                'VIEWBORDER', 'CREDITS1', 'CREDITS2', 'CREDITS3'):
         return (320, 200, 'fullscreen')
     # HUD / status bars
     if name in ('BOTTOMSTATUSBAR', 'FRAGBAR', 'MENUBAR', 'HEADERBAR'):
@@ -1633,13 +1633,16 @@ def _draw_scaled_text(draw, cx, cy, text, color, scale=1, char_w=6):
 
 
 def _gen_branded_menuscreen(w, h):
-    """Branded main-menu background built from our store banner + tagline.
+    """Branded main-menu background built from our store banner.
 
     Loads engine/tools/branding/menu_banner.webp (committed into the engine so
-    the submodule stays self-contained), cover-fits it to the tile, darkens it
-    for menu-text legibility, and overlays the Atomic Shell / Game Hacking
-    Village tagline. Falls back to the procedural placeholder if the banner is
-    missing or unreadable.
+    the submodule stays self-contained), cover-fits it to the tile, and darkens
+    it for menu-text legibility. No text is overlaid: the menu draws its own
+    "ATOMIC SHELL" logo tile across the top, the splash screen carries the full
+    "Game Hacking Village / Presented by lafiamafia" tagline, and overlaying
+    text here collided with taller submenus (e.g. OPTIONS) whose items extend
+    into the lower band. Falls back to the procedural placeholder if the banner
+    is missing or unreadable.
     """
     banner_path = os.path.join(os.path.dirname(__file__), "branding", "menu_banner.webp")
     try:
@@ -1657,13 +1660,154 @@ def _gen_branded_menuscreen(w, h):
     top = (nh - h) // 2
     img = banner.crop((left, top, left + w, top + h))
     img = Image.eval(img, lambda v: int(v * 0.55))  # darken ~45% for legibility
+    return img
 
+
+def _draw_left_text(draw, x, y, text, color, scale=1, char_w=6):
+    """Draw bitmap-font text left-aligned with its left edge at x, top at y."""
+    _init_font()
+    text = text.upper()
+    for i, ch in enumerate(text):
+        glyph = _FONT_GLYPHS.get(ord(ch))
+        if glyph is None:
+            continue
+        bx = x + i * char_w * scale
+        for row_idx, bits in enumerate(glyph):
+            for col in range(5):
+                if bits & (1 << (4 - col)):
+                    px = bx + col * scale
+                    py = y + row_idx * scale
+                    draw.rectangle([px, py, px + scale - 1, py + scale - 1], fill=color)
+
+
+def _gen_text_screen_base(w, h):
+    """Dark, neon-bordered backdrop shared by the credits / help text screens."""
+    img = Image.new("RGB", (w, h), (6, 8, 14))
     draw = ImageDraw.Draw(img)
-    # All branding text sits in the clear band BELOW the menu items (~y55-132);
-    # the menu draws its own logo tile across the top, so keep that area empty.
-    _draw_scaled_text(draw, w // 2, h - 56, "ATOMIC SHELL", (0, 230, 255), scale=2)
-    _draw_scaled_text(draw, w // 2, h - 38, "PRESENTED BY LAFIAMAFIA", (255, 215, 80), scale=1)
-    _draw_scaled_text(draw, w // 2, h - 26, "GAME HACKING VILLAGE", (0, 255, 160), scale=2)
+    for y in range(0, h, 2):
+        draw.line([(0, y), (w - 1, y)], fill=(9, 11, 18))
+    draw.rectangle([2, 2, w - 3, h - 3], outline=(0, 90, 130))
+    draw.rectangle([4, 4, w - 5, h - 5], outline=(0, 45, 70))
+    for cx, cy in [(8, 8), (w - 12, 8), (8, h - 12), (w - 12, h - 12)]:
+        draw.rectangle([cx, cy, cx + 4, cy + 4], fill=(0, 200, 255))
+    return img, draw
+
+
+def _gen_credits_screen(w, h):
+    """Branded CREDITS screen (TEXTSTORY tile, reached from the CREDITS menu)."""
+    img, draw = _gen_text_screen_base(w, h)
+    cyan, green, gold, dim, white = (
+        (0, 230, 255), (0, 255, 160), (255, 215, 80), (120, 150, 170), (220, 235, 245),
+    )
+    _draw_scaled_text(draw, w // 2, 14, "ATOMIC SHELL", cyan, scale=2)
+    _draw_scaled_text(draw, w // 2, 32, "GAME HACKING VILLAGE", green, scale=1)
+    lines = [
+        ("A HACKABLE-BY-DESIGN CTF.", white),
+        ("BREAK THE GAME. CAPTURE", white),
+        ("FIVE GHVCTF{} FLAGS.", white),
+        ("", white),
+        ("PRESENTED BY LAFIAMAFIA", gold),
+        ("", white),
+        ("BUILT ON THE GPL BUILD ENGINE", dim),
+        ("(C) ID SOFTWARE / 3D REALMS", dim),
+        ("TRAINER + CE TABLE IN TOOLS/", dim),
+    ]
+    y = 58
+    for text, color in lines:
+        if text:
+            _draw_text_on_image(draw, w // 2, y, text, color)
+        y += 12
+    _draw_text_on_image(draw, w // 2, h - 16, "PRESS ESC TO RETURN", dim)
+    return img
+
+
+def _gen_help_screen(w, h):
+    """Branded HELP / CONTROLS screen (F1HELP tile, reached from the HELP menu)."""
+    img, draw = _gen_text_screen_base(w, h)
+    cyan, green, gold, dim, white = (
+        (0, 230, 255), (0, 255, 160), (255, 215, 80), (120, 150, 170), (220, 235, 245),
+    )
+    _draw_scaled_text(draw, w // 2, 14, "ATOMIC SHELL", cyan, scale=2)
+    _draw_scaled_text(draw, w // 2, 32, "CONTROLS", green, scale=1)
+    rows = [
+        ("MOVE", "W A S D", white),
+        ("TURN / LOOK", "ARROW KEYS", white),
+        ("FIRE", "CTRL", white),
+        ("OPEN / USE", "SPACE", white),
+        ("JUMP / CROUCH", "A / Z", white),
+        ("SELECT WEAPON", "1 - 0", white),
+        ("MENU / BACK", "ESC", white),
+    ]
+    y = 56
+    lx = 40
+    for label, keys, color in rows:
+        _draw_left_text(draw, lx, y, label, color)
+        _draw_left_text(draw, lx + 150, y, keys, cyan)
+        y += 11
+    y += 4
+    _draw_text_on_image(draw, w // 2, y, "CTF: HACK MEMORY, GRAB 5 FLAGS", gold)
+    _draw_text_on_image(draw, w // 2, y + 11, "SEE TOOLS/TRAINER/ FOR HELP", dim)
+    _draw_text_on_image(draw, w // 2, h - 16, "PRESS ESC TO RETURN", dim)
+    return img
+
+
+def _gen_credits_page(w, h, page):
+    """One of the three CREDITS pages (tiles 2504-2506, the CREDITS menu)."""
+    img, draw = _gen_text_screen_base(w, h)
+    cyan, green, gold, dim, white, red = (
+        (0, 230, 255), (0, 255, 160), (255, 215, 80), (120, 150, 170),
+        (220, 235, 245), (255, 90, 90),
+    )
+    if page == 0:
+        _draw_scaled_text(draw, w // 2, 18, "ATOMIC SHELL", cyan, scale=2)
+        _draw_scaled_text(draw, w // 2, 38, "GAME HACKING VILLAGE", green, scale=1)
+        lines = [
+            ("", white),
+            ("A HACKABLE-BY-DESIGN CTF", white),
+            ("WHERE BREAKING THE GAME", white),
+            ("IS THE WHOLE POINT.", white),
+            ("", white),
+            ("PRESENTED BY LAFIAMAFIA", gold),
+        ]
+        y = 64
+        for text, color in lines:
+            if text:
+                _draw_text_on_image(draw, w // 2, y, text, color)
+            y += 13
+    elif page == 1:
+        _draw_scaled_text(draw, w // 2, 16, "THE FIVE FLAGS", cyan, scale=1)
+        rows = [
+            ("1 GODMODE", "FREEZE HP, KILL THE MEATBAG", green),
+            ("2 SHIELD DOWN", "DROP THE WARDEN WITH RPG", green),
+            ("3 FROZEN CLOCK", "FREEZE THE CTF TIMER", green),
+            ("4 GHOST WALK", "TELEPORT INTO THE VAULT", green),
+            ("5 VAULT", "CRACK THE 4-DIGIT CODE", green),
+        ]
+        y = 44
+        for tag, desc, color in rows:
+            _draw_left_text(draw, 24, y, tag, color)
+            _draw_text_on_image(draw, w // 2 + 28, y, desc, dim)
+            y += 18
+        _draw_text_on_image(draw, w // 2, h - 30, "GHVCTF{...}", gold)
+    else:
+        _draw_scaled_text(draw, w // 2, 16, "CREDITS", cyan, scale=1)
+        lines = [
+            ("CONCEPT + CTF DESIGN", dim),
+            ("LAFIAMAFIA / GAME HACKING VILLAGE", white),
+            ("", white),
+            ("ENGINE", dim),
+            ("THE GPL BUILD ENGINE,", white),
+            ("(C) ID SOFTWARE / 3D REALMS 1996", white),
+            ("", white),
+            ("TRAINING TOOLS", dim),
+            ("CHEAT ENGINE TABLE + PY TRAINER", white),
+        ]
+        y = 40
+        for text, color in lines:
+            if text:
+                _draw_text_on_image(draw, w // 2, y, text, color)
+            y += 13
+    _draw_text_on_image(draw, w // 2, h - 14, "ESC TO RETURN  -  ARROWS TO PAGE", dim)
     return img
 
 
@@ -2210,6 +2354,13 @@ def generate_game_tiles(palette):
         if t not in num_to_name:
             num_to_name[t] = f'THREEBYFIVE_{t - tbf}'
 
+    # CREDITS pages: the CREDITS menu (cases 990-992 in MENUES.C) draws full-screen
+    # tiles 2504-2506. They are otherwise unnamed, so register + brand them here.
+    for i in range(3):
+        t = 2504 + i
+        if t not in num_to_name:
+            num_to_name[t] = f'CREDITS{i + 1}'
+
     mf = names.get('MINIFONT', 3072)
     for t in range(mf, mf + 92):
         if t not in num_to_name:
@@ -2247,6 +2398,12 @@ def generate_game_tiles(palette):
         gen = _CATEGORY_GENERATORS.get(category, _CATEGORY_GENERATORS['prop'])
         if name == 'MENUSCREEN':
             img = _gen_branded_menuscreen(w, h)
+        elif name == 'TEXTSTORY':
+            img = _gen_credits_screen(w, h)
+        elif name == 'F1HELP':
+            img = _gen_help_screen(w, h)
+        elif name in ('CREDITS1', 'CREDITS2', 'CREDITS3'):
+            img = _gen_credits_page(w, h, int(name[-1]) - 1)
         else:
             img = gen(w, h, name, tile_num, seed)
         if category in _OVERLAY_CATEGORIES:

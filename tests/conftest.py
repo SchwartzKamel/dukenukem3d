@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import re
 import textwrap
+import uuid
 
 import pytest
 from pydantic import BaseModel, field_validator
@@ -742,6 +743,18 @@ def sdl2_available():
     return False
 
 
+def pytest_configure(config):
+    """Create a per-pytest-session id for headless playtest reruns."""
+    if not hasattr(config, "workerinput"):
+        config._headless_session_id = uuid.uuid4().hex
+
+
+def pytest_configure_node(node):
+    """Share the headless session id with xdist workers."""
+    session_id = getattr(node.config, "_headless_session_id", uuid.uuid4().hex)
+    node.workerinput["headless_session_id"] = session_id
+
+
 def get_sdl2_lib_path():
     """Try to find SDL2 library path from ctypes/system locations."""
     windows_candidates = [
@@ -808,7 +821,7 @@ def get_sdl2_lib_path():
 
 
 @pytest.fixture(scope="session")
-def headless_run(worker_id):
+def headless_run(worker_id, pytestconfig):
     """Launch Duke3D headless once, capture frames, return results dict."""
     import glob
     import shutil
@@ -824,9 +837,17 @@ def headless_run(worker_id):
     if not sdl2_available():
         pytest.skip("libSDL2-2.0.so.0 not found in runtime linker path")
 
+    session_id = os.environ.get("DUKE3D_HEADLESS_RUN_ID")
+    if not session_id:
+        workerinput = getattr(pytestconfig, "workerinput", None) or {}
+        session_id = workerinput.get(
+            "headless_session_id",
+            getattr(pytestconfig, "_headless_session_id", "default"),
+        )
+
     captures_dir = os.path.join(PROJECT_ROOT, "captures")
-    lock_file = os.path.join(PROJECT_ROOT, ".headless_run.lock")
-    done_marker = os.path.join(PROJECT_ROOT, ".headless_run.done")
+    lock_file = os.path.join(PROJECT_ROOT, f".headless_run.{session_id}.lock")
+    done_marker = os.path.join(PROJECT_ROOT, f".headless_run.{session_id}.done")
 
     def _do_headless_run():
         if os.path.isdir(captures_dir):

@@ -1851,7 +1851,7 @@ void menus(void)
         case 20000:
             x = probe(326,190,0,0);
             gametext(160,50-8,"YOU ARE PLAYING THE SHAREWARE",0,2+8+16);
-            gametext(160,59-8,"VERSION OF DUKE NUKEM 3D.  WHILE",0,2+8+16);
+            gametext(160,59-8,"VERSION OF ATOMIC SHELL.  WHILE",0,2+8+16);
             gametext(160,68-8,"THIS VERSION IS REALLY COOL, YOU",0,2+8+16);
             gametext(160,77-8,"ARE MISSING OVER 75% OF THE TOTAL",0,2+8+16);
             gametext(160,86-8,"GAME, ALONG WITH OTHER GREAT EXTRAS",0,2+8+16);
@@ -1862,7 +1862,7 @@ void menus(void)
             gametext(160,113+8,"PLEASE READ THE 'HOW TO ORDER' ITEM",0,2+8+16);
             gametext(160,122+8,"ON THE MAIN MENU IF YOU WISH TO",0,2+8+16);
             gametext(160,131+8,"UPGRADE TO THE FULL REGISTERED",0,2+8+16);
-            gametext(160,140+8,"VERSION OF DUKE NUKEM 3D.",0,2+8+16);
+            gametext(160,140+8,"VERSION OF ATOMIC SHELL.",0,2+8+16);
             gametext(160,149+16,"PRESS ANY KEY...",0,2+8+16);
 
             if( x >= -1 ) cmenu(100);

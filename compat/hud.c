@@ -112,7 +112,7 @@ static void draw_number(unsigned char *buf, int pitch, int w, int h,
     char str[12];
     int len = snprintf(str, sizeof(str), "%d", num);
     int char_w = 5 * scale;  /* 4 pixel glyph + 1 pixel gap */
-    int start_x = x - len * char_w;
+    int start_x = x;         /* left-aligned: value reads left-to-right after its label */
     for (int i = 0; i < len; i++)
         draw_digit(buf, pitch, w, h, start_x + i * char_w, y,
                    str[i] - '0', color, scale);
@@ -210,7 +210,7 @@ void hud_draw(unsigned char *framebuf, int pitch, int width, int height,
     draw_string(framebuf, pitch, width, height,
                 ammo_x, y_base, "AMMO", col_yellow, scale);
     draw_number(framebuf, pitch, width, height,
-                width - margin, y_base, ammo, col_yellow, scale);
+                ammo_x + 24 * scale, y_base, ammo, col_yellow, scale);
 
     /* Crosshair in screen center */
     draw_crosshair(framebuf, pitch, width, height);

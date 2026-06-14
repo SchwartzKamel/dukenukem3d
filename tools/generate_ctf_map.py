@@ -268,7 +268,7 @@ def assemble_map():
     # extra = 9999 → initial health
     all_sprites.append(_pack_sprite(
         x=boss_cx - 1500, y=boss_cy,
-        z=FLOOR_Z - (56 << 8),
+        z=FLOOR_Z,                # feet on the floor (was -14336, above the ceiling)
         picnum=BOSS1,
         cstat=0, shade=-5,
         xrepeat=80, yrepeat=80,
@@ -282,7 +282,7 @@ def assemble_map():
     # hitag = 0x0CF2 → CTF RPG-only trigger
     all_sprites.append(_pack_sprite(
         x=boss_cx + 1500, y=boss_cy,
-        z=FLOOR_Z - (56 << 8),
+        z=FLOOR_Z,                # feet on the floor (was above the ceiling)
         picnum=BOSS2,
         cstat=0, shade=-5,
         xrepeat=80, yrepeat=80,
@@ -298,7 +298,7 @@ def assemble_map():
     # A hostile actor to create urgency while frozen clock ticks
     all_sprites.append(_pack_sprite(
         x=timer_cx, y=timer_cy,
-        z=FLOOR_Z - (40 << 8),
+        z=FLOOR_Z,                # feet on the floor
         picnum=BOSS1,           # BOSS1 regular (no hitag = not CTF regen)
         cstat=0, shade=10,
         xrepeat=48, yrepeat=48,
