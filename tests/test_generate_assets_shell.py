@@ -26,9 +26,13 @@ class TestGenerateAssetsShellParallelization:
     def test_script_syntax_valid(self):
         """Script should pass bash syntax check."""
         result = subprocess.run(
-            ["bash", "-n", SCRIPT_PATH],
+            # `bash` is WSL: pass a relative forward-slash path anchored at the
+            # repo cwd (a Windows abspath with backslashes would be mangled).
+            ["bash", "-n", "tools/ci/generate_assets.sh"],
+            cwd=PROJECT_ROOT,
             capture_output=True,
-            text=True
+            text=True,
+            encoding="utf-8",
         )
         assert result.returncode == 0, f"Syntax error:\n{result.stderr}"
 

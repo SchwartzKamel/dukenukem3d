@@ -52,6 +52,7 @@ jobs:
       - name: Run LLM playtest (stub)
         run: python3 -m pytest tests/test_llm_playtest.py -v -m playtest --tb=short
 
+      # sec-r15-workflow-secrets: env-passed, no-echo
       - name: Run LLM playtest (live, optional)
         if: ${{ env.LLM_PLAYTEST_API_KEY_SET == 'true' }}
         env:

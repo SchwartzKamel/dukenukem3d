@@ -18,15 +18,47 @@ import tempfile
 import struct
 import sys
 import platform
+import shutil
 
 import pytest
 
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
 
+def _duke3d_binary():
+    """Return the built duke3d binary path across platforms/layouts, or None."""
+    exe = "duke3d.exe" if os.name == "nt" else "duke3d"
+    for cand in (
+        os.path.join(PROJECT_ROOT, exe),
+        os.path.join(PROJECT_ROOT, "build", exe),
+        os.path.join(PROJECT_ROOT, "build", "Release", exe),
+    ):
+        if os.path.exists(cand):
+            return cand
+    return None
+
+
 def get_struct_test_compiler():
     """Get compiler for struct tests, respecting STRUCT_TEST_CC env var for cross-compile."""
     return os.environ.get("STRUCT_TEST_CC", "gcc")
+
+
+def _require_struct_compiler():
+    """Return the struct-test compiler, or skip if it isn't available.
+
+    On a Windows dev box the default `gcc` is usually absent (the native
+    toolchain is MSVC, and WSL gcc would validate the Linux LP64 ABI, not the
+    Windows LLP64 one). The struct sizes are validated in CI with the proper
+    (cross-)compiler via STRUCT_TEST_CC, so skipping here is the documented
+    "graceful skip on platforms where validation assumptions don't apply".
+    """
+    compiler = get_struct_test_compiler()
+    if shutil.which(compiler) is None:
+        pytest.skip(
+            f"C compiler {compiler!r} not on PATH; set STRUCT_TEST_CC to enable "
+            f"(struct sizes are validated in CI)."
+        )
+    return compiler
 
 
 def can_execute_binary(binary_path):
@@ -66,7 +98,7 @@ int main() {
 """
     c_file = os.path.join(PROJECT_ROOT, "_test_structs.c")
     out_file = os.path.join(PROJECT_ROOT, "_test_structs")
-    compiler = get_struct_test_compiler()
+    compiler = _require_struct_compiler()
     try:
         with open(c_file, "w", encoding="utf-8") as f:
             f.write(c_code)
@@ -125,7 +157,7 @@ int main() {
 """
     c_file = os.path.join(PROJECT_ROOT, "_test_weaponhit.c")
     out_file = os.path.join(PROJECT_ROOT, "_test_weaponhit")
-    compiler = get_struct_test_compiler()
+    compiler = _require_struct_compiler()
     try:
         with open(c_file, "w", encoding="utf-8") as f:
             f.write(c_code)
@@ -154,14 +186,14 @@ int main() {
 
 def test_binary_exists():
     """The duke3d binary should exist after building."""
-    binary = os.path.join(PROJECT_ROOT, "duke3d")
-    assert os.path.exists(binary), "duke3d binary not found — run 'make' first"
+    binary = _duke3d_binary()
+    assert binary is not None, "duke3d binary not found — run 'make' / cmake build first"
 
 
 def test_binary_is_executable():
     """The duke3d binary should be executable."""
-    binary = os.path.join(PROJECT_ROOT, "duke3d")
-    if os.path.exists(binary):
+    binary = _duke3d_binary()
+    if binary:
         assert os.access(binary, os.X_OK), "duke3d is not executable"
 
 
@@ -185,7 +217,7 @@ int main() {
 """
     c_file = os.path.join(PROJECT_ROOT, "_test_actortype.c")
     out_file = os.path.join(PROJECT_ROOT, "_test_actortype")
-    compiler = get_struct_test_compiler()
+    compiler = _require_struct_compiler()
     try:
         with open(c_file, "w", encoding="utf-8") as f:
             f.write(c_code)
@@ -243,7 +275,7 @@ int main() {
 """
     c_file = os.path.join(PROJECT_ROOT, "_test_hittype.c")
     out_file = os.path.join(PROJECT_ROOT, "_test_hittype")
-    compiler = get_struct_test_compiler()
+    compiler = _require_struct_compiler()
     try:
         with open(c_file, "w", encoding="utf-8") as f:
             f.write(c_code)
@@ -290,7 +322,7 @@ int main() {
 """
     c_file = os.path.join(PROJECT_ROOT, "_test_packbuf.c")
     out_file = os.path.join(PROJECT_ROOT, "_test_packbuf")
-    compiler = get_struct_test_compiler()
+    compiler = _require_struct_compiler()
     try:
         with open(c_file, "w", encoding="utf-8") as f:
             f.write(c_code)

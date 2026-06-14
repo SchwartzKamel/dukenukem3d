@@ -64,3 +64,11 @@ headless_run-worker-*.done
 .session.db
 
 build-sast/
+
+# Atomic Shell runtime artifacts (regenerated each run)
+SDL2.dll
+atomic_shell_startup.log
+atomic_shell_memory_map.log
+ATOMIC.CFG
+ATOMIC.GRP
+captures/

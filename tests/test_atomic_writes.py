@@ -69,23 +69,16 @@ class TestAtomicWriteBytes:
     def test_atomic_write_bytes_cleans_tmp_on_error(self):
         """_atomic_write_bytes should clean up temp file if write fails."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            # Create a read-only directory to trigger write error
-            restricted_dir = os.path.join(tmpdir, "restricted")
-            os.makedirs(restricted_dir)
-            os.chmod(restricted_dir, 0o444)
-            
-            path = os.path.join(restricted_dir, "test.bin")
-            
-            try:
-                with pytest.raises((OSError, IOError, PermissionError)):
-                    _atomic_write_bytes(path, b"data")
-                
-                # Check that no temp file was left behind
-                tmp_path = path + ".tmp"
-                # The temp file should not exist, or if it does, it should be cleaned up
-                # (Note: permissions may prevent even temp file creation in restricted dir)
-            finally:
-                os.chmod(restricted_dir, 0o755)
+            # Force a write error portably via a non-existent parent directory
+            # (chmod read-only dirs is a no-op on Windows).
+            path = os.path.join(tmpdir, "no_such_dir", "test.bin")
+
+            with pytest.raises((OSError, IOError, PermissionError)):
+                _atomic_write_bytes(path, b"data")
+
+            # No stray temp file should be left behind.
+            import glob as _glob
+            assert not _glob.glob(path + "*")
 
     def test_atomic_write_bytes_large_data(self):
         """_atomic_write_bytes should handle large data correctly."""
@@ -394,17 +387,12 @@ class TestAtomicWritesTables:
             initial_data = b"ORIGINAL_TABLES_DATA"
             _atomic_write_bytes_tables(path, initial_data)
             
-            # Try to overwrite with read-only dir (will fail)
-            readonly_dir = os.path.join(tmpdir, "readonly")
-            os.makedirs(readonly_dir)
-            os.chmod(readonly_dir, 0o444)
-            
-            bad_path = os.path.join(readonly_dir, "TABLES.DAT")
-            try:
-                with pytest.raises((OSError, PermissionError)):
-                    _atomic_write_bytes_tables(bad_path, b"new data")
-            finally:
-                os.chmod(readonly_dir, 0o755)
+            # Force a write failure portably via a non-existent parent directory
+            # (chmod read-only dirs is a no-op on Windows, so the write would
+            # otherwise succeed and pytest.raises would fail).
+            bad_path = os.path.join(tmpdir, "no_such_dir", "TABLES.DAT")
+            with pytest.raises((OSError, PermissionError)):
+                _atomic_write_bytes_tables(bad_path, b"new data")
             
             # Original file should still have initial content
             with open(path, "rb") as f:

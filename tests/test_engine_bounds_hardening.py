@@ -1258,45 +1258,47 @@ class TestSpawnSectnumBounds:
             "'engine-r12-game-spawn-sect-bounds: sectnum guard before sector[] deref'"
         )
 
-        # Extract lines around 3409-3410 (±15 lines for flexibility)
+        # Locate the sentinel, guard, and sector[] deref by CONTENT (line numbers
+        # drift as GAME.C evolves — e.g. branding edits). Verify the invariant,
+        # not a hardcoded line window.
         lines = content.split('\n')
-        
-        # Find lines near 3409 where sector[SECT] first appears
-        sect_deref_line = None
-        guard_line = None
-        sentinel_line = None
-        
-        for i, line in enumerate(lines):
-            # Roughly around line 3409 (0-indexed would be ~3408-3410)
-            if i >= 3350 and i <= 3450:
-                if "engine-r12-game-spawn-sect-bounds" in line:
-                    sentinel_line = i
-                if "sector[SECT].floorz" in line or "sector[SECT].ceilingz" in line:
-                    sect_deref_line = i
-                # Check for MAXSECTORS guard
-                if "(unsigned)sprite[i].sectnum >= MAXSECTORS" in line:
-                    guard_line = i
-        
+        sentinel_line = next(
+            (i for i, l in enumerate(lines) if "engine-r12-game-spawn-sect-bounds" in l),
+            None,
+        )
+        guard_line = next(
+            (i for i, l in enumerate(lines)
+             if "(unsigned)sprite[i].sectnum >= MAXSECTORS" in l),
+            None,
+        )
+
         # Verify sentinel exists
         assert sentinel_line is not None, (
-            "Sentinel comment 'engine-r12-game-spawn-sect-bounds' not found near line 3409"
+            "Sentinel comment 'engine-r12-game-spawn-sect-bounds' not found in GAME.C"
         )
-        
+
         # Verify guard exists
         assert guard_line is not None, (
-            "Bounds check '(unsigned)sprite[i].sectnum >= MAXSECTORS' not found near line 3409"
+            "Bounds check '(unsigned)sprite[i].sectnum >= MAXSECTORS' not found in GAME.C"
         )
-        
-        # Verify guard comes BEFORE the sector[] deref
+
+        # The sector[] deref guarded by this check should come AFTER the guard.
+        sect_deref_line = next(
+            (i for i, l in enumerate(lines)
+             if i > guard_line and i <= guard_line + 12
+             and ("sector[SECT].floorz" in l or "sector[SECT].ceilingz" in l)),
+            None,
+        )
         if sect_deref_line is not None:
             assert guard_line < sect_deref_line, (
-                f"MAXSECTORS guard (line {guard_line}) must come BEFORE sector[SECT] deref (line {sect_deref_line})"
+                f"MAXSECTORS guard (line {guard_line}) must come BEFORE sector[SECT] "
+                f"deref (line {sect_deref_line})"
             )
-        
-        # Verify they are within ~15 lines of each other
+
+        # Sentinel and guard should be on the same or adjacent lines.
         assert abs(sentinel_line - guard_line) <= 2, (
             f"Sentinel (line {sentinel_line}) and guard (line {guard_line}) "
-            f"should be on same or adjacent lines. Found {abs(sentinel_line - guard_line)} lines apart."
+            f"should be on same or adjacent lines. Found {abs(sentinel_line - guard_line)} apart."
         )
 
 

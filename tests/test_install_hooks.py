@@ -55,7 +55,7 @@ class TestInstallHooks:
         
         # Run the installer from the temp repo
         result = subprocess.run(
-            ["sh", "tools/install_hooks.sh"],
+            ["bash", "tools/install_hooks.sh"],
             cwd=repo,
             capture_output=True,
             text=True
@@ -100,7 +100,7 @@ class TestInstallHooks:
         
         # Run installer first time
         result1 = subprocess.run(
-            ["sh", "tools/install_hooks.sh"],
+            ["bash", "tools/install_hooks.sh"],
             cwd=repo,
             capture_output=True,
             text=True
@@ -118,7 +118,7 @@ class TestInstallHooks:
         
         # Run installer second time
         result2 = subprocess.run(
-            ["sh", "tools/install_hooks.sh"],
+            ["bash", "tools/install_hooks.sh"],
             cwd=repo,
             capture_output=True,
             text=True

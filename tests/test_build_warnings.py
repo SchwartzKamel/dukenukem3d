@@ -10,6 +10,18 @@ import subprocess
 import re
 import pytest
 import os
+import sys
+
+# This module runs a full `make clean && make` GCC build to count
+# -Wlto-type-mismatch warnings. On Windows that is both wrong (the native build
+# is MSVC via cmake, not the Makefile) and destructive: `make clean` deletes the
+# MSVC build artifacts and `os.chdir` leaks into the session. It is a Linux/GCC
+# CI concern, so skip the whole module off Linux.
+pytestmark = pytest.mark.skipif(
+    sys.platform != "linux",
+    reason="Linux GCC make/LTO build-warnings test; clobbers the native MSVC "
+           "build on Windows. Validated in CI.",
+)
 
 def run_build():
     """Run a clean build and capture all output."""

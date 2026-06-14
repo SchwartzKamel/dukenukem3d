@@ -273,15 +273,19 @@ class TestStubLogging:
 
     def test_stub_log_call_sites_count(self):
         """Ensure at least 5 STUB_LOG call sites exist (cycle 68 compat-r6-stubs-logging)."""
-        import subprocess
-        # Count STUB_LOG calls in source files (excluding macro definitions)
-        result = subprocess.run(
-            "grep -rn 'STUB_LOG\\s*(' compat/ source/ SRC/ --include='*.c' 2>/dev/null | grep -v 'define STUB_LOG' | wc -l",
-            shell=True,
-            capture_output=True,
-            text=True
-        )
-        count = int(result.stdout.strip())
+        import glob as _glob
+        import re as _re
+        # Portable Python scan instead of `grep | wc -l` (Unix-only) so the test
+        # works on Windows where cmd.exe has no grep/wc.
+        base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        pat = _re.compile(r"STUB_LOG\s*\(")
+        count = 0
+        for sub in ("compat", "source", "SRC"):
+            for cfile in _glob.glob(os.path.join(base, sub, "**", "*.c"), recursive=True):
+                with open(cfile, encoding="utf-8") as f:
+                    for line in f:
+                        if pat.search(line) and "define STUB_LOG" not in line:
+                            count += 1
         assert count >= 5, f"Expected at least 5 STUB_LOG call sites, found {count}"
 
 
@@ -395,6 +399,9 @@ class TestErrorFatalNoreturn:
         """_Noreturn annotation should suppress control flow warnings at call sites."""
         # Build test: verify no "reaches end of non-void" warnings
         import subprocess
+        import shutil
+        if shutil.which("make") is None or shutil.which("grep") is None:
+            pytest.skip("make/grep not available (native MSVC build); validated in CI")
         result = subprocess.run(
             'make clean && make 2>&1 | grep -c "reaches end of non-void" || echo 0',
             shell=True,

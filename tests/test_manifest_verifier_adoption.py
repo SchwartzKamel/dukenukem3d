@@ -53,14 +53,18 @@ class TestManifestVerifierAdoption:
         This grep-based assertion verifies that tool scripts don't bypass
         the manifest verification system.
         """
-        # Search for raw json.load in tools/ (excluding manifest_verification.py)
-        result = subprocess.run(
-            ["grep", "-rn", "json.load\\|json.loads", TOOLS_DIR, 
-             "--include=*.py", "--exclude=manifest_verification.py"],
-            capture_output=True, text=True
-        )
-        
-        output_lines = result.stdout.strip().split('\n') if result.stdout.strip() else []
+        # Search for raw json.load in tools/ (excluding manifest_verification.py).
+        # Portable Python scan instead of `grep` (not available on Windows).
+        import glob as _glob
+        output_lines = []
+        for py in _glob.glob(os.path.join(TOOLS_DIR, "**", "*.py"), recursive=True):
+            if os.path.basename(py) == "manifest_verification.py":
+                continue
+            rel = os.path.relpath(py, PROJECT_ROOT).replace(os.sep, "/")
+            with open(py, encoding="utf-8") as f:
+                for lineno, line in enumerate(f, 1):
+                    if "json.load" in line or "json.loads" in line:
+                        output_lines.append(f"{rel}:{lineno}:{line.rstrip()}")
         
         # Filter to only lines that match json.load/loads in context of manifest files
         manifest_json_loads = []

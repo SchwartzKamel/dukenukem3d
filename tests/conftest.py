@@ -1,6 +1,7 @@
 import os
 import sys
 import subprocess
+import shutil
 import json
 from pathlib import Path
 import re
@@ -15,6 +16,19 @@ PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, os.path.join(PROJECT_ROOT, "tools"))
 
 from manifest_verification import load_and_verify_audio_manifest, load_and_verify_tables_manifest
+
+
+def _skip_if_no_cc(compiler="gcc"):
+    """Skip the calling test/fixture if the C compiler isn't on PATH.
+
+    Several fixtures compile a small C harness with gcc. On a Windows dev box
+    gcc is usually absent (native toolchain is MSVC, and WSL gcc would validate
+    the Linux LP64 ABI, not Windows LLP64). These harness checks run in CI with
+    the proper compiler, so skip gracefully here rather than erroring.
+    """
+    if shutil.which(compiler) is None:
+        import pytest as _pytest
+        _pytest.skip(f"C compiler {compiler!r} not on PATH; validated in CI")
 
 
 def resolve_binary_path(project_root: Path) -> Path:
@@ -341,6 +355,7 @@ int main() {
     
     tmpdir = tmp_path_factory.mktemp("c_harness")
     compiler = os.environ.get("STRUCT_TEST_CC", "gcc")
+    _skip_if_no_cc(compiler)
     c_file = tmpdir / "makepalookup_bounds.c"
     out_file = tmpdir / "makepalookup_bounds"
     
@@ -503,6 +518,7 @@ def compiled_keepalive_error_harness(tmp_path_factory):
     src_file.write_text(test_code, encoding="utf-8")
     
     # Compile
+    _skip_if_no_cc('gcc')
     compile_cmd = [
         'gcc',
         '-o', str(exe_file),
@@ -660,6 +676,7 @@ def compiled_sha256_harness(tmp_path_factory):
     sha256_src = project_root / 'compat' / 'sha256.c'
     sha256_hdr_dir = project_root / 'compat'
     
+    _skip_if_no_cc('gcc')
     compile_cmd = [
         'gcc',
         '-std=gnu11',

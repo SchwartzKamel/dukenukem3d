@@ -38,7 +38,10 @@ def test_art_file_header():
     assert end - start + 1 == 1  # actual tile count
 
 
-@pytest.mark.parametrize("width,height,pixels", _ART_TILE_SIZES)
+@pytest.mark.parametrize(
+    "width,height,pixels", _ART_TILE_SIZES,
+    ids=[f"{w}x{h}" for (w, h, _) in _ART_TILE_SIZES],
+)
 def test_art_file_single_tile_sizes(width, height, pixels):
     """Single tile is packed correctly for various dimensions."""
     tiles = [(width, height, 0, pixels)]
