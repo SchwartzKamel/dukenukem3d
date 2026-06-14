@@ -110,3 +110,26 @@ def test_malformed_menu_key_env_var_warns(tmp_path):
         "malformed DUKE3D_MENU_KEY_INTERVAL_FRAMES should warn and fall back to "
         f"the default; startup log tail:\n{log[-1500:]}"
     )
+
+
+@pytest.mark.playtest
+@pytest.mark.serial
+def test_unwritable_capture_dir_warns(tmp_path):
+    """R3: a failed auto-capture (unwritable DUKE3D_CAPTURE_DIR) must be reported,
+    not silently swallowed — so unattended headless validation fails visibly."""
+    if sys.platform != "win32":
+        pytest.skip("native Windows engine launch")
+    if _resolve_binary() is None:
+        pytest.skip("duke3d.exe not built")
+    # make the capture dir's parent a FILE so both mkdir and fopen fail
+    (tmp_path / "blocker").write_bytes(b"x")
+    log = _run_isolated(tmp_path, {
+        "DUKE3D_CAPTURE_DIR": "blocker/captures",
+        "DUKE3D_CAPTURE_INTERVAL": "5",
+    })
+    if not log:
+        pytest.skip("engine did not produce a startup log")
+    assert "frame capture failed" in log, (
+        "an unwritable DUKE3D_CAPTURE_DIR should warn that captures failed; "
+        f"startup log tail:\n{log[-1500:]}"
+    )

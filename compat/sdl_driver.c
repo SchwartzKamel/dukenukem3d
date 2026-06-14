@@ -59,6 +59,7 @@ static int frame_count       = 0;
 static int frame_limit       = 0;  /* 0 = unlimited */
 static int frame_limit_hit   = 0;
 static int capture_interval  = 0;  /* 0 = no auto-capture */
+static int capture_failed    = 0;  /* set on first auto-capture I/O failure (R3) */
 
 /* ── Input state ────────────────────────────────────────────────── */
 static unsigned char keystatus_array[256];
@@ -388,7 +389,15 @@ static void auto_capture(int fnum, int is_last)
         (capture_interval > 0 && (fnum % capture_interval) == 0)) {
         MKDIR_DIR(capture_dir());
         snprintf(path, sizeof(path), "%s/frame_%04d.bmp", capture_dir(), fnum);
-        sdl_capture_frame(path);
+        /* R3: don't silently swallow a capture failure (e.g. an unwritable
+           DUKE3D_CAPTURE_DIR) — report once and trip a flag so an unattended
+           headless validation run fails visibly instead of producing no frames. */
+        if (sdl_capture_frame(path) != 0 && !capture_failed) {
+            capture_failed = 1;
+            startup_log("  WARNING: frame capture failed writing '%s' "
+                        "(is DUKE3D_CAPTURE_DIR writable?) — captures will be missing",
+                        path);
+        }
     }
 }
 
