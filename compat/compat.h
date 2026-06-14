@@ -146,6 +146,7 @@ _Static_assert((sizeof(void *) == 4) || (sizeof(void *) == 8), "pointer must be 
   #define WIN32_LEAN_AND_MEAN
   #endif
   #include <windows.h>
+  #include <dbghelp.h>   /* StackWalk64 backtrace in the crash handler (E5) */
   /* With WIN32_LEAN_AND_MEAN, rpcndr.h is excluded so boolean is not
      defined. Define it here as int32_t to match the game convention. */
   #ifndef _BOOLEAN_DEFINED
@@ -868,6 +869,66 @@ static LONG WINAPI crash_handler(EXCEPTION_POINTERS *ep)
             (unsigned long)code, addr, (void *)module_base, (unsigned long long)exception_rva);
         if (access_info[0])
             fprintf(_startup_log, "CRASH: %s\n", access_info);
+        fflush(_startup_log);   /* persist the fault line before the (possibly faulting) stack walk */
+#if defined(_M_X64) || defined(_WIN64)
+        /* E5: x64 register dump + StackWalk64 backtrace. Each frame logs the
+         * module + RVA (symbolize duke3d.exe RVAs offline via the linker .map),
+         * plus a symbol name when one is resolvable. Diagnostic-only. */
+        {
+            HANDLE proc = GetCurrentProcess();
+            HANDLE thr  = GetCurrentThread();
+            CONTEXT *ctx = ep->ContextRecord;
+            STACKFRAME64 sf;
+            char symbuf[sizeof(SYMBOL_INFO) + 256];
+            SYMBOL_INFO *sym = (SYMBOL_INFO *)symbuf;
+            int n;
+
+            fprintf(_startup_log,
+                "RIP=%016llX RSP=%016llX RBP=%016llX\n"
+                "RAX=%016llX RBX=%016llX RCX=%016llX RDX=%016llX\n"
+                "RSI=%016llX RDI=%016llX R8 =%016llX R9 =%016llX\n",
+                (unsigned long long)ctx->Rip, (unsigned long long)ctx->Rsp, (unsigned long long)ctx->Rbp,
+                (unsigned long long)ctx->Rax, (unsigned long long)ctx->Rbx, (unsigned long long)ctx->Rcx, (unsigned long long)ctx->Rdx,
+                (unsigned long long)ctx->Rsi, (unsigned long long)ctx->Rdi, (unsigned long long)ctx->R8, (unsigned long long)ctx->R9);
+
+            SymSetOptions(SYMOPT_DEFERRED_LOADS | SYMOPT_UNDNAME);
+            SymInitialize(proc, NULL, TRUE);
+
+            memset(&sf, 0, sizeof(sf));
+            sf.AddrPC.Offset    = ctx->Rip; sf.AddrPC.Mode    = AddrModeFlat;
+            sf.AddrFrame.Offset = ctx->Rbp; sf.AddrFrame.Mode = AddrModeFlat;
+            sf.AddrStack.Offset = ctx->Rsp; sf.AddrStack.Mode = AddrModeFlat;
+
+            fprintf(_startup_log, "CRASH: backtrace (x64):\n");
+            for (n = 0; n < 48; n++) {
+                DWORD64 pc, mbase, disp = 0;
+                char modpath[MAX_PATH] = "";
+                const char *modname;
+                if (!StackWalk64(IMAGE_FILE_MACHINE_AMD64, proc, thr, &sf, ctx,
+                        NULL, SymFunctionTableAccess64, SymGetModuleBase64, NULL))
+                    break;
+                pc = sf.AddrPC.Offset;
+                if (pc == 0) break;
+                mbase = SymGetModuleBase64(proc, pc);
+                if (mbase) GetModuleFileNameA((HMODULE)(uintptr_t)mbase, modpath, sizeof(modpath));
+                modname = strrchr(modpath, '\\');
+                modname = modname ? modname + 1 : (modpath[0] ? modpath : "?");
+                memset(symbuf, 0, sizeof(symbuf));
+                sym->SizeOfStruct = sizeof(SYMBOL_INFO);
+                sym->MaxNameLen = 255;
+                if (SymFromAddr(proc, pc, &disp, sym))
+                    fprintf(_startup_log, "  #%02d %s+0x%llX  [%s RVA 0x%llX]\n",
+                        n, sym->Name, (unsigned long long)disp, modname,
+                        (unsigned long long)(mbase ? pc - mbase : 0));
+                else
+                    fprintf(_startup_log, "  #%02d %016llX  [%s RVA 0x%llX]\n",
+                        n, (unsigned long long)pc, modname,
+                        (unsigned long long)(mbase ? pc - mbase : 0));
+            }
+            SymCleanup(proc);
+            fflush(_startup_log);
+        }
+#endif
 #ifdef _X86_
         {
             CONTEXT *ctx = ep->ContextRecord;

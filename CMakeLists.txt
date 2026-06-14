@@ -198,7 +198,7 @@ if(SDL2_mixer_FOUND)
 endif()
 
 if(WIN32)
-    target_link_libraries(duke3d PRIVATE ws2_32 bcrypt)
+    target_link_libraries(duke3d PRIVATE ws2_32 bcrypt dbghelp)
 elseif(UNIX)
     target_link_libraries(duke3d PRIVATE m)
 endif()
