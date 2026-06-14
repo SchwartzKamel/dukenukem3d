@@ -1686,15 +1686,14 @@ def _gen_hud_bar(w, h, name, seed):
 
 
 def _gen_logo_text(w, h, name, seed):
-    """Logo / title text with neon glow."""
-    img = Image.new("RGB", (w, h), (2, 2, 8))
+    """Title/logo tile rendered as branded text on a transparent (magenta-key)
+    background, so menu logos overlay cleanly instead of as a dark box."""
+    img = Image.new("RGB", (w, h), (255, 0, 255))  # magenta transparency key
     draw = ImageDraw.Draw(img)
-    cx, cy = w // 2, h // 2
-    for r in range(min(w, h) // 2, 0, -1):
-        intensity = int(30 * (r / (min(w, h) // 2)))
-        draw.ellipse([cx - r, cy - r, cx + r, cy + r],
-                     outline=(0, intensity // 2, intensity))
-    _draw_text_on_image(draw, cx, cy, name[:16], (255, 0, 180))
+    text = "ATOMIC SHELL" if w >= 100 else "A.S."
+    scale = max(1, min(w // (len(text) * 6), h // 8))
+    cy = max(0, (h - 7 * scale) // 2)
+    _draw_scaled_text(draw, w // 2, cy, text, (0, 230, 255), scale=scale)
     return img
 
 
@@ -1727,7 +1726,7 @@ def _gen_weapon(w, h, name, seed):
     of the tile (grip at bottom, barrel pointing up-right), matching how
     displayweapon() positions them on screen.
     """
-    img = Image.new("RGB", (w, h), (0, 0, 0))
+    img = Image.new("RGB", (w, h), (255, 0, 255))  # magenta transparency key
     draw = ImageDraw.Draw(img)
 
     # Determine weapon type and frame from tile name
@@ -2155,6 +2154,24 @@ _CATEGORY_GENERATORS = {
 }
 
 
+def _quantize_with_transparency(img, palette, key=(255, 0, 255)):
+    """Quantize an RGB image to palette indices, but map pixels that exactly
+    equal the magenta transparency key to index 255 — BUILD's transparency key.
+    Overlay tiles (weapon view sprites, menu logos) need a transparent
+    background or they draw an opaque black box over the scene/menu. Exact-match
+    (not nearest-colour) so foreground pixels are never accidentally keyed out.
+    """
+    arr = np.asarray(img.convert("RGB"), dtype=np.uint8).reshape(-1, 3)
+    key_mask = ((arr[:, 0] == key[0]) & (arr[:, 1] == key[1]) & (arr[:, 2] == key[2]))
+    indices = np.frombuffer(quantize_image(img, palette), dtype=np.uint8).copy()
+    indices[key_mask] = 255
+    return indices.tobytes()
+
+
+# Tile categories drawn as masked overlays (transparent background via the key).
+_OVERLAY_CATEGORIES = {'weapon', 'logo'}
+
+
 def generate_game_tiles(palette):
     """Generate procedural tiles for every tile number defined in NAMES.H.
 
@@ -2232,7 +2249,10 @@ def generate_game_tiles(palette):
             img = _gen_branded_menuscreen(w, h)
         else:
             img = gen(w, h, name, tile_num, seed)
-        indexed = quantize_image(img, palette)
+        if category in _OVERLAY_CATEGORIES:
+            indexed = _quantize_with_transparency(img, palette)
+        else:
+            indexed = quantize_image(img, palette)
         col_major = rgb_to_column_major(indexed, w, h)
         tiles[tile_num] = (w, h, 0, col_major)
 
