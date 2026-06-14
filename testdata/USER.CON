@@ -374,10 +374,10 @@ definequote 124       MAP HAS A DIFFERENT NUMBER OF PLAYERS
 
 // Volume titles cannot excede 32 characters.
 
-definevolumename 0 L.A. MELTDOWN
-definevolumename 1 LUNAR APOCALYPSE
-definevolumename 2 SHRAPNEL CITY
-definevolumename 3 THE BIRTH
+definevolumename 0 GAME HACKING VILLAGE
+definevolumename 1 LOCKED
+definevolumename 2 LOCKED
+definevolumename 3 LOCKED
 
 
 // Skill titles cannot excede 32 characters.
@@ -392,7 +392,7 @@ defineskillname 3 DAMN I'M GOOD
 // Level par cannot excede 5 characters (min:sec)
 // Level titles cannot excede 32 characters.
 
-definelevelname 0 0 E1L1.map 01:45 00:53 HOLLYWOOD HOLOCAUST
+definelevelname 0 0 CTF1.MAP 00:00 00:00 CTF ARENA
 definelevelname 0 1 E1L2.map 05:10 03:21 RED LIGHT DISTRICT
 definelevelname 0 2 E1L3.map 05:35 03:41 DEATH ROW
 definelevelname 0 3 E1L4.map 07:20 04:40 TOXIC DUMP

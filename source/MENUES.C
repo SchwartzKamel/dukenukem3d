@@ -2503,52 +2503,27 @@ void menus(void)
 
         case 100:
             rotatesprite(160<<16,19<<16,65536L,0,MENUBAR,16,0,10,0,0,xdim-1,ydim-1);
-            menutext(160,24,0,0,"SELECT AN EPISODE");
-#ifdef PLUTOPAK
+            menutext(160,24,0,0,"SELECT MISSION");
+            /* Atomic Shell: only the Game Hacking Village CTF mission is
+               selectable (plus a USER MAP slot if one was passed on the
+               command line). The four stock Duke episodes are gone. */
             if(boardfilename[0])
-                x = probe(160,60,20,5);
-            else x = probe(160,60,20,4);
-#else
-            if(boardfilename[0])
-                x = probe(160,60,20,4);
-            else x = probe(160,60,20,3);
-#endif
+                x = probe(160,60,20,2);
+            else x = probe(160,60,20,1);
+
             if(x >= 0)
             {
-#ifdef VOLUMEONE
-                if(x > 0)
-                    cmenu(20000);
-                else
-                {
-                    ud.m_volume_number = x;
-                    ud.m_level_number = 0;
-                    cmenu(110);
-                }
-#endif
-
-#ifndef VOLUMEONE
-#ifndef PLUTOPAK
-
-                if(x == 3 && boardfilename[0])
+                if(boardfilename[0] && x == 1)
                 {
                     ud.m_volume_number = 0;
                     ud.m_level_number = 7;
                 }
-#else
-                if(x == 4 && boardfilename[0])
-                {
-                    ud.m_volume_number = 0;
-                    ud.m_level_number = 7;
-                }
-#endif
-
                 else
                 {
-                    ud.m_volume_number = x;
+                    ud.m_volume_number = 0;
                     ud.m_level_number = 0;
                 }
                 cmenu(110);
-#endif
             }
             else if(x == -1)
             {
@@ -2557,34 +2532,11 @@ void menus(void)
             }
 
             menutext(160,60,SHX(-2),PHX(-2),volume_names[0]);
-
-            c = 80;
-#ifdef VOLUMEONE
-            menutext(160,60+20,SHX(-3),1,volume_names[1]);
-            menutext(160,60+20+20,SHX(-4),1,volume_names[2]);
-#ifdef PLUTOPAK
-            menutext(160,60+20+20,SHX(-5),1,volume_names[3]);
-#endif
-#else
-            menutext(160,60+20,SHX(-3),PHX(-3),volume_names[1]);
-            menutext(160,60+20+20,SHX(-4),PHX(-4),volume_names[2]);
-#ifdef PLUTOPAK
-            menutext(160,60+20+20+20,SHX(-5),PHX(-5),volume_names[3]);
             if(boardfilename[0])
             {
-
-                menutext(160,60+20+20+20+20,SHX(-6),PHX(-6),"USER MAP");
-                gametextpal(160,60+20+20+20+20+3,boardfilename,16+(sintable[(totalclock<<4)&2047]>>11),2);
+                menutext(160,60+20,SHX(-6),PHX(-6),"USER MAP");
+                gametextpal(160,60+20+3,boardfilename,16+(sintable[(totalclock<<4)&2047]>>11),2);
             }
-#else
-            if(boardfilename[0])
-            {
-                menutext(160,60+20+20+20,SHX(-6),PHX(-6),"USER MAP");
-                gametext(160,60+20+20+20+6,boardfilename,2,2+8+16);
-            }
-#endif
-
-#endif
             break;
 
         case 110:

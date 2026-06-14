@@ -1609,6 +1609,64 @@ def _gen_fullscreen(w, h, name, seed):
     return img
 
 
+def _draw_scaled_text(draw, cx, cy, text, color, scale=1, char_w=6):
+    """Draw bitmap-font text centered horizontally at cx, top at cy, scaled.
+
+    Reuses the same glyph table as _draw_text_on_image but renders each set bit
+    as a scale x scale block so titles can be drawn larger than 5px.
+    """
+    _init_font()
+    text = text.upper()
+    total_w = len(text) * char_w * scale
+    sx = cx - total_w // 2
+    for i, ch in enumerate(text):
+        glyph = _FONT_GLYPHS.get(ord(ch))
+        if glyph is None:
+            continue
+        bx = sx + i * char_w * scale
+        for row_idx, bits in enumerate(glyph):
+            for col in range(5):
+                if bits & (1 << (4 - col)):
+                    px = bx + col * scale
+                    py = cy + row_idx * scale
+                    draw.rectangle([px, py, px + scale - 1, py + scale - 1], fill=color)
+
+
+def _gen_branded_menuscreen(w, h):
+    """Branded main-menu background built from our store banner + tagline.
+
+    Loads engine/tools/branding/menu_banner.webp (committed into the engine so
+    the submodule stays self-contained), cover-fits it to the tile, darkens it
+    for menu-text legibility, and overlays the Atomic Shell / Game Hacking
+    Village tagline. Falls back to the procedural placeholder if the banner is
+    missing or unreadable.
+    """
+    banner_path = os.path.join(os.path.dirname(__file__), "branding", "menu_banner.webp")
+    try:
+        banner = Image.open(banner_path).convert("RGB")
+    except (OSError, UnidentifiedImageError, ValueError):
+        sys.stderr.write("[!] branded MENUSCREEN: banner missing, using placeholder\n")
+        return _gen_fullscreen(w, h, "MENUSCREEN", 0)
+
+    # Cover-fit (fill the whole tile, crop overflow) then darken.
+    bw, bh = banner.size
+    factor = max(w / float(bw), h / float(bh))
+    nw, nh = max(w, int(bw * factor + 0.5)), max(h, int(bh * factor + 0.5))
+    banner = banner.resize((nw, nh), Image.LANCZOS)
+    left = (nw - w) // 2
+    top = (nh - h) // 2
+    img = banner.crop((left, top, left + w, top + h))
+    img = Image.eval(img, lambda v: int(v * 0.55))  # darken ~45% for legibility
+
+    draw = ImageDraw.Draw(img)
+    # All branding text sits in the clear band BELOW the menu items (~y55-132);
+    # the menu draws its own logo tile across the top, so keep that area empty.
+    _draw_scaled_text(draw, w // 2, h - 56, "ATOMIC SHELL", (0, 230, 255), scale=2)
+    _draw_scaled_text(draw, w // 2, h - 38, "PRESENTED BY LAFIAMAFIA", (255, 215, 80), scale=1)
+    _draw_scaled_text(draw, w // 2, h - 26, "GAME HACKING VILLAGE", (0, 255, 160), scale=2)
+    return img
+
+
 def _gen_hud_bar(w, h, name, seed):
     """HUD / status bar with metallic gradient and neon edges."""
     img = Image.new("RGB", (w, h), (20, 22, 30))
@@ -2170,7 +2228,10 @@ def generate_game_tiles(palette):
         w, h, category = _classify_tile(name, tile_num)
         seed = tile_num * 7 + 31337
         gen = _CATEGORY_GENERATORS.get(category, _CATEGORY_GENERATORS['prop'])
-        img = gen(w, h, name, tile_num, seed)
+        if name == 'MENUSCREEN':
+            img = _gen_branded_menuscreen(w, h)
+        else:
+            img = gen(w, h, name, tile_num, seed)
         indexed = quantize_image(img, palette)
         col_major = rgb_to_column_major(indexed, w, h)
         tiles[tile_num] = (w, h, 0, col_major)
@@ -2583,7 +2644,20 @@ def main():
             map_data[name] = map_bytes
             print(f"  {name}: {len(map_bytes)} bytes")
     print(f"  Total: {len(map_data)} maps generated")
-    
+
+    # CTF challenge maps: pack any CTF*.MAP committed under testdata/ (the
+    # hackable-by-design arenas). The level-select menu points volume 0 / level 0
+    # at CTF1.MAP via USER.CON; the stock E*L*.MAP maps remain for the title.
+    ctf_count = 0
+    for fname in sorted(os.listdir(TESTDATA_DIR)):
+        upper = fname.upper()
+        if upper.startswith("CTF") and upper.endswith(".MAP"):
+            with open(os.path.join(TESTDATA_DIR, fname), "rb") as f:
+                map_data[upper] = f.read()
+            ctf_count += 1
+            print(f"  {upper}: {len(map_data[upper])} bytes (CTF arena)")
+    print(f"  Packed {ctf_count} CTF map(s)")
+
     # Validate no duplicate MAP IDs
     _validate_map_ids(map_data)
 
