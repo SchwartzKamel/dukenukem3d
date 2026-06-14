@@ -13,8 +13,9 @@ This is the project's demo-validation backbone and the holdout for the attended
 `intptr_t` migration (E1). Built one flag at a time per
 `docs/plans/2026-06-14_I1_SPEC.md`.
 
-Currently implemented: Flags 0, 1 & 3 (boss god-mode + ghost teleport — validated
-end-to-end). Flags 4 & 2 are not yet implemented. Windows-only (WriteProcessMemory).
+Currently implemented and validated end-to-end: all five flags —
+0 & 1 (boss god-mode), 3 (ghost teleport, via the CTF-1 level-load sync),
+4 (vault code + file), and 2 (frozen clock). Windows-only (WriteProcessMemory).
 """
 import argparse
 import ctypes
@@ -126,7 +127,7 @@ def launch(extra_env=None):
         raise FileNotFoundError("duke3d.exe not built")
     if not (PROJECT_ROOT / "DUKE3D.GRP").is_file():
         raise FileNotFoundError("DUKE3D.GRP not generated")
-    for f in (MEMMAP_LOG, FLAGS_LOG):
+    for f in (MEMMAP_LOG, FLAGS_LOG, PROJECT_ROOT / "vault_input.txt"):
         if f.exists():
             f.unlink()
     env = os.environ.copy()
@@ -211,7 +212,52 @@ def solve_flag3(mem, mm):
     return False
 
 
-SOLVERS = {0: solve_flag0, 1: solve_flag1, 3: solve_flag3}
+def solve_flag4(mem, mm):
+    """Flag 4 — Vault: read ctf_vault_code, submit it via vault_input.txt, and be
+    in the vault sector (lotag 0x5641, the connected room near (35840, 5120)).
+    The game re-checks the file every ~30 ticks."""
+    code = mem.read_i32(mm["ctf_vault_code"])
+    if not code or code <= 0:
+        return False
+    (PROJECT_ROOT / "vault_input.txt").write_text(str(int(code)))
+    vault_x, vault_y = 35840, 5120        # room 3 center (generate_ctf_map.py)
+    deadline = time.time() + 18.0
+    while time.time() < deadline:
+        mem.write_i32(mm["player_posx"], vault_x)
+        mem.write_i32(mm["player_posy"], vault_y)
+        if FLAGS_LOG.is_file() and FLAG_TEXT[4] in FLAGS_LOG.read_text(errors="replace"):
+            return True
+        time.sleep(0.1)
+    return False
+
+
+def solve_flag2(mem, mm):
+    """Flag 2 — Frozen clock: enter the timer room (lotag 0x544D) to arm
+    ctf_timer=3600, then keep it > 0 so the kill branch never fires. The engine
+    emits the flag once its wall-clock counter passes the start by 3600 totalclock
+    units (~30 s) while ctf_timer is still positive.
+
+    We teleport to a CORNER of the timer room (still sector 2), not its centre:
+    the centre holds a hostile boss, and welding the player onto it via memory
+    writes makes the boss spew projectiles until the sprite pool exhausts
+    ("Too many sprites spawned."). A real player would enter the room without
+    standing on the boss, so the corner is the faithful solve."""
+    timer_x, timer_y = 21500, 1600     # timer-room corner (sector 2), clear of boss
+    deadline = time.time() + 55.0
+    while time.time() < deadline:
+        mem.write_i32(mm["player_posx"], timer_x)   # hold in the timer room
+        mem.write_i32(mm["player_posy"], timer_y)
+        t = mem.read_i32(mm["ctf_timer"])
+        if t is not None and 0 <= t < 1800:
+            mem.write_i32(mm["ctf_timer"], 3000)    # safety net: freeze above 0
+        if FLAGS_LOG.is_file() and FLAG_TEXT[2] in FLAGS_LOG.read_text(errors="replace"):
+            return True
+        time.sleep(0.05)
+    return False
+
+
+SOLVERS = {0: solve_flag0, 1: solve_flag1, 2: solve_flag2,
+           3: solve_flag3, 4: solve_flag4}
 
 
 # ── main ────────────────────────────────────────────────────────────────────
@@ -252,9 +298,9 @@ def solve(flags, verbose=True):
 
 def main():
     ap = argparse.ArgumentParser(description="Solve Atomic Shell CTF flags headless")
-    ap.add_argument("--flags", default="0,1,3",
-                    help="comma-separated flag indices to solve (default: 0,1,3 — "
-                         "the validated boss + ghost flags; 4/2 are WIP)")
+    ap.add_argument("--flags", default="0,1,2,3,4",
+                    help="comma-separated flag indices to solve (default: all five "
+                         "0,1,2,3,4 — every flag is validated end-to-end)")
     args = ap.parse_args()
     flags = [int(x) for x in args.flags.split(",") if x.strip() != ""]
     captured = solve(flags)

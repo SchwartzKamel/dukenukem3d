@@ -70,6 +70,7 @@ SDL2.dll
 atomic_shell_startup.log
 atomic_shell_flags.log
 atomic_shell_memory_map.log
+vault_input.txt
 ATOMIC.CFG
 ATOMIC.GRP
 captures/
