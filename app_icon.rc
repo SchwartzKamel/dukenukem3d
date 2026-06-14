@@ -1,0 +1,3 @@
+// Windows application icon for atomic_shell.exe (Game Hacking Village store icon).
+// The lowest-id ICON resource becomes the executable's shell icon.
+1 ICON "atomic_shell.ico"

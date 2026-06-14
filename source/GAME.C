@@ -3304,7 +3304,22 @@ short EGS(short whatsect,long s_x,long s_y,long s_z,short s_pn,signed char s_s,s
     i = insertsprite(whatsect,s_ss);
 
     if( i < 0 )
-        gameexit(" Too many sprites spawned.");
+    {
+        /* Sprite pool (MAXSPRITES) is full. Rather than crash the game when the
+           player fires a lot (projectiles live in statnum 4), recycle the oldest
+           projectile/effect to make room. Only gameexit if there is genuinely
+           nothing disposable to free. */
+        short recyc = headspritestat[4];
+        while( recyc >= 0 && nextspritestat[recyc] >= 0 )
+            recyc = nextspritestat[recyc];   /* walk to the oldest in the list */
+        if( recyc >= 0 )
+        {
+            deletesprite(recyc);
+            i = insertsprite(whatsect,s_ss);
+        }
+        if( i < 0 )
+            gameexit(" Too many sprites spawned.");
+    }
 
     hittype[i].bposx = s_x;
     hittype[i].bposy = s_y;
@@ -9204,8 +9219,10 @@ char domovethings(void)
         if (!ctf_flag_captured(0) && ctf_boss1_sprite >= 0)
         {
             spritetype *boss = &sprite[ctf_boss1_sprite];
-            /* Boss killed when statnum leaves 1 (deleted/death anim) */
-            if (boss->statnum != 1 || boss->extra <= 0)
+            /* Defeated only when its health is hacked to <= 0. Do NOT use
+               statnum: Duke actors flip to STAT_ZOMBIEACTOR (2) when the player
+               is far away, which would fire the flag just for walking off. */
+            if (boss->extra <= 0)
             {
                 ctf_emit_flag(0, "ghvctf{g0dm0d3_4ct1v4t3d}");
                 ctf_boss1_sprite = -1;
@@ -9216,7 +9233,7 @@ char domovethings(void)
         if (!ctf_flag_captured(1) && ctf_boss2_sprite >= 0)
         {
             spritetype *boss = &sprite[ctf_boss2_sprite];
-            if (boss->statnum != 1 || boss->extra <= 0)
+            if (boss->extra <= 0)
             {
                 ctf_emit_flag(1, "ghvctf{sh13ld_d0wn_r3v34l3d}");
                 ctf_boss2_sprite = -1;

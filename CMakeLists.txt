@@ -102,6 +102,12 @@ set_source_files_properties(${ENGINE_SRCS} ${GAME_SRCS} PROPERTIES LANGUAGE C)
 # Create executable
 add_executable(duke3d ${ENGINE_SRCS} ${GAME_SRCS} ${COMPAT_SRCS})
 
+# Windows application icon (Game Hacking Village store icon) embedded via .rc
+if(WIN32)
+    enable_language(RC)
+    target_sources(duke3d PRIVATE app_icon.rc)
+endif()
+
 # Enable LTO in release builds for parity with Makefile
 include(CheckIPOSupported)
 check_ipo_supported(RESULT _ipo_ok OUTPUT _ipo_msg)
@@ -109,12 +115,17 @@ if(_ipo_ok AND CMAKE_BUILD_TYPE STREQUAL "Release")
 	set_property(TARGET duke3d PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
 endif()
 
-# Force console subsystem on Windows so users see early-development crash output.
+# GUI subsystem on Windows: no console window pops up on launch (seamless).
+# SDL2main provides the WinMain->main bridge. Startup/crash diagnostics still go
+# to atomic_shell_startup.log, so nothing is lost by dropping the console.
 # Also disable ASLR (/DYNAMICBASE:NO) so addresses are stable for trainer/Cheat Engine use.
 if(WIN32)
-    set_target_properties(duke3d PROPERTIES WIN32_EXECUTABLE FALSE)
+    set_target_properties(duke3d PROPERTIES WIN32_EXECUTABLE TRUE)
     if(MSVC)
-        target_link_options(duke3d PRIVATE /DYNAMICBASE:NO /FIXED)
+        # GUI subsystem (no console) but keep the engine's plain main() as the
+        # entry via the CRT startup, so we don't need SDL2main's WinMain/SDL_main
+        # bridge (which fails to link here).
+        target_link_options(duke3d PRIVATE /DYNAMICBASE:NO /FIXED /ENTRY:mainCRTStartup)
     endif()
 endif()
 
