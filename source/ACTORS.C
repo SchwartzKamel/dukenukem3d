@@ -27,6 +27,7 @@ Prepared for public release: 03/21/2003 - Charlie Wiederhold, 3D Realms
 #include "compat.h"
 #include "pragmas_gcc.h"
 #include "audio_stub.h"
+#include "ctf.h"
 #include "DUKE3D.H"
 
 extern long numenvsnds; /* build-r16-lto-type: aligned to legacy K&R decl in SOUNDS.C */
@@ -4405,6 +4406,36 @@ void moveactors(void)
             else if(actor_tog == 2) s->cstat = 257;
         }
 /*  #endif */
+
+        /* -----------------------------------------------------------------
+         * CTF: Hackable-by-design boss hooks
+         *
+         * BOSS1 (hitag 0xCF1) = The Meatbag — regenerates to 9999 HP each
+         * tick.  Players must hack the boss health to ≤ 0 in memory AND
+         * freeze their own health to survive long enough to kill it.
+         *
+         * BOSS2 (hitag 0xCF2) = The Warden — only takes RPG damage.
+         * All other weapon hits are nullified here before execute() runs.
+         * ----------------------------------------------------------------- */
+        if (s->picnum == BOSS1 && s->hitag == 0xCF1)
+        {
+            ctf_boss1_sprite = (short)i;
+            /* Regen: restore to 9999 unless player hacked it to ≤ 0 */
+            if (s->extra > 0 && s->extra < 9999)
+                s->extra = 9999;
+        }
+
+        if (s->picnum == BOSS2 && s->hitag == 0xCF2)
+        {
+            ctf_boss2_sprite = (short)i;
+            /* RPG-only: undo any non-RPG weapon damage taken this tick */
+            if (hittype[i].extra > 0 && hittype[i].picnum != RPG &&
+                hittype[i].picnum != RADIUSEXPLOSION)
+            {
+                s->extra += hittype[i].extra;   /* restore health */
+                hittype[i].extra = -1;          /* consume damage token */
+            }
+        }
 
         p = findplayer(s,&x);
 

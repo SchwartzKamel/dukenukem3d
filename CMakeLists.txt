@@ -78,6 +78,7 @@ set(COMPAT_SRCS
     compat/maxtiles_game_value.c
     compat/maxtiles_guard.c
     compat/sha256.c
+    compat/ctf.c
 )
 
 # Platform-specific socket abstraction layer (net-r15-socket-compat)
@@ -101,8 +102,12 @@ if(_ipo_ok AND CMAKE_BUILD_TYPE STREQUAL "Release")
 endif()
 
 # Force console subsystem on Windows so users see early-development crash output.
+# Also disable ASLR (/DYNAMICBASE:NO) so addresses are stable for trainer/Cheat Engine use.
 if(WIN32)
     set_target_properties(duke3d PROPERTIES WIN32_EXECUTABLE FALSE)
+    if(MSVC)
+        target_link_options(duke3d PRIVATE /DYNAMICBASE:NO /FIXED)
+    endif()
 endif()
 
 # Include directories

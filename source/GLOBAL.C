@@ -176,3 +176,19 @@ int32_t oldipos[MAXINTERPOLATIONS];
 int32_t bakipos[MAXINTERPOLATIONS];
 int32_t *curipos[MAXINTERPOLATIONS];
 
+/* -----------------------------------------------------------------------
+ * CTF HACKABLE-BY-DESIGN globals
+ * These are intentionally plain global variables — no obfuscation.
+ * Players are expected to find and modify these via memory scanning.
+ * --------------------------------------------------------------------- */
+int32_t ctf_timer          = -1;   /* Flag 3 countdown (ticks); -1 = inactive */
+int32_t ctf_timer_start    = 0;    /* totalclock value when timer activated   */
+int32_t ctf_vault_code     = 0;    /* Flag 5 random 4-digit code (1000-9999)  */
+int32_t ctf_vault_unlocked = 0;    /* 1 when vault_input.txt code matches     */
+int32_t ctf_ghost_target_x = 47104; /* Flag 4 teleport destination X          */
+int32_t ctf_ghost_target_y = 32768; /* Flag 4 teleport destination Y          */
+int32_t ctf_ghost_target_z = -8192; /* Flag 4 teleport destination Z          */
+int32_t ctf_ghost_ticks    = 0;    /* consecutive ticks player in ghost sector */
+short   ctf_boss1_sprite   = -1;   /* sprite index of Meatbag boss            */
+short   ctf_boss2_sprite   = -1;   /* sprite index of Warden boss             */
+

@@ -29,6 +29,9 @@ Prepared for public release: 03/21/2003 - Charlie Wiederhold, 3D Realms
 #include "audio_stub.h"
 #include "sdl_driver.h"
 #include "hud.h"
+#include "ctf.h"
+#include <time.h>
+#include <stddef.h>
 #include "TYPES.H"
 #include "DEVELOP.H"
 #include "SCRIPLIB.H"
@@ -7960,6 +7963,164 @@ int main(int argc,char **argv)
     /* Keep log open for crash handler — just flush */
     if (_startup_log) fflush(_startup_log);
 
+    /* -----------------------------------------------------------------------
+     * HACKABLE-BY-DESIGN: memory map dump
+     * Writes atomic_shell_memory_map.log with the exact addresses of every
+     * interesting player value so trainers / Cheat Engine / scouter can find
+     * them without a scan.  No ASLR (see CMakeLists /DYNAMICBASE:NO) means
+     * these addresses are stable across reboots on the same build.
+     * --------------------------------------------------------------------- */
+    {
+        FILE *mm = fopen("atomic_shell_memory_map.log", "w");
+        if (mm)
+        {
+            struct player_struct *p = &ps[myconnectindex];
+            int pi = myconnectindex;
+
+            fprintf(mm, "# Atomic Shell - Memory Map\n");
+            fprintf(mm, "# Build: " __DATE__ " " __TIME__ "\n");
+            fprintf(mm, "# Player index: %d\n", pi);
+            fprintf(mm, "#\n");
+            fprintf(mm, "# Format: KEY = 0xADDRESS  (type, size in bytes)\n");
+            fprintf(mm, "#\n");
+
+            /* --- position --- */
+            fprintf(mm, "player_posx          = 0x%llX  # int32, 4 bytes  (BUILD world X)\n",
+                    (unsigned long long)(uintptr_t)&p->posx);
+            fprintf(mm, "player_posy          = 0x%llX  # int32, 4 bytes  (BUILD world Y)\n",
+                    (unsigned long long)(uintptr_t)&p->posy);
+            fprintf(mm, "player_posz          = 0x%llX  # int32, 4 bytes  (BUILD world Z, up is negative)\n",
+                    (unsigned long long)(uintptr_t)&p->posz);
+            fprintf(mm, "player_ang           = 0x%llX  # int16, 2 bytes  (0-2047 = full circle)\n",
+                    (unsigned long long)(uintptr_t)&p->ang);
+
+            /* --- health (sprite.extra for the player sprite) --- */
+            if ((unsigned)p->i < MAXSPRITES)
+            {
+                fprintf(mm, "player_health        = 0x%llX  # int16, 2 bytes  (0-100, or 0-200 with steroids)\n",
+                        (unsigned long long)(uintptr_t)&sprite[p->i].extra);
+            }
+
+            /* --- armor / shield --- */
+            fprintf(mm, "player_shield_amount = 0x%llX  # int16, 2 bytes  (0-100)\n",
+                    (unsigned long long)(uintptr_t)&p->shield_amount);
+
+            /* --- weapons inventory --- */
+            fprintf(mm, "player_curr_weapon   = 0x%llX  # int16, 2 bytes  (0=fist 1=pistol 2=shotgun 3=chaingun 4=rpg ...)\n",
+                    (unsigned long long)(uintptr_t)&p->curr_weapon);
+            fprintf(mm, "player_gotweapon     = 0x%llX  # char[12], 12 bytes (1=have, 0=don't have, indexed by weapon id)\n",
+                    (unsigned long long)(uintptr_t)&p->gotweapon[0]);
+
+            /* --- ammo (12 slots, one per weapon) --- */
+            fprintf(mm, "player_ammo_pistol   = 0x%llX  # int16, 2 bytes  (pistol rounds)\n",
+                    (unsigned long long)(uintptr_t)&p->ammo_amount[PISTOL_WEAPON]);
+            fprintf(mm, "player_ammo_shotgun  = 0x%llX  # int16, 2 bytes  (shotgun shells)\n",
+                    (unsigned long long)(uintptr_t)&p->ammo_amount[SHOTGUN_WEAPON]);
+            fprintf(mm, "player_ammo_chaingun = 0x%llX  # int16, 2 bytes  (chaingun rounds)\n",
+                    (unsigned long long)(uintptr_t)&p->ammo_amount[CHAINGUN_WEAPON]);
+            fprintf(mm, "player_ammo_rpg      = 0x%llX  # int16, 2 bytes  (RPG rockets)\n",
+                    (unsigned long long)(uintptr_t)&p->ammo_amount[RPG_WEAPON]);
+            fprintf(mm, "player_ammo_pipebomb = 0x%llX  # int16, 2 bytes  (pipe bombs)\n",
+                    (unsigned long long)(uintptr_t)&p->ammo_amount[HANDBOMB_WEAPON]);
+            fprintf(mm, "player_ammo_shrinker = 0x%llX  # int16, 2 bytes  (shrinker charges)\n",
+                    (unsigned long long)(uintptr_t)&p->ammo_amount[SHRINKER_WEAPON]);
+            fprintf(mm, "player_ammo_array    = 0x%llX  # int16[12], 24 bytes (all ammo, pistol first)\n",
+                    (unsigned long long)(uintptr_t)&p->ammo_amount[0]);
+
+            /* --- inventory / powerups --- */
+            fprintf(mm, "player_jetpack_amount   = 0x%llX  # int16, 2 bytes  (jetpack fuel, max ~1600)\n",
+                    (unsigned long long)(uintptr_t)&p->jetpack_amount);
+            fprintf(mm, "player_steroids_amount  = 0x%llX  # int16, 2 bytes  (steroids doses)\n",
+                    (unsigned long long)(uintptr_t)&p->steroids_amount);
+            fprintf(mm, "player_scuba_amount     = 0x%llX  # int16, 2 bytes  (scuba air supply)\n",
+                    (unsigned long long)(uintptr_t)&p->scuba_amount);
+            fprintf(mm, "player_holoduke_amount  = 0x%llX  # int16, 2 bytes  (holoduke charges)\n",
+                    (unsigned long long)(uintptr_t)&p->holoduke_amount);
+
+            /* --- game state --- */
+            fprintf(mm, "player_frag          = 0x%llX  # int16, 2 bytes  (frag/kill count)\n",
+                    (unsigned long long)(uintptr_t)&p->frag);
+            fprintf(mm, "player_last_extra    = 0x%llX  # int16, 2 bytes  (last recorded health; useful for god-mode)\n",
+                    (unsigned long long)(uintptr_t)&p->last_extra);
+
+            /* --- whole player struct (for pointer-chain starters) --- */
+            fprintf(mm, "#\n");
+            fprintf(mm, "# POINTER CHAIN TIP: ps[] is a global array.  ps[0] base address:\n");
+            fprintf(mm, "player_struct_base   = 0x%llX  # sizeof(player_struct) = %u bytes\n",
+                    (unsigned long long)(uintptr_t)p, (unsigned)sizeof(struct player_struct));
+            fprintf(mm, "#\n");
+            fprintf(mm, "# EASY MODE: write 100 to player_health to restore full health\n");
+            fprintf(mm, "# EASY MODE: write 200 to any ammo address to fill that slot\n");
+            fprintf(mm, "# EASY MODE: write 1 to player_gotweapon+N (N=weapon id) to unlock weapon N\n");
+            fprintf(mm, "#\n");
+            fprintf(mm, "# INTERMEDIATE: pointer chain from module base to player_struct_base,\n");
+            fprintf(mm, "# then offsets above (subtract player_struct_base from each address).\n");
+            fprintf(mm, "# Module base changes with ASLR; disable ASLR or use the pointer scanner.\n");
+            fprintf(mm, "#\n");
+
+            /* --- CTF globals (hackable challenge variables) --- */
+            fprintf(mm, "# =============================================================\n");
+            fprintf(mm, "# CTF CHALLENGE VARIABLES\n");
+            fprintf(mm, "# =============================================================\n");
+            fprintf(mm, "#\n");
+            fprintf(mm, "# FLAG 1 (GODMODE): Kill The Meatbag boss.\n");
+            fprintf(mm, "#   1. Freeze player_health at 100 (write 2 bytes)\n");
+            fprintf(mm, "#   2. Find boss_health below and freeze it at 1\n");
+            fprintf(mm, "#   3. Kill the boss -> ghvctf{g0dm0d3_4ct1v4t3d}\n");
+            fprintf(mm, "#\n");
+            fprintf(mm, "# FLAG 2 (SHIELD_DOWN): Kill The Warden with RPG only.\n");
+            fprintf(mm, "#   Max player_ammo_rpg then kill the Warden with RPG.\n");
+            fprintf(mm, "#\n");
+            fprintf(mm, "# FLAG 3 (FROZEN_CLOCK): Freeze ctf_timer before it hits 0.\n");
+            fprintf(mm, "#   Find ctf_timer (4 bytes, starts at 3600, decreasing).\n");
+            fprintf(mm, "#   Freeze it at any positive value.\n");
+            fprintf(mm, "#\n");
+            fprintf(mm, "# FLAG 4 (GHOST_WALK): Teleport to the sealed room.\n");
+            fprintf(mm, "#   Write ctf_ghost_target_x/y/z into player_posx/y/z.\n");
+            fprintf(mm, "#\n");
+            fprintf(mm, "# FLAG 5 (VAULT): Find the vault code and write it to vault_input.txt.\n");
+            fprintf(mm, "#   ctf_vault_code is a random 4-digit int (1000-9999).\n");
+            fprintf(mm, "#   Scan unknown value -> unchanged -> find 4-digit candidate.\n");
+            fprintf(mm, "#   echo <code> > vault_input.txt, then walk to vault door.\n");
+            fprintf(mm, "#\n");
+            fprintf(mm, "ctf_timer            = 0x%llX  # int32, 4 bytes  (Flag 3: countdown, -1=inactive)\n",
+                    (unsigned long long)(uintptr_t)&ctf_timer);
+            fprintf(mm, "ctf_vault_code       = 0x%llX  # int32, 4 bytes  (Flag 5: ptr to vault code — READ the value)\n",
+                    (unsigned long long)(uintptr_t)&ctf_vault_code);
+            fprintf(mm, "ctf_vault_unlocked   = 0x%llX  # int32, 4 bytes  (1 when vault open)\n",
+                    (unsigned long long)(uintptr_t)&ctf_vault_unlocked);
+            fprintf(mm, "ctf_ghost_target_x   = 0x%llX  # int32, 4 bytes  (Flag 4: teleport destination X)\n",
+                    (unsigned long long)(uintptr_t)&ctf_ghost_target_x);
+            fprintf(mm, "ctf_ghost_target_y   = 0x%llX  # int32, 4 bytes  (Flag 4: teleport destination Y)\n",
+                    (unsigned long long)(uintptr_t)&ctf_ghost_target_y);
+            fprintf(mm, "ctf_ghost_target_z   = 0x%llX  # int32, 4 bytes  (Flag 4: teleport destination Z)\n",
+                    (unsigned long long)(uintptr_t)&ctf_ghost_target_z);
+            fprintf(mm, "ctf_boss1_sprite     = 0x%llX  # int16, 2 bytes  (sprite index of Meatbag; -1=none)\n",
+                    (unsigned long long)(uintptr_t)&ctf_boss1_sprite);
+            fprintf(mm, "ctf_boss2_sprite     = 0x%llX  # int16, 2 bytes  (sprite index of Warden; -1=none)\n",
+                    (unsigned long long)(uintptr_t)&ctf_boss2_sprite);
+            fprintf(mm, "#\n");
+            fprintf(mm, "# Boss health: sprite[ctf_boss1_sprite].extra\n");
+            fprintf(mm, "# sprite[] array base = 0x%llX  (each sprite = 44 bytes)\n",
+                    (unsigned long long)(uintptr_t)&sprite[0]);
+            fprintf(mm, "# boss_health offset within sprite = %u bytes (extra field, int16)\n",
+                    (unsigned)(offsetof(spritetype, extra)));
+
+            fclose(mm);
+            startup_log("MEMMAP: wrote atomic_shell_memory_map.log (no-ASLR build - addresses are stable)");
+        }
+    }
+
+    /* CTF: initialise vault code (random 4-digit number, set once per session) */
+    if (ctf_vault_code == 0)
+    {
+        srand((unsigned)time(NULL));
+        ctf_vault_code = 1000 + (rand() % 9000);
+        startup_log("CTF: vault_code=%d  addr=0x%llX", ctf_vault_code,
+                    (unsigned long long)(uintptr_t)&ctf_vault_code);
+    }
+    ctf_reset();
+
     /* Force palette refresh for first frame of gameplay */
     setbrightness(ud.brightness>>2,&ps[myconnectindex].palette[0]);
     restorepalette = 0;
@@ -9032,6 +9193,133 @@ char domovethings(void)
         pan3dsound();
     }
 
+    /* =====================================================================
+     * CTF: Hackable-by-Design flag checks  (runs every game tick)
+     * ===================================================================== */
+    {
+        struct player_struct *p = &ps[myconnectindex];
+        const char *hud_msg;
+
+        /* --- Flag 1: Meatbag boss (BOSS1, hitag 0xCF1) death ------------- */
+        if (!ctf_flag_captured(0) && ctf_boss1_sprite >= 0)
+        {
+            spritetype *boss = &sprite[ctf_boss1_sprite];
+            /* Boss killed when statnum leaves 1 (deleted/death anim) */
+            if (boss->statnum != 1 || boss->extra <= 0)
+            {
+                ctf_emit_flag(0, "ghvctf{g0dm0d3_4ct1v4t3d}");
+                ctf_boss1_sprite = -1;
+            }
+        }
+
+        /* --- Flag 2: Warden boss (BOSS2, hitag 0xCF2) death -------------- */
+        if (!ctf_flag_captured(1) && ctf_boss2_sprite >= 0)
+        {
+            spritetype *boss = &sprite[ctf_boss2_sprite];
+            if (boss->statnum != 1 || boss->extra <= 0)
+            {
+                ctf_emit_flag(1, "ghvctf{sh13ld_d0wn_r3v34l3d}");
+                ctf_boss2_sprite = -1;
+            }
+        }
+
+        /* --- Flag 3: Frozen Clock (countdown timer) ---------------------- */
+        if (!ctf_flag_captured(2))
+        {
+            /* Activate when player enters a sector with lotag 0x544D */
+            if (p->cursectnum >= 0 && p->cursectnum < numsectors &&
+                sector[p->cursectnum].lotag == 0x544D)
+            {
+                if (ctf_timer < 0)
+                {
+                    ctf_timer       = 3600;     /* ~2 minutes at 30fps */
+                    ctf_timer_start = totalclock;
+                }
+            }
+
+            if (ctf_timer >= 0)
+            {
+                ctf_timer--;
+
+                /* Kill player when timer expires */
+                if (ctf_timer <= 0)
+                {
+                    sprite[p->i].extra = 0;
+                    ctf_timer = -1;
+                }
+                else
+                {
+                    /* Flag captured if timer should have expired but didn't
+                     * (player froze it in memory) */
+                    long elapsed = totalclock - ctf_timer_start;
+                    if (elapsed > 3600 && ctf_timer > 0)
+                        ctf_emit_flag(2, "ghvctf{t1m3_1s_4_fl4t_c1rcl3}");
+                }
+            }
+        }
+
+        /* --- Flag 4: Ghost Walk (sealed sector, lotag 0x4754) ------------ */
+        if (!ctf_flag_captured(3))
+        {
+            if (p->cursectnum >= 0 && p->cursectnum < numsectors &&
+                sector[p->cursectnum].lotag == 0x4754)
+            {
+                ctf_ghost_ticks++;
+                if (ctf_ghost_ticks >= 5)
+                    ctf_emit_flag(3, "ghvctf{gh0st_w4lk3r}");
+            }
+            else
+            {
+                ctf_ghost_ticks = 0;
+            }
+        }
+
+        /* --- Flag 5: Vault code ------------------------------------------ */
+        if (!ctf_flag_captured(4) && ctf_vault_code > 0)
+        {
+            /* Check vault_input.txt every ~1 second (30 ticks) */
+            static long vault_check_clock = 0;
+            if (totalclock - vault_check_clock > 30)
+            {
+                FILE *vf = fopen("vault_input.txt", "r");
+                if (vf)
+                {
+                    int submitted = 0;
+                    fscanf(vf, "%d", &submitted);
+                    fclose(vf);
+                    if (submitted == ctf_vault_code)
+                    {
+                        ctf_vault_unlocked = 1;
+                        /* Emit flag if player is in vault sector (lotag 0x5641) */
+                        if (p->cursectnum >= 0 && p->cursectnum < numsectors &&
+                            sector[p->cursectnum].lotag == 0x5641)
+                        {
+                            ctf_emit_flag(4, "ghvctf{m4st3r_h4x0r_0v3rm1nd}");
+                        }
+                    }
+                }
+                vault_check_clock = totalclock;
+            }
+
+            /* Also emit flag if already unlocked and player steps into vault */
+            if (ctf_vault_unlocked &&
+                p->cursectnum >= 0 && p->cursectnum < numsectors &&
+                sector[p->cursectnum].lotag == 0x5641)
+            {
+                ctf_emit_flag(4, "ghvctf{m4st3r_h4x0r_0v3rm1nd}");
+            }
+        }
+
+        /* --- HUD message for any flag just captured ---------------------- */
+        hud_msg = ctf_pending_hud_message();
+        if (hud_msg)
+        {
+            strncpy(&fta_quotes[121][0], hud_msg, 63);
+            fta_quotes[121][63] = '\0';
+            FTA(121, p);
+            ctf_clear_hud_message();
+        }
+    }
 
     return 0;
 }

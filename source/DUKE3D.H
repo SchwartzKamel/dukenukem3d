@@ -514,6 +514,18 @@ extern short myangbak[MOVEFIFOSIZ];
 
 extern short weaponsandammosprites[15];
 
+/* CTF hackable-by-design globals — extern declarations */
+extern int32_t ctf_timer;
+extern int32_t ctf_timer_start;
+extern int32_t ctf_vault_code;
+extern int32_t ctf_vault_unlocked;
+extern int32_t ctf_ghost_target_x;
+extern int32_t ctf_ghost_target_y;
+extern int32_t ctf_ghost_target_z;
+extern int32_t ctf_ghost_ticks;
+extern short   ctf_boss1_sprite;
+extern short   ctf_boss2_sprite;
+
 
 
 
