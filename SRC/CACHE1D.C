@@ -297,7 +297,12 @@ static long groupfilpos[MAXGROUPFILES];
 static char *gfilelist[MAXGROUPFILES];
 static long *gfileoffs[MAXGROUPFILES];
 
-static char filegrp[MAXOPENFILES];
+/* filegrp holds 0..MAXGROUPFILES-1 for GRP-backed handles and 255 for loose
+ * disk files. MUST be unsigned: `char` is signed on MSVC/x64, so 255 stored
+ * here read back as -1, making kread/klseek/kclose's `groupnum == 255` disk
+ * check fail and dereference groupfil[-1] -> crash when loading any loose disk
+ * file (e.g. CTF1.MAP). Original DOS build relied on `char` being unsigned. */
+static unsigned char filegrp[MAXOPENFILES];
 static long filepos[MAXOPENFILES];
 static long filehan[MAXOPENFILES] =
 {
