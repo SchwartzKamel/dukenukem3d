@@ -105,9 +105,9 @@ def _resolve_binary():
 def parse_memmap(text):
     mm = {}
     for key in ["player_posx", "player_posy", "player_posz", "ctf_timer",
-                "ctf_vault_code", "ctf_ghost_target_x", "ctf_ghost_target_y",
-                "ctf_ghost_target_z", "ctf_boss1_sprite", "ctf_boss2_sprite",
-                "ctf_vault_unlocked"]:
+                "ctf_timer_start", "ctf_vault_code", "ctf_ghost_target_x",
+                "ctf_ghost_target_y", "ctf_ghost_target_z", "ctf_boss1_sprite",
+                "ctf_boss2_sprite", "ctf_vault_unlocked"]:
         m = re.search(rf"^{key}\s*=\s*(0x[0-9A-Fa-f]+)", text, re.M)
         if m:
             mm[key] = int(m.group(1), 16)
@@ -233,23 +233,34 @@ def solve_flag4(mem, mm):
 
 def solve_flag2(mem, mm):
     """Flag 2 — Frozen clock: enter the timer room (lotag 0x544D) to arm
-    ctf_timer=3600, then keep it > 0 so the kill branch never fires. The engine
-    emits the flag once its wall-clock counter passes the start by 3600 totalclock
-    units (~30 s) while ctf_timer is still positive.
+    ctf_timer=3600, then FREEZE it > 0 so the kill branch never fires. The engine
+    emits the flag once 3600 game-tics have elapsed since the timer armed while
+    ctf_timer is still positive — i.e. you outlasted a countdown that should have
+    killed you. (See CTF-3 in the I1 spec: the threshold is measured in game-tics,
+    so freezing is genuinely required.)
+
+    Outlasting 3600 game-tics is ~2 min of real time, so for a fast, deterministic
+    test we use the published `ctf_timer_start` hack surface: keep ctf_timer frozen
+    high AND rewind ctf_timer_start so the deadline passes immediately. A player can
+    instead just freeze ctf_timer and wait out the ~2 min.
 
     We teleport to a CORNER of the timer room (still sector 2), not its centre:
     the centre holds a hostile boss, and welding the player onto it via memory
     writes makes the boss spew projectiles until the sprite pool exhausts
-    ("Too many sprites spawned."). A real player would enter the room without
-    standing on the boss, so the corner is the faithful solve."""
+    ("Too many sprites spawned.")."""
     timer_x, timer_y = 21500, 1600     # timer-room corner (sector 2), clear of boss
-    deadline = time.time() + 55.0
+    have_start = "ctf_timer_start" in mm
+    deadline = time.time() + 30.0
     while time.time() < deadline:
         mem.write_i32(mm["player_posx"], timer_x)   # hold in the timer room
         mem.write_i32(mm["player_posy"], timer_y)
         t = mem.read_i32(mm["ctf_timer"])
-        if t is not None and 0 <= t < 1800:
-            mem.write_i32(mm["ctf_timer"], 3000)    # safety net: freeze above 0
+        if t is not None and t >= 0:
+            mem.write_i32(mm["ctf_timer"], 3500)    # freeze high (required to survive)
+            if have_start:
+                start = mem.read_i32(mm["ctf_timer_start"])
+                if start is not None:
+                    mem.write_i32(mm["ctf_timer_start"], start - 16400)  # rewind past deadline
         if FLAGS_LOG.is_file() and FLAG_TEXT[2] in FLAGS_LOG.read_text(errors="replace"):
             return True
         time.sleep(0.05)

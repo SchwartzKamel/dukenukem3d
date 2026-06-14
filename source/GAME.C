@@ -8111,7 +8111,9 @@ int main(int argc,char **argv)
             fprintf(mm, "#\n");
             fprintf(mm, "# FLAG 3 (FROZEN_CLOCK): Freeze ctf_timer before it hits 0.\n");
             fprintf(mm, "#   Find ctf_timer (4 bytes, starts at 3600, decreasing).\n");
-            fprintf(mm, "#   Freeze it at any positive value.\n");
+            fprintf(mm, "#   Freeze it at any positive value, then outlast the 3600-tic\n");
+            fprintf(mm, "#   countdown (~2 min). Shortcut: rewind ctf_timer_start to make\n");
+            fprintf(mm, "#   the deadline pass instantly while ctf_timer stays > 0.\n");
             fprintf(mm, "#\n");
             fprintf(mm, "# FLAG 4 (GHOST_WALK): Teleport to the sealed room.\n");
             fprintf(mm, "#   Write ctf_ghost_target_x/y/z into player_posx/y/z.\n");
@@ -8123,6 +8125,8 @@ int main(int argc,char **argv)
             fprintf(mm, "#\n");
             fprintf(mm, "ctf_timer            = 0x%llX  # int32, 4 bytes  (Flag 3: countdown, -1=inactive)\n",
                     (unsigned long long)(uintptr_t)&ctf_timer);
+            fprintf(mm, "ctf_timer_start      = 0x%llX  # int32, 4 bytes  (Flag 3: totalclock when armed; rewind it to fast-forward the deadline)\n",
+                    (unsigned long long)(uintptr_t)&ctf_timer_start);
             fprintf(mm, "ctf_vault_code       = 0x%llX  # int32, 4 bytes  (Flag 5: ptr to vault code — READ the value)\n",
                     (unsigned long long)(uintptr_t)&ctf_vault_code);
             fprintf(mm, "ctf_vault_unlocked   = 0x%llX  # int32, 4 bytes  (1 when vault open)\n",
@@ -9322,10 +9326,16 @@ char domovethings(void)
                 }
                 else
                 {
-                    /* Flag captured if timer should have expired but didn't
-                     * (player froze it in memory) */
-                    long elapsed = totalclock - ctf_timer_start;
-                    if (elapsed > 3600 && ctf_timer > 0)
+                    /* Flag captured only if the countdown SHOULD have expired —
+                     * 3600 game tics have elapsed since it armed — yet ctf_timer
+                     * is still positive, i.e. the player froze it. totalclock is
+                     * the 120 Hz wall clock (TICSPERFRAME units per 30 Hz game
+                     * tic), so convert to game tics before comparing against the
+                     * 3600-tic countdown. (Previously this compared raw totalclock,
+                     * which let the flag emit at ~1/4 the intended time with no
+                     * freeze at all — see CTF-3 in 2026-06-14_I1_SPEC.md.) */
+                    long elapsed_tics = (totalclock - ctf_timer_start) / TICSPERFRAME;
+                    if (elapsed_tics >= 3600 && ctf_timer > 0)
                         ctf_emit_flag(2, "ghvctf{t1m3_1s_4_fl4t_c1rcl3}");
                 }
             }
