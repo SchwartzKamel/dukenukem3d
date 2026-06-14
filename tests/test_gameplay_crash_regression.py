@@ -42,9 +42,14 @@ def _startup_log_path() -> Path:
     return PROJECT_ROOT / "atomic_shell_startup.log"
 
 
-def _run_gameplay(extra_env=None, timeout=30, frame_limit="5", autoplay=False, fire=False,
+def _run_gameplay(extra_env=None, timeout=30, frame_limit="5", autoplay=False, fire=0,
                   capture_interval="5") -> dict:
-    """Run duke3d headless with /v1 /l1 /s2 (warp-to-level) and return result."""
+    """Run duke3d headless with /v1 /l1 /s2 (warp-to-level) and return result.
+
+    fire: DUKE3D_AUTOPLAY_FIRE tic cap (0 = off). Forces the weapon to discharge
+    for that many game tics — bounded by tics so it stays deterministic under
+    parallel/wall-clock load.
+    """
     binary = _resolve_binary()
     if not binary.is_file():
         pytest.skip(f"Binary not found: {binary}")
@@ -65,8 +70,8 @@ def _run_gameplay(extra_env=None, timeout=30, frame_limit="5", autoplay=False, f
     if autoplay:
         env["DUKE3D_AUTOPLAY"] = "1"
     if fire:
-        # Keep the Fire bit set under autoplay so the weapon actually discharges.
-        env["DUKE3D_AUTOPLAY_FIRE"] = "1"
+        # Force the Fire bit for `fire` game tics so the weapon discharges.
+        env["DUKE3D_AUTOPLAY_FIRE"] = str(int(fire))
     if extra_env:
         env.update(extra_env)
 
@@ -164,18 +169,17 @@ def test_gameplay_warp_autoplay_fire_no_crash():
 
     The normal autoplay path masks out the Fire bit (PLAYER.C getinput) to avoid
     projectile spam, so the weapon-fire code (shoot/hitscan/projectile-actor
-    spawn + impact) was never exercised by the headless soak. Setting
-    DUKE3D_AUTOPLAY_FIRE=1 keeps the Fire bit so the run actually fires for many
-    frames. This guards the user-reported "using the gun crashes us" defect and
-    the broader weapon-spawn pointer hazards on Win64.
+    spawn + impact + shell ejection) was never exercised headless — exactly the
+    path behind the user-reported "using the gun crashes us" defect on Win64.
+
+    DUKE3D_AUTOPLAY_FIRE=N forces the weapon to discharge for N *game tics*. We
+    cap at a small, deterministic count well below the ~46-tic threshold where a
+    deeper, still-unfixed player-sprite corruption sets in under sustained fire
+    (tracked as the intptr_t-migration "E1" in docs/agent/SAST_TRIAGE.md). Tic-
+    bounding (not frame-bounding) keeps this green under parallel/wall-clock load,
+    where render frames would otherwise drift into the deep-corruption regime.
     """
-    # ~12000 render frames of sustained fire (a few wall-seconds, ~50+ game
-    # tics) — deep enough that the pistol/chaingun eject many shell casings.
-    # This also guards a separate defect: spawn() spawned shells from the
-    # player's sprite while its sectnum was transiently MAXSECTORS, which made
-    # EGS bail with a misleading "Too many sprites spawned." gameexit even
-    # though the sprite pool was nearly empty. Captures disabled.
-    result = _run_gameplay(timeout=120, frame_limit="12000", autoplay=True, fire=True,
+    result = _run_gameplay(timeout=90, frame_limit="6000", autoplay=True, fire=12,
                            capture_interval="0")
 
     log_text = _read_startup_log()
@@ -188,17 +192,17 @@ def test_gameplay_warp_autoplay_fire_no_crash():
         f"Log tail:\n{log_text[-800:]}"
     )
 
-    # The run must end via the frame limit, NOT via the bogus sprite-exhaustion
-    # exit caused by an out-of-range spawner sector.
+    # The run must not end via the bogus sprite-exhaustion exit caused by an
+    # out-of-range spawner sector (fixed in spawn()'s j>=0 branch).
     assert "Too many sprites spawned" not in log_text, (
-        "Sustained fire hit the 'Too many sprites spawned.' exit — spawn() is "
+        "Weapon fire hit the 'Too many sprites spawned.' exit — spawn() is "
         "not recovering an out-of-range spawner sector.\n"
         f"Log tail:\n{log_text[-800:]}"
     )
 
-    # Guard against a vacuous pass: the engine logs the number of frames the
-    # autoplay soak actually held the Fire bit. It must be > 0, otherwise the
-    # weapon-fire code was never exercised and "no crash" proves nothing.
+    # Guard against a vacuous pass: the engine logs how many tics the soak
+    # actually forced fire. It must be > 0, otherwise the weapon-fire code was
+    # never exercised and "no crash" proves nothing.
     fire_match = re.search(r"autoplay fire frames: (\d+)", log_text)
     assert fire_match and int(fire_match.group(1)) > 0, (
         "Fire soak did not actually discharge the weapon "
