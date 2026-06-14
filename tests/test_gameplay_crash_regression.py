@@ -169,10 +169,13 @@ def test_gameplay_warp_autoplay_fire_no_crash():
     frames. This guards the user-reported "using the gun crashes us" defect and
     the broader weapon-spawn pointer hazards on Win64.
     """
-    # ~4000 render frames of sustained fire (a few wall-seconds, many game
-    # tics) — enough for the pistol to discharge repeatedly and for projectiles
-    # to spawn and impact. Captures disabled (we only care about not crashing).
-    result = _run_gameplay(timeout=120, frame_limit="4000", autoplay=True, fire=True,
+    # ~12000 render frames of sustained fire (a few wall-seconds, ~50+ game
+    # tics) — deep enough that the pistol/chaingun eject many shell casings.
+    # This also guards a separate defect: spawn() spawned shells from the
+    # player's sprite while its sectnum was transiently MAXSECTORS, which made
+    # EGS bail with a misleading "Too many sprites spawned." gameexit even
+    # though the sprite pool was nearly empty. Captures disabled.
+    result = _run_gameplay(timeout=120, frame_limit="12000", autoplay=True, fire=True,
                            capture_interval="0")
 
     log_text = _read_startup_log()
@@ -182,6 +185,14 @@ def test_gameplay_warp_autoplay_fire_no_crash():
     assert result["exit_code"] != -9, "Autoplay-fire run timed out"
     assert not has_crash_marker, (
         "Autoplay weapon-fire produced an access-violation crash marker.\n"
+        f"Log tail:\n{log_text[-800:]}"
+    )
+
+    # The run must end via the frame limit, NOT via the bogus sprite-exhaustion
+    # exit caused by an out-of-range spawner sector.
+    assert "Too many sprites spawned" not in log_text, (
+        "Sustained fire hit the 'Too many sprites spawned.' exit — spawn() is "
+        "not recovering an out-of-range spawner sector.\n"
         f"Log tail:\n{log_text[-800:]}"
     )
 

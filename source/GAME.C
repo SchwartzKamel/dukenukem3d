@@ -3455,7 +3455,27 @@ short spawn( short j, short pn )
 
     if(j >= 0)
     {
-        i = EGS(sprite[j].sectnum,sprite[j].x,sprite[j].y,sprite[j].z
+        /* The spawner's sector must be valid or insertspritesect() rejects it
+         * and EGS bails with a misleading "Too many sprites spawned." exit even
+         * though the pool is fine. This is reachable when sprite[j] is briefly
+         * in a bad sector (observed: the player under sustained fire). Recover a
+         * real sector from the spawn position so a valid sprite is still
+         * returned -- callers deref the result unguarded, so we must not -1. */
+        short ssect = sprite[j].sectnum;
+        if((unsigned)ssect >= (unsigned)numsectors)
+        {
+            short rsect = 0;
+            updatesector(sprite[j].x, sprite[j].y, &rsect);
+            if((unsigned)rsect >= (unsigned)numsectors) rsect = 0; /* numsectors>=1 */
+            {
+                static int warned = 0;
+                if(!warned){ warned = 1;
+                    startup_log("spawn: recovered bad spawner sect (j=%d pn=%d sect=%d -> %d)",
+                        (int)j,(int)pn,(int)ssect,(int)rsect); }
+            }
+            ssect = rsect;
+        }
+        i = EGS(ssect,sprite[j].x,sprite[j].y,sprite[j].z
             ,pn,0,0,0,0,0,0,j,0);
         hittype[i].picnum = sprite[j].picnum;
     }
