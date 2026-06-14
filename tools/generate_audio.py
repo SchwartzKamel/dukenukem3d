@@ -6,6 +6,7 @@ import argparse
 import asyncio
 import base64
 import concurrent.futures
+import contextlib
 import hashlib
 import json
 import logging
@@ -14,6 +15,7 @@ import random
 import socket
 import struct
 import sys
+import tempfile
 import time
 import urllib.parse
 import uuid
@@ -21,6 +23,11 @@ from datetime import datetime, timezone
 
 import aiohttp
 import requests
+
+try:
+    from filelock import FileLock
+except ImportError:  # filelock is a pinned requirement; degrade to no-op if absent
+    FileLock = None
 
 from manifest_verification import load_and_verify_audio_manifest
 from sound_manifest import validate_sound_manifest_entries
@@ -38,6 +45,24 @@ logger = logging.getLogger(__name__)
 if not logger.handlers:
     logger.addHandler(logging.StreamHandler(sys.stderr))
     logger.setLevel(logging.INFO)
+
+
+def _output_dir_generation_lock():
+    """Inter-process lock guarding asset generation into the shared OUTPUT_DIR.
+
+    Parallel callers (notably pytest-xdist workers each invoking ``--no-ai``)
+    write the same WAVs and MANIFEST.json under ``generated_assets/sounds/``.
+    Without coordination, one process can open a WAV to compute its SHA-256 while
+    another is mid ``os.replace`` on that same file, which raises
+    ``PermissionError`` on Windows (and risks torn reads elsewhere). A filelock
+    keyed on OUTPUT_DIR serialises whole generations. Degrades to a no-op context
+    manager if filelock is somehow unavailable.
+    """
+    if FileLock is None:
+        return contextlib.nullcontext()
+    lock_name = "atomic_shell_genaudio_" + hashlib.sha1(
+        os.path.abspath(OUTPUT_DIR).encode("utf-8")).hexdigest()[:16] + ".lock"
+    return FileLock(os.path.join(tempfile.gettempdir(), lock_name), timeout=180)
 
 
 def _redact_endpoint(url: str) -> str:
@@ -643,54 +668,58 @@ def main():
             logger.warning(f"AUDIO config validation failed: {reason}. Falling back to procedural (--no-ai) mode.")
             use_ai = False
 
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    # Serialize generation into the shared OUTPUT_DIR. Parallel callers (e.g.
+    # pytest-xdist workers each running --no-ai) otherwise clobber each other's
+    # WAV writes and SHA-256 reads, raising PermissionError on Windows.
+    with _output_dir_generation_lock():
+        os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-    print("=== Generating Audio Assets ===")
-    if use_ai:
-        print(f"  Using: {model} at {_redact_endpoint(endpoint)}")
-        print(f"  Max concurrent requests: {args.concurrency}")
-    else:
-        print(f"  Mode: placeholder silence (set AUDIO_* in .env for AI generation)")
-        print(f"  Workers: {args.workers}")
+        print("=== Generating Audio Assets ===")
+        if use_ai:
+            print(f"  Using: {model} at {_redact_endpoint(endpoint)}")
+            print(f"  Max concurrent requests: {args.concurrency}")
+        else:
+            print(f"  Mode: placeholder silence (set AUDIO_* in .env for AI generation)")
+            print(f"  Workers: {args.workers}")
 
-    start_time = time.time()
-    generated = []
+        start_time = time.time()
+        generated = []
 
-    if use_ai:
-        # API path: use async with semaphore for rate limiting
-        generated = _generate_audio_parallel_api(
-            args.concurrency, endpoint, api_key, model, args.acquire_timeout_sec, args.no_ai
-        )
-    else:
-        # Local WAV synthesis path: use ThreadPoolExecutor
-        generated = _generate_audio_parallel_local(args.workers, args.no_ai)
+        if use_ai:
+            # API path: use async with semaphore for rate limiting
+            generated = _generate_audio_parallel_api(
+                args.concurrency, endpoint, api_key, model, args.acquire_timeout_sec, args.no_ai
+            )
+        else:
+            # Local WAV synthesis path: use ThreadPoolExecutor
+            generated = _generate_audio_parallel_local(args.workers, args.no_ai)
 
-    elapsed = time.time() - start_time
+        elapsed = time.time() - start_time
 
-    # Write manifest (sorted for determinism)
-    # Wrap SOUND_MANIFEST with schema_version for validation
-    manifest_to_write = {
-        "schema_version": "1.0",
-        "entries": SOUND_MANIFEST
-    }
-    
-    # Add checksums to manifest entries and manifest itself
-    manifest_to_write = _add_checksums_to_manifest(manifest_to_write, OUTPUT_DIR)
-    
-    manifest_path = os.path.join(OUTPUT_DIR, "MANIFEST.json")
-    try:
-        # Write manifest atomically with fsync for durability
-        # # sec-r18-atomic-write-hardening: manifest write with fsync
-        _atomic_write_json(manifest_path, manifest_to_write, indent=2, sort_keys=True)
-        print(f"\n=== Manifest written to {manifest_path} ===")
-    except OSError as exc:
-        print(f"\n[ERROR] Failed to write manifest at {manifest_path}: {exc}",
-              file=sys.stderr)
-        return 1
-    
-    # Write freshness sidecar (tracks actual generation time without breaking determinism)
-    # # audio-r5-manifest-freshness-tracking: sidecar freshness tracking
-    _write_freshness_sidecar(manifest_to_write, OUTPUT_DIR)
+        # Write manifest (sorted for determinism)
+        # Wrap SOUND_MANIFEST with schema_version for validation
+        manifest_to_write = {
+            "schema_version": "1.0",
+            "entries": SOUND_MANIFEST
+        }
+
+        # Add checksums to manifest entries and manifest itself
+        manifest_to_write = _add_checksums_to_manifest(manifest_to_write, OUTPUT_DIR)
+
+        manifest_path = os.path.join(OUTPUT_DIR, "MANIFEST.json")
+        try:
+            # Write manifest atomically with fsync for durability
+            # # sec-r18-atomic-write-hardening: manifest write with fsync
+            _atomic_write_json(manifest_path, manifest_to_write, indent=2, sort_keys=True)
+            print(f"\n=== Manifest written to {manifest_path} ===")
+        except OSError as exc:
+            print(f"\n[ERROR] Failed to write manifest at {manifest_path}: {exc}",
+                  file=sys.stderr)
+            return 1
+
+        # Write freshness sidecar (tracks actual generation time without breaking determinism)
+        # # audio-r5-manifest-freshness-tracking: sidecar freshness tracking
+        _write_freshness_sidecar(manifest_to_write, OUTPUT_DIR)
 
     print(f"=== Done! Generated {len(generated)} audio files in {elapsed:.2f}s ===")
     print(f"  Output: {OUTPUT_DIR}/")
