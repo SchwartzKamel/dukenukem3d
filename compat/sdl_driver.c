@@ -532,13 +532,16 @@ static void sdl_inject_menu_keys(void)
 
     if (!inited) {
         const char *s  = getenv("DUKE3D_MENU_KEYS");
-        const char *d  = getenv("DUKE3D_MENU_KEY_START_FRAME");
-        const char *iv = getenv("DUKE3D_MENU_KEY_INTERVAL_FRAMES");
-        const char *h  = getenv("DUKE3D_MENU_KEY_HOLD_FRAMES");
         inited = 1;
-        if (d)  start_frame = atoi(d);
-        if (iv) interval_frames = atoi(iv);
-        if (h)  hold_frames = atoi(h);
+        /* R2: validated parse — compat_env_uint warns + falls back to the default
+           on junk (bare atoi silently yielded 0, which breaks menu navigation:
+           start_frame 0 presses before the menu is up, interval/hold 0 fires all
+           keys at once / never releases). Spacing + hold must be >= 1 frame. */
+        start_frame     = compat_env_uint("DUKE3D_MENU_KEY_START_FRAME", 60);
+        interval_frames = compat_env_uint("DUKE3D_MENU_KEY_INTERVAL_FRAMES", 24);
+        hold_frames     = compat_env_uint("DUKE3D_MENU_KEY_HOLD_FRAMES", 3);
+        if (interval_frames < 1) interval_frames = 1;
+        if (hold_frames < 1) hold_frames = 1;
         if (s) {
             char *end;
             while (*s && nkeys < 64) {

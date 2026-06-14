@@ -30,9 +30,9 @@ def _resolve_binary():
     return None
 
 
-def _run_isolated(workdir, capture_interval_value):
-    """Boot the engine in `workdir` with the given DUKE3D_CAPTURE_INTERVAL; return
-    the startup-log text (or None if it could not run)."""
+def _run_isolated(workdir, extra_env):
+    """Boot the engine in `workdir` with `extra_env` overlaid on the headless base
+    env; return the startup-log text (or None if it could not run)."""
     binary = _resolve_binary()
     grp = PROJECT_ROOT / "DUKE3D.GRP"
     if binary is None or not grp.is_file():
@@ -48,8 +48,8 @@ def _run_isolated(workdir, capture_interval_value):
         "SDL_VIDEODRIVER": "dummy", "DUKE3D_HEADLESS": "1",
         "DUKE3D_SKIP_LOGO": "1", "DUKE3D_SILENT_ERRORS": "1",
         "DUKE3D_AUTOPLAY": "1", "DUKE3D_FRAME_LIMIT": "60",
-        "DUKE3D_CAPTURE_INTERVAL": capture_interval_value,
     })
+    env.update(extra_env)
     proc = subprocess.Popen([str(binary)], cwd=str(workdir), env=env,
                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     try:
@@ -68,7 +68,7 @@ def test_malformed_count_env_var_warns_and_defaults(tmp_path):
         pytest.skip("native Windows engine launch")
     if _resolve_binary() is None:
         pytest.skip("duke3d.exe not built")
-    log = _run_isolated(tmp_path, "not_a_number")
+    log = _run_isolated(tmp_path, {"DUKE3D_CAPTURE_INTERVAL": "not_a_number"})
     if not log:
         pytest.skip("engine did not produce a startup log")
     assert "WARNING: DUKE3D_CAPTURE_INTERVAL='not_a_number'" in log, (
@@ -84,9 +84,29 @@ def test_valid_count_env_var_does_not_warn(tmp_path):
         pytest.skip("native Windows engine launch")
     if _resolve_binary() is None:
         pytest.skip("duke3d.exe not built")
-    log = _run_isolated(tmp_path, "5")
+    log = _run_isolated(tmp_path, {"DUKE3D_CAPTURE_INTERVAL": "5"})
     if not log:
         pytest.skip("engine did not produce a startup log")
     assert "WARNING: DUKE3D_CAPTURE_INTERVAL" not in log, (
         f"a valid DUKE3D_CAPTURE_INTERVAL must not warn; startup log tail:\n{log[-1500:]}"
+    )
+
+
+@pytest.mark.playtest
+@pytest.mark.serial
+def test_malformed_menu_key_env_var_warns(tmp_path):
+    """R2: the menu-inject timing env vars (DUKE3D_MENU_KEY_*) are validated too."""
+    if sys.platform != "win32":
+        pytest.skip("native Windows engine launch")
+    if _resolve_binary() is None:
+        pytest.skip("duke3d.exe not built")
+    log = _run_isolated(tmp_path, {
+        "DUKE3D_MENU_KEYS": "28",
+        "DUKE3D_MENU_KEY_INTERVAL_FRAMES": "abc",
+    })
+    if not log:
+        pytest.skip("engine did not produce a startup log")
+    assert "WARNING: DUKE3D_MENU_KEY_INTERVAL_FRAMES='abc'" in log, (
+        "malformed DUKE3D_MENU_KEY_INTERVAL_FRAMES should warn and fall back to "
+        f"the default; startup log tail:\n{log[-1500:]}"
     )
