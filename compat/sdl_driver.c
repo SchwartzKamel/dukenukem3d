@@ -507,9 +507,65 @@ int32_t sdl_getbytesperline(void)
 
 /* ── Input ──────────────────────────────────────────────────────── */
 
+/* ── Headless menu-input injection (automated UI verification) ─────
+ * DUKE3D_MENU_KEYS = comma-separated DOS scancodes (decimal or 0x hex) that are
+ * "pressed" in sequence through the exact KB_KeyEvent path real keyboard input
+ * uses, e.g. "28" = Enter. Timing is gated on rendered frame_count (robust to
+ * the headless render rate): DUKE3D_MENU_KEY_START_FRAME (first press, default
+ * 60 — after the menu is up), DUKE3D_MENU_KEY_INTERVAL_FRAMES (spacing, 24),
+ * DUKE3D_MENU_KEY_HOLD_FRAMES (press duration, 3). No effect unless
+ * DUKE3D_MENU_KEYS is set, so release builds are unaffected. */
+static void sdl_inject_menu_keys(void)
+{
+    static int inited = 0;
+    static int keys[64];
+    static int nkeys = 0, idx = 0, held = -1;
+    static int next_frame = 0, release_frame = -1;
+    static int start_frame = 60, interval_frames = 24, hold_frames = 3;
+
+    if (!inited) {
+        const char *s  = getenv("DUKE3D_MENU_KEYS");
+        const char *d  = getenv("DUKE3D_MENU_KEY_START_FRAME");
+        const char *iv = getenv("DUKE3D_MENU_KEY_INTERVAL_FRAMES");
+        const char *h  = getenv("DUKE3D_MENU_KEY_HOLD_FRAMES");
+        inited = 1;
+        if (d)  start_frame = atoi(d);
+        if (iv) interval_frames = atoi(iv);
+        if (h)  hold_frames = atoi(h);
+        if (s) {
+            char *end;
+            while (*s && nkeys < 64) {
+                long v = strtol(s, &end, 0);
+                if (end == s) break;
+                keys[nkeys++] = (int)v;
+                s = end;
+                while (*s == ',' || *s == ' ') s++;
+            }
+        }
+        next_frame = start_frame;
+    }
+    if (nkeys == 0) return;
+
+    if (held >= 0 && frame_count >= release_frame) {
+        KB_KeyEvent(held, 0);
+        held = -1;
+    }
+    if (held < 0 && idx < nkeys && frame_count >= next_frame) {
+        int sc = keys[idx++];
+        KB_KeyEvent(sc, 1);
+        KB_Addch((char)sc);
+        held = sc;
+        release_frame = frame_count + hold_frames;
+        next_frame = frame_count + interval_frames;
+        fprintf(stderr, "MENU_INJECT: scancode %d at frame %d (%d/%d)\n",
+                sc, frame_count, idx, nkeys);
+    }
+}
+
 void sdl_pollevents(void)
 {
     SDL_Event ev;
+    sdl_inject_menu_keys();
     while (SDL_PollEvent(&ev)) {
         switch (ev.type) {
         case SDL_QUIT:

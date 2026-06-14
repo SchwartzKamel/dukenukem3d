@@ -127,7 +127,15 @@ void SCRIPT_Save(int handle, char *filename) {
             fprintf(f, "[%s]\n", sc->entries[i].section);
             strncpy(lastsection, sc->entries[i].section, 63); lastsection[63] = '\0';
         }
-        fprintf(f, "%s = \"%s\"\n", sc->entries[i].key, sc->entries[i].value);
+        /* Values are stored raw (load keeps surrounding quotes). Key bindings
+         * are already quoted double-strings like "W", "Up" — wrapping those in
+         * another pair of quotes every save accumulates quotes until the binding
+         * parses as empty (the "can't move" bug). Only add quotes to values that
+         * are not already quoted. */
+        if (sc->entries[i].value[0] == '"')
+            fprintf(f, "%s = %s\n", sc->entries[i].key, sc->entries[i].value);
+        else
+            fprintf(f, "%s = \"%s\"\n", sc->entries[i].key, sc->entries[i].value);
     }
     fclose(f);
 }
