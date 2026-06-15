@@ -18,6 +18,25 @@ sys.path.insert(0, os.path.join(PROJECT_ROOT, "tools"))
 from manifest_verification import load_and_verify_audio_manifest, load_and_verify_tables_manifest
 
 
+@pytest.fixture(scope="session", autouse=True)
+def _anchor_cwd_to_engine():
+    """z-cwd-anchor: run the suite with CWD = the engine dir so tests that use
+    paths relative to it (e.g. os.path.exists('tools/generate_audio.py'),
+    open('source/GAME.C')) resolve regardless of whether pytest was invoked from
+    the engine dir (`cd engine; pytest tests`) or the parent repo root
+    (`pytest engine/tests`, e.g. a parent-repo CI). Session-scoped + autouse so
+    it runs once per (worker) session AFTER collection — leaving pytest's own
+    path-argument resolution untouched — and restores the original CWD at the end.
+    Tests needing their own CWD (e.g. tmp_path isolation) still set/restore it
+    locally within their scope."""
+    prev = os.getcwd()
+    os.chdir(PROJECT_ROOT)
+    try:
+        yield
+    finally:
+        os.chdir(prev)
+
+
 def _skip_if_no_cc(compiler="gcc"):
     """Skip the calling test/fixture if the C compiler isn't on PATH.
 
