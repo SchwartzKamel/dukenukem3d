@@ -3277,6 +3277,7 @@ clipinsidebox(long x, long y, short wallnum, long walldist)
 	long x1, y1, x2, y2, r;
 
 	r = (walldist<<1);
+	if ((unsigned)wallnum >= (unsigned)numwalls) return(0);   /* H-GEO: reject out-of-range wall */
 	wal = &wall[wallnum];     x1 = wal->x+walldist-x; y1 = wal->y+walldist-y;
 	wal = &wall[wal->point2]; x2 = wal->x+walldist-x; y2 = wal->y+walldist-y;
 
@@ -5265,12 +5266,17 @@ cansee(long x1, long y1, long z1, short sect1, long x2, long y2, long z2, short 
 
 	if ((x1 == x2) && (y1 == y2)) return(sect1 == sect2);
 
+	if (((unsigned)sect1 >= (unsigned)numsectors) ||
+	    ((unsigned)sect2 >= (unsigned)numsectors)) return(0);   /* H-GEO: reject bad endpoints */
+
 	x21 = x2-x1; y21 = y2-y1; z21 = z2-z1;
 
 	clipsectorlist[0] = sect1; danum = 1;
 	for(dacnt=0;dacnt<danum;dacnt++)
 	{
-		dasectnum = clipsectorlist[dacnt]; sec = &sector[dasectnum];
+		dasectnum = clipsectorlist[dacnt];
+		if ((unsigned)dasectnum >= (unsigned)numsectors) continue;   /* H-GEO: skip corrupt propagated sector */
+		sec = &sector[dasectnum];
 		for(cnt=sec->wallnum,wal=&wall[sec->wallptr];cnt>0;cnt--,wal++)
 		{
 			wal2 = &wall[wal->point2];
@@ -5320,7 +5326,7 @@ hitscan(long xs, long ys, long zs, short sectnum, long vx, long vy, long vz,
 	char clipyou;
 
 	*hitsect = -1; *hitwall = -1; *hitsprite = -1;
-	if (sectnum < 0) return(-1);
+	if ((unsigned)sectnum >= (unsigned)numsectors) return(-1);   /* H-GEO: was sectnum<0 */
 
 	*hitx = hitscangoalx; *hity = hitscangoaly;
 
@@ -5588,7 +5594,7 @@ neartag (long xs, long ys, long zs, short sectnum, short ange, short *neartagsec
 	*neartagsector = -1; *neartagwall = -1; *neartagsprite = -1;
 	*neartaghitdist = 0;
 
-	if (sectnum < 0) return(0);
+	if ((unsigned)sectnum >= (unsigned)numsectors) return(0);   /* H-GEO: was sectnum<0 */
 	if ((tagsearch < 1) || (tagsearch > 3)) return(0);
 
 	vx = mulscale14(sintable[(ange+2560)&2047],neartagrange); xe = xs+vx;
@@ -5836,7 +5842,7 @@ clipmove (int32_t *x, int32_t *y, int32_t *z, short *sectnum,
 	long xrepeat, yrepeat, gx, gy, dx, dy, dasprclipmask, dawalclipmask;
 	long hitwall, cnt, clipyou;
 
-	if (((xvect|yvect) == 0) || (*sectnum < 0)) return(0);
+	if (((xvect|yvect) == 0) || ((unsigned)(*sectnum) >= (unsigned)numsectors)) return(0);   /* H-GEO: reject out-of-range start sector */
 	retval = 0;
 
 	oxvect = xvect;
@@ -7030,7 +7036,7 @@ getzrange(long x, long y, long z, short sectnum,
 	short cstat;
 	char bad, clipyou;
 
-	if (sectnum < 0)
+	if ((unsigned)sectnum >= (unsigned)numsectors)   /* H-GEO: was sectnum<0; also reject >=numsectors */
 	{
 		*ceilz = 0x80000000; *ceilhit = -1;
 		*florz = 0x7fffffff; *florhit = -1;
