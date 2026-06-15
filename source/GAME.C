@@ -288,12 +288,14 @@ int gametextpart(int x,int y,char *t,char s,short p)
 int minitext(int x,int y,char *t,char p,char sb)
 {
     short ac;
+    char c;
 
     while(*t)
     {
-        *t = toupper(*t);
-        if(*t == 32) {x+=5;t++;continue;}
-        else ac = *t - '!' + MINIFONT;
+        c = *t; if (c >= 'a' && c <= 'z') c -= 32;  /* uppercase WITHOUT writing to t
+                                                     * (t may be a read-only literal) */
+        if(c == 32) {x+=5;t++;continue;}
+        else ac = c - '!' + MINIFONT;
 
         rotatesprite(x<<16,y<<16,65536L,0,ac,0,p,sb,0,0,xdim-1,ydim-1);
         x += 4; /*  tilesizx[ac]+1; */
@@ -306,12 +308,13 @@ int minitext(int x,int y,char *t,char p,char sb)
 int minitextshade(int x,int y,char *t,char s,char p,char sb)
 {
     short ac;
+    char c;
 
     while(*t)
     {
-        *t = toupper(*t);
-        if(*t == 32) {x+=5;t++;continue;}
-        else ac = *t - '!' + MINIFONT;
+        c = *t; if (c >= 'a' && c <= 'z') c -= 32;  /* uppercase without writing to t */
+        if(c == 32) {x+=5;t++;continue;}
+        else ac = c - '!' + MINIFONT;
 
         rotatesprite(x<<16,y<<16,65536L,0,ac,s,p,sb,0,0,xdim-1,ydim-1);
         x += 4; /*  tilesizx[ac]+1; */
