@@ -21,6 +21,12 @@ import sys
 FLAGS = (0, 1, 2, 3, 4)
 FLAG_NAMES = {0: "godmode", 1: "shield_down", 2: "frozen_clock",
               3: "ghost_walk", 4: "vault"}
+# Per-flag points — mirrors the DC32 platform flags_config.yaml `points:` (godmode 3,
+# shield_down 5, frozen_clock 5, ghost_walk 7, vault 10). Used to weight the efficiency score.
+WEIGHTS = {0: 3, 1: 5, 2: 5, 3: 7, 4: 10}
+# score = points * SCORE_POINT_UNIT - time_tics, so completion dominates and speed breaks ties
+# (the unit exceeds any realistic session length in tics, ~55 min @ 30 Hz).
+SCORE_POINT_UNIT = 100000
 _INTERMEDIATE = ("enter", "arm", "unlock")
 _STAGES = _INTERMEDIATE + ("capture",)
 
@@ -142,6 +148,50 @@ def compute_metrics(sessions):
     return {"per_flag": per_flag, "summary": summary}
 
 
+def score_session(session):
+    """Pure: one session's events -> {points, flags, time_tics, score} (D-SCORE / W).
+
+    points    = Σ WEIGHTS[f] over distinct flags whose stage == "capture".
+    flags     = number of distinct captured flags.
+    time_tics = last_capture_clk - level_enter_clk (0 if no capture).
+    score     = points * SCORE_POINT_UNIT - time_tics  (completion dominates; among
+                equal points, less time scores higher).
+    """
+    t0 = _session_start_clk(session)
+    captured = set()
+    last_cap_clk = None
+    for e in session:
+        if e.get("stage") != "capture":
+            continue
+        f = e.get("flag")
+        if isinstance(f, bool) or not isinstance(f, int) or f not in WEIGHTS:
+            continue
+        captured.add(f)
+        clk = e.get("clk")
+        if isinstance(clk, int) and not isinstance(clk, bool):
+            if last_cap_clk is None or clk > last_cap_clk:
+                last_cap_clk = clk
+    points = sum(WEIGHTS[f] for f in captured)
+    time_tics = (last_cap_clk - t0) if last_cap_clk is not None else 0
+    return {"points": points, "flags": len(captured), "time_tics": time_tics,
+            "score": points * SCORE_POINT_UNIT - time_tics}
+
+
+def leaderboard(sessions):
+    """Pure: sessions -> ranked [{rank, score, points, flags, time_tics}] sorted by
+    (points desc, time_tics asc) — the unambiguous key; `score` is the display value.
+    Stable for equal keys; `rank` is 1..N contiguous."""
+    scored = [score_session(s) for s in sessions]
+    order = sorted(range(len(scored)),
+                   key=lambda i: (-scored[i]["points"], scored[i]["time_tics"]))
+    out = []
+    for rank, i in enumerate(order, 1):
+        row = dict(scored[i])
+        row["rank"] = rank
+        out.append(row)
+    return out
+
+
 def _format_table(metrics):
     rows = ["flag             cap_rate  sessions  ttc_median  reached(E/A/U/C)"]
     for flag in FLAGS:
@@ -154,6 +204,14 @@ def _format_table(metrics):
     s = metrics["summary"]
     rows.append(f"\nsessions={s['sessions']}  completion_rate={s['completion_rate']:.2f}  "
                 f"flags_captured_dist={s['flags_captured_dist']}")
+    return "\n".join(rows)
+
+
+def _format_leaderboard(lb):
+    rows = ["rank  score      points  flags  time_tics"]
+    for r in lb:
+        rows.append(f"{r['rank']:>4}  {r['score']:>9}  {r['points']:>6}  "
+                    f"{r['flags']:>5}  {r['time_tics']:>9}")
     return "\n".join(rows)
 
 
@@ -180,6 +238,8 @@ def main(argv=None):
     ap.add_argument("--csv", help="write the per-flag table as CSV to this path")
     ap.add_argument("--strict", action="store_true",
                     help="exit nonzero if any event line could not be parsed")
+    ap.add_argument("--leaderboard", action="store_true",
+                    help="also print a per-session efficiency-score leaderboard")
     args = ap.parse_args(argv)
     if not args.files:
         ap.error("at least one event-log file is required")
@@ -195,11 +255,18 @@ def main(argv=None):
             return 2
 
     stats = {}
-    metrics = compute_metrics(parse_sessions(lines, stats))
+    sessions = parse_sessions(lines, stats)
+    metrics = compute_metrics(sessions)
     print(_format_table(metrics))
+    lb = leaderboard(sessions) if args.leaderboard else None
+    if lb is not None:
+        print("\n" + _format_leaderboard(lb))
     if args.json:
+        out = dict(metrics)
+        if lb is not None:
+            out["leaderboard"] = lb
         with open(args.json, "w", encoding="utf-8") as f:
-            json.dump(metrics, f, indent=2)
+            json.dump(out, f, indent=2)
     if args.csv:
         _write_csv(metrics, args.csv)
 

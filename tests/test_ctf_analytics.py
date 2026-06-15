@@ -112,6 +112,45 @@ def test_main_strict_exits_nonzero_on_malformed(tmp_path, capsys):
     assert ca.main([str(log), "--strict"]) != 0
 
 
+# --- D-SCORE (finding-set W): per-session efficiency score + leaderboard ----------
+
+def test_score_session_values():
+    a = ca.score_session(ca.parse_sessions(_SESSION_A)[0])
+    assert a["points"] == 30 and a["flags"] == 5 and a["time_tics"] == 90
+    assert a["score"] == 30 * ca.SCORE_POINT_UNIT - 90
+    b = ca.score_session(ca.parse_sessions(_SESSION_B)[0])
+    assert b == {"points": 0, "flags": 0, "time_tics": 0, "score": 0}
+    c = ca.score_session(ca.parse_sessions(_SESSION_C)[0])
+    assert c["points"] == 3 and c["flags"] == 1 and c["time_tics"] == 12
+
+
+def test_score_completion_dominates_and_speed_breaks_ties():
+    fast = ca.score_session(ca.parse_sessions(_SESSION_A)[0])         # all 5, last clk 90
+    slow_lines = _SESSION_A[:-1] + [_ev(900, 4, "capture")]           # flag4 capture moved to 900
+    slow = ca.score_session(ca.parse_sessions(slow_lines)[0])
+    assert fast["points"] == slow["points"] == 30
+    assert fast["score"] > slow["score"]                             # faster wins the tie
+    four = ca.score_session(ca.parse_sessions(_SESSION_A[:-1])[0])    # drop flag4 capture -> 4 flags
+    assert four["flags"] == 4 and four["score"] < slow["score"]      # completion dominates
+
+
+def test_leaderboard_ranks_complete_fast_first():
+    lb = ca.leaderboard(ca.parse_sessions(_COHORT))                   # A=30pts, B=0, C=3
+    assert [r["rank"] for r in lb] == [1, 2, 3]
+    assert [r["points"] for r in lb] == [30, 3, 0]                    # A -> C -> B
+
+
+def test_leaderboard_cli(tmp_path, capsys):
+    log = tmp_path / "events.jsonl"
+    log.write_text("\n".join(_COHORT), encoding="utf-8")
+    out_json = tmp_path / "m.json"
+    assert ca.main([str(log), "--leaderboard", "--json", str(out_json)]) == 0
+    printed = capsys.readouterr().out
+    assert "rank" in printed and "time_tics" in printed
+    saved = json.loads(out_json.read_text())
+    assert saved["leaderboard"][0]["points"] == 30
+
+
 @pytest.mark.playtest
 @pytest.mark.serial
 def test_real_solve_run_metrics(tmp_path):
