@@ -8083,16 +8083,16 @@ int main(int argc,char **argv)
 
             /* --- whole player struct (for pointer-chain starters) --- */
             fprintf(mm, "#\n");
-            fprintf(mm, "# POINTER CHAIN TIP: ps[] is a global array.  ps[0] base address:\n");
-            fprintf(mm, "player_struct_base   = 0x%llX  # sizeof(player_struct) = %u bytes\n",
+            fprintf(mm, "# POINTER CHAIN TIP: ps[] is a global array; this is the CURRENT player ps[myconnectindex] (== ps[0] in single-player):\n");
+            fprintf(mm, "player_struct_cur    = 0x%llX  # sizeof(player_struct) = %u bytes\n",
                     (unsigned long long)(uintptr_t)p, (unsigned)sizeof(struct player_struct));
             fprintf(mm, "#\n");
             fprintf(mm, "# EASY MODE: write 100 to player_health to restore full health\n");
             fprintf(mm, "# EASY MODE: write 200 to any ammo address to fill that slot\n");
             fprintf(mm, "# EASY MODE: write 1 to player_gotweapon+N (N=weapon id) to unlock weapon N\n");
             fprintf(mm, "#\n");
-            fprintf(mm, "# INTERMEDIATE: pointer chain from module base to player_struct_base,\n");
-            fprintf(mm, "# then offsets above (subtract player_struct_base from each address).\n");
+            fprintf(mm, "# INTERMEDIATE: pointer chain from module base to player_struct_cur,\n");
+            fprintf(mm, "# then offsets above (subtract player_struct_cur from each address).\n");
             fprintf(mm, "# Module base changes with ASLR; disable ASLR or use the pointer scanner.\n");
             fprintf(mm, "#\n");
 
