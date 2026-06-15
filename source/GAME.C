@@ -8053,8 +8053,14 @@ int main(int argc,char **argv)
         {
             struct player_struct *p = &ps[myconnectindex];
             int pi = myconnectindex;
+            /* I-MUX: tiered memmap verbosity. DUKE3D_MEMMAP_MODE=spoiler_light keeps every
+               key=0xADDR line but redacts the EASY-MODE / per-flag walkthrough hint comments
+               (replay/ladder UX); default (unset / anything else) = full "training" verbosity. */
+            const char *mm_mode = getenv("DUKE3D_MEMMAP_MODE");
+            int mm_spoiler_light = (mm_mode && !stricmp(mm_mode, "spoiler_light"));
 
             fprintf(mm, "# Atomic Shell - Memory Map\n");
+            fprintf(mm, "# memmap mode: %s\n", mm_spoiler_light ? "spoiler_light" : "training");
             fprintf(mm, "# Build: " __DATE__ " " __TIME__ "\n");
             fprintf(mm, "# Player index: %d\n", pi);
             fprintf(mm, "#\n");
@@ -8126,6 +8132,8 @@ int main(int argc,char **argv)
             fprintf(mm, "player_struct_cur    = 0x%llX  # sizeof(player_struct) = %u bytes\n",
                     (unsigned long long)(uintptr_t)p, (unsigned)sizeof(struct player_struct));
             fprintf(mm, "#\n");
+            if (!mm_spoiler_light)
+            {
             fprintf(mm, "# EASY MODE: write 100 to player_health to restore full health\n");
             fprintf(mm, "# EASY MODE: write 200 to any ammo address to fill that slot\n");
             fprintf(mm, "# EASY MODE: write 1 to player_gotweapon+N (N=weapon id) to unlock weapon N\n");
@@ -8134,12 +8142,15 @@ int main(int argc,char **argv)
             fprintf(mm, "# then offsets above (subtract player_struct_cur from each address).\n");
             fprintf(mm, "# Module base changes with ASLR; disable ASLR or use the pointer scanner.\n");
             fprintf(mm, "#\n");
+            }
 
             /* --- CTF globals (hackable challenge variables) --- */
             fprintf(mm, "# =============================================================\n");
             fprintf(mm, "# CTF CHALLENGE VARIABLES\n");
             fprintf(mm, "# =============================================================\n");
             fprintf(mm, "#\n");
+            if (!mm_spoiler_light)
+            {
             fprintf(mm, "# FLAG 1 (GODMODE): Kill The Meatbag boss.\n");
             fprintf(mm, "#   1. Freeze player_health at 100 (write 2 bytes)\n");
             fprintf(mm, "#   2. Find boss_health below and freeze it at 1\n");
@@ -8162,6 +8173,7 @@ int main(int argc,char **argv)
             fprintf(mm, "#   Scan unknown value -> unchanged -> find 4-digit candidate.\n");
             fprintf(mm, "#   echo <code> > vault_input.txt, then walk to vault door.\n");
             fprintf(mm, "#\n");
+            }
             fprintf(mm, "ctf_timer            = 0x%llX  # int32, 4 bytes  (Flag 3: countdown, -1=inactive)\n",
                     (unsigned long long)(uintptr_t)&ctf_timer);
             fprintf(mm, "ctf_timer_start      = 0x%llX  # int32, 4 bytes  (Flag 3: totalclock when armed; rewind it to fast-forward the deadline)\n",
