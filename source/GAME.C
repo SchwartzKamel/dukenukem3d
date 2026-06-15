@@ -8195,6 +8195,9 @@ int main(int argc,char **argv)
         }
     }
     ctf_reset();
+    /* D1: a fresh funnel for this level (truncates atomic_shell_events.jsonl) */
+    ctf_set_clock(totalclock);
+    ctf_event(-1, "level_enter", "CTF1", totalclock);
 
     /* Force palette refresh for first frame of gameplay */
     setbrightness(ud.brightness>>2,&ps[myconnectindex].palette[0]);
@@ -9275,6 +9278,10 @@ char domovethings(void)
         struct player_struct *p = &ps[myconnectindex];
         const char *hud_msg;
 
+        /* D1: cache the clock so capture events (emitted inside ctf_emit_flag)
+           are timestamped. */
+        ctf_set_clock(totalclock);
+
         /* --- Flag 1: Meatbag boss (BOSS1, hitag 0xCF1) death ------------- */
         if (!ctf_flag_captured(0) && ctf_boss1_sprite >= 0 &&
             ctf_boss1_sprite < MAXSPRITES)
@@ -9309,10 +9316,12 @@ char domovethings(void)
             if (p->cursectnum >= 0 && p->cursectnum < numsectors &&
                 sector[p->cursectnum].lotag == 0x544D)
             {
+                ctf_event(2, "enter", "timer_room", totalclock);
                 if (ctf_timer < 0)
                 {
                     ctf_timer       = 3600;     /* ~2 minutes at 30fps */
                     ctf_timer_start = totalclock;
+                    ctf_event(2, "arm", "timer_armed", totalclock);
                 }
             }
 
@@ -9349,6 +9358,7 @@ char domovethings(void)
             if (p->cursectnum >= 0 && p->cursectnum < numsectors &&
                 sector[p->cursectnum].lotag == 0x4754)
             {
+                ctf_event(3, "enter", "ghost_room", totalclock);
                 ctf_ghost_ticks++;
                 if (ctf_ghost_ticks >= 5)
                     ctf_emit_flag(3, "ghvctf{gh0st_w4lk3r}");
@@ -9362,6 +9372,10 @@ char domovethings(void)
         /* --- Flag 5: Vault code ------------------------------------------ */
         if (!ctf_flag_captured(4) && ctf_vault_code > 0)
         {
+            if (p->cursectnum >= 0 && p->cursectnum < numsectors &&
+                sector[p->cursectnum].lotag == 0x5641)
+                ctf_event(4, "enter", "vault_room", totalclock);
+
             /* Check vault_input.txt every ~1 second (30 ticks) */
             static long vault_check_clock = 0;
             if (totalclock - vault_check_clock > 30)
@@ -9375,6 +9389,7 @@ char domovethings(void)
                     if (submitted == ctf_vault_code)
                     {
                         ctf_vault_unlocked = 1;
+                        ctf_event(4, "unlock", "vault_unlocked", totalclock);
                         /* Emit flag if player is in vault sector (lotag 0x5641) */
                         if (p->cursectnum >= 0 && p->cursectnum < numsectors &&
                             sector[p->cursectnum].lotag == 0x5641)

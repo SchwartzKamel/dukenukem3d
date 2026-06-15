@@ -272,11 +272,11 @@ SOLVERS = {0: solve_flag0, 1: solve_flag1, 2: solve_flag2,
 
 
 # ── main ────────────────────────────────────────────────────────────────────
-def solve(flags, verbose=True):
+def solve(flags, verbose=True, extra_env=None):
     if sys.platform != "win32":
         print("e2e_solve_flags: Windows-only (WriteProcessMemory)")
         return {}
-    proc = launch()
+    proc = launch(extra_env)
     captured = {}
     try:
         mm = wait_memmap()
