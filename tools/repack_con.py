@@ -9,8 +9,13 @@ boss-dmg-tune) that must NOT trigger the AI->procedural art regression of
 `generate_assets.py --no-ai`. See docs/plans/2026-06-15_GRP-CON-REPACK_SPEC.md.
 
 Usage:
-  python tools/repack_con.py --grp DUKE3D.GRP --con generated_assets/GAME.CON \
-      [--con generated_assets/USER.CON] [-o out.grp]
+  python tools/repack_con.py --grp DUKE3D.GRP --con testdata/GAME.CON \
+      [--con testdata/USER.CON] [-o out.grp]
+
+`testdata/` holds the **tracked, canonical** CON sources that `generate_assets.py`
+packs into the GRP; `generated_assets/` holds gitignored *derived copies* it rewrites
+from `testdata/` on every run. Edit + pass the `testdata/` copy so a later full regen
+cannot silently revert the change (finding-set Z3; guard: `tests/test_con_single_source.py`).
 
 The GRP entry name is the CON file's basename, uppercased (e.g. GAME.CON). With no
 -o the input --grp is overwritten in place. Exit 0 on success; 2 on usage/IO error.
