@@ -311,7 +311,7 @@ void SafeRead(int32_t handle, void *buffer, int32_t count) { /* build-r16-lto-ty
     }
 }
 
-void Error(char *fmt, ...) {
+_Noreturn void Error(char *fmt, ...) {
     char buf[512];
     va_list ap;
     va_start(ap, fmt);

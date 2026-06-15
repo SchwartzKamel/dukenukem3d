@@ -43,8 +43,8 @@ extern  int32    _argc;
 #endif
 extern  char **  _argv;
 
-void RegisterShutdownFunction( void (* shutdown) (void) );
-void   Error (char *error, ...);
+void   RegisterShutdownFunction( void (* shutdown) (void) );
+_Noreturn void   Error (char *error, ...);   /* P-NORETURN: always exit(1)s (mact_stub.c) */
 
 char   CheckParm (char *check);
 

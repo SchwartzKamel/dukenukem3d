@@ -81,10 +81,15 @@
  * No further candidates without callsite audit (all other exit() calls are inline).
  */
 #ifndef _Noreturn
-  #ifdef __GNUC__
+  #if defined(__GNUC__) || defined(__clang__)
     #define _Noreturn __attribute__((noreturn))
-  #elif defined(__clang__)
-    #define _Noreturn __attribute__((noreturn))
+  #elif defined(_MSC_VER)
+    /* P-NORETURN: MSVC /analyze + the optimiser honour __declspec(noreturn), NOT the
+       bare C11 _Noreturn keyword. Without this branch _Noreturn expanded to nothing on
+       MSVC, so gameexit/reportandexit/Error/error_fatal were treated as returning -> a
+       swarm of false-positive C6386/C6001/C6011/C6385 /analyze warnings on paths a fatal
+       call actually terminates, plus missed dead-code elimination. */
+    #define _Noreturn __declspec(noreturn)
   #else
     /* Fallback: define as nothing for unsupported compilers */
     #define _Noreturn

@@ -488,7 +488,7 @@ char parsecommand(void)
                 if(*textptr == 0x0a) line_number++;
                 if( *textptr == 0 )
                 {
-                    printf("  * ERROR!(L%ld) Found '/*' with no '*/'.\n",j,label+(labelcnt<<6));
+                    printf("  * ERROR!(L%ld) Found '/*' with no '*/'.\n",j);
                     error++;
                     return 0;
                 }
@@ -1533,7 +1533,7 @@ void copydefaultcons(void)
         {
 /*  CTW - MODIFICATION */
 /*           if(fpo == -1) fclose(fpo); */
-            if(fpo == NULL) fclose(fpo);
+            if(fpo != NULL) fclose(fpo);   /* P-FCLOSE-NULL: was '== NULL' -> fclose(NULL) UB + fd leak */
 /*  CTW END - MODIFICATION */
             continue;
         }
