@@ -37,6 +37,21 @@ def _anchor_cwd_to_engine():
         os.chdir(prev)
 
 
+def pytest_xdist_auto_num_workers(config):
+    """ci-worker-cap: cap `-n auto` at 8 workers.
+
+    `pytest.ini` uses `-n auto`, which pytest-xdist resolves to one worker per logical
+    CPU. On a many-core box (e.g. 32) that over-subscribes the subprocess-heavy
+    engine-launch tests (`@playtest`/`@serial`): too many headless `duke3d.exe`
+    processes contend for resources and intermittently flake a different test each run,
+    though every test passes in isolation and at `-n 8`. Capping the auto-detected count
+    at 8 is empirically reliable and still fast (~70 s for the full suite). Returns the
+    real CPU count on boxes with fewer than 8 cores; an explicit `-n N` still overrides.
+    """
+    cpu = os.cpu_count() or 8
+    return min(8, cpu)
+
+
 def _skip_if_no_cc(compiler="gcc"):
     """Skip the calling test/fixture if the C compiler isn't on PATH.
 
