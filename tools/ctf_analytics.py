@@ -25,25 +25,40 @@ _INTERMEDIATE = ("enter", "arm", "unlock")
 _STAGES = _INTERMEDIATE + ("capture",)
 
 
-def parse_sessions(lines):
+def parse_sessions(lines, stats=None):
     """Split JSONL event lines into sessions on each `level_enter` marker.
 
     Malformed lines are skipped (analytics is descriptive, not a validator — use
     ctf_events_schema.validate_events for strict checking). Events before the first
     level_enter form their own leading session.
+
+    When `stats` (a dict) is provided it is populated with `total` (non-blank
+    lines seen), `parsed`, and `skipped` counts plus a `skipped_detail` list of
+    `(lineno, reason)` for the first few bad lines — so callers (and the CLI
+    `--strict` mode) can surface otherwise-silent data loss.
     """
     sessions = []
     cur = None
-    for raw in lines:
+    total = parsed = skipped = 0
+    skipped_detail = []
+    for lineno, raw in enumerate(lines, 1):
         line = raw.strip()
         if not line:
             continue
+        total += 1
         try:
             obj = json.loads(line)
-        except (ValueError, TypeError):
+        except (ValueError, TypeError) as exc:
+            skipped += 1
+            if len(skipped_detail) < 10:
+                skipped_detail.append((lineno, f"invalid JSON: {exc}"))
             continue
         if not isinstance(obj, dict):
+            skipped += 1
+            if len(skipped_detail) < 10:
+                skipped_detail.append((lineno, "not a JSON object"))
             continue
+        parsed += 1
         if obj.get("stage") == "level_enter":
             if cur is not None:
                 sessions.append(cur)
@@ -53,6 +68,9 @@ def parse_sessions(lines):
         cur.append(obj)
     if cur is not None:
         sessions.append(cur)
+    if stats is not None:
+        stats.update(total=total, parsed=parsed, skipped=skipped,
+                     skipped_detail=skipped_detail)
     return sessions
 
 
@@ -160,6 +178,8 @@ def main(argv=None):
     ap.add_argument("files", nargs="*", help="atomic_shell_events.jsonl log(s)")
     ap.add_argument("--json", help="write the metrics as JSON to this path")
     ap.add_argument("--csv", help="write the per-flag table as CSV to this path")
+    ap.add_argument("--strict", action="store_true",
+                    help="exit nonzero if any event line could not be parsed")
     args = ap.parse_args(argv)
     if not args.files:
         ap.error("at least one event-log file is required")
@@ -174,13 +194,25 @@ def main(argv=None):
             print(f"cannot read {path}: {exc}", file=sys.stderr)
             return 2
 
-    metrics = compute_metrics(parse_sessions(lines))
+    stats = {}
+    metrics = compute_metrics(parse_sessions(lines, stats))
     print(_format_table(metrics))
     if args.json:
         with open(args.json, "w", encoding="utf-8") as f:
             json.dump(metrics, f, indent=2)
     if args.csv:
         _write_csv(metrics, args.csv)
+
+    skipped = stats.get("skipped", 0)
+    if skipped:
+        print(f"\nskipped {skipped} malformed line(s) of {stats.get('total', 0)} "
+              "(use ctf_events_schema.py to validate)")
+        print(f"warning: skipped {skipped} malformed line(s) of "
+              f"{stats.get('total', 0)}", file=sys.stderr)
+        for lineno, reason in stats.get("skipped_detail", []):
+            print(f"  line {lineno}: {reason}", file=sys.stderr)
+        if args.strict:
+            return 1
     return 0
 
 

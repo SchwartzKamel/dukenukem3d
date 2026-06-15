@@ -85,6 +85,33 @@ def test_main_cli(tmp_path, capsys):
     assert saved["summary"]["sessions"] == 3
 
 
+def test_parse_sessions_counts_skipped_lines():
+    """D3-STRICT: malformed lines are still skipped, but counted+surfaced via the
+    optional stats dict instead of vanishing silently."""
+    lines = [_ev(0, -1, "level_enter"), "{not json", _ev(10, 0, "capture"),
+             "[1, 2, 3]", "   ", _ev(20, 1, "capture")]
+    stats = {}
+    sessions = ca.parse_sessions(lines, stats)
+    # the two good capture events + the level_enter land in one session
+    assert sum(len(s) for s in sessions) == 3
+    assert stats["skipped"] == 2          # "{not json" + the JSON array (not a dict)
+    assert stats["parsed"] == 3
+    assert stats["total"] == 5            # blank line is not counted as malformed
+    assert len(stats["skipped_detail"]) == 2
+
+
+def test_main_strict_exits_nonzero_on_malformed(tmp_path, capsys):
+    """D3-STRICT: a malformed line is tolerated by default (exit 0) but fails under
+    --strict (nonzero), and the skip is always surfaced on stderr."""
+    log = tmp_path / "events.jsonl"
+    log.write_text("\n".join([_ev(0, -1, "level_enter"), "{broken",
+                              _ev(10, 0, "capture")]), encoding="utf-8")
+    assert ca.main([str(log)]) == 0
+    err = capsys.readouterr().err
+    assert "skipped 1 malformed" in err
+    assert ca.main([str(log), "--strict"]) != 0
+
+
 @pytest.mark.playtest
 @pytest.mark.serial
 def test_real_solve_run_metrics(tmp_path):
