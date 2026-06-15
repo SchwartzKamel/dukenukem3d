@@ -1,11 +1,14 @@
-"""ctf-cheat-lockout (finding-set Y): the in-game cheat-code system (DNCLIP/DNSTUFF)
-is OFF by default so every flag requires memory-hacking; DUKE3D_ENABLE_CHEATS=1
-re-enables it for debugging.
+"""CTF integrity (finding-set Y) — every flag must be memory-hack-gated (user directive
+"all 5 should be hack gated"). Two pieces here:
 
-The cheat dispatch `cheats()` and this marker share the same `_cheats_enabled()`
-gate, so the `CHEATS:` line in atomic_shell_startup.log faithfully reflects whether
-the DNCLIP/DNSTUFF codes are reachable: 'locked' by default, 'ENABLED' with the env
-set. The intended memory-hacks still capture all 5 flags (e2e, separate).
+* ctf-cheat-lockout: the in-game cheat-code system (DNCLIP/DNSTUFF) is OFF by default so
+  it can't bypass flags 1/3; DUKE3D_ENABLE_CHEATS=1 re-enables it for debugging. Signal:
+  the 'CHEATS:' marker in atomic_shell_startup.log.
+* vault anti-brute-force (flag 4): a WRONG non-zero vault guess re-randomizes ctf_vault_code,
+  so brute-forcing vault_input.txt never converges — the player must SCAN the live code.
+  Signal: the 'code re-randomized' marker.
+
+The intended memory-hacks still capture all 5 flags (e2e, separate).
 See docs/plans/2026-06-15_CTF_INTEGRITY_AUDIT.md.
 """
 import os
@@ -81,3 +84,17 @@ def test_cheats_reenabled_by_env(tmp_path):
     text = _run(tmp_path, {"DUKE3D_ENABLE_CHEATS": "1"})
     assert text, "engine wrote no startup log"
     assert "CHEATS: ENABLED" in text, f"env must re-enable cheats; tail:\n{text[-600:]}"
+
+
+@pytest.mark.playtest
+@pytest.mark.serial
+@pytest.mark.slow
+def test_vault_wrong_guess_rerandomizes(tmp_path):
+    """Flag 4 anti-brute-force: a wrong non-zero vault guess re-randomizes ctf_vault_code,
+    so brute-forcing vault_input.txt can never converge (forces the intended memory-scan)."""
+    # Pre-place a wrong guess so the first ~1 s vault check re-randomizes the code.
+    (tmp_path / "vault_input.txt").write_text("1\n")
+    text = _run(tmp_path, {"DUKE3D_FRAME_LIMIT": "8000"})
+    assert text, "engine wrote no startup log"
+    assert "code re-randomized" in text, (
+        f"a wrong vault guess must re-randomize the code (anti-brute-force); tail:\n{text[-800:]}")

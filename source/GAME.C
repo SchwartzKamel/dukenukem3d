@@ -9613,6 +9613,18 @@ char domovethings(void)
                             ctf_emit_flag(4, "ghvctf{m4st3r_h4x0r_0v3rm1nd}");
                         }
                     }
+                    else if (submitted > 0 && !ctf_vault_unlocked)
+                    {
+                        /* CTF integrity (finding-set Y / all-flags-hack-gated): a WRONG non-zero
+                           guess re-randomizes the code, so brute-forcing vault_input.txt can never
+                           converge - the target moves on every miss. The intended hack (SCAN the
+                           live ctf_vault_code from memory and submit it) writes the correct value on
+                           the first try and never trips this. An empty/zero file (no guess yet) is
+                           ignored, so a scanner's stable read is never disturbed. */
+                        ctf_vault_code = 1000 + (rand() % 9000);
+                        startup_log("CTF: vault wrong guess (%d) -> code re-randomized (anti-brute-force)",
+                                    submitted);
+                    }
                 }
                 vault_check_clock = totalclock;
             }
