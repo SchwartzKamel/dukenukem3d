@@ -104,3 +104,18 @@ def test_duplicate_boss_sprite_is_caught():
                      ctf_validate.HITAG_BOSS1)
     errors = ctf_validate.validate_ctf_map(bytes(ba))
     assert any("Meatbag" in e or "0x0CF1" in e or "found 2" in e for e in errors), errors
+
+
+def test_boss_hitag_on_non_boss_picnum_is_caught():
+    """A single sprite carries the boss hitag but a non-boss picnum — the engine's
+    boss/flag logic targets the real actor, so the validator must reject it
+    (CTF-VALIDATE-3)."""
+    ba = bytearray(assemble_map())
+    parsed = ctf_validate.parse_map(bytes(ba))
+    idx = next(i for i, s in enumerate(parsed["sprites"])
+               if s["hitag"] == ctf_validate.HITAG_BOSS1)
+    # picnum is at byte 14 within the 44-byte sprite struct; blank it so the hitag
+    # still matches but the picnum no longer equals BOSS1.
+    struct.pack_into("<h", ba, _sprite_section_off(ba) + idx * 44 + 14, 0)
+    errors = ctf_validate.validate_ctf_map(bytes(ba))
+    assert any("picnum" in e for e in errors), errors

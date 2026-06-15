@@ -36,6 +36,8 @@ LOTAG_GHOST = 0x4754
 LOTAG_VAULT = 0x5641
 HITAG_BOSS1 = 0x0CF1
 HITAG_BOSS2 = 0x0CF2
+PICNUM_BOSS1 = 2630   # The Meatbag (mirror generate_ctf_map.py BOSS1)
+PICNUM_BOSS2 = 2710   # The Warden  (mirror generate_ctf_map.py BOSS2)
 GHOST_CENTROID = (53072, 3072)
 GHOST_CENTROID_TOL = 64  # BUILD units
 
@@ -147,12 +149,17 @@ def validate_ctf_map(data):
             errors.append(f"expected exactly 1 {name} sector (lotag 0x{tag:04X}), "
                           f"found {len(matches)}")
 
-    # --- exactly one boss sprite of each hitag (duplicates are a drift class) ---
-    for tag, name in ((HITAG_BOSS1, "Meatbag/BOSS1"), (HITAG_BOSS2, "Warden/BOSS2")):
+    # --- exactly one boss sprite of each (hitag AND the right boss picnum) ---
+    for tag, pic, name in ((HITAG_BOSS1, PICNUM_BOSS1, "Meatbag/BOSS1"),
+                           (HITAG_BOSS2, PICNUM_BOSS2, "Warden/BOSS2")):
         matches = [s for s in sprites if s["hitag"] == tag]
         if len(matches) != 1:
             errors.append(f"expected exactly 1 {name} boss sprite (hitag "
                           f"0x{tag:04X}), found {len(matches)}")
+        elif matches[0]["picnum"] != pic:
+            errors.append(f"{name} sprite (hitag 0x{tag:04X}) has picnum "
+                          f"{matches[0]['picnum']}, expected the boss picnum {pic} "
+                          "(a non-boss actor was tagged as a boss)")
 
     # --- ghost-room centroid matches the synced teleport target ----------
     ghosts = [s for s in sectors if s["lotag"] == LOTAG_GHOST]
