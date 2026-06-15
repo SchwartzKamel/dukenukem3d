@@ -8246,7 +8246,7 @@ int main(int argc,char **argv)
                (mirrors DUKE3D_MEMMAP_MODE=spoiler_light). */
             if (!getenv("DUKE3D_NO_HINTS"))
             {
-                adduserquote("HACK ME! ADDRESSES ARE IN atomic_shell_memory_map.log");
+                adduserquote("HACK ME - READ THE MEMORY MAP LOG IN YOUR GAME FOLDER");
                 startup_log("MEMMAP-ANNOUNCE: hinted player - this game is won by hacking it; see atomic_shell_memory_map.log");
             }
         }
