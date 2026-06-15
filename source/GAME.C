@@ -8137,6 +8137,14 @@ int main(int argc,char **argv)
                     (unsigned long long)(uintptr_t)&ctf_ghost_target_y);
             fprintf(mm, "ctf_ghost_target_z   = 0x%llX  # int32, 4 bytes  (Flag 4: teleport destination Z)\n",
                     (unsigned long long)(uintptr_t)&ctf_ghost_target_z);
+            fprintf(mm, "ctf_timer_target_x   = 0x%llX  # int32, 4 bytes  (Flag 3: SAFE timer-room point X, off the centre boss)\n",
+                    (unsigned long long)(uintptr_t)&ctf_timer_target_x);
+            fprintf(mm, "ctf_timer_target_y   = 0x%llX  # int32, 4 bytes  (Flag 3: SAFE timer-room point Y)\n",
+                    (unsigned long long)(uintptr_t)&ctf_timer_target_y);
+            fprintf(mm, "ctf_vault_target_x   = 0x%llX  # int32, 4 bytes  (Flag 5: vault-room centre X)\n",
+                    (unsigned long long)(uintptr_t)&ctf_vault_target_x);
+            fprintf(mm, "ctf_vault_target_y   = 0x%llX  # int32, 4 bytes  (Flag 5: vault-room centre Y)\n",
+                    (unsigned long long)(uintptr_t)&ctf_vault_target_y);
             fprintf(mm, "ctf_boss1_sprite     = 0x%llX  # int16, 2 bytes  (sprite index of Meatbag; -1=none)\n",
                     (unsigned long long)(uintptr_t)&ctf_boss1_sprite);
             fprintf(mm, "ctf_boss2_sprite     = 0x%llX  # int16, 2 bytes  (sprite index of Warden; -1=none)\n",
@@ -8193,6 +8201,52 @@ int main(int argc,char **argv)
                 break;
             }
         }
+    }
+
+    /* G1-A: publish the Flag-3 timer and Flag-5 vault teleport targets the same
+       way as the ghost target, so a (possibly randomized) arena's room positions
+       are discoverable from the memory-map log instead of hardcoded in the
+       solver/walkthrough. Scan numsectors for lotag 0x544D / 0x5641 and take a
+       safe point in each sector. CTF-2 nuance: the timer-room centre holds a
+       hostile boss (teleporting onto it exhausts the sprite pool), so the timer
+       target is a point 3/4 of the way from the centroid toward the first corner;
+       the vault room has no centre hazard, so its centroid is used directly. */
+    {
+        int ts;
+        for (ts = 0; ts < numsectors; ts++)
+        {
+            int lt = sector[ts].lotag;
+            if (lt != 0x544D && lt != 0x5641)
+                continue;
+            {
+                long sx = 0, sy = 0, n = 0;
+                int w, wp = sector[ts].wallptr, wn = sector[ts].wallnum;
+                for (w = 0; w < wn; w++)
+                {
+                    sx += wall[wp + w].x;
+                    sy += wall[wp + w].y;
+                    n++;
+                }
+                if (n > 0)
+                {
+                    int32_t cx = (int32_t)(sx / n);
+                    int32_t cy = (int32_t)(sy / n);
+                    if (lt == 0x5641)
+                    {
+                        ctf_vault_target_x = cx;
+                        ctf_vault_target_y = cy;
+                    }
+                    else /* 0x544D timer: off-centre toward wall[wallptr] */
+                    {
+                        ctf_timer_target_x = cx + (((int32_t)wall[wp].x - cx) * 3) / 4;
+                        ctf_timer_target_y = cy + (((int32_t)wall[wp].y - cy) * 3) / 4;
+                    }
+                }
+            }
+        }
+        startup_log("CTF G1-A: timer target (%d,%d) vault target (%d,%d)",
+                    ctf_timer_target_x, ctf_timer_target_y,
+                    ctf_vault_target_x, ctf_vault_target_y);
     }
     ctf_reset();
     /* D1: a fresh funnel for this level (truncates atomic_shell_events.jsonl) */
