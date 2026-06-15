@@ -9428,6 +9428,49 @@ char domovethings(void)
            are timestamped. */
         ctf_set_clock(totalclock);
 
+        /* G5-HINT (FPE S2): graduated stuck-nudge. If the player makes no capture
+           progress for a while, escalate a teaching hint so a stuck/dying player
+           learns the mechanic instead of ragequitting. Suppressible via
+           DUKE3D_NO_HINTS=1 (shared with memmap-announce). All state is function-
+           static (does not widen the hackable surface). Font-safe copy (finding T4):
+           gametext is uppercase-only and renders _/. as space-like glyphs. */
+        {
+            static int   g5_off   = -2;     /* -2 unread; 1 = disabled            */
+            static int   g5_secs  = 45;     /* stuck threshold (s), env-tunable    */
+            static long  g5_last  = 0;      /* totalclock of last progress         */
+            static int   g5_prevN = -1;     /* previous captured-flag count        */
+            static int   g5_level = 0;      /* highest hint level already fired    */
+            int capN, k;
+
+            if (g5_off == -2)
+            {
+                const char *e;
+                g5_off = getenv("DUKE3D_NO_HINTS") ? 1 : 0;
+                e = getenv("DUKE3D_HINT_STUCK_SECS");
+                if (e && *e) { int v = atoi(e); if (v > 0) g5_secs = v; }
+                g5_last = totalclock;
+            }
+
+            capN = 0;
+            for (k = 0; k < 5; k++) capN += ctf_flag_captured(k) ? 1 : 0;
+            if (capN != g5_prevN) { g5_prevN = capN; g5_last = totalclock; g5_level = 0; }
+
+            if (!g5_off && capN < 5 &&
+                (totalclock - g5_last) > (long)g5_secs * 30 * (g5_level + 1))
+            {
+                static const char *g5_msg[3] = {
+                    "STUCK? THIS GAME IS WON BY HACKING - READ THE MEMORY MAP LOG",
+                    "FREEZE YOUR HEALTH THEN SET THE BOSS HP TO 0",
+                    "USE CHEAT ENGINE OR SCOUTER - SCAN AND FREEZE PLAYER HEALTH",
+                };
+                int lvl = g5_level < 3 ? g5_level : 2;
+                adduserquote((char *)g5_msg[lvl]);
+                startup_log("G5-HINT: fired level %d (capN=%d, stuck %lds)",
+                            g5_level + 1, capN, (long)(totalclock - g5_last) / 30);
+                g5_level++;
+            }
+        }
+
         /* --- Flag 1: Meatbag boss (BOSS1, hitag 0xCF1) death ------------- */
         if (!ctf_flag_captured(0) && ctf_boss1_sprite >= 0 &&
             ctf_boss1_sprite < MAXSPRITES)

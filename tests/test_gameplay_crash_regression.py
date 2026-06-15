@@ -16,8 +16,10 @@ the startup log).
 
 import os
 import re
+import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -42,6 +44,9 @@ def _startup_log_path() -> Path:
     return PROJECT_ROOT / "atomic_shell_startup.log"
 
 
+_LAST_STARTUP_LOG = ""
+
+
 def _run_gameplay(extra_env=None, timeout=30, frame_limit="5", autoplay=False, fire=0,
                   capture_interval="5") -> dict:
     """Run duke3d headless with /v1 /l1 /s2 (warp-to-level) and return result.
@@ -49,7 +54,14 @@ def _run_gameplay(extra_env=None, timeout=30, frame_limit="5", autoplay=False, f
     fire: DUKE3D_AUTOPLAY_FIRE tic cap (0 = off). Forces the weapon to discharge
     for that many game tics — bounded by tics so it stays deterministic under
     parallel/wall-clock load.
+
+    Each run executes in its own isolated working directory (its own
+    atomic_shell_startup.log + captures/) so concurrent engine-launching tests
+    under parallel xdist can't race/overwrite the shared PROJECT_ROOT log. The
+    captured startup log is stashed for the immediately-following
+    _read_startup_log() call.
     """
+    global _LAST_STARTUP_LOG
     binary = _resolve_binary()
     if not binary.is_file():
         pytest.skip(f"Binary not found: {binary}")
@@ -57,49 +69,59 @@ def _run_gameplay(extra_env=None, timeout=30, frame_limit="5", autoplay=False, f
     if not grp.is_file():
         pytest.skip("DUKE3D.GRP not found")
 
-    env = os.environ.copy()
-    env.update({
-        "SDL_VIDEODRIVER": "dummy",
-        "DUKE3D_HEADLESS":  "1",
-        "DUKE3D_SKIP_LOGO": "1",
-        "DUKE3D_SILENT_ERRORS": "1",
-        # Default to a short run; callers can raise frame_limit for deeper coverage.
-        "DUKE3D_FRAME_LIMIT":      frame_limit,
-        "DUKE3D_CAPTURE_INTERVAL": capture_interval,
-    })
-    if autoplay:
-        env["DUKE3D_AUTOPLAY"] = "1"
-    if fire:
-        # Force the Fire bit for `fire` game tics so the weapon discharges.
-        env["DUKE3D_AUTOPLAY_FIRE"] = str(int(fire))
-    if extra_env:
-        env.update(extra_env)
-
+    workdir = Path(tempfile.mkdtemp(prefix="duke3d_crash_"))
     try:
-        proc = subprocess.run(
-            [str(binary), "/v1", "/l1", "/s2"],
-            cwd=str(PROJECT_ROOT),
-            env=env,
-            capture_output=True,
-            timeout=timeout,
-        )
-        return {
-            "exit_code": proc.returncode,
-            "stdout": proc.stdout.decode(errors="replace"),
-            "stderr": proc.stderr.decode(errors="replace"),
-        }
-    except subprocess.TimeoutExpired:
-        return {"exit_code": -9, "stdout": "", "stderr": "timeout"}
+        shutil.copy(grp, workdir / "DUKE3D.GRP")
+        for name in ("SDL2.dll", "DUKE3D.CFG"):
+            src = PROJECT_ROOT / name
+            if src.is_file():
+                shutil.copy(src, workdir / name)
+
+        env = os.environ.copy()
+        env.update({
+            "SDL_VIDEODRIVER": "dummy",
+            "DUKE3D_HEADLESS":  "1",
+            "DUKE3D_SKIP_LOGO": "1",
+            "DUKE3D_SILENT_ERRORS": "1",
+            # Default to a short run; callers can raise frame_limit for deeper coverage.
+            "DUKE3D_FRAME_LIMIT":      frame_limit,
+            "DUKE3D_CAPTURE_INTERVAL": capture_interval,
+        })
+        if autoplay:
+            env["DUKE3D_AUTOPLAY"] = "1"
+        if fire:
+            # Force the Fire bit for `fire` game tics so the weapon discharges.
+            env["DUKE3D_AUTOPLAY_FIRE"] = str(int(fire))
+        if extra_env:
+            env.update(extra_env)
+
+        try:
+            proc = subprocess.run(
+                [str(binary), "/v1", "/l1", "/s2"],
+                cwd=str(workdir),
+                env=env,
+                capture_output=True,
+                timeout=timeout,
+            )
+            result = {
+                "exit_code": proc.returncode,
+                "stdout": proc.stdout.decode(errors="replace"),
+                "stderr": proc.stderr.decode(errors="replace"),
+            }
+        except subprocess.TimeoutExpired:
+            result = {"exit_code": -9, "stdout": "", "stderr": "timeout"}
+
+        log_path = workdir / "atomic_shell_startup.log"
+        _LAST_STARTUP_LOG = log_path.read_text(errors="replace") if log_path.is_file() else ""
+        return result
+    finally:
+        shutil.rmtree(workdir, ignore_errors=True)
 
 
 def _read_startup_log() -> str:
-    log = _startup_log_path()
-    if log.is_file():
-        try:
-            return log.read_text(errors="replace")
-        except OSError:
-            return ""
-    return ""
+    """Return the startup log captured by the most recent _run_gameplay() call
+    (read from its isolated working dir, not the shared PROJECT_ROOT log)."""
+    return _LAST_STARTUP_LOG
 
 
 # ── regression tests ──────────────────────────────────────────────────────────
