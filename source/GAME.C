@@ -3327,13 +3327,26 @@ short EGS(short whatsect,long s_x,long s_y,long s_z,short s_pn,signed char s_s,s
 
     if( i < 0 )
     {
-        /* Sprite pool (MAXSPRITES) is full. Rather than crash the game when the
-           player fires a lot (projectiles live in statnum 4), recycle the oldest
-           projectile/effect to make room. Only gameexit if there is genuinely
-           nothing disposable to free. */
-        short recyc = headspritestat[4];
-        while( recyc >= 0 && nextspritestat[recyc] >= 0 )
-            recyc = nextspritestat[recyc];   /* walk to the oldest in the list */
+        /* Sprite pool (MAXSPRITES) is full. Rather than crash the game (or hit
+           the "Too many sprites spawned." exit) during sustained combat, recycle
+           the oldest disposable cosmetic sprite to make room.  Active enemies
+           spawn a steady stream of projectiles (statnum 4) AND debris/gibs/shells
+           (statnum 5) while fighting; both lists must be drained or the pool fills
+           and EGS would fall through to sprite[-1] (access violation) or gameexit.
+           Recycling keeps the pool at a stable steady-state instead. */
+        short recyc = -1, scan;
+        short disposable[2]; int di;
+        disposable[0] = 4;   /* projectiles */
+        disposable[1] = 5;   /* debris / gibs / shells / effects */
+        for( di = 0; di < 2 && recyc < 0; di++ )
+        {
+            scan = headspritestat[disposable[di]];
+            while( scan >= 0 )           /* walk to the oldest (list tail) */
+            {
+                recyc = scan;
+                scan = nextspritestat[scan];
+            }
+        }
         if( recyc >= 0 )
         {
             deletesprite(recyc);
@@ -5772,7 +5785,7 @@ void animatesprites(long x,long y,short a,long smoothratio)
         {
             if(t4)
             {
-                l = ((long *)t4)[2];
+                l = script[t4+2];
 
                 switch( l )
                 {
@@ -5820,7 +5833,7 @@ void animatesprites(long x,long y,short a,long smoothratio)
                         break;
                 }
 
-                t->picnum += k + ((long *)t4)[0] + l * t3;
+                t->picnum += k + script[t4] + l * t3;
 
                 if(l > 0) while(tilesizx[PICNUM_SAFE(t->picnum)] == 0 && t->picnum > 0 )
                     t->picnum -= l;       /*Hack, for actors*/

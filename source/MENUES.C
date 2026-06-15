@@ -220,7 +220,8 @@ loadplayer(signed char spot)
      char fn[] = "game0.sav";
      char mpfn[] = "gameA_00.sav";
      char *fnptr, scriptptrs[MAXSCRIPTSIZE];
-     long fil, bv, i, j, x;
+     long fil, bv, i, x;
+     intptr_t j;
      int32 nump;
 
      if(spot < 0)
@@ -468,20 +469,20 @@ loadplayer(signed char spot)
      kdfread(&cloudy[0],(sizeof(short) * MAXCLOUDS),1,fil);
 
      kdfread(&scriptptrs[0],1,MAXSCRIPTSIZE,fil);
-     kdfread(&script[0],4,MAXSCRIPTSIZE,fil);
+     kdfread(&script[0],sizeof(script[0]),MAXSCRIPTSIZE,fil);
      for(i=0;i<MAXSCRIPTSIZE;i++)
         if( scriptptrs[i] )
      {
-         j = (long)script[i]+(long)&script[0];
+         j = (intptr_t)script[i]+(intptr_t)&script[0];
          script[i] = j;
      }
 
-     kdfread(&actorscrptr[0],4,MAXTILES,fil);
+     kdfread(&actorscrptr[0],sizeof(actorscrptr[0]),MAXTILES,fil);
      for(i=0;i<MAXTILES;i++)
          if(actorscrptr[i])
      {
-        j = (long)actorscrptr[i]+(long)&script[0];
-        actorscrptr[i] = (long *)j;
+        j = (intptr_t)actorscrptr[i]+(intptr_t)&script[0];
+        actorscrptr[i] = (intptr_t *)j;
      }
 
      kdfread(&scriptptrs[0],1,MAXSPRITES,fil);
@@ -489,7 +490,7 @@ loadplayer(signed char spot)
 
      for(i=0;i<MAXSPRITES;i++)
      {
-        j = (long)(&script[0]);
+        j = (intptr_t)(&script[0]);
         if( scriptptrs[i]&1 ) T2 += j;
         if( scriptptrs[i]&2 ) T5 += j;
         if( scriptptrs[i]&4 ) T6 += j;
@@ -706,7 +707,8 @@ loadplayer(signed char spot)
 
 saveplayer(signed char spot)
 {
-     long i, j;
+     long i;
+     intptr_t j;
          char fn[] = "game0.sav";
      char mpfn[] = "gameA_00.sav";
      char *fnptr,scriptptrs[MAXSCRIPTSIZE];
@@ -905,10 +907,10 @@ saveplayer(signed char spot)
 
      for(i=0;i<MAXSCRIPTSIZE;i++)
      {
-          if( (long)script[i] >= (long)(&script[0]) && (long)script[i] < (long)(&script[MAXSCRIPTSIZE]) )
+          if( (intptr_t)script[i] >= (intptr_t)(&script[0]) && (intptr_t)script[i] < (intptr_t)(&script[MAXSCRIPTSIZE]) )
           {
                 scriptptrs[i] = 1;
-                j = (long)script[i] - (long)&script[0];
+                j = (intptr_t)script[i] - (intptr_t)&script[0];
                 script[i] = j;
           }
           else scriptptrs[i] = 0;
@@ -920,7 +922,7 @@ saveplayer(signed char spot)
          fclose(fil);
          return(-1);
      }
-     dfwrite(&script[0],4,MAXSCRIPTSIZE,fil);
+     dfwrite(&script[0],sizeof(script[0]),MAXSCRIPTSIZE,fil);
      if(ferror(fil))
      {
          fclose(fil);
@@ -930,17 +932,17 @@ saveplayer(signed char spot)
      for(i=0;i<MAXSCRIPTSIZE;i++)
         if( scriptptrs[i] )
      {
-        j = script[i]+(long)&script[0];
+        j = script[i]+(intptr_t)&script[0];
         script[i] = j;
      }
 
      for(i=0;i<MAXTILES;i++)
          if(actorscrptr[i])
      {
-        j = (long)actorscrptr[i]-(long)&script[0];
-        actorscrptr[i] = (long *)j;
+        j = (intptr_t)actorscrptr[i]-(intptr_t)&script[0];
+        actorscrptr[i] = (intptr_t *)j;
      }
-     dfwrite(&actorscrptr[0],4,MAXTILES,fil);
+     dfwrite(&actorscrptr[0],sizeof(actorscrptr[0]),MAXTILES,fil);
      if(ferror(fil))
      {
          fclose(fil);
@@ -949,8 +951,8 @@ saveplayer(signed char spot)
      for(i=0;i<MAXTILES;i++)
          if(actorscrptr[i])
      {
-         j = (long)actorscrptr[i]+(long)&script[0];
-         actorscrptr[i] = (long *)j;
+         j = (intptr_t)actorscrptr[i]+(intptr_t)&script[0];
+         actorscrptr[i] = (intptr_t *)j;
      }
 
      for(i=0;i<MAXSPRITES;i++)
@@ -959,19 +961,19 @@ saveplayer(signed char spot)
 
         if(actorscrptr[PN] == 0) continue;
 
-        j = (long)&script[0];
+        j = (intptr_t)&script[0];
 
-        if(T2 >= j && T2 < (long)(&script[MAXSCRIPTSIZE]) )
+        if(T2 >= j && T2 < (intptr_t)(&script[MAXSCRIPTSIZE]) )
         {
             scriptptrs[i] |= 1;
             T2 -= j;
         }
-        if(T5 >= j && T5 < (long)(&script[MAXSCRIPTSIZE]) )
+        if(T5 >= j && T5 < (intptr_t)(&script[MAXSCRIPTSIZE]) )
         {
             scriptptrs[i] |= 2;
             T5 -= j;
         }
-        if(T6 >= j && T6 < (long)(&script[MAXSCRIPTSIZE]) )
+        if(T6 >= j && T6 < (intptr_t)(&script[MAXSCRIPTSIZE]) )
         {
             scriptptrs[i] |= 4;
             T6 -= j;

@@ -113,8 +113,9 @@ char playerquitflag[MAXPLAYERS];
 char peer_game_mode[MAXPLAYERS];  /* net-r15-coop-dm-mode-validation: track each peer's co-op flag */
 long vel, svel, angvel, horiz, ototalclock, respawnactortime=768, respawnitemtime=768, groupfile;
 
-long script[MAXSCRIPTSIZE],*scriptptr,*insptr,labelcode[MAXLABELS],labelcnt;
-long *actorscrptr[MAXTILES],*parsing_actor;
+intptr_t script[MAXSCRIPTSIZE],*scriptptr,*insptr,labelcode[MAXLABELS];
+long labelcnt;
+intptr_t *actorscrptr[MAXTILES],*parsing_actor;
 char *label,*textptr,error,warning,killit_flag;
 char *music_pointer;
 char actortype[MAXTILES];
