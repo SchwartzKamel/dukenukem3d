@@ -332,6 +332,114 @@ def _solve_inner(flags, verbose, extra_env):
     return captured
 
 
+# ── boss-damage-ramp probe (boss-dmg-tune / D3) ─────────────────────────────
+def _read_health_addr(text):
+    m = re.search(r"^player_health\s*=\s*(0x[0-9A-Fa-f]+)", text, re.M)
+    return int(m.group(1), 16) if m else None
+
+
+def _probe_boss_damage_inner(verbose):
+    """Teleport the player onto boss1 with high HP and sample player_health while
+    holding position, measuring how the boss's proximity-damage CON drains HP.
+
+    With the boss-dmg-tune ramp (addphealth -3/tic) the player SURVIVES proximity
+    contact and HP declines gradually (300 -> 297 -> 294 ...). With the old instant
+    kill (addphealth -1000) the very first in-range tic craters HP to <=0. (A boss
+    *projectile* eventually lands for big damage once its AI engages — that's the
+    boss's weapon, not the proximity aura — so we read the gradual ramp from the
+    first samples, before any projectile/weld effects.)"""
+    result = {"ok": False, "initial_hp": None, "samples": [],
+              "near_full_alive": 0, "took_damage": False, "first_drop": None}
+    proc = launch()
+    try:
+        mm = wait_memmap()
+        if mm is None:
+            if verbose:
+                print("probe: memory map not written (level never entered?)")
+            return result
+        hp_addr = _read_health_addr(MEMMAP_LOG.read_text(errors="replace"))
+        if hp_addr is None:
+            if verbose:
+                print("probe: player_health address not found in memmap")
+            return result
+        mem = Mem(proc.pid)
+        try:
+            base, sz = mm["sprite_base"], mm["sprite_size"]
+            # wait for boss1's sprite slot to be assigned, with sane world coords
+            idx = -1
+            bx = by = bz = None
+            deadline = time.time() + 15.0
+            while time.time() < deadline:
+                idx = mem.read_i16(mm["ctf_boss1_sprite"])
+                if idx is not None and idx >= 0:
+                    bx = mem.read_i32(base + idx * sz + 0)
+                    by = mem.read_i32(base + idx * sz + 4)
+                    bz = mem.read_i32(base + idx * sz + 8)
+                    if bx is not None and abs(bx) < 100000 and abs(by) < 100000:
+                        break
+                time.sleep(0.1)
+            if bx is None or abs(bx) >= 100000:
+                if verbose:
+                    print("probe: no valid boss1 position")
+                return result
+            result["initial_hp"] = mem.read_i16(hp_addr)
+            # write high HP and teleport onto boss1 (its own sector is valid)
+            mem.write_i32(mm["player_posx"], bx)
+            mem.write_i32(mm["player_posy"], by)
+            mem.write_i32(mm["player_posz"], bz)
+            WRITTEN_HP = 300
+            mem.write_i16(hp_addr, WRITTEN_HP)
+            samples = []
+            t0 = time.time()
+            while time.time() - t0 < 0.6:
+                bx = mem.read_i32(base + idx * sz + 0)
+                by = mem.read_i32(base + idx * sz + 4)
+                bz = mem.read_i32(base + idx * sz + 8)
+                if bx is not None and abs(bx) < 100000:
+                    mem.write_i32(mm["player_posx"], bx)
+                    mem.write_i32(mm["player_posy"], by)
+                    mem.write_i32(mm["player_posz"], bz)
+                hp = mem.read_i16(hp_addr)
+                samples.append(hp)
+                time.sleep(0.02)
+            result["samples"] = samples
+            # samples where the player is alive and near the written HP (survived
+            # proximity contact). With -1000 this collapses to ~1 (instant death).
+            nf = [h for h in samples if h is not None and 100 < h <= WRITTEN_HP]
+            result["near_full_alive"] = len(nf)
+            result["took_damage"] = bool(nf) and min(nf) < WRITTEN_HP
+            # first downward step from full == the per-tic proximity drop (~3, not ~300)
+            for h in samples:
+                if h is not None and h < WRITTEN_HP:
+                    result["first_drop"] = WRITTEN_HP - h
+                    break
+            result["ok"] = True
+            if verbose:
+                print(f"probe: initial_hp={result['initial_hp']} samples={samples}")
+                print(f"probe: near_full_alive={result['near_full_alive']} "
+                      f"took_damage={result['took_damage']} "
+                      f"first_drop={result['first_drop']}")
+        finally:
+            mem.close()
+    finally:
+        proc.terminate()
+        try:
+            proc.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+    return result
+
+
+def probe_boss_damage_ramp(verbose=True):
+    """Public entry: measure boss1 proximity-damage drain (boss-dmg-tune backpressure).
+    Serialized against solve() via the shared PROJECT_ROOT lock (same logs/process)."""
+    if sys.platform != "win32":
+        print("probe_boss_damage_ramp: Windows-only (Read/WriteProcessMemory)")
+        return {"ok": False}
+    with _solve_lock():
+        return _probe_boss_damage_inner(verbose)
+
+
 def main():
     ap = argparse.ArgumentParser(description="Solve Atomic Shell CTF flags headless")
     ap.add_argument("--flags", default="0,1,2,3,4",

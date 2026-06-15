@@ -6527,7 +6527,7 @@ state boss1code
         ifspritepal 0
           ifpdistl 1280
     {
-      addphealth -1000
+      addphealth -3
       palfrom 63 63
     }
   }
@@ -6858,7 +6858,7 @@ state boss2code
         ifspritepal 0 ifpdistl
           1280
     {
-      addphealth -1000
+      addphealth -3
       palfrom 63 63
     }
   }
