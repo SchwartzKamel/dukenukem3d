@@ -96,6 +96,13 @@ void ctf_emit_flag(int n, const char *flag_text)
 
     _captured[n] = 1;
 
+    /* --- D1: funnel capture event FIRST, before the flags log --- *
+     * The solve harness watches atomic_shell_flags.log and terminates the engine
+     * the instant it sees a flag; writing the JSONL capture event before that
+     * signal guarantees the event is flushed to disk before the process is killed
+     * (otherwise the last-captured flag's event can be lost under load). */
+    ctf_event(n, "capture", flag_text, _clk);
+
     /* --- write to flag log --- */
     fp = fopen("atomic_shell_flags.log", "a");
     if (fp)
@@ -114,9 +121,6 @@ void ctf_emit_flag(int n, const char *flag_text)
     /* --- also emit to stdout so it shows in the console window --- */
     printf("\n*** CTF FLAG %d CAPTURED: %s ***\n\n", n, flag_text ? flag_text : "");
     fflush(stdout);
-
-    /* --- D1: funnel capture event (one place covers all 5 flags) --- */
-    ctf_event(n, "capture", flag_text, _clk);
 }
 
 int ctf_flag_captured(int n)
