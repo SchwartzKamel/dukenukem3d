@@ -2375,3 +2375,50 @@ class TestGeometrySectnumBounds:
             pytest.skip(f"{engine_c} not found")
         count = engine_c.read_text(errors="replace").count("H-GEO")
         assert count >= 6, f"expected >=6 H-GEO guard markers in ENGINE.C, found {count}"
+
+
+class TestInputBufferBounds:
+    """L-BUFHARD (Finding-set-L, docs/plans/2026-06-15_DEEP_AUDIT_HARDENING.md): fixed-size
+    buffers filled from CON/file input must cap the copy length so malformed input cannot
+    overflow them. Two HIGH sites are locked here:
+
+      * L-TEMPBUF -- GAMEDEF.C copies CON tokens/filenames into the global ``tempbuf[2048]``
+        in four scanners (keyword/transword/transnum/case-55 include) with no length cap; a
+        token longer than 2048 bytes overflowed it. Each loop now breaks at
+        ``sizeof(tempbuf)-1`` (mirrors the existing 63-char label-name idiom).
+      * L-TIMBRE -- GAME.C ``loadtmb()`` trusted ``kfilelength()`` straight into the
+        ``char tmb[8000]`` stack buffer; an oversized ``d3dtimbr.tmb`` smashed the stack. It
+        now rejects ``l < 0 || l > sizeof(tmb)`` before the ``kread``.
+
+    Static source inspection (the house convention for this file): the engine is not executed;
+    we assert the guard patterns remain so a refactor cannot silently drop them. Behavioural
+    no-regression on valid input is proved by the full pytest suite + e2e 5/5 flags."""
+
+    def _src(self, repo_root, rel):
+        p = repo_root / rel
+        if not p.exists():
+            import pytest
+            pytest.skip(f"{p} not found")
+        return p.read_text(errors="replace")
+
+    def test_tempbuf_copy_loops_are_bounded(self, repo_root):
+        """All four GAMEDEF.C tempbuf copy loops must carry the sizeof(tempbuf)-1 cap."""
+        flat = "".join(self._src(repo_root, "source/GAMEDEF.C").split())
+        assert ">=(long)sizeof(tempbuf)-1" in flat, (
+            "GAMEDEF.C tempbuf copy loops lost their sizeof(tempbuf)-1 bound; a long CON "
+            "token would overflow tempbuf[2048] (L-TEMPBUF)."
+        )
+
+    def test_tempbuf_has_four_guard_markers(self, repo_root):
+        """keyword/transword/transnum/case-55 each get one L-TEMPBUF guard."""
+        count = self._src(repo_root, "source/GAMEDEF.C").count("L-TEMPBUF")
+        assert count >= 4, f"expected >=4 L-TEMPBUF guard markers in GAMEDEF.C, found {count}"
+
+    def test_loadtmb_rejects_oversized_bank(self, repo_root):
+        """loadtmb() must bound the timbre file length against sizeof(tmb) before kread."""
+        flat = "".join(self._src(repo_root, "source/GAME.C").split())
+        assert "l>(long)sizeof(tmb)" in flat, (
+            "GAME.C loadtmb() lost its sizeof(tmb) bound; an oversized d3dtimbr.tmb would "
+            "smash the tmb[8000] stack buffer (L-TIMBRE)."
+        )
+        assert "L-TIMBRE" in self._src(repo_root, "source/GAME.C"), "L-TIMBRE marker missing"

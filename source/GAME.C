@@ -7430,6 +7430,11 @@ void loadtmb(void)
     fil = kopen4load("d3dtimbr.tmb",0);
     if(fil == -1) return;
     l = kfilelength(fil);
+    if( l < 0 || l > (long)sizeof(tmb) )   /* L-TIMBRE: reject oversized timbre bank (tmb[8000] stack buffer) */
+    {
+        kclose(fil);
+        return;
+    }
     kread(fil,(char *)tmb,l);
     MUSIC_RegisterTimbreBank(tmb);
     kclose(fil);

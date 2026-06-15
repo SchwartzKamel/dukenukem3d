@@ -332,6 +332,7 @@ long keyword(void)
     i = 0;
     while( isaltok(*temptextptr) )
     {
+        if( i >= (long)sizeof(tempbuf)-1 ) break;   /* L-TEMPBUF: bound token copy into tempbuf[2048] */
         tempbuf[i] = *(temptextptr++);
         i++;
     }
@@ -359,6 +360,12 @@ long transword(void) /* Returns its code # */
     l = 0;
     while( isaltok(*(textptr+l)) )
     {
+        if( l >= (long)sizeof(tempbuf)-1 )   /* L-TEMPBUF: bound token copy into tempbuf[2048] */
+        {
+            printf("  * ERROR!(L%ld) Token too long (>%d characters).\n",line_number,(int)sizeof(tempbuf)-1);
+            error++;
+            break;
+        }
         tempbuf[l] = textptr[l];
         l++;
     }
@@ -409,6 +416,12 @@ void transnum(void)
     l = 0;
     while( isaltok(*(textptr+l)) )
     {
+        if( l >= (long)sizeof(tempbuf)-1 )   /* L-TEMPBUF: bound token copy into tempbuf[2048] */
+        {
+            printf("  * ERROR!(L%ld) Token too long (>%d characters).\n",line_number,(int)sizeof(tempbuf)-1);
+            error++;
+            break;
+        }
         tempbuf[l] = textptr[l];
         l++;
     }
@@ -745,6 +758,7 @@ char parsecommand(void)
             j = 0;
             while( isaltok(*textptr) )
             {
+                if( j >= (long)sizeof(tempbuf)-1 ) break;   /* L-TEMPBUF: bound filename copy into tempbuf[2048] */
                 tempbuf[j] = *(textptr++);
                 j++;
             }
