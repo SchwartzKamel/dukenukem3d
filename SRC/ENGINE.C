@@ -5868,6 +5868,7 @@ clipmove (int32_t *x, int32_t *y, int32_t *z, short *sectnum,
 	do
 	{
 		dasect = clipsectorlist[clipsectcnt++];
+		if ((unsigned)dasect >= (unsigned)numsectors) continue;   /* H-GEO: skip corrupt propagated sector */
 		sec = &sector[dasect];
 		startwall = sec->wallptr; endwall = startwall + sec->wallnum;
 		for(j=startwall,wal=&wall[startwall];j<endwall;j++,wal++)
@@ -7049,6 +7050,7 @@ getzrange(long x, long y, long z, short sectnum,
 
 	do    /* Collect sectors inside your square first */
 	{
+		if ((unsigned)clipsectorlist[clipsectcnt] >= (unsigned)numsectors) { clipsectcnt++; continue; }   /* H-GEO: skip corrupt propagated sector */
 		sec = &sector[clipsectorlist[clipsectcnt]];
 		startwall = sec->wallptr; endwall = startwall + sec->wallnum;
 		for(j=startwall,wal=&wall[startwall];j<endwall;j++,wal++)
