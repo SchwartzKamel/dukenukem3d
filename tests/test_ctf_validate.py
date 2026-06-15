@@ -72,3 +72,35 @@ def test_main_exit_codes(capsys):
     assert ctf_validate.main([]) == 0
     out = capsys.readouterr().out
     assert "OK" in out
+
+
+def test_negative_sector_count_is_caught():
+    """A negative MAP count (signed-short underflow) must fail cleanly, not slip
+    into an odd parse state (CTF-VALIDATE-2)."""
+    ba = bytearray(assemble_map())
+    struct.pack_into("<h", ba, _SECTORS_START - 2, -1)  # numsectors field at off 20
+    errors = ctf_validate.validate_ctf_map(bytes(ba))
+    assert errors and any("negative" in e.lower() or "parse" in e.lower()
+                          for e in errors), errors
+
+
+def _sprite_section_off(data):
+    """Byte offset of sprite[0] in a MAP v7 buffer."""
+    off = _SECTORS_START - 2  # numsectors field
+    ns = struct.unpack_from("<h", data, off)[0]
+    off += 2 + ns * 40
+    nw = struct.unpack_from("<h", data, off)[0]
+    off += 2 + nw * 32
+    return off + 2  # skip numsprites field -> sprite[0]
+
+
+def test_duplicate_boss_sprite_is_caught():
+    """Two sprites sharing a boss hitag is drift the engine's single-actor boss
+    logic can't handle — the validator must require exactly one (CTF-VALIDATE-2)."""
+    ba = bytearray(assemble_map())
+    # sprite hitag is at byte 40 within the 44-byte sprite struct; tag sprite[0]
+    # (the player marker) with BOSS1's hitag so there are now two.
+    struct.pack_into("<h", ba, _sprite_section_off(ba) + 0 * 44 + 40,
+                     ctf_validate.HITAG_BOSS1)
+    errors = ctf_validate.validate_ctf_map(bytes(ba))
+    assert any("Meatbag" in e or "0x0CF1" in e or "found 2" in e for e in errors), errors

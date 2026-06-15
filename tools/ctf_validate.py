@@ -77,6 +77,8 @@ def parse_map(data):
     need(2)
     numsectors = struct.unpack_from("<h", data, off)[0]
     off += 2
+    if numsectors < 0:
+        raise MapParseError(f"negative sector count {numsectors}")
     sectors = []
     for _ in range(numsectors):
         need(_SECTOR_SZ)
@@ -88,6 +90,8 @@ def parse_map(data):
     need(2)
     numwalls = struct.unpack_from("<h", data, off)[0]
     off += 2
+    if numwalls < 0:
+        raise MapParseError(f"negative wall count {numwalls}")
     walls = []
     for _ in range(numwalls):
         need(_WALL_SZ)
@@ -98,6 +102,8 @@ def parse_map(data):
     need(2)
     numsprites = struct.unpack_from("<h", data, off)[0]
     off += 2
+    if numsprites < 0:
+        raise MapParseError(f"negative sprite count {numsprites}")
     sprites = []
     for _ in range(numsprites):
         need(_SPRITE_SZ)
@@ -106,6 +112,9 @@ def parse_map(data):
                         "lotag": f[20] & 0xFFFF, "hitag": f[21] & 0xFFFF})
         off += _SPRITE_SZ
 
+    if off != len(data):
+        raise MapParseError(f"trailing data: {len(data) - off} unparsed byte(s) "
+                            f"after the last sprite (expected an exact MAP)")
     return {"sectors": sectors, "walls": walls, "sprites": sprites}
 
 
@@ -138,11 +147,12 @@ def validate_ctf_map(data):
             errors.append(f"expected exactly 1 {name} sector (lotag 0x{tag:04X}), "
                           f"found {len(matches)}")
 
-    # --- both boss sprites present ---------------------------------------
+    # --- exactly one boss sprite of each hitag (duplicates are a drift class) ---
     for tag, name in ((HITAG_BOSS1, "Meatbag/BOSS1"), (HITAG_BOSS2, "Warden/BOSS2")):
         matches = [s for s in sprites if s["hitag"] == tag]
-        if len(matches) < 1:
-            errors.append(f"missing {name} boss sprite (hitag 0x{tag:04X})")
+        if len(matches) != 1:
+            errors.append(f"expected exactly 1 {name} boss sprite (hitag "
+                          f"0x{tag:04X}), found {len(matches)}")
 
     # --- ghost-room centroid matches the synced teleport target ----------
     ghosts = [s for s in sectors if s["lotag"] == LOTAG_GHOST]
