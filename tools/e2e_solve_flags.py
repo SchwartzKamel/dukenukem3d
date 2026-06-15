@@ -45,6 +45,7 @@ FLAG_TEXT = {
     2: "ghvctf{t1m3_1s_4_fl4t_c1rcl3}",
     3: "ghvctf{gh0st_w4lk3r}",
     4: "ghvctf{m4st3r_h4x0r_0v3rm1nd}",
+    5: "ghvctf{c0d3_3x3c_h1j4ck}",
 }
 
 # ── Win32 process memory ────────────────────────────────────────────────────
@@ -115,7 +116,8 @@ def parse_memmap(text):
     for key in ["player_posx", "player_posy", "player_posz", "ctf_timer",
                 "ctf_timer_start", "ctf_vault_code", "ctf_ghost_target_x",
                 "ctf_ghost_target_y", "ctf_ghost_target_z", "ctf_boss1_sprite",
-                "ctf_boss2_sprite", "ctf_vault_unlocked"]:
+                "ctf_boss2_sprite", "ctf_vault_unlocked",
+                "ctf_codeexec_hook", "ctf_grant_codeexec"]:
         m = re.search(rf"^{key}\s*=\s*(0x[0-9A-Fa-f]+)", text, re.M)
         if m:
             mm[key] = int(m.group(1), 16)
@@ -274,8 +276,26 @@ def solve_flag2(mem, mm):
     return False
 
 
+def solve_flag5(mem, mm):
+    """Flag 5 — control-flow hijack: write the published ctf_grant_codeexec function
+    address into the ctf_codeexec_hook slot the engine calls each CTF tick. The engine
+    then executes the player-chosen target and emits the flag (a callback hijack)."""
+    hook = mm.get("ctf_codeexec_hook")
+    target = mm.get("ctf_grant_codeexec")
+    if not hook or not target:
+        return False
+    payload = int(target).to_bytes(8, "little")
+    deadline = time.time() + 12.0
+    while time.time() < deadline:
+        mem.write(hook, payload)
+        if FLAGS_LOG.is_file() and FLAG_TEXT[5] in FLAGS_LOG.read_text(errors="replace"):
+            return True
+        time.sleep(0.05)
+    return False
+
+
 SOLVERS = {0: solve_flag0, 1: solve_flag1, 2: solve_flag2,
-           3: solve_flag3, 4: solve_flag4}
+           3: solve_flag3, 4: solve_flag4, 5: solve_flag5}
 
 
 # ── main ────────────────────────────────────────────────────────────────────

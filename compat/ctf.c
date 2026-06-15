@@ -24,6 +24,23 @@ void ctf_set_clock(long clk)
     _clk = clk;
 }
 
+/* --- Flag 5 (CODE_EXEC): control-flow hijack ------------------------------ */
+void (*ctf_tick_hook)(void) = NULL;   /* published, NULL by default */
+
+void ctf_grant_codeexec(void)
+{
+    ctf_emit_flag(5, "ghvctf{c0d3_3x3c_h1j4ck}");
+}
+
+void ctf_run_tick_hook(void)
+{
+    /* Copy the slot to a local before the null-check so a concurrent write
+       can't slip a NULL between the test and the call. */
+    void (*h)(void) = ctf_tick_hook;
+    if (h)
+        h();
+}
+
 static int _events_on(void)
 {
     if (_events_enabled < 0) {

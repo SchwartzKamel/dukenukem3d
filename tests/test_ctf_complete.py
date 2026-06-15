@@ -39,15 +39,16 @@ def _solver():
 @pytest.mark.serial
 @pytest.mark.slow
 def test_all_captured_event_emitted_on_full_solve(tmp_path):
-    """Capturing all 5 flags emits the one-shot all_captured completion event."""
+    """Capturing all flags emits the one-shot all_captured completion event."""
     solver = _solver()
     ev = tmp_path / "events.jsonl"
-    captured = solver.solve([0, 1, 2, 3, 4], verbose=True,
+    flags = list(range(6))   # all CTF_NUM_FLAGS (0..5, incl. the G2-A code-exec flag)
+    captured = solver.solve(flags, verbose=True,
                             extra_env={"DUKE3D_EVENT_LOG": str(ev)})
-    assert all(captured.get(n) for n in range(5)), f"not all flags captured: {captured}"
+    assert all(captured.get(n) for n in flags), f"not all flags captured: {captured}"
     text = ev.read_text(errors="replace") if ev.exists() else ""
     assert '"stage":"all_captured"' in text, (
-        f"no all_captured completion event after 5/5 in the funnel:\n{text}")
+        f"no all_captured completion event after full solve in the funnel:\n{text}")
     assert '"flag":-1' in text, (
         f"all_captured event missing the session flag (-1):\n{text}")
 
@@ -56,7 +57,7 @@ def test_all_captured_event_emitted_on_full_solve(tmp_path):
 @pytest.mark.serial
 @pytest.mark.slow
 def test_all_captured_absent_on_partial_solve(tmp_path):
-    """Non-vacuous control: with only 1/5 flags captured, completion must NOT fire."""
+    """Non-vacuous control: with only 1 flag captured, completion must NOT fire."""
     solver = _solver()
     ev = tmp_path / "events.jsonl"
     captured = solver.solve([0], verbose=True,

@@ -8220,6 +8220,11 @@ int main(int argc,char **argv)
             fprintf(mm, "#   Scan unknown value -> unchanged -> find 4-digit candidate.\n");
             fprintf(mm, "#   echo <code> > vault_input.txt, then walk to vault door.\n");
             fprintf(mm, "#\n");
+            fprintf(mm, "# FLAG 6 (CODE_EXEC): Hijack the game's control flow.\n");
+            fprintf(mm, "#   ctf_codeexec_hook is a function pointer the engine calls every\n");
+            fprintf(mm, "#   tick (8 bytes, starts 0). Write ctf_grant_codeexec's address into\n");
+            fprintf(mm, "#   it -> the engine runs the grant function -> ghvctf{c0d3_3x3c_h1j4ck}.\n");
+            fprintf(mm, "#\n");
             }
             fprintf(mm, "ctf_timer            = 0x%llX  # int32, 4 bytes  (Flag 3: countdown, -1=inactive)\n",
                     (unsigned long long)(uintptr_t)&ctf_timer);
@@ -8247,6 +8252,10 @@ int main(int argc,char **argv)
                     (unsigned long long)(uintptr_t)&ctf_boss1_sprite);
             fprintf(mm, "ctf_boss2_sprite     = 0x%llX  # int16, 2 bytes  (sprite index of Warden; -1=none)\n",
                     (unsigned long long)(uintptr_t)&ctf_boss2_sprite);
+            fprintf(mm, "ctf_codeexec_hook    = 0x%llX  # void(*)(void) slot, 8 bytes  (Flag 6: write ctf_grant_codeexec here to hijack control flow)\n",
+                    (unsigned long long)(uintptr_t)&ctf_tick_hook);
+            fprintf(mm, "ctf_grant_codeexec   = 0x%llX  # function address, 8 bytes  (Flag 6: the win function to redirect the hook to)\n",
+                    (unsigned long long)(uintptr_t)&ctf_grant_codeexec);
             fprintf(mm, "#\n");
             fprintf(mm, "# Boss health: sprite[ctf_boss1_sprite].extra\n");
             fprintf(mm, "# sprite[] array base = 0x%llX  (each sprite = 44 bytes)\n",
@@ -9455,6 +9464,12 @@ char domovethings(void)
            are timestamped. */
         ctf_set_clock(totalclock);
 
+        /* G2-A (CODE_EXEC / flag 5): invoke the published control-flow hook once
+           per CTF tick. The slot is NULL by default; only a memory-hack that writes
+           ctf_grant_codeexec's address into ctf_codeexec_hook makes it fire — a
+           callback/vtable-hijack challenge. */
+        ctf_run_tick_hook();
+
         /* G5-HINT (FPE S2): graduated stuck-nudge. If the player makes no capture
            progress for a while, escalate a teaching hint so a stuck/dying player
            learns the mechanic instead of ragequitting. Suppressible via
@@ -9479,10 +9494,10 @@ char domovethings(void)
             }
 
             capN = 0;
-            for (k = 0; k < 5; k++) capN += ctf_flag_captured(k) ? 1 : 0;
+            for (k = 0; k < CTF_NUM_FLAGS; k++) capN += ctf_flag_captured(k) ? 1 : 0;
             if (capN != g5_prevN) { g5_prevN = capN; g5_last = totalclock; g5_level = 0; }
 
-            if (!g5_off && capN < 5 &&
+            if (!g5_off && capN < CTF_NUM_FLAGS &&
                 (totalclock - g5_last) > (long)g5_secs * 30 * (g5_level + 1))
             {
                 static const char *g5_msg[3] = {

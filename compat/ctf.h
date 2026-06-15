@@ -9,6 +9,7 @@
  *   2 — FROZEN_CLOCK (countdown timer frozen)
  *   3 — GHOST_WALK   (teleport to sealed room)
  *   4 — VAULT        (vault code discovered)
+ *   5 — CODE_EXEC    (control-flow hijack: redirect a called-through hook)
  */
 #ifndef CTF_H
 #define CTF_H
@@ -17,7 +18,7 @@
 extern "C" {
 #endif
 
-#define CTF_NUM_FLAGS 5
+#define CTF_NUM_FLAGS 6
 
 /* Emit flag N. Writes to atomic_shell_flags.log and sets ctf_flags_captured[n].
  * No-ops if already captured. flag_text is the full ghvctf{...} string. */
@@ -46,6 +47,16 @@ void ctf_set_clock(long clk);
  * Caller should copy or print then clear with ctf_clear_hud_message(). */
 const char *ctf_pending_hud_message(void);
 void ctf_clear_hud_message(void);
+
+/* --- Flag 5 (CODE_EXEC): control-flow hijack ------------------------------
+ * ctf_tick_hook is a function-pointer slot the engine calls once per CTF tick
+ * (via ctf_run_tick_hook). It is NULL by default and nothing in normal play
+ * sets it. The hack: write the published address of ctf_grant_codeexec() into
+ * the slot, redirecting the engine's control flow to a function it never calls
+ * — which emits flag 5. Teaches callback/vtable hijacking. */
+extern void (*ctf_tick_hook)(void);
+void ctf_grant_codeexec(void);   /* the "win" function; never called in normal flow */
+void ctf_run_tick_hook(void);    /* call once per CTF tick; null-checks the slot */
 
 #ifdef __cplusplus
 }

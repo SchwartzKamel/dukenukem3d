@@ -26,11 +26,16 @@ FLAG_RE = re.compile(r"^ghvctf\{[a-z0-9_]+\}$")
 
 
 def _emit_flags_from_game_c():
-    """{flag_id: string} for every ctf_emit_flag(N, "ghvctf{...}") in GAME.C."""
-    src = (PROJECT_ROOT / "source" / "GAME.C").read_text(errors="replace")
+    """{flag_id: string} for every ctf_emit_flag(N, "ghvctf{...}") in the engine sources.
+
+    Scans GAME.C *and* compat/ctf.c — most flags are emitted from GAME.C's CTF tick, but
+    flag 5 (CODE_EXEC) is emitted by ctf_grant_codeexec() in ctf.c (the control-flow-hijack
+    win function lives with the flag infra)."""
     out = {}
-    for m in re.finditer(r'ctf_emit_flag\(\s*(\d+)\s*,\s*"(ghvctf\{[^"]+\})"', src):
-        out[int(m.group(1))] = m.group(2)
+    for rel in ("source/GAME.C", "compat/ctf.c"):
+        src = (PROJECT_ROOT / rel).read_text(errors="replace")
+        for m in re.finditer(r'ctf_emit_flag\(\s*(\d+)\s*,\s*"(ghvctf\{[^"]+\})"', src):
+            out[int(m.group(1))] = m.group(2)
     return out
 
 
