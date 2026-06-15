@@ -892,6 +892,29 @@ void faketimerhandler()
     if ((totalclock < ototalclock+TICSPERFRAME) || (ready2send == 0)) return;
     ototalclock += TICSPERFRAME;
 
+    /* Q-STATS: optional sprite-pool telemetry (off by default). DUKE3D_STATS_INTERVAL=N
+       emits "stats: sprites=K/MAXSPRITES clock=T" to the startup log every N game tics, so a
+       headless soak can graph pool occupancy directly instead of inferring stability from the
+       absence of a "Too many sprites" exit. Read-only; behaviour-unchanged when unset. */
+    {
+        static int q_stats_interval = -2;   /* -2 = unread; <=0 = disabled */
+        static int q_stats_tics = 0;
+        if (q_stats_interval == -2)
+        {
+            const char *e = getenv("DUKE3D_STATS_INTERVAL");
+            q_stats_interval = (e && *e) ? atoi(e) : 0;
+            if (q_stats_interval < 0) q_stats_interval = 0;
+        }
+        if (q_stats_interval > 0 && (++q_stats_tics % q_stats_interval) == 0)
+        {
+            int q_st, q_sp, q_nsp = 0;
+            for (q_st = 0; q_st < MAXSTATUS; q_st++)
+                for (q_sp = headspritestat[q_st]; q_sp >= 0; q_sp = nextspritestat[q_sp])
+                    q_nsp++;
+            startup_log("stats: sprites=%d/%d clock=%ld", q_nsp, MAXSPRITES, (long)totalclock);
+        }
+    }
+
     getpackets(); if (getoutputcirclesize() >= 16) return;
 
     for(i=connecthead;i>=0;i=connectpoint2[i])
