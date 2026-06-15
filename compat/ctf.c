@@ -9,6 +9,7 @@
 static int   _captured[CTF_NUM_FLAGS]  = {0};
 static char  _hud_msg[128]             = {0};
 static int   _hud_pending              = 0;
+static int   _completed                = 0;   /* ctf-complete: all-flags one-shot */
 
 /* --- D1 telemetry state --------------------------------------------------- */
 static long  _clk             = 0;     /* last totalclock from ctf_set_clock */
@@ -90,6 +91,7 @@ void ctf_emit_flag(int n, const char *flag_text)
     FILE *fp;
     time_t now;
     char ts[32];
+    int just_completed = 0;
 
     if (n < 0 || n >= CTF_NUM_FLAGS) return;
     if (_captured[n]) return;   /* idempotent */
@@ -102,6 +104,25 @@ void ctf_emit_flag(int n, const char *flag_text)
      * signal guarantees the event is flushed to disk before the process is killed
      * (otherwise the last-captured flag's event can be lost under load). */
     ctf_event(n, "capture", flag_text, _clk);
+
+    /* --- ctf-complete (AA1): detect all-flags completion and emit the all_captured
+     * funnel event HERE — before the flags.log write — for the SAME flush-before-kill
+     * reason as the capture event above (the harness kills the engine on seeing the
+     * 5th flag in flags.log, so an event emitted after that write can be lost). The
+     * completion HUD banner is deferred to the end so it still wins the HUD slot over
+     * this flag's per-flag line. flag -1 = the session-event convention; _clk is the
+     * time-to-complete data point for analytics/leaderboard. */
+    {
+        int i, all = 1;
+        for (i = 0; i < CTF_NUM_FLAGS; i++)
+            if (!_captured[i]) { all = 0; break; }
+        if (all && !_completed)
+        {
+            _completed = 1;
+            just_completed = 1;
+            ctf_event(-1, "all_captured", "all flags captured", _clk);
+        }
+    }
 
     /* --- write to flag log --- */
     fp = fopen("atomic_shell_flags.log", "a");
@@ -121,6 +142,19 @@ void ctf_emit_flag(int n, const char *flag_text)
     /* --- also emit to stdout so it shows in the console window --- */
     printf("\n*** CTF FLAG %d CAPTURED: %s ***\n\n", n, flag_text ? flag_text : "");
     fflush(stdout);
+
+    /* --- ctf-complete (AA1): the completion banner, set LAST so it wins the HUD slot
+     * over this flag's per-flag line above. The all_captured funnel event was already
+     * emitted before the flags.log write (see above). Font-safe copy: gametext is
+     * uppercase-only and renders _/. as space-like glyphs. */
+    if (just_completed)
+    {
+        snprintf(_hud_msg, sizeof(_hud_msg),
+                 "ALL %d FLAGS CAPTURED - YOU OWNED ATOMIC SHELL", CTF_NUM_FLAGS);
+        _hud_pending = 1;
+        printf("\n*** CTF COMPLETE: ALL %d FLAGS CAPTURED ***\n\n", CTF_NUM_FLAGS);
+        fflush(stdout);
+    }
 }
 
 int ctf_flag_captured(int n)
@@ -134,6 +168,7 @@ void ctf_reset(void)
     memset(_captured, 0, sizeof(_captured));
     _hud_msg[0]  = '\0';
     _hud_pending = 0;
+    _completed   = 0;   /* ctf-complete: re-arm the all-flags payoff for the new level */
     /* D1: start a fresh funnel for the new level (next event truncates the log) */
     _ev_seen_n     = 0;
     _events_opened = 0;

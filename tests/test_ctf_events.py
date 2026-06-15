@@ -11,7 +11,8 @@ import pytest
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 EVENTS_LOG = PROJECT_ROOT / "atomic_shell_events.jsonl"
-ALLOWED_STAGES = {"level_enter", "enter", "arm", "unlock", "progress", "capture"}
+ALLOWED_STAGES = {"level_enter", "enter", "arm", "unlock", "progress", "capture",
+                  "all_captured"}
 
 
 def _solver():

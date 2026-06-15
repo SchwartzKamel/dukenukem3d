@@ -14,7 +14,9 @@ import json
 import sys
 
 # Mirrors the stage set emitted by GAME.C's CTF tick + ctf_emit_flag.
-ALLOWED_STAGES = {"level_enter", "enter", "arm", "unlock", "progress", "capture"}
+# all_captured = the one-shot completion event (flag -1) when every flag is captured.
+ALLOWED_STAGES = {"level_enter", "enter", "arm", "unlock", "progress", "capture",
+                  "all_captured"}
 
 # (field, python type). bool is excluded from the int fields explicitly below.
 _FIELDS = (("ts", str), ("clk", int), ("flag", int), ("stage", str), ("detail", str))
