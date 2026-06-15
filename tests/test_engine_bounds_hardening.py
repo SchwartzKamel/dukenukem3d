@@ -2322,3 +2322,56 @@ class TestEngineR17TileMultOverflow:
                     # This could be a false positive, so we just ensure
                     # that if it exists without size_t, it should have the sentinel
                     pass  # The previous test ensures sentinels exist
+
+
+class TestGeometrySectnumBounds:
+    """H-GEO (Finding-set-H, docs/plans/2026-06-15_IMPROVEMENT_ANALYSIS.md): the
+    CON-reachable BUILD geometry/physics functions must reject an out-of-range input
+    ``sectnum``/``wallnum`` so an actor that briefly clips out of bounds cannot drive a
+    ``sector[]``/``wall[]`` over-read (the active-actor crash at RVA 0x111DC). Guards use
+    the established ``(unsigned)idx >= (unsigned)count`` idiom (behaviour-preserving for
+    valid input). This locks them in so a refactor cannot silently drop them."""
+
+    REQUIRED_GUARDS = [
+        ("(unsigned)(*sectnum) >= (unsigned)numsectors", "clipmove start-sector guard"),
+        ("(unsigned)sectnum >= (unsigned)numsectors", "getzrange/hitscan/neartag sectnum guard"),
+        ("(unsigned)sect1 >= (unsigned)numsectors", "cansee endpoint guard"),
+        ("(unsigned)dasectnum >= (unsigned)numsectors", "cansee propagated-sector loop guard"),
+        ("(unsigned)wallnum >= (unsigned)numwalls", "clipinsidebox wall guard"),
+    ]
+
+    def _src(self, repo_root):
+        engine_c = repo_root / "SRC" / "ENGINE.C"
+        if not engine_c.exists():
+            import pytest
+            pytest.skip(f"{engine_c} not found")
+        # whitespace-insensitive view for robust substring checks
+        return "".join(engine_c.read_text(errors="replace").split())
+
+    def test_geometry_bounds_guards_present(self, repo_root):
+        src = self._src(repo_root)
+        missing = [
+            desc for expr, desc in self.REQUIRED_GUARDS
+            if "".join(expr.split()) not in src
+        ]
+        assert not missing, (
+            "H-GEO geometry bounds-guards missing from SRC/ENGINE.C: "
+            + ", ".join(missing)
+            + ". These stop the active-actor wall[]/sector[] over-read; do not remove "
+            "without an equivalent bound."
+        )
+
+    def test_sectnum_lt_zero_checks_upgraded(self, repo_root):
+        """hitscan/neartag previously rejected only ``sectnum < 0``; the upper bound must
+        now be folded into the same guard."""
+        src = self._src(repo_root)
+        assert "if((unsigned)sectnum>=(unsigned)numsectors)return(-1)" in src, "hitscan guard"
+        assert "if((unsigned)sectnum>=(unsigned)numsectors)return(0)" in src, "neartag guard"
+
+    def test_at_least_six_hgeo_markers(self, repo_root):
+        engine_c = repo_root / "SRC" / "ENGINE.C"
+        if not engine_c.exists():
+            import pytest
+            pytest.skip(f"{engine_c} not found")
+        count = engine_c.read_text(errors="replace").count("H-GEO")
+        assert count >= 6, f"expected >=6 H-GEO guard markers in ENGINE.C, found {count}"
