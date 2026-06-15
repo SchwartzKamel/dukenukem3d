@@ -7322,11 +7322,12 @@ void cacheicon(void)
  * busy artwork. */
 static void splash_title_line(int y, char *t)
 {
-    int w = 0, n, x;
-    for (n = 0; t[n]; n++) w += (t[n] == ' ') ? 5 : 4;   /* minitext advance */
-    x = 160 - (w >> 1);
-    minitextshade(x+1, y+1, t, 26, 0, 2+8+16+128);       /* drop shadow */
-    minitext(x, y, t, 0, 2+8+16+128);                    /* bright text */
+    /* Render the splash title with the same clean, centered, cyan BIG font the
+     * menu uses (menutext -> BIGALPHANUM, palette 0). The previous small
+     * minitext + 1px drop-shadow smeared into an unreadable blob over the busy
+     * MENUSCREEN art ("awful_menu" issue); the menu font is simple and colourful
+     * and is the look the user signed off on. */
+    menutext(160, y, 0, 0, t);
 }
 
 void Logo(void)
