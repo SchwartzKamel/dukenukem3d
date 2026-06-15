@@ -5098,6 +5098,46 @@ deletespritesect(short deleteme)
 	if (sprite[deleteme].sectnum == MAXSECTORS)
 		return(-1);
 
+	/* TEMP-DIAG: log the call stack whenever a boss sprite (picnum 2630/2710) is
+	 * deleted, to find what removes the CTF bosses when the player fires. */
+	if (sprite[deleteme].picnum == 2630 || sprite[deleteme].picnum == 2710) {
+		static int _bd = 0;
+		if (_bd < 2) {
+			void *bt[12]; unsigned short n, k;
+			HANDLE _proc = GetCurrentProcess();
+			char _symbuf[sizeof(SYMBOL_INFO) + 256];
+			SYMBOL_INFO *_sym = (SYMBOL_INFO *)_symbuf;
+			_bd++;
+			SymSetOptions(SYMOPT_DEFERRED_LOADS | SYMOPT_UNDNAME);
+			SymInitialize(_proc, NULL, TRUE);
+			n = RtlCaptureStackBackTrace(0, 12, bt, NULL);
+			startup_log("BOSSDEL sprite=%d picnum=%d hitag=0x%X",
+				(int)deleteme, (int)sprite[deleteme].picnum,
+				(unsigned)(sprite[deleteme].hitag & 0xFFFF));
+			for (k = 0; k < n; k++) {
+				DWORD64 disp = 0;
+				DWORD ldisp = 0;
+				IMAGEHLP_LINE64 line;
+				memset(_symbuf, 0, sizeof(_symbuf));
+				_sym->SizeOfStruct = sizeof(SYMBOL_INFO);
+				_sym->MaxNameLen = 255;
+				line.SizeOfStruct = sizeof(IMAGEHLP_LINE64);
+				if (SymFromAddr(_proc, (DWORD64)(uintptr_t)bt[k], &disp, _sym)) {
+					if (SymGetLineFromAddr64(_proc, (DWORD64)(uintptr_t)bt[k], &ldisp, &line))
+						startup_log("  BOSSDEL #%d %s+0x%llX  (%s:%lu)", (int)k,
+							_sym->Name, (unsigned long long)disp,
+							line.FileName ? line.FileName : "?", (unsigned long)line.LineNumber);
+					else
+						startup_log("  BOSSDEL #%d %s+0x%llX", (int)k, _sym->Name,
+							(unsigned long long)disp);
+				} else
+					startup_log("  BOSSDEL #%d RVA=0x%llX", (int)k,
+						(unsigned long long)((char*)bt[k] - (char*)0x140000000ULL));
+			}
+			SymCleanup(_proc);
+		}
+	}
+
 	if (headspritesect[sprite[deleteme].sectnum] == deleteme)
 		headspritesect[sprite[deleteme].sectnum] = nextspritesect[deleteme];
 
@@ -5135,7 +5175,12 @@ deletespritestat (short deleteme)
 
 changespritesect(short spritenum, short newsectnum)
 {
-	if ((newsectnum < 0) || (newsectnum > MAXSECTORS)) return(-1);
+	/* engine: reject the MAXSECTORS sentinel too (was '> MAXSECTORS', an
+	 * off-by-one). Passing newsectnum==MAXSECTORS would deletespritesect() the
+	 * sprite (sectnum=MAXSECTORS) and then fail insertspritesect(MAXSECTORS),
+	 * leaving the sprite half-deleted/orphaned at sectnum 1024 while still
+	 * referenced -- the shoot-crash / clobbered-boss-slot root cause. */
+	if ((newsectnum < 0) || (newsectnum >= MAXSECTORS)) return(-1);
 	if (sprite[spritenum].sectnum == newsectnum) return(0);
 	if (sprite[spritenum].sectnum == MAXSECTORS) return(-1);
 	if (deletespritesect(spritenum) < 0) return(-1);
@@ -5145,7 +5190,9 @@ changespritesect(short spritenum, short newsectnum)
 
 changespritestat(short spritenum, short newstatnum)
 {
-	if ((newstatnum < 0) || (newstatnum > MAXSTATUS)) return(-1);
+	/* engine: reject the MAXSTATUS sentinel too (was '> MAXSTATUS'). See
+	 * changespritesect() above -- same half-delete/orphan hazard for statnum. */
+	if ((newstatnum < 0) || (newstatnum >= MAXSTATUS)) return(-1);
 	if (sprite[spritenum].statnum == newstatnum) return(0);
 	if (sprite[spritenum].statnum == MAXSTATUS) return(-1);
 	if (deletespritestat(spritenum) < 0) return(-1);

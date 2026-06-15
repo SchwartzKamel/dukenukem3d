@@ -674,24 +674,29 @@ movesprite(short spritenum, long xchange, long ychange, long zchange, unsigned l
             retval = clipmove(&sprite[spritenum].x,&sprite[spritenum].y,&daz,&dasectnum,((xchange*TICSPERFRAME)<<11),((ychange*TICSPERFRAME)<<11),cd,(4<<8),(4<<8),cliptype);
         }
 
-        if((unsigned)dasectnum >= MAXSECTORS) /* engine-r12-actors-dasectnum-bounds: sector bounds guard */
-            ;
-        else if( dasectnum < 0 || ( dasectnum >= 0 &&
-            ( ( hittype[spritenum].actorstayput >= 0 && hittype[spritenum].actorstayput != dasectnum ) ||
-              ( ( sprite[spritenum].picnum == BOSS2 ) && sprite[spritenum].pal == 0 && sector[dasectnum].lotag != 3 ) ||
-              ( ( sprite[spritenum].picnum == BOSS1 || sprite[spritenum].picnum == BOSS2 ) && sector[dasectnum].lotag == 1 ) ||
-              ( sector[dasectnum].lotag == 1 && ( sprite[spritenum].picnum == LIZMAN || ( sprite[spritenum].picnum == LIZTROOP && sprite[spritenum].zvel == 0 ) ) )
-            ) )
+        /* engine-r12-actors-dasectnum-bounds: clipmove can return dasectnum ==
+         * MAXSECTORS (sprite clipped out of every sector). Treat any out-of-range
+         * sector exactly like the dasectnum<0 case — revert the move — instead of
+         * (old bug) skipping the revert and then letting changespritesect() below
+         * write the OOB sectnum into headspritesect[], corrupting the sprite lists
+         * (shoot-crash / "Too many sprites spawned" / clobbered boss slots). The
+         * out-of-range test is ordered FIRST so the sector[dasectnum] reads in the
+         * later terms are never evaluated with a bad index. */
+        if( dasectnum < 0 || (unsigned)dasectnum >= (unsigned)MAXSECTORS ||
+            ( hittype[spritenum].actorstayput >= 0 && hittype[spritenum].actorstayput != dasectnum ) ||
+            ( ( sprite[spritenum].picnum == BOSS2 ) && sprite[spritenum].pal == 0 && sector[dasectnum].lotag != 3 ) ||
+            ( ( sprite[spritenum].picnum == BOSS1 || sprite[spritenum].picnum == BOSS2 ) && sector[dasectnum].lotag == 1 ) ||
+            ( sector[dasectnum].lotag == 1 && ( sprite[spritenum].picnum == LIZMAN || ( sprite[spritenum].picnum == LIZTROOP && sprite[spritenum].zvel == 0 ) ) )
           )
         {
                 sprite[spritenum].x = oldx;
                 sprite[spritenum].y = oldy;
-                if(sector[dasectnum].lotag == 1 && sprite[spritenum].picnum == LIZMAN)
+                if((unsigned)dasectnum < (unsigned)MAXSECTORS && sector[dasectnum].lotag == 1 && sprite[spritenum].picnum == LIZMAN)
                     sprite[spritenum].ang = (TRAND&2047);
                 else if( (hittype[spritenum].temp_data[0]&3) == 1 && sprite[spritenum].picnum != COMMANDER )
                     sprite[spritenum].ang = (TRAND&2047);
                 setsprite(spritenum,oldx,oldy,sprite[spritenum].z);
-                if(dasectnum < 0) dasectnum = 0;
+                if((unsigned)dasectnum >= (unsigned)MAXSECTORS) dasectnum = 0;
                 return (16384+dasectnum);
         }
         if( (retval&49152) >= 32768 && (hittype[spritenum].cgg==0) ) sprite[spritenum].ang += 768;
@@ -706,7 +711,10 @@ movesprite(short spritenum, long xchange, long ychange, long zchange, unsigned l
                 clipmove(&sprite[spritenum].x,&sprite[spritenum].y,&daz,&dasectnum,((xchange*TICSPERFRAME)<<11),((ychange*TICSPERFRAME)<<11),(long)(sprite[spritenum].clipdist<<2),(4<<8),(4<<8),cliptype);
     }
 
-    if( dasectnum >= 0)
+    /* engine-r12-actors-dasectnum-bounds: never propagate an out-of-range sector
+     * into changespritesect() (it indexes headspritesect[] and would corrupt the
+     * sprite lists). (unsigned) cast rejects both <0 and >=MAXSECTORS. */
+    if( (unsigned)dasectnum < (unsigned)MAXSECTORS)
         if ( (dasectnum != sprite[spritenum].sectnum) )
             changespritesect(spritenum,dasectnum);
     daz = sprite[spritenum].z + ((zchange*TICSPERFRAME)>>3);
@@ -4863,7 +4871,10 @@ void moveexplosions(void)  /*  STATNUM 5 */
 
                 ssp(i,CLIPMASK0);
 
-                if(sect < 0 || ( sector[sect].floorz+(24<<8) ) < s->z ) KILLIT(i);
+                /* engine: KILLIT on any out-of-range sector (not just <0) — a casing
+                 * whose sectnum is >= numsectors would otherwise index sector[] OOB
+                 * on the floorz/lotag reads below. (unsigned) rejects <0 and >=range. */
+                if((unsigned)sect >= (unsigned)numsectors || ( sector[sect].floorz+(24<<8) ) < s->z ) KILLIT(i);
 
                 if(sector[sect].lotag == 2)
                 {

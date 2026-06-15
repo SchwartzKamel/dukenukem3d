@@ -10,6 +10,7 @@
 
 # Build artifacts
 build/
+build-*/
 duke3d
 duke3d.exe
 *.o
