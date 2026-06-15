@@ -43,21 +43,13 @@ def test_solve_run_emits_wellformed_funnel(tmp_path):
     lines = [ln for ln in event_log.read_text(errors="replace").splitlines() if ln.strip()]
     assert lines, "events log is empty"
 
-    events = []
-    for i, line in enumerate(lines):
-        try:
-            obj = json.loads(line)
-        except json.JSONDecodeError as exc:
-            pytest.fail(f"line {i} is not valid JSON: {exc}\n{line}")
-        for field in ("ts", "clk", "flag", "stage", "detail"):
-            assert field in obj, f"line {i} missing '{field}': {obj}"
-        assert isinstance(obj["clk"], int) and isinstance(obj["flag"], int)
-        assert obj["stage"] in ALLOWED_STAGES, f"unexpected stage: {obj['stage']}"
-        events.append(obj)
+    # schema: reuse the standalone validator (D1-SCHEMA) — JSON validity, required
+    # fields + types, allowed stages, monotonic clk.
+    from ctf_events_schema import validate_events
+    schema_errors = validate_events(lines)
+    assert not schema_errors, "event-log schema violations:\n" + "\n".join(schema_errors)
 
-    # clk monotonic non-decreasing (in-game time)
-    clks = [e["clk"] for e in events]
-    assert clks == sorted(clks), f"clk not monotonic: {clks}"
+    events = [json.loads(ln) for ln in lines]
 
     # exactly one session marker
     assert sum(1 for e in events if e["stage"] == "level_enter") == 1, \

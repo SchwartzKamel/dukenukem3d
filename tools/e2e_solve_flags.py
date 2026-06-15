@@ -18,14 +18,22 @@ Currently implemented and validated end-to-end: all five flags —
 4 (vault code + file), and 2 (frozen clock). Windows-only (WriteProcessMemory).
 """
 import argparse
+import contextlib
 import ctypes
 import ctypes.wintypes as wt
+import hashlib
 import os
 import re
 import subprocess
 import sys
+import tempfile
 import time
 from pathlib import Path
+
+try:
+    from filelock import FileLock
+except ImportError:  # filelock is a pinned requirement; degrade to no-op if absent
+    FileLock = None
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 MEMMAP_LOG = PROJECT_ROOT / "atomic_shell_memory_map.log"
@@ -128,8 +136,7 @@ def launch(extra_env=None):
     if not (PROJECT_ROOT / "DUKE3D.GRP").is_file():
         raise FileNotFoundError("DUKE3D.GRP not generated")
     for f in (MEMMAP_LOG, FLAGS_LOG, PROJECT_ROOT / "vault_input.txt"):
-        if f.exists():
-            f.unlink()
+        f.unlink(missing_ok=True)   # missing_ok: tolerate a concurrent cleanup
     env = os.environ.copy()
     env.update({
         "SDL_VIDEODRIVER": "dummy", "DUKE3D_HEADLESS": "1", "DUKE3D_SKIP_LOGO": "1",
@@ -272,10 +279,28 @@ SOLVERS = {0: solve_flag0, 1: solve_flag1, 2: solve_flag2,
 
 
 # ── main ────────────────────────────────────────────────────────────────────
+def _solve_lock():
+    """Inter-process lock so concurrent solve() runs (e.g. test_solve_flags +
+    test_ctf_events under pytest-xdist) don't race on the SHARED PROJECT_ROOT CTF
+    logs (atomic_shell_memory_map.log / atomic_shell_flags.log / vault_input.txt) —
+    the harness launches the engine in PROJECT_ROOT and those paths are fixed.
+    Degrades to a no-op if filelock is unavailable."""
+    if FileLock is None:
+        return contextlib.nullcontext()
+    name = "atomic_shell_solve_" + hashlib.sha1(
+        str(PROJECT_ROOT).encode("utf-8")).hexdigest()[:16] + ".lock"
+    return FileLock(os.path.join(tempfile.gettempdir(), name), timeout=300)
+
+
 def solve(flags, verbose=True, extra_env=None):
     if sys.platform != "win32":
         print("e2e_solve_flags: Windows-only (WriteProcessMemory)")
         return {}
+    with _solve_lock():
+        return _solve_inner(flags, verbose, extra_env)
+
+
+def _solve_inner(flags, verbose, extra_env):
     proc = launch(extra_env)
     captured = {}
     try:
