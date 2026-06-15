@@ -117,7 +117,9 @@ def parse_memmap(text):
                 "ctf_timer_start", "ctf_vault_code", "ctf_ghost_target_x",
                 "ctf_ghost_target_y", "ctf_ghost_target_z", "ctf_boss1_sprite",
                 "ctf_boss2_sprite", "ctf_vault_unlocked",
-                "ctf_codeexec_hook", "ctf_grant_codeexec"]:
+                "ctf_codeexec_hook", "ctf_grant_codeexec",
+                "ctf_timer_target_x", "ctf_timer_target_y",
+                "ctf_vault_target_x", "ctf_vault_target_y"]:
         m = re.search(rf"^{key}\s*=\s*(0x[0-9A-Fa-f]+)", text, re.M)
         if m:
             mm[key] = int(m.group(1), 16)
@@ -229,7 +231,13 @@ def solve_flag4(mem, mm):
     if not code or code <= 0:
         return False
     (PROJECT_ROOT / "vault_input.txt").write_text(str(int(code)))
-    vault_x, vault_y = 35840, 5120        # room 3 center (generate_ctf_map.py)
+    # G1-C: prefer the engine-published vault-room target (the value at the published
+    # address) so the solver adapts to any/seeded layout; fall back to the default-map
+    # centre if unpublished/unset (older engine build).
+    vx = mem.read_i32(mm["ctf_vault_target_x"]) if "ctf_vault_target_x" in mm else None
+    vy = mem.read_i32(mm["ctf_vault_target_y"]) if "ctf_vault_target_y" in mm else None
+    vault_x = vx if vx else 35840        # default room-3 centre (generate_ctf_map.py)
+    vault_y = vy if vy else 5120
     deadline = time.time() + 18.0
     while time.time() < deadline:
         mem.write_i32(mm["player_posx"], vault_x)
@@ -257,7 +265,13 @@ def solve_flag2(mem, mm):
     the centre holds a hostile boss, and welding the player onto it via memory
     writes makes the boss spew projectiles until the sprite pool exhausts
     ("Too many sprites spawned.")."""
-    timer_x, timer_y = 21500, 1600     # timer-room corner (sector 2), clear of boss
+    # G1-C: prefer the engine-published SAFE timer-room point (the value at the published
+    # address; an off-centre point clear of the centre boss, per G1-A) so the solver adapts
+    # to any/seeded layout; fall back to the default-map corner if unpublished/unset.
+    tx = mem.read_i32(mm["ctf_timer_target_x"]) if "ctf_timer_target_x" in mm else None
+    ty = mem.read_i32(mm["ctf_timer_target_y"]) if "ctf_timer_target_y" in mm else None
+    timer_x = tx if tx else 21500      # default timer-room corner (sector 2), clear of boss
+    timer_y = ty if ty else 1600
     have_start = "ctf_timer_start" in mm
     deadline = time.time() + 30.0
     while time.time() < deadline:
