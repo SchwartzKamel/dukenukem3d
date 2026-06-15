@@ -225,7 +225,7 @@ extern void processinput(short snum);
 //#line "menues.c" 18
 extern void cmenu(short cm);
 //#line "menues.c" 38
-extern void savetemp(char *fn,long daptr,long dasiz);
+extern void savetemp(char *fn,intptr_t daptr,long dasiz);
 //#line "menues.c" 49
 extern void getangplayers(short snum);
 //#line "menues.c" 67

@@ -120,7 +120,7 @@ void cmenu(short cm)
 }
 
 
-void savetemp(char *fn,long daptr,long dasiz)
+void savetemp(char *fn,intptr_t daptr,long dasiz)
 {
     int fp;
 
@@ -996,7 +996,7 @@ saveplayer(signed char spot)
     for(i=0;i<MAXSPRITES;i++)
     {
         if(actorscrptr[PN] == 0) continue;
-        j = (long)&script[0];
+        j = (intptr_t)&script[0];
 
         if(scriptptrs[i]&1)
             T2 += j;
