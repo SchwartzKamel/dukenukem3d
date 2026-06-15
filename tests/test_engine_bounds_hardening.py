@@ -1194,44 +1194,43 @@ class TestActorsDasectnumBounds:
         # Check for the sentinel comment that marks the fix
         has_sentinel = "engine-r12-actors-dasectnum-bounds" in content
 
-        # Check for MAXSECTORS bounds check pattern near the vulnerable area
-        # Pattern: if((unsigned)dasectnum >= MAXSECTORS)
-        has_bounds_check = "if((unsigned)dasectnum >= MAXSECTORS)" in content
+        # Check for MAXSECTORS bounds check pattern near the vulnerable area.
+        # The guard folds the out-of-range test into the revert condition so any
+        # dasectnum >= MAXSECTORS reverts the move (instead of the older no-op),
+        # short-circuiting before any sector[dasectnum] access.
+        has_bounds_check = "(unsigned)dasectnum >= (unsigned)MAXSECTORS" in content
 
         # Verify both the sentinel and the bounds check are present
         assert has_sentinel and has_bounds_check, (
             "source/ACTORS.C around lines 675-690 must have:\n"
-            "1. Sentinel comment: 'engine-r12-actors-dasectnum-bounds: sector bounds guard'\n"
-            "2. Bounds check pattern: 'if((unsigned)dasectnum >= MAXSECTORS)'\n"
+            "1. Sentinel comment: 'engine-r12-actors-dasectnum-bounds'\n"
+            "2. Bounds check pattern: '(unsigned)dasectnum >= (unsigned)MAXSECTORS'\n"
             "The guard must be placed BEFORE sector[dasectnum] accesses to prevent OOB dereference."
         )
 
-        # Verify the guard is present in the right area (within ~10 lines of the original 675-690)
-        # Extract content around the guard location
+        # At least one sentinel comment must sit next to a bounds guard.
         lines = content.split('\n')
-        guard_line = None
-        sentinel_line = None
 
-        for i, line in enumerate(lines):
-            if "engine-r12-actors-dasectnum-bounds" in line:
-                sentinel_line = i
-            if "if((unsigned)dasectnum >= MAXSECTORS)" in line:
-                guard_line = i
+        sentinel_lines = [i for i, line in enumerate(lines)
+                          if "engine-r12-actors-dasectnum-bounds" in line]
+        guard_lines = [i for i, line in enumerate(lines)
+                       if "(unsigned)dasectnum >= (unsigned)MAXSECTORS" in line]
 
-        # The guard and sentinel should be near each other or on the same line
-        assert sentinel_line is not None, (
+        assert sentinel_lines, (
             "Sentinel comment 'engine-r12-actors-dasectnum-bounds' not found in ACTORS.C"
         )
-        assert guard_line is not None, (
-            "Bounds check 'if((unsigned)dasectnum >= MAXSECTORS)' not found in ACTORS.C"
+        assert guard_lines, (
+            "Bounds check '(unsigned)dasectnum >= (unsigned)MAXSECTORS' not found in ACTORS.C"
         )
 
-        # They should be on the same line or very close
-        if guard_line is not None and sentinel_line is not None:
-            assert abs(guard_line - sentinel_line) <= 1, (
-                f"Sentinel comment (line {sentinel_line}) and bounds check (line {guard_line}) "
-                f"should be on the same line or adjacent. Found {abs(guard_line - sentinel_line)} lines apart."
-            )
+        # At least one sentinel block must sit right next to a bounds guard (the
+        # comment block precedes the folded revert condition).
+        min_dist = min(abs(g - s) for s in sentinel_lines for g in guard_lines)
+        assert min_dist <= 12, (
+            f"A 'engine-r12-actors-dasectnum-bounds' sentinel and a "
+            f"'(unsigned)dasectnum >= (unsigned)MAXSECTORS' guard should be in the same "
+            f"block; closest pair is {min_dist} lines apart."
+        )
 
 
 

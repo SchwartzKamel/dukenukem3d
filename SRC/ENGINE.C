@@ -378,6 +378,11 @@ static intptr_t rasm_svpal;
 static long rasm_sv_bxinc;
 static long rasm_sv_byinc;
 static long rasm_sv_ysiz;
+/* Valid byte range of the current rotatesprite source tile cache. Published by
+ * dorotatesprite so the column renderers can reject an out-of-range source index
+ * (a malformed/short tile in the generated GRP would otherwise make
+ * (bx>>16)*ysiz+(by>>16) overflow and read unmapped memory -> crash). */
+static intptr_t rasm_sv_bufbeg, rasm_sv_bufend;
 
 long mmxoverlay(void) { return 0; }
 
@@ -722,8 +727,9 @@ void spritevline(long a, long x, long cnt, long y, intptr_t bufplc, intptr_t des
 	(void)a;
 	if (!dd || !pal || !buf) return;
 	for (i = cnt; i > 1; i--) {
-		unsigned char ch = buf[(uint32_t)(bx >> 16) * (uint32_t)ysiz + ((uint32_t)by >> 16)];
-		*dd = pal[ch];
+		intptr_t src = (intptr_t)buf + (intptr_t)((bx >> 16) * ysiz + (by >> 16));
+		if (src >= rasm_sv_bufbeg && src < rasm_sv_bufend)
+			*dd = pal[*(const unsigned char *)src];
 		dd += lbpl;
 		bx += bxinc;
 		by += byinc;
@@ -746,9 +752,12 @@ void mspritevline(long a, long x, long cnt, long y, intptr_t bufplc, intptr_t de
 	(void)a;
 	if (!dd || !pal || !buf) return;
 	for (i = cnt; i > 1; i--) {
-		unsigned char ch = buf[(uint32_t)(bx >> 16) * (uint32_t)ysiz + ((uint32_t)by >> 16)];
-		if (__builtin_expect(ch != 255, 1))
-			*dd = pal[ch];
+		intptr_t src = (intptr_t)buf + (intptr_t)((bx >> 16) * ysiz + (by >> 16));
+		if (src >= rasm_sv_bufbeg && src < rasm_sv_bufend) {
+			unsigned char ch = *(const unsigned char *)src;
+			if (__builtin_expect(ch != 255, 1))
+				*dd = pal[ch];
+		}
 		dd += lbpl;
 		bx += bxinc;
 		by += byinc;
@@ -772,7 +781,9 @@ void tspritevline(long a, long x, long cnt, long y, intptr_t bufplc, intptr_t de
 	(void)a;
 	if (!dd || !pal || !buf) return;
 	for (i = cnt; i > 1; i--) {
-		unsigned char ch = buf[(uint32_t)(bx >> 16) * (uint32_t)ysiz + ((uint32_t)by >> 16)];
+		intptr_t src = (intptr_t)buf + (intptr_t)((bx >> 16) * ysiz + (by >> 16));
+		if (src >= rasm_sv_bufbeg && src < rasm_sv_bufend) {
+		unsigned char ch = *(const unsigned char *)src;
 		if (__builtin_expect(ch != 255, 1)) {
 			unsigned char srcpal = pal[ch];
 			if (ltrans) {
@@ -783,6 +794,7 @@ void tspritevline(long a, long x, long cnt, long y, intptr_t bufplc, intptr_t de
 			} else {
 				*dd = srcpal;
 			}
+		}
 		}
 		dd += lbpl;
 		bx += bxinc;
@@ -5089,6 +5101,20 @@ insertspritestat(short statnum)
 
 deletesprite(short spritenum)
 {
+	/* CTF: never delete a *live* CTF boss. The CTF bosses are stock Duke BOSS1
+	 * (2630) / BOSS2 (2710) tagged with the CTF hitag (0xCF1/0xCF2). Stock boss
+	 * CON despawns these actors shortly after they activate, which would orphan
+	 * the engine's ctf_boss*_sprite index -> a reused slot reads extra<=0 and
+	 * fires a bogus flag, and the resulting sprite-list churn corrupts rendering
+	 * (shoot-crash). A CTF boss may only be removed once legitimately defeated
+	 * (health hacked / RPG'd to <= 0), at which point the CTF flag has fired. */
+	{
+		short _pn = sprite[spritenum].picnum, _ht = sprite[spritenum].hitag & 0xFFFF;
+		if ((_pn == 2630 || _pn == 2710) && (_ht == 0xCF1 || _ht == 0xCF2) &&
+		    sprite[spritenum].extra > 0)
+			return(-1);
+	}
+
 	deletespritestat(spritenum);
 	return(deletespritesect(spritenum));
 }
@@ -5097,46 +5123,6 @@ deletespritesect(short deleteme)
 {
 	if (sprite[deleteme].sectnum == MAXSECTORS)
 		return(-1);
-
-	/* TEMP-DIAG: log the call stack whenever a boss sprite (picnum 2630/2710) is
-	 * deleted, to find what removes the CTF bosses when the player fires. */
-	if (sprite[deleteme].picnum == 2630 || sprite[deleteme].picnum == 2710) {
-		static int _bd = 0;
-		if (_bd < 2) {
-			void *bt[12]; unsigned short n, k;
-			HANDLE _proc = GetCurrentProcess();
-			char _symbuf[sizeof(SYMBOL_INFO) + 256];
-			SYMBOL_INFO *_sym = (SYMBOL_INFO *)_symbuf;
-			_bd++;
-			SymSetOptions(SYMOPT_DEFERRED_LOADS | SYMOPT_UNDNAME);
-			SymInitialize(_proc, NULL, TRUE);
-			n = RtlCaptureStackBackTrace(0, 12, bt, NULL);
-			startup_log("BOSSDEL sprite=%d picnum=%d hitag=0x%X",
-				(int)deleteme, (int)sprite[deleteme].picnum,
-				(unsigned)(sprite[deleteme].hitag & 0xFFFF));
-			for (k = 0; k < n; k++) {
-				DWORD64 disp = 0;
-				DWORD ldisp = 0;
-				IMAGEHLP_LINE64 line;
-				memset(_symbuf, 0, sizeof(_symbuf));
-				_sym->SizeOfStruct = sizeof(SYMBOL_INFO);
-				_sym->MaxNameLen = 255;
-				line.SizeOfStruct = sizeof(IMAGEHLP_LINE64);
-				if (SymFromAddr(_proc, (DWORD64)(uintptr_t)bt[k], &disp, _sym)) {
-					if (SymGetLineFromAddr64(_proc, (DWORD64)(uintptr_t)bt[k], &ldisp, &line))
-						startup_log("  BOSSDEL #%d %s+0x%llX  (%s:%lu)", (int)k,
-							_sym->Name, (unsigned long long)disp,
-							line.FileName ? line.FileName : "?", (unsigned long)line.LineNumber);
-					else
-						startup_log("  BOSSDEL #%d %s+0x%llX", (int)k, _sym->Name,
-							(unsigned long long)disp);
-				} else
-					startup_log("  BOSSDEL #%d RVA=0x%llX", (int)k,
-						(unsigned long long)((char*)bt[k] - (char*)0x140000000ULL));
-			}
-			SymCleanup(_proc);
-		}
-	}
 
 	if (headspritesect[sprite[deleteme].sectnum] == deleteme)
 		headspritesect[sprite[deleteme].sectnum] = nextspritesect[deleteme];
@@ -7478,6 +7464,9 @@ dorotatesprite (long sx, long sy, long z, short a, short picnum, signed char das
 	if (waloff[picnum] == 0) return;
 	setgotpic(picnum);
 	bufplc = waloff[picnum];
+	/* publish this tile's cache byte-range for the column renderers' bounds check */
+	rasm_sv_bufbeg = (intptr_t)bufplc;
+	rasm_sv_bufend = (intptr_t)bufplc + (intptr_t)tilesizx[picnum]*(intptr_t)tilesizy[picnum];
 
 	if (palookup[dapalnum] == NULL) return;
 	palookupoffs = FP_OFF(safe_palookup(dapalnum)) + (getpalookup(0L,(long)dashade)<<8);

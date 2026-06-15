@@ -2071,6 +2071,20 @@ void coords(short snum)
     printext256(250L,y+64L+7,31,-1,tempbuf,1);
 }
 
+/* Render an FTA / user-quote line centered, using the MINIFONT (minitext) rather
+ * than the big BIGALPHANUM font: many big-font glyph tiles are missing/malformed
+ * in the generated GRP, and drawing them crashes the sprite-column renderer
+ * (tspritevline reads OOB). The mini font is always present (the menus use it),
+ * so this keeps on-screen messages -- including the CTF "FLAG CAPTURED" banner --
+ * readable and crash-free. */
+static void fta_centered(int y, char *t, char sb)
+{
+     int w = 0, n;
+     if (!t) return;
+     for (n = 0; t[n]; n++) w += (t[n] == ' ') ? 5 : 4;   /* minitext advance */
+     minitext(160 - (w >> 1), y, t, 0, sb);
+}
+
 void operatefta(void)
 {
      long i, j, k;
@@ -2085,9 +2099,9 @@ void operatefta(void)
          k = user_quote_time[i]; if (k <= 0) break;
 
          if (k > 4)
-              gametext(320>>1,j,user_quote[i],0,2+8+16);
-         else if (k > 2) gametext(320>>1,j,user_quote[i],0,2+8+16+1);
-             else gametext(320>>1,j,user_quote[i],0,2+8+16+1+32);
+              fta_centered(j,user_quote[i],2+8+16);
+         else if (k > 2) fta_centered(j,user_quote[i],2+8+16+1);
+             else fta_centered(j,user_quote[i],2+8+16+1+32);
          j -= 8;
      }
 
@@ -2118,11 +2132,11 @@ void operatefta(void)
 
      j = ps[screenpeek].fta;
      if (j > 4)
-          gametext(320>>1,k,fta_quotes[ps[screenpeek].ftq],0,2+8+16);
+          fta_centered(k,fta_quotes[ps[screenpeek].ftq],2+8+16);
      else
-         if (j > 2) gametext(320>>1,k,fta_quotes[ps[screenpeek].ftq],0,2+8+16+1);
+         if (j > 2) fta_centered(k,fta_quotes[ps[screenpeek].ftq],2+8+16+1);
      else
-         gametext(320>>1,k,fta_quotes[ps[screenpeek].ftq],0,2+8+16+1+32);
+         fta_centered(k,fta_quotes[ps[screenpeek].ftq],2+8+16+1+32);
 }
 
 void FTA(short q,struct player_struct *p)
