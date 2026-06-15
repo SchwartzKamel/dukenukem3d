@@ -6076,9 +6076,28 @@ char cheatquotes[NUMCHEATCODES][14] = {
 
 
 char cheatbuf[10],cheatbuflen;
+
+/* CTF integrity (finding-set Y): the in-game cheat codes (DNCLIP -> noclip into the "sealed"
+   ghost room = flag 3; DNSTUFF -> free RPG = flag 1; etc.) let a player bypass the intended
+   memory-hacks. For the hackable-by-design CTF every flag must require memory-hacking, so the
+   cheat-code system is LOCKED by default. Set DUKE3D_ENABLE_CHEATS=1 to re-enable for debugging. */
+int _cheats_enabled(void)
+{
+    static int en = -1;
+    if (en < 0)
+    {
+        const char *e = getenv("DUKE3D_ENABLE_CHEATS");
+        en = (e && *e && *e != '0') ? 1 : 0;
+    }
+    return en;
+}
+
 void cheats(void)
 {
     short ch, i, j, k, keystate, weapon;
+
+    if (!_cheats_enabled())
+        return;
 
     if( (ps[myconnectindex].gm&MODE_TYPE) || (ps[myconnectindex].gm&MODE_MENU))
         return;
@@ -8251,6 +8270,14 @@ int main(int argc,char **argv)
             }
         }
     }
+
+    /* CTF integrity (finding-set Y / ctf-cheat-lockout): record + lock the cheat state. In-game
+       cheats (DNCLIP -> noclip into the sealed ghost room = flag 3; DNSTUFF -> free RPG = flag 1)
+       bypass the intended memory-hacks, so the cheat-code system is off by default;
+       DUKE3D_ENABLE_CHEATS=1 re-enables it for debugging. */
+    startup_log("CHEATS: %s", _cheats_enabled()
+                ? "ENABLED (DUKE3D_ENABLE_CHEATS) - flag bypasses possible"
+                : "locked (CTF integrity - flags require memory-hacking)");
 
     /* CTF: initialise vault code (random 4-digit number, set once per session) */
     if (ctf_vault_code == 0)
