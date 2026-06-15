@@ -143,8 +143,30 @@ def build_room(x0, y0, w, h,
     return sector, walls
 
 
-def assemble_map():
-    """Assemble the full CTF map and return bytes."""
+def assemble_map(seed=None):
+    """Assemble the full CTF map and return bytes.
+
+    With seed=None the layout is canonical (spawn 0, boss 1, timer 2, vault 3).
+    With an int seed, the TIMER and VAULT roles are shuffled across the two far
+    connected slots 2-3 (spawn stays slot 0, BOSS stays slot 1, ghost stays isolated)
+    via random.Random(seed) — replay value + anti-spoiler. The boss is kept adjacent
+    to spawn on purpose (a distant boss is culled to STAT_ZOMBIEACTOR and never runs
+    its CTF CON). The CTF contract (exactly one of each lotag, both bosses, the fixed
+    ghost centroid) is preserved (G1-B), and the engine publishes the moved
+    timer/vault targets (G1-A) so the harness adapts (G1-C). seed=None is
+    byte-identical to the pre-G1-B map."""
+
+    # G1-B: shuffle the TIMER and VAULT roles across the two far connected slots
+    # (2, 3). The BOSS stays at slot 1 (adjacent to spawn) on purpose: Duke flips
+    # actors far from the player to STAT_ZOMBIEACTOR, so a boss moved to a distant
+    # slot never runs its CTF CON (ctf_boss*_sprite stays -1) and flags 0/1 become
+    # unsolvable. Spawn stays slot 0, ghost stays isolated. seed=None -> identity.
+    roles2 = ['timer', 'vault']   # roles for connected slots 2 and 3
+    if seed is not None:
+        import random
+        random.Random(seed).shuffle(roles2)
+    slot_role = {1: 'boss', 2: roles2[0], 3: roles2[1]}   # slot index -> role
+    role_slot = {r: s for s, r in slot_role.items()}      # role -> slot index
 
     all_sectors  = []
     all_walls    = []
@@ -162,13 +184,14 @@ def assemble_map():
         east_sect = si + 1 if si < num_connected - 1 else -1
         west_sect = si - 1 if si > 0 else -1
 
+        role = slot_role.get(si)   # None for the spawn slot (si == 0)
         lotag = 0
-        if si == 2:   lotag = LOTAG_TIMER   # Flag 3
-        if si == 3:   lotag = LOTAG_VAULT    # Flag 5
+        if role == 'timer':  lotag = LOTAG_TIMER   # Flag 2
+        if role == 'vault':  lotag = LOTAG_VAULT    # Flag 4
 
-        floor_pic = FLOOR_TECH  if si in (1, 3) else FLOOR_METAL
+        floor_pic = FLOOR_TECH  if role in ('boss', 'vault') else FLOOR_METAL
         ceil_pic  = CEIL_PIPE
-        wall_pic  = WALL_DARK   if si == 1 else WALL_STEEL
+        wall_pic  = WALL_DARK   if role == 'boss' else WALL_STEEL
 
         sector_bytes, room_walls = build_room(
             x0, y0, ROOM_W, ROOM_H,
@@ -259,8 +282,9 @@ def assemble_map():
         ang=512,
     ))
 
-    # Boss arena sprites (sector 1)
-    boss_cx = ROOMS_X[1] + ROOM_W // 2
+    # Boss arena sprites (the boss-role slot)
+    boss_slot = role_slot['boss']
+    boss_cx = ROOMS_X[boss_slot] + ROOM_W // 2
     boss_cy = ROOMS_Y + ROOM_H // 2
 
     # BOSS1 — The Meatbag (health regen boss)
@@ -272,7 +296,7 @@ def assemble_map():
         picnum=BOSS1,
         cstat=0, shade=-5,
         xrepeat=80, yrepeat=80,
-        sectnum=1, statnum=1,   # statnum=1 → active actor
+        sectnum=boss_slot, statnum=1,   # statnum=1 → active actor
         ang=1536,               # face west (toward player)
         hitag=0x0CF1,
         extra=9999,             # initial health
@@ -286,14 +310,15 @@ def assemble_map():
         picnum=BOSS2,
         cstat=0, shade=-5,
         xrepeat=80, yrepeat=80,
-        sectnum=1, statnum=1,
+        sectnum=boss_slot, statnum=1,
         ang=1536,
         hitag=0x0CF2,
         extra=5000,
     ))
 
-    # Timer room decoration (sector 2)
-    timer_cx = ROOMS_X[2] + ROOM_W // 2
+    # Timer room decoration (the timer-role slot)
+    timer_slot = role_slot['timer']
+    timer_cx = ROOMS_X[timer_slot] + ROOM_W // 2
     timer_cy = ROOMS_Y + ROOM_H // 2
     # A hostile actor to create urgency while frozen clock ticks
     all_sprites.append(_pack_sprite(
@@ -302,13 +327,14 @@ def assemble_map():
         picnum=BOSS1,           # BOSS1 regular (no hitag = not CTF regen)
         cstat=0, shade=10,
         xrepeat=48, yrepeat=48,
-        sectnum=2, statnum=1,
+        sectnum=timer_slot, statnum=1,
         ang=1536,
         extra=200,
     ))
 
-    # Vault room — a sign sprite hinting at vault_input.txt
-    vault_cx = ROOMS_X[3] + ROOM_W // 2
+    # Vault room — a sign sprite (the vault-role slot)
+    vault_slot = role_slot['vault']
+    vault_cx = ROOMS_X[vault_slot] + ROOM_W // 2
     vault_cy = ROOMS_Y + ROOM_H // 2
     all_sprites.append(_pack_sprite(
         x=vault_cx, y=vault_cy - 2000,
@@ -316,7 +342,7 @@ def assemble_map():
         picnum=9,               # holo terminal
         cstat=0, shade=-20,
         xrepeat=48, yrepeat=48,
-        sectnum=3, statnum=0,
+        sectnum=vault_slot, statnum=0,
         ang=512,
         lotag=0x5641,           # vault door marker
     ))
@@ -349,12 +375,21 @@ def assemble_map():
 
 
 if __name__ == "__main__":
+    import argparse
+    _ap = argparse.ArgumentParser(description="Generate the Atomic Shell CTF1.MAP arena")
+    _ap.add_argument("--seed", type=int, default=None,
+                     help="int seed: shuffle the timer/vault roles across slots 2-3 (G1-B); "
+                          "default = the canonical layout")
+    _ap.add_argument("-o", "--out", default=None,
+                     help="output .MAP path (default: dist/staging/CTF1.MAP)")
+    _args = _ap.parse_args()
+
     out_dir = os.path.join(_here, "..", "..", "dist", "staging")
     out_dir = os.path.normpath(out_dir)
     os.makedirs(out_dir, exist_ok=True)
 
-    out_path = os.path.join(out_dir, "CTF1.MAP")
-    data = assemble_map()
+    out_path = _args.out or os.path.join(out_dir, "CTF1.MAP")
+    data = assemble_map(seed=_args.seed)
 
     with open(out_path, "wb") as f:
         f.write(data)
