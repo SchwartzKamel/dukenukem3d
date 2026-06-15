@@ -4425,7 +4425,11 @@ void moveactors(void)
          * BOSS2 (hitag 0xCF2) = The Warden — only takes RPG damage.
          * All other weapon hits are nullified here before execute() runs.
          * ----------------------------------------------------------------- */
-        if (s->picnum == BOSS1 && s->hitag == 0xCF1)
+        /* The CON `ai` opcode overwrites sprite->hitag with the AI's behaviour
+         * flags on the boss's first active tick, so we can no longer rely on the
+         * map's 0xCF1/0xCF2 marker after that.  Latch the sprite index the first
+         * time we see the marker, then keep matching by index. */
+        if (s->picnum == BOSS1 && (s->hitag == 0xCF1 || ctf_boss1_sprite == (short)i))
         {
             ctf_boss1_sprite = (short)i;
             /* Regen: restore to 9999 unless player hacked it to ≤ 0 */
@@ -4433,7 +4437,7 @@ void moveactors(void)
                 s->extra = 9999;
         }
 
-        if (s->picnum == BOSS2 && s->hitag == 0xCF2)
+        if (s->picnum == BOSS2 && (s->hitag == 0xCF2 || ctf_boss2_sprite == (short)i))
         {
             ctf_boss2_sprite = (short)i;
             /* RPG-only: undo any non-RPG weapon damage taken this tick */

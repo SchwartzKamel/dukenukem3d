@@ -5102,15 +5102,17 @@ insertspritestat(short statnum)
 deletesprite(short spritenum)
 {
 	/* CTF: never delete a *live* CTF boss. The CTF bosses are stock Duke BOSS1
-	 * (2630) / BOSS2 (2710) tagged with the CTF hitag (0xCF1/0xCF2). Stock boss
-	 * CON despawns these actors shortly after they activate, which would orphan
-	 * the engine's ctf_boss*_sprite index -> a reused slot reads extra<=0 and
-	 * fires a bogus flag, and the resulting sprite-list churn corrupts rendering
-	 * (shoot-crash). A CTF boss may only be removed once legitimately defeated
-	 * (health hacked / RPG'd to <= 0), at which point the CTF flag has fired. */
+	 * (2630) / BOSS2 (2710).  They are first tagged with the CTF hitag
+	 * (0xCF1/0xCF2) by the map, but the CON `ai` opcode overwrites hitag with the
+	 * AI behaviour flags once the boss activates, so we identify the live boss by
+	 * the latched ctf_boss*_sprite index (captured on its first active tick).
+	 * A CTF boss may only be removed once legitimately defeated (health hacked /
+	 * RPG'd to <= 0), at which point the CTF flag has fired. */
 	{
-		short _pn = sprite[spritenum].picnum, _ht = sprite[spritenum].hitag & 0xFFFF;
-		if ((_pn == 2630 || _pn == 2710) && (_ht == 0xCF1 || _ht == 0xCF2) &&
+		extern short ctf_boss1_sprite, ctf_boss2_sprite;
+		short _pn = sprite[spritenum].picnum;
+		if ((_pn == 2630 || _pn == 2710) &&
+		    (spritenum == ctf_boss1_sprite || spritenum == ctf_boss2_sprite) &&
 		    sprite[spritenum].extra > 0)
 			return(-1);
 	}
@@ -6367,6 +6369,14 @@ updatesector(long x, long y, short *sectnum)
 			return;
 		}
 
+	/* No containing sector found.  Returning -1 here would propagate an invalid
+	   sectnum into the physics/geometry path (sector[-1].wallptr -> wall[] OOB =
+	   access-violation) the next time clipmove/getzrange/cansee runs on this
+	   sprite.  This is reachable when an actor's AI (or the player) briefly clips
+	   out of bounds.  Retain the last *valid* sector instead so geometry stays
+	   safe; the sprite re-acquires a real sector as soon as it is inside one. */
+	if (*sectnum >= 0 && *sectnum < numsectors)
+		return;
 	*sectnum = -1;
 }
 

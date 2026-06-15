@@ -414,9 +414,10 @@ extern char playerreadyflag[MAXPLAYERS],playerquitflag[MAXPLAYERS];
 extern char peer_game_mode[MAXPLAYERS];  /* net-r15-coop-dm-mode-validation: track each peer's co-op flag */
 extern char sounds[NUM_SOUNDS][14];
 
-extern long script[MAXSCRIPTSIZE],*scriptptr,*insptr,labelcode[MAXLABELS],labelcnt;
+extern intptr_t script[MAXSCRIPTSIZE],*scriptptr,*insptr,labelcode[MAXLABELS];
+extern long labelcnt;
 extern char *label,*textptr,error,warning,killit_flag;
-extern long *actorscrptr[MAXTILES],*parsing_actor;
+extern intptr_t *actorscrptr[MAXTILES],*parsing_actor;
 extern char actortype[MAXTILES];
 extern char *music_pointer;
 

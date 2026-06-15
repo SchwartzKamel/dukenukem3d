@@ -26,6 +26,7 @@ DUKE3D.GRP
 SDL2-*
 
 captures/
+cap_*/
 DUKE3D.CFG
 duke3d_startup.log
 duke3d.tmp
