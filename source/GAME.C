@@ -8237,6 +8237,18 @@ int main(int argc,char **argv)
 
             fclose(mm);
             startup_log("MEMMAP: wrote atomic_shell_memory_map.log (no-ASLR build - addresses are stable)");
+
+            /* FPE S3 (memmap-announce): the memory map is written *silently*, so a
+               first-time player never learns this is a memory-hacking CTF or where
+               the addresses live -> they just get insta-killed and quit. Surface a
+               one-line in-game hint (HUD user-quote) plus a deterministic startup-log
+               marker. Suppressible via DUKE3D_NO_HINTS=1 for the ladder/replay UX
+               (mirrors DUKE3D_MEMMAP_MODE=spoiler_light). */
+            if (!getenv("DUKE3D_NO_HINTS"))
+            {
+                adduserquote("HACK ME! ADDRESSES ARE IN atomic_shell_memory_map.log");
+                startup_log("MEMMAP-ANNOUNCE: hinted player - this game is won by hacking it; see atomic_shell_memory_map.log");
+            }
         }
     }
 
