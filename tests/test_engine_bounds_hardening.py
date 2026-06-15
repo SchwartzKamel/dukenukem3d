@@ -2422,3 +2422,22 @@ class TestInputBufferBounds:
             "smash the tmb[8000] stack buffer (L-TIMBRE)."
         )
         assert "L-TIMBRE" in self._src(repo_root, "source/GAME.C"), "L-TIMBRE marker missing"
+
+    def test_lbufhard_rest_guards_present(self, repo_root):
+        """L-BUFHARD-REST: the 3 remaining fixed-buffer input sites in GAME.C are bounded
+        (L-PREMAP was already guarded by engine-r15-premap-volume-level-bounds)."""
+        game = self._src(repo_root, "source/GAME.C")
+        flat = "".join(game.split())
+        # L-IDFILE: fscanf width-bounded to idfile[256].
+        assert '"%255s"' in flat or '"%255s' in flat, \
+            "GAME.C lost the bounded fscanf width for idfile (L-IDFILE)."
+        # L-SAVENAME: savegame boardfilename read is NUL-terminated.
+        assert "L-SAVENAME" in game, "GAME.C savegame boardfilename NUL-termination missing (L-SAVENAME)."
+        # L-NETNAME: net boardfilename copy length is clamped.
+        assert "L-NETNAME" in game, "GAME.C net boardfilename clamp missing (L-NETNAME)."
+
+    def test_premap_level_index_already_bounded(self, repo_root):
+        """L-PREMAP: the level_file_names[44] index is range-checked before use."""
+        flat = "".join(self._src(repo_root, "source/PREMAP.C").split())
+        assert "(unsigned)ud.volume_number>=4" in flat and "(unsigned)ud.level_number>=11" in flat, \
+            "PREMAP.C lost the volume/level bound before indexing level_file_names[44] (L-PREMAP)."

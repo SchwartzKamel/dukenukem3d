@@ -784,8 +784,13 @@ void getpackets(void)
                 if (other >= 0 && other < MAXPLAYERS)
                     peer_game_mode[other] = packbuf[8];
 
-                copybufbyte(packbuf+10,boardfilename,packbufleng-11);
-                boardfilename[packbufleng-11] = 0;
+                {   /* L-NETNAME: clamp net-controlled name length to boardfilename[128] */
+                    int bfn = packbufleng-11;
+                    if (bfn < 0) bfn = 0;
+                    if (bfn > (int)sizeof(boardfilename)-1) bfn = (int)sizeof(boardfilename)-1;
+                    copybufbyte(packbuf+10,boardfilename,bfn);
+                    boardfilename[bfn] = 0;
+                }
 
                 for(i=connecthead;i>=0;i=connectpoint2[i])
                 {
@@ -7741,7 +7746,7 @@ void copyprotect(void)
         return;
     }
 
-    fscanf(fp,"%s",idfile);
+    fscanf(fp,"%255s",idfile);   /* L-IDFILE: bound to idfile[256] (strcat below already guarded) */
     fclose(fp);
 
     if(strlen(idfile) + strlen(IDFILENAME) < sizeof(idfile))
@@ -8441,6 +8446,7 @@ char opendemoread(char which_demo) /*  0 = mine */
      kread(recfilep,(char *)&ud.user_name[0][0],sizeof(ud.user_name),1);
      kread(recfilep,(int32 *)&ud.auto_run,sizeof(int32));
      kread(recfilep,(char *)boardfilename,sizeof(boardfilename));
+     boardfilename[sizeof(boardfilename)-1] = 0;   /* L-SAVENAME: force NUL after raw save read */
      if( boardfilename[0] != 0 )
      {
         ud.m_level_number = 7;
