@@ -1633,16 +1633,13 @@ def _draw_scaled_text(draw, cx, cy, text, color, scale=1, char_w=6):
 
 
 def _gen_branded_menuscreen(w, h):
-    """Branded main-menu background built from our store banner.
+    """Branded main-menu background built from our store banner + tagline.
 
     Loads engine/tools/branding/menu_banner.webp (committed into the engine so
-    the submodule stays self-contained), cover-fits it to the tile, and darkens
-    it for menu-text legibility. No text is overlaid: the menu draws its own
-    "ATOMIC SHELL" logo tile across the top, the splash screen carries the full
-    "Game Hacking Village / Presented by lafiamafia" tagline, and overlaying
-    text here collided with taller submenus (e.g. OPTIONS) whose items extend
-    into the lower band. Falls back to the procedural placeholder if the banner
-    is missing or unreadable.
+    the submodule stays self-contained), cover-fits it to the tile, darkens it
+    for menu-text legibility, and overlays the Atomic Shell / Game Hacking
+    Village tagline. Falls back to the procedural placeholder if the banner is
+    missing or unreadable.
     """
     banner_path = os.path.join(os.path.dirname(__file__), "branding", "menu_banner.webp")
     try:
@@ -1660,6 +1657,13 @@ def _gen_branded_menuscreen(w, h):
     top = (nh - h) // 2
     img = banner.crop((left, top, left + w, top + h))
     img = Image.eval(img, lambda v: int(v * 0.55))  # darken ~45% for legibility
+
+    draw = ImageDraw.Draw(img)
+    # All branding text sits in the clear band BELOW the menu items (~y55-132);
+    # the menu draws its own logo tile across the top, so keep that area empty.
+    _draw_scaled_text(draw, w // 2, h - 56, "ATOMIC SHELL", (0, 230, 255), scale=2)
+    _draw_scaled_text(draw, w // 2, h - 38, "PRESENTED BY LAFIAMAFIA", (255, 215, 80), scale=1)
+    _draw_scaled_text(draw, w // 2, h - 26, "GAME HACKING VILLAGE", (0, 255, 160), scale=2)
     return img
 
 
