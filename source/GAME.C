@@ -7377,17 +7377,43 @@ void cacheicon(void)
 }
        */
 
-/* Draw one centered splash/title line over the MENUSCREEN banner using the
- * always-present MINIFONT, with a dark drop-shadow so it stays readable over the
- * busy artwork. */
-static void splash_title_line(int y, char *t)
+/* Per-line palette swaps for the multi-colour splash title. The procedurally
+ * generated BIGALPHANUM font draws its glyph ink in a single palette index
+ * (254 = white); the stock LOOKUP.DAT colour swaps (1-25, including the 9-16
+ * player colours) do NOT remap index 254, so passing them to menutext leaves
+ * the title white. make_title_palookups() builds dedicated palookups that remap
+ * the white ink (254) to red/green/blue/cyan so each splash line is a solid
+ * colour. The palookup *numbers* must stay < 128: rotatesprite() takes dapalnum
+ * as a signed char, so a palette >= 128 wraps negative and silently falls back
+ * to palookup[0] (white). 28-31 are free (LOOKUP.DAT only defines 1-25). The
+ * remap *target* indices also stay < 128 to avoid the signed-char pointer-offset
+ * hazard in makepalookup(). */
+#define TITLEPAL_RED   28
+#define TITLEPAL_GREEN 29
+#define TITLEPAL_BLUE  30
+#define TITLEPAL_CYAN  31
+
+static void make_title_palookups(void)
 {
-    /* Render the splash title with the same clean, centered, cyan BIG font the
-     * menu uses (menutext -> BIGALPHANUM, palette 0). The previous small
-     * minitext + 1px drop-shadow smeared into an unreadable blob over the busy
-     * MENUSCREEN art ("awful_menu" issue); the menu font is simple and colourful
-     * and is the look the user signed off on. */
-    menutext(160, y, 0, 0, t);
+    char remap[256];
+    int i;
+
+    /* The BIG font tile uses only index 0 (background, kept black) and index
+     * 254 (glyph ink). Map every other entry to 0 so all remap values stay
+     * < 128 (no out-of-bounds palookup read in makepalookup). */
+    for(i=0;i<256;i++) remap[i] = 0;
+
+    remap[254] = 47;  makepalookup(TITLEPAL_RED,  remap,0,0,0,1);  /* 47  = bright red   */
+    remap[254] = 95;  makepalookup(TITLEPAL_GREEN,remap,0,0,0,1);  /* 95  = bright green */
+    remap[254] = 127; makepalookup(TITLEPAL_BLUE, remap,0,0,0,1);  /* 127 = bright blue  */
+    remap[254] = 111; makepalookup(TITLEPAL_CYAN, remap,0,0,0,1);  /* 111 = bright cyan  */
+}
+
+/* Draw one centered splash/title line over the MENUSCREEN banner using the
+ * clean, centered BIG menu font, recoloured per line via a title palookup. */
+static void splash_title_line(int y, int pal, char *t)
+{
+    menutext(160, y, 0, pal, t);
 }
 
 void Logo(void)
@@ -7419,10 +7445,10 @@ void Logo(void)
 
     clearview(0L);
     rotatesprite(160<<16,200<<15,65536L,0,MENUSCREEN,16,0,10+64,0,0,xdim-1,ydim-1);
-    splash_title_line(58,  "ATOMIC SHELL");
-    splash_title_line(82,  "PRESENTED BY LAFIAMAFIA");
-    splash_title_line(106, "GAME HACKING VILLAGE");
-    splash_title_line(180, "PRESS ANY KEY");
+    splash_title_line(58,  TITLEPAL_RED,   "ATOMIC SHELL");
+    splash_title_line(82,  TITLEPAL_GREEN, "PRESENTED BY LAFIAMAFIA");
+    splash_title_line(106, TITLEPAL_BLUE,  "GAME HACKING VILLAGE");
+    splash_title_line(180, TITLEPAL_CYAN,  "PRESS ANY KEY");
     nextpage();
     for(i=63;i>0;i-=7) palto(0,0,0,i);
 
@@ -7439,10 +7465,10 @@ void Logo(void)
 
     clearview(0L);
     rotatesprite(160<<16,200<<15,65536L,0,MENUSCREEN,16,0,10+64,0,0,xdim-1,ydim-1);
-    splash_title_line(58,  "ATOMIC SHELL");
-    splash_title_line(82,  "PRESENTED BY LAFIAMAFIA");
-    splash_title_line(106, "GAME HACKING VILLAGE");
-    splash_title_line(180, "PRESS ANY KEY");
+    splash_title_line(58,  TITLEPAL_RED,   "ATOMIC SHELL");
+    splash_title_line(82,  TITLEPAL_GREEN, "PRESENTED BY LAFIAMAFIA");
+    splash_title_line(106, TITLEPAL_BLUE,  "GAME HACKING VILLAGE");
+    splash_title_line(180, TITLEPAL_CYAN,  "PRESS ANY KEY");
 
     KB_FlushKeyboardQueue();
     nextpage();
@@ -8012,6 +8038,10 @@ int main(int argc,char **argv)
 
     startup_log("genspriteremaps()");
     genspriteremaps();
+
+    /* Build the per-line title palookups now that the palette/lookups are
+     * loaded, so the multi-colour splash in Logo() can recolour its text. */
+    make_title_palookups();
 
 #ifdef VOLUMEONE
         if(numplayers > 4 || ud.multimode > 4)
