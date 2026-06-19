@@ -2141,8 +2141,11 @@ def _gen_character(w, h, name, seed):
 
 
 def _gen_icon(w, h, name, seed):
-    """Small icon tile with color-coded diamond shape."""
-    img = Image.new("RGB", (w, h), (0, 0, 0))
+    """Small icon tile with color-coded diamond shape. Icons are drawn as
+    masked overlays (menu cursor, HUD pickups), so the background is the magenta
+    transparency key (255,0,255) -> palette index 255 via _quantize_with_transparency;
+    an opaque black background would draw a black box over the menu/scene."""
+    img = Image.new("RGB", (w, h), (255, 0, 255))
     draw = ImageDraw.Draw(img)
     if 'HEALTH' in name or 'FIRSTAID' in name:
         col = (255, 50, 50)
@@ -2320,7 +2323,9 @@ def _quantize_with_transparency(img, palette, key=(255, 0, 255)):
 
 
 # Tile categories drawn as masked overlays (transparent background via the key).
-_OVERLAY_CATEGORIES = {'weapon', 'logo'}
+# 'icon' covers the menu selector cursor (SPINNINGNUKEICON) and HUD pickup icons,
+# which must not paint an opaque box over the menu/scene.
+_OVERLAY_CATEGORIES = {'weapon', 'logo', 'icon'}
 
 
 def generate_game_tiles(palette):
