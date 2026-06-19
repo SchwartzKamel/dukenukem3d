@@ -7445,28 +7445,9 @@ void Logo(void)
 
     MUSIC_StopSong();
 
-    /* ── Splash Screen 1: LLM Generated Assets ────────────────── */
+    /* ── Splash Screen: Title (single, steady — 1:1 with goal) ──── */
     ps[myconnectindex].palette = palette;
     setbrightness(0,&palette[0]);
-
-    clearview(0L);
-    rotatesprite(160<<16,200<<15,65536L,0,MENUSCREEN,16,0,10+64,0,0,xdim-1,ydim-1);
-    splash_title_line(152, TITLEPAL_CYAN,   "ATOMIC SHELL");
-    splash_title_line(170, TITLEPAL_YELLOW, "PRESENTED BY LAFIAMAFIA");
-    splash_title_line(188, TITLEPAL_GREEN,  "GAME HACKING VILLAGE");
-    nextpage();
-    for(i=63;i>0;i-=7) palto(0,0,0,i);
-
-    totalclock = 0;
-    while( totalclock < (120*7) && !KB_KeyWaiting() )
-    {
-        if (sdl_checkquit()) break;
-        getpackets();
-        sdl_delay(1);
-    }
-
-    /* ── Splash Screen 2: Title ────────────────────────────────── */
-    for(i=0;i<64;i+=7) palto(0,0,0,i);
 
     clearview(0L);
     rotatesprite(160<<16,200<<15,65536L,0,MENUSCREEN,16,0,10+64,0,0,xdim-1,ydim-1);
@@ -7476,10 +7457,14 @@ void Logo(void)
 
     KB_FlushKeyboardQueue();
     nextpage();
-    for(i=63;i>0;i-=7) palto(0,0,0,i);
+    for(i=63;i>0;i-=7) palto(0,0,0,i);   /* fade in once, then hold steady */
     totalclock = 0;
 
-    while(totalclock < (860+120) && !KB_KeyWaiting())
+    /* Hold the title steady for the full intro window. Drawing it once
+     * (no second splash, no mid-sequence fade-out/in) removes the
+     * "blip in and out". A keypress skips; duration preserves the
+     * original splash-1 + splash-2 timing. */
+    while( totalclock < (120*7 + 860+120) && !KB_KeyWaiting() )
     {
         if (sdl_checkquit()) break;
         getpackets();
