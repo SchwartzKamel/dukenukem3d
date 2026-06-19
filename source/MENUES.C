@@ -1369,20 +1369,23 @@ int probe(int x,int y,int i,int n)
 /*         rotatesprite(((320>>1)+(centre)+54)<<16,(y+(probey*i)-4)<<16,65536L,0,SPINNINGNUKEICON+6-((6+(totalclock>>3))%7),sh,0,10,0,0,xdim-1,ydim-1); */
 /*         rotatesprite(((320>>1)-(centre)-54)<<16,(y+(probey*i)-4)<<16,65536L,0,SPINNINGNUKEICON+((totalclock>>3)%7),sh,0,10,0,0,xdim-1,ydim-1); */
 
+        /* Selector icon spin, slowed 4x (totalclock>>5 instead of >>3) so the
+         * spinning nuke cursor turns ~1.9s/rotation instead of ~0.47s — the
+         * fast spin induced motion sickness. Applied at every cursor draw below. */
         cursor_x = ((320>>1)+(centre>>1)+70);
-        cursor_pic = SPINNINGNUKEICON+6-((6+(totalclock>>3))%7);
+        cursor_pic = SPINNINGNUKEICON+6-((6+(totalclock>>5))%7);
         probe_cursor_capture(&probe_cursor_cache[0], cursor_x, cursor_y, cursor_pic);
         rotatesprite(cursor_x<<16,cursor_y<<16,65536L,0,cursor_pic,sh,0,10,0,0,xdim-1,ydim-1);
 
         cursor_x = ((320>>1)-(centre>>1)-70);
-        cursor_pic = SPINNINGNUKEICON+((totalclock>>3)%7);
+        cursor_pic = SPINNINGNUKEICON+((totalclock>>5)%7);
         probe_cursor_capture(&probe_cursor_cache[1], cursor_x, cursor_y, cursor_pic);
         rotatesprite(cursor_x<<16,cursor_y<<16,65536L,0,cursor_pic,sh,0,10,0,0,xdim-1,ydim-1);
     }
     else
     {
         cursor_x = (x-tilesizx[BIGFNTCURSOR]-4);
-        cursor_pic = SPINNINGNUKEICON+(((totalclock>>3))%7);
+        cursor_pic = SPINNINGNUKEICON+(((totalclock>>5))%7);
         probe_cursor_capture(&probe_cursor_cache[0], cursor_x, cursor_y, cursor_pic);
         rotatesprite(cursor_x<<16,cursor_y<<16,65536L,0,cursor_pic,sh,0,10,0,0,xdim-1,ydim-1);
     }
@@ -1827,11 +1830,12 @@ void menus(void)
 
     x = 0;
 
-    /* Steady selector shade. The original pulsed this with totalclock<<4, which
-     * made the orange cursor icon flash rapidly — a photosensitivity hazard and
-     * uncomfortable to look at. Use a constant mid-brightness (the midpoint of
-     * the old pulse) so the selector stays clearly visible without flashing. */
-    sh = 4;
+    /* Slow "bulb warming" glow on the selector. The original pulsed this with
+     * totalclock<<4 (full sine cycle ~1.07s at TICRATE 120) — a harsh ~1 Hz
+     * orange strobe that hurt to look at. Keep the same warm brightness ramp
+     * but slow it 8x with totalclock<<1 (cycle ~8.5s, ~0.12 Hz): a gentle
+     * ~4s warm-up then ~4s cool-down, far below any photosensitivity threshold. */
+    sh = 4-(sintable[(totalclock<<1)&2047]>>11);
 
     if(!(current_menu >= 1000 && current_menu <= 2999 && current_menu >= 300 && current_menu <= 369))
         vscrn();
@@ -2919,7 +2923,7 @@ void menus(void)
 
                 rotatesprite(101<<16,97<<16,65536,512,MAXTILES-1,-32,0,2+4+8+64,0,0,xdim-1,ydim-1);
                 dispnames();
-                rotatesprite((c+67+strlen(&ud.savegame[current_menu-360][0])*4)<<16,(50+12*probey)<<16,32768L-10240,0,SPINNINGNUKEICON+(((totalclock)>>3)%7),0,0,10,0,0,xdim-1,ydim-1);
+                rotatesprite((c+67+strlen(&ud.savegame[current_menu-360][0])*4)<<16,(50+12*probey)<<16,32768L-10240,0,SPINNINGNUKEICON+(((totalclock)>>5)%7),0,0,10,0,0,xdim-1,ydim-1);
                 break;
             }
 
