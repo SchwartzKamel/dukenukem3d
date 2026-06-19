@@ -1827,7 +1827,11 @@ void menus(void)
 
     x = 0;
 
-    sh = 4-(sintable[(totalclock<<4)&2047]>>11);
+    /* Steady selector shade. The original pulsed this with totalclock<<4, which
+     * made the orange cursor icon flash rapidly — a photosensitivity hazard and
+     * uncomfortable to look at. Use a constant mid-brightness (the midpoint of
+     * the old pulse) so the selector stays clearly visible without flashing. */
+    sh = 4;
 
     if(!(current_menu >= 1000 && current_menu <= 2999 && current_menu >= 300 && current_menu <= 369))
         vscrn();
@@ -2291,7 +2295,9 @@ void menus(void)
         case 0:
             c = (320>>1);
             rotatesprite(c<<16,28<<16,65536L,0,INGAMEDUKETHREEDEE,0,0,10,0,0,xdim-1,ydim-1);
-            rotatesprite((c+100)<<16,36<<16,65536L,0,PLUTOPAKSPRITE+2,(sintable[(totalclock<<4)&2047]>>11),0,2+8,0,0,xdim-1,ydim-1);
+            /* Steady shade (was a sintable[totalclock<<4] strobe) — the rapid
+             * orange flash on the logo is a photosensitivity hazard. */
+            rotatesprite((c+100)<<16,36<<16,65536L,0,PLUTOPAKSPRITE+2,0,0,2+8,0,0,xdim-1,ydim-1);
 /*  CTW - MODIFICATION */
 /*           x = probe(c,67,16,7); */
             x = probe(c,67,16,6);
@@ -2414,7 +2420,9 @@ void menus(void)
         case 50:
             c = (320>>1);
             rotatesprite(c<<16,32<<16,65536L,0,INGAMEDUKETHREEDEE,0,0,10,0,0,xdim-1,ydim-1);
-            rotatesprite((c+100)<<16,36<<16,65536L,0,PLUTOPAKSPRITE+2,(sintable[(totalclock<<4)&2047]>>11),0,2+8,0,0,xdim-1,ydim-1);
+            /* Steady shade (was a sintable[totalclock<<4] strobe) — the rapid
+             * orange flash on the logo is a photosensitivity hazard. */
+            rotatesprite((c+100)<<16,36<<16,65536L,0,PLUTOPAKSPRITE+2,0,0,2+8,0,0,xdim-1,ydim-1);
             x = probe(c,67,16,7);
             switch(x)
             {
@@ -2537,7 +2545,8 @@ void menus(void)
             if(boardfilename[0])
             {
                 menutext(160,60+20,SHX(-6),PHX(-6),"USER MAP");
-                gametextpal(160,60+20+3,boardfilename,16+(sintable[(totalclock<<4)&2047]>>11),2);
+                /* Steady shade (was a sintable[totalclock<<4] strobe) to avoid the rapid flash. */
+                gametextpal(160,60+20+3,boardfilename,16,2);
             }
             break;
 
