@@ -1369,23 +1369,25 @@ int probe(int x,int y,int i,int n)
 /*         rotatesprite(((320>>1)+(centre)+54)<<16,(y+(probey*i)-4)<<16,65536L,0,SPINNINGNUKEICON+6-((6+(totalclock>>3))%7),sh,0,10,0,0,xdim-1,ydim-1); */
 /*         rotatesprite(((320>>1)-(centre)-54)<<16,(y+(probey*i)-4)<<16,65536L,0,SPINNINGNUKEICON+((totalclock>>3)%7),sh,0,10,0,0,xdim-1,ydim-1); */
 
-        /* Selector icon spin, slowed 4x (totalclock>>5 instead of >>3) so the
-         * spinning nuke cursor turns ~1.9s/rotation instead of ~0.47s — the
-         * fast spin induced motion sickness. Applied at every cursor draw below. */
+        /* Selector icon: hold one steady frame — no spin/cycle. Only
+         * SPINNINGNUKEICON (tile 2813) has real art; frames 2814-2819 are empty,
+         * so cycling made the cursor blink in and out. Draw the single real frame
+         * always-on and let the slow "bulb warming" glow (sh shade, above) pulse
+         * its brightness — present and gently glowing, with no motion. */
         cursor_x = ((320>>1)+(centre>>1)+70);
-        cursor_pic = SPINNINGNUKEICON+6-((6+(totalclock>>5))%7);
+        cursor_pic = SPINNINGNUKEICON;
         probe_cursor_capture(&probe_cursor_cache[0], cursor_x, cursor_y, cursor_pic);
         rotatesprite(cursor_x<<16,cursor_y<<16,65536L,0,cursor_pic,sh,0,10,0,0,xdim-1,ydim-1);
 
         cursor_x = ((320>>1)-(centre>>1)-70);
-        cursor_pic = SPINNINGNUKEICON+((totalclock>>5)%7);
+        cursor_pic = SPINNINGNUKEICON;
         probe_cursor_capture(&probe_cursor_cache[1], cursor_x, cursor_y, cursor_pic);
         rotatesprite(cursor_x<<16,cursor_y<<16,65536L,0,cursor_pic,sh,0,10,0,0,xdim-1,ydim-1);
     }
     else
     {
         cursor_x = (x-tilesizx[BIGFNTCURSOR]-4);
-        cursor_pic = SPINNINGNUKEICON+(((totalclock>>5))%7);
+        cursor_pic = SPINNINGNUKEICON;
         probe_cursor_capture(&probe_cursor_cache[0], cursor_x, cursor_y, cursor_pic);
         rotatesprite(cursor_x<<16,cursor_y<<16,65536L,0,cursor_pic,sh,0,10,0,0,xdim-1,ydim-1);
     }
@@ -2923,7 +2925,7 @@ void menus(void)
 
                 rotatesprite(101<<16,97<<16,65536,512,MAXTILES-1,-32,0,2+4+8+64,0,0,xdim-1,ydim-1);
                 dispnames();
-                rotatesprite((c+67+strlen(&ud.savegame[current_menu-360][0])*4)<<16,(50+12*probey)<<16,32768L-10240,0,SPINNINGNUKEICON+(((totalclock)>>5)%7),0,0,10,0,0,xdim-1,ydim-1);
+                rotatesprite((c+67+strlen(&ud.savegame[current_menu-360][0])*4)<<16,(50+12*probey)<<16,32768L-10240,0,SPINNINGNUKEICON,4-(sintable[(totalclock<<1)&2047]>>11),0,10,0,0,xdim-1,ydim-1);
                 break;
             }
 

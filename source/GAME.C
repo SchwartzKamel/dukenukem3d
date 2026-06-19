@@ -2404,12 +2404,11 @@ short strget(short x,short y,char *t,short dalen,short c)
         x = gametext(x,y,b,c,2+8+16);
     }
     else x = gametext(x,y,t,c,2+8+16);
-    /* Slow "bulb warming" glow + slow spin on the text-entry cursor, matching
-     * the menu selector. Was totalclock<<4 (~1 Hz orange strobe) and
-     * totalclock>>3 (~0.47s/rotation) — a fast flash + fast spin that hurt to
-     * look at and induced motion sickness. <<1 = ~8.5s glow; >>5 = ~1.9s spin. */
+    /* Slow "bulb warming" glow on the text-entry cursor, matching the menu
+     * selector. Hold one steady frame (no spin/cycle): only SPINNINGNUKEICON has
+     * real art, so cycling 2814-2819 made it blink in and out. <<1 = ~8.5s glow. */
     c = 4-(sintable[(totalclock<<1)&2047]>>11);
-    rotatesprite((x+8)<<16,(y+4)<<16,32768L,0,SPINNINGNUKEICON+((totalclock>>5)%7),c,0,2+8,0,0,xdim-1,ydim-1);
+    rotatesprite((x+8)<<16,(y+4)<<16,32768L,0,SPINNINGNUKEICON,c,0,2+8,0,0,xdim-1,ydim-1);
 
     return (0);
 }
