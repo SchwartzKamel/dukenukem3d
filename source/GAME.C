@@ -7386,16 +7386,17 @@ void cacheicon(void)
  * (254 = white); the stock LOOKUP.DAT colour swaps (1-25, including the 9-16
  * player colours) do NOT remap index 254, so passing them to menutext leaves
  * the title white. make_title_palookups() builds dedicated palookups that remap
- * the white ink (254) to red/green/blue/cyan so each splash line is a solid
+ * the white ink (254) to cyan/yellow/green so each splash line is a solid
  * colour. The palookup *numbers* must stay < 128: rotatesprite() takes dapalnum
  * as a signed char, so a palette >= 128 wraps negative and silently falls back
- * to palookup[0] (white). 28-31 are free (LOOKUP.DAT only defines 1-25). The
+ * to palookup[0] (white). 27-31 are free (LOOKUP.DAT only defines 1-25). The
  * remap *target* indices also stay < 128 to avoid the signed-char pointer-offset
  * hazard in makepalookup(). */
-#define TITLEPAL_RED   28
-#define TITLEPAL_GREEN 29
-#define TITLEPAL_BLUE  30
-#define TITLEPAL_CYAN  31
+#define TITLEPAL_RED    28
+#define TITLEPAL_GREEN  29
+#define TITLEPAL_BLUE   30
+#define TITLEPAL_CYAN   31
+#define TITLEPAL_YELLOW 27
 
 static void make_title_palookups(void)
 {
@@ -7407,10 +7408,11 @@ static void make_title_palookups(void)
      * < 128 (no out-of-bounds palookup read in makepalookup). */
     for(i=0;i<256;i++) remap[i] = 0;
 
-    remap[254] = 47;  makepalookup(TITLEPAL_RED,  remap,0,0,0,1);  /* 47  = bright red   */
-    remap[254] = 95;  makepalookup(TITLEPAL_GREEN,remap,0,0,0,1);  /* 95  = bright green */
-    remap[254] = 127; makepalookup(TITLEPAL_BLUE, remap,0,0,0,1);  /* 127 = bright blue  */
-    remap[254] = 111; makepalookup(TITLEPAL_CYAN, remap,0,0,0,1);  /* 111 = bright cyan  */
+    remap[254] = 47;  makepalookup(TITLEPAL_RED,   remap,0,0,0,1);  /* 47  = bright red    */
+    remap[254] = 92;  makepalookup(TITLEPAL_GREEN, remap,0,0,0,1);  /* 92  = bright green  */
+    remap[254] = 127; makepalookup(TITLEPAL_BLUE,  remap,0,0,0,1);  /* 127 = bright blue   */
+    remap[254] = 108; makepalookup(TITLEPAL_CYAN,  remap,0,0,0,1);  /* 108 = bright cyan   */
+    remap[254] = 76;  makepalookup(TITLEPAL_YELLOW,remap,0,0,0,1);  /* 76  = gold/yellow   */
 }
 
 /* Draw one centered splash/title line over the MENUSCREEN banner using the
@@ -7449,10 +7451,9 @@ void Logo(void)
 
     clearview(0L);
     rotatesprite(160<<16,200<<15,65536L,0,MENUSCREEN,16,0,10+64,0,0,xdim-1,ydim-1);
-    splash_title_line(58,  TITLEPAL_RED,   "ATOMIC SHELL");
-    splash_title_line(82,  TITLEPAL_GREEN, "PRESENTED BY LAFIAMAFIA");
-    splash_title_line(106, TITLEPAL_BLUE,  "GAME HACKING VILLAGE");
-    splash_title_line(180, TITLEPAL_CYAN,  "PRESS ANY KEY");
+    splash_title_line(152, TITLEPAL_CYAN,   "ATOMIC SHELL");
+    splash_title_line(170, TITLEPAL_YELLOW, "PRESENTED BY LAFIAMAFIA");
+    splash_title_line(188, TITLEPAL_GREEN,  "GAME HACKING VILLAGE");
     nextpage();
     for(i=63;i>0;i-=7) palto(0,0,0,i);
 
@@ -7469,10 +7470,9 @@ void Logo(void)
 
     clearview(0L);
     rotatesprite(160<<16,200<<15,65536L,0,MENUSCREEN,16,0,10+64,0,0,xdim-1,ydim-1);
-    splash_title_line(58,  TITLEPAL_RED,   "ATOMIC SHELL");
-    splash_title_line(82,  TITLEPAL_GREEN, "PRESENTED BY LAFIAMAFIA");
-    splash_title_line(106, TITLEPAL_BLUE,  "GAME HACKING VILLAGE");
-    splash_title_line(180, TITLEPAL_CYAN,  "PRESS ANY KEY");
+    splash_title_line(152, TITLEPAL_CYAN,   "ATOMIC SHELL");
+    splash_title_line(170, TITLEPAL_YELLOW, "PRESENTED BY LAFIAMAFIA");
+    splash_title_line(188, TITLEPAL_GREEN,  "GAME HACKING VILLAGE");
 
     KB_FlushKeyboardQueue();
     nextpage();
