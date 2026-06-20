@@ -7813,6 +7813,14 @@ int main(int argc,char **argv)
 #ifdef _WIN32
     SetUnhandledExceptionFilter(crash_handler);
     startup_log("Windows crash handler installed");
+    /* Dev-only: DUKE3D_CRASH_TEST=1 forces an access violation immediately after
+       the handler is armed, to verify minidump + crashes\crash_log.txt capture
+       end-to-end. Never set in a normal player run. */
+    if (getenv("DUKE3D_CRASH_TEST")) {
+        volatile int *crashp = (volatile int *)0;
+        startup_log("DUKE3D_CRASH_TEST set: forcing access violation");
+        *crashp = 0x1234;
+    }
 #endif
 
     startup_log("Propagating args to MMULTI");
