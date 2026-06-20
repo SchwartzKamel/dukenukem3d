@@ -6093,11 +6093,12 @@ int _cheats_enabled(void)
 }
 
 /* CTF integrity: the SHIPPED game is a challenge — players capture flags by memory-hacking the
-   running process, with no cheats and no answers handed to them. The cheat codes, the in-game
-   "HACK ME" / graduated stuck hints, and the per-flag walkthrough in the memory-map log are
-   DEVELOPER aids for validating that every flag is reachable; they are unlocked together by the
-   developer/validation build, never shown to players. Master switch: DUKE3D_ENABLE_CHEATS=1
-   (the cheat unlock doubles as the validation unlock) or the explicit DUKE3D_VALIDATE=1. */
+   running process, with no cheats handed to them and no answer key (the per-flag walkthrough in
+   the memory-map log stays redacted). The directional "what to do" hints (the in-game "HACK ME"
+   nudge + the graduated stuck-hint) ARE player-facing: they teach the technique without revealing
+   any flag's solution. Master DEVELOPER switch: DUKE3D_ENABLE_CHEATS=1 (the cheat unlock doubles
+   as the validation unlock) or the explicit DUKE3D_VALIDATE=1 — unlocks cheats + the full answer
+   key in the memmap log; never needed to play. */
 int _validation_mode(void)
 {
     static int v = -1;
@@ -6109,18 +6110,18 @@ int _validation_mode(void)
     return v;
 }
 
-/* Whether the in-game teaching hints (memmap-announce + G5 graduated nudge) may fire. Off by
-   default (challenge); on in developer/validation mode, or via explicit DUKE3D_SHOW_HINTS=1.
-   DUKE3D_NO_HINTS=1 forces them off (back-compat hard override). */
-int _dev_hints_enabled(void)
+/* Whether the in-game "what to do" hints (memmap-announce + the G5 graduated nudge) may fire.
+   These are directional teaching hints — they tell the player the game is won by hacking, never a
+   flag string or an exact address — so they are ON for players by default. DUKE3D_NO_HINTS=1 turns
+   them off (hard mode). Distinct from the answer key (the memmap walkthrough), which stays gated on
+   _validation_mode() and is redacted for players. */
+int _hints_enabled(void)
 {
     static int h = -1;
     if (h < 0)
     {
-        const char *e;
-        if ((e = getenv("DUKE3D_NO_HINTS")) && *e && *e != '0')         h = 0;
-        else if ((e = getenv("DUKE3D_SHOW_HINTS")) && *e && *e != '0')  h = 1;
-        else                                                            h = _validation_mode();
+        const char *e = getenv("DUKE3D_NO_HINTS");
+        h = (e && *e && *e != '0') ? 0 : 1;
     }
     return h;
 }
@@ -8343,12 +8344,11 @@ int main(int argc,char **argv)
             fclose(mm);
             startup_log("MEMMAP: wrote atomic_shell_memory_map.log (no-ASLR build - addresses are stable)");
 
-            /* CTF integrity (memmap-announce): pointing the player straight at the memory-map log
-               tells them exactly how the game is won — a developer/validation aid, not part of the
-               shipped challenge. The in-game "HACK ME" hint (HUD user-quote) + its deterministic
-               startup-log marker fire only in developer/validation mode (DUKE3D_ENABLE_CHEATS /
-               DUKE3D_VALIDATE / DUKE3D_SHOW_HINTS); silent for players. */
-            if (_dev_hints_enabled())
+            /* CTF integrity (memmap-announce): a directional "what to do" hint — it tells the
+               player the game is won by reading/hacking memory, without revealing any flag string
+               or address. Player-facing by default; DUKE3D_NO_HINTS=1 silences it (hard mode). The
+               annotated walkthrough inside the memory-map log stays redacted unless validating. */
+            if (_hints_enabled())
             {
                 adduserquote("HACK ME - READ THE MEMORY MAP LOG IN YOUR GAME FOLDER");
                 startup_log("MEMMAP-ANNOUNCE: hinted player - this game is won by hacking it; see atomic_shell_memory_map.log");
@@ -9548,10 +9548,11 @@ char domovethings(void)
 
         /* G5-HINT (FPE S2): graduated stuck-nudge. If the player makes no capture
            progress for a while, escalate a teaching hint so a stuck/dying player
-           learns the mechanic instead of ragequitting. Off for players by default;
-           developer/validation opt-in only (see _dev_hints_enabled). All state is function-
-           static (does not widen the hackable surface). Font-safe copy (finding T4):
-           gametext is uppercase-only and renders _/. as space-like glyphs. */
+           learns the mechanic instead of ragequitting. ON for players by default
+           (DUKE3D_NO_HINTS=1 = hard mode); it teaches the technique, never a flag
+           string or address (see _hints_enabled). All state is function-static (does
+           not widen the hackable surface). Font-safe copy (finding T4): gametext is
+           uppercase-only and renders _/. as space-like glyphs. */
         {
             static int   g5_off   = -2;     /* -2 unread; 1 = disabled            */
             static int   g5_secs  = 45;     /* stuck threshold (s), env-tunable    */
@@ -9563,11 +9564,11 @@ char domovethings(void)
             if (g5_off == -2)
             {
                 const char *e;
-                /* CTF integrity: the graduated nudge spells out the hack ("freeze health",
-                   "set the boss HP to 0", "use Cheat Engine or scouter") — a spoiler walkthrough.
-                   It is a developer/validation aid, off for players by default; on only in
-                   developer/validation mode (see _dev_hints_enabled). */
-                g5_off = _dev_hints_enabled() ? 0 : 1;
+                /* CTF integrity: the graduated nudge teaches the technique ("freeze health",
+                   "set the boss HP to 0", "use a memory editor") — directional "what to do" help,
+                   not a flag answer. Player-facing by default; DUKE3D_NO_HINTS=1 turns it off
+                   (hard mode). See _hints_enabled. */
+                g5_off = _hints_enabled() ? 0 : 1;
                 e = getenv("DUKE3D_HINT_STUCK_SECS");
                 if (e && *e) { int v = atoi(e); if (v > 0) g5_secs = v; }
                 g5_last = totalclock;
