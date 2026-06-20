@@ -1,7 +1,8 @@
-"""CTF integrity (memmap-announce): the in-game "HACK ME - READ THE MEMORY MAP LOG" hint tells
-the player exactly how the game is won, so it is a DEVELOPER/validation aid — NOT part of the
-shipped challenge. By default it is silent; it fires only in developer/validation mode
-(DUKE3D_ENABLE_CHEATS / DUKE3D_VALIDATE / DUKE3D_SHOW_HINTS). DUKE3D_NO_HINTS=1 force-suppresses.
+"""In-game "what to do" hint (memmap-announce): the "HACK ME - READ THE MEMORY MAP LOG" HUD hint
+tells the player the game is won by hacking the running process. It is GUIDANCE, not the answer
+key (it reveals no flag string and no exact address — the per-flag walkthrough + ghvctf{} strings
+stay developer-only), so it ships ON by default. DUKE3D_NO_HINTS=1 turns it off for a
+no-hand-holding "hard mode" run, and is a hard override even in developer/validation mode.
 
 Deterministic signal: the engine emits a 'MEMMAP-ANNOUNCE:' marker into
 atomic_shell_startup.log (compat.h startup_log, flushed per-write) in the same
@@ -68,25 +69,25 @@ def _run_headless(tmp_path, extra_env):
 @pytest.mark.playtest
 @pytest.mark.serial
 @pytest.mark.slow
-def test_memmap_announce_silent_for_players_by_default(tmp_path):
-    """Shipped game is a challenge: no "HACK ME" spoiler hint by default."""
+def test_memmap_announce_fires_for_players_by_default(tmp_path):
+    """Shipped game shows the "what to do" hint: the memmap-announce fires by default."""
     text = _run_headless(tmp_path, {})
     assert text, "atomic_shell_startup.log was not written"
-    assert MARKER not in text, (
-        f"'{MARKER}' must NOT fire by default — the memmap-announce spoiler is a developer "
-        "aid; the shipped game should give players a challenge, not the answer"
+    assert MARKER in text, (
+        f"'{MARKER}' must fire by default — players liked the in-game guidance pointing them at "
+        "the memory-map log (it reveals no answers, only what to do)"
     )
 
 
 @pytest.mark.playtest
 @pytest.mark.serial
 @pytest.mark.slow
-def test_memmap_announce_fires_in_validation_mode(tmp_path):
-    """Developers validating the build opt in to the hint (DUKE3D_SHOW_HINTS=1)."""
-    text = _run_headless(tmp_path, {"DUKE3D_SHOW_HINTS": "1"})
+def test_memmap_announce_silenced_by_no_hints(tmp_path):
+    """DUKE3D_NO_HINTS=1 is hard mode: no in-game guidance."""
+    text = _run_headless(tmp_path, {"DUKE3D_NO_HINTS": "1"})
     assert text, "atomic_shell_startup.log was not written"
-    assert MARKER in text, (
-        f"DUKE3D_SHOW_HINTS=1 should surface the memmap-announce hint, but '{MARKER}' was absent"
+    assert MARKER not in text, (
+        f"DUKE3D_NO_HINTS=1 should suppress the announce, but '{MARKER}' was present"
     )
 
 
@@ -94,9 +95,10 @@ def test_memmap_announce_fires_in_validation_mode(tmp_path):
 @pytest.mark.serial
 @pytest.mark.slow
 def test_memmap_announce_no_hints_overrides_validation(tmp_path):
-    """DUKE3D_NO_HINTS=1 is a hard override: suppresses even with the hint opt-in on."""
-    text = _run_headless(tmp_path, {"DUKE3D_SHOW_HINTS": "1", "DUKE3D_NO_HINTS": "1"})
+    """DUKE3D_NO_HINTS=1 is a hard override even in developer/validation mode."""
+    text = _run_headless(tmp_path, {"DUKE3D_VALIDATE": "1", "DUKE3D_NO_HINTS": "1"})
     assert text, "atomic_shell_startup.log was not written"
     assert MARKER not in text, (
-        f"DUKE3D_NO_HINTS=1 must force-suppress the announce, but '{MARKER}' was present"
+        f"DUKE3D_NO_HINTS=1 must force-suppress the announce even with DUKE3D_VALIDATE=1, "
+        f"but '{MARKER}' was present"
     )

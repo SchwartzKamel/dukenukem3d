@@ -1707,14 +1707,13 @@ def _gen_credits_screen(w, h):
     _draw_scaled_text(draw, w // 2, 32, "GAME HACKING VILLAGE", green, scale=1)
     lines = [
         ("A HACKABLE-BY-DESIGN CTF.", white),
-        ("BREAK THE GAME. CAPTURE", white),
-        ("FIVE GHVCTF{} FLAGS.", white),
+        ("BREAK THE GAME TO", white),
+        ("CAPTURE THE FLAGS.", white),
         ("", white),
         ("PRESENTED BY LAFIAMAFIA", gold),
         ("", white),
         ("BUILT ON THE GPL BUILD ENGINE", dim),
         ("(C) ID SOFTWARE / 3D REALMS", dim),
-        ("TRAINER + CE TABLE IN TOOLS/", dim),
     ]
     y = 58
     for text, color in lines:
@@ -1749,8 +1748,8 @@ def _gen_help_screen(w, h):
         _draw_left_text(draw, lx + 150, y, keys, cyan)
         y += 11
     y += 4
-    _draw_text_on_image(draw, w // 2, y, "CTF: HACK MEMORY, GRAB 5 FLAGS", gold)
-    _draw_text_on_image(draw, w // 2, y + 11, "SEE TOOLS/TRAINER/ FOR HELP", dim)
+    _draw_text_on_image(draw, w // 2, y, "CTF: HACK MEMORY, GRAB THE FLAGS", gold)
+    _draw_text_on_image(draw, w // 2, y + 11, "BREAK THE GAME TO WIN", dim)
     _draw_text_on_image(draw, w // 2, h - 16, "PRESS ESC TO RETURN", dim)
     return img
 
@@ -1779,20 +1778,24 @@ def _gen_credits_page(w, h, page):
                 _draw_text_on_image(draw, w // 2, y, text, color)
             y += 13
     elif page == 1:
-        _draw_scaled_text(draw, w // 2, 16, "THE FIVE FLAGS", cyan, scale=1)
-        rows = [
-            ("1 GODMODE", "FREEZE HP, KILL THE MEATBAG", green),
-            ("2 SHIELD DOWN", "DROP THE WARDEN WITH RPG", green),
-            ("3 FROZEN CLOCK", "FREEZE THE CTF TIMER", green),
-            ("4 GHOST WALK", "TELEPORT INTO THE VAULT", green),
-            ("5 VAULT", "CRACK THE 4-DIGIT CODE", green),
+        _draw_scaled_text(draw, w // 2, 16, "THE CHALLENGE", cyan, scale=1)
+        lines = [
+            ("", white),
+            ("THE FLAGS ARE HIDDEN", white),
+            ("INSIDE THE GAME MEMORY.", white),
+            ("", white),
+            ("BREAK THE RULES.", gold),
+            ("BEND THE NUMBERS.", gold),
+            ("CAPTURE THEM ALL.", gold),
+            ("", white),
+            ("NO SOLUTIONS HERE -", dim),
+            ("THAT IS THE POINT.", dim),
         ]
-        y = 44
-        for tag, desc, color in rows:
-            _draw_left_text(draw, 24, y, tag, color)
-            _draw_text_on_image(draw, w // 2 + 28, y, desc, dim)
-            y += 18
-        _draw_text_on_image(draw, w // 2, h - 30, "GHVCTF{...}", gold)
+        y = 40
+        for text, color in lines:
+            if text:
+                _draw_text_on_image(draw, w // 2, y, text, color)
+            y += 13
     else:
         _draw_scaled_text(draw, w // 2, 16, "CREDITS", cyan, scale=1)
         lines = [
@@ -1803,8 +1806,8 @@ def _gen_credits_page(w, h, page):
             ("THE GPL BUILD ENGINE,", white),
             ("(C) ID SOFTWARE / 3D REALMS 1996", white),
             ("", white),
-            ("TRAINING TOOLS", dim),
-            ("CHEAT ENGINE TABLE + PY TRAINER", white),
+            ("THANKS FOR PLAYING", dim),
+            ("HAPPY HACKING", white),
         ]
         y = 40
         for text, color in lines:

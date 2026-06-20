@@ -1,8 +1,9 @@
-"""CTF integrity — G5 graduated stuck-nudge. The escalating hint spells out the hack ("freeze
-your health", "set the boss HP to 0", "use Cheat Engine or scouter"), so it is a spoiler
-walkthrough — a DEVELOPER/validation aid, NOT part of the shipped challenge. Off by default;
-fires only in developer/validation mode (DUKE3D_ENABLE_CHEATS / DUKE3D_VALIDATE /
-DUKE3D_SHOW_HINTS). DUKE3D_NO_HINTS=1 force-suppresses; stuck threshold tunable via
+"""G5 graduated stuck-nudge — an in-game "what to do" hint. When the player makes no capture
+progress for a while, the engine escalates a teaching nudge ("this game is won by hacking",
+"freeze your health then set the boss HP to 0", "use Cheat Engine or scouter") so a stuck/dying
+player learns the mechanic instead of ragequitting. It teaches the TECHNIQUE but reveals no flag
+string and no exact address, so it ships ON by default. DUKE3D_NO_HINTS=1 turns it off ("hard
+mode") and is a hard override even in developer/validation mode; stuck threshold is tunable via
 DUKE3D_HINT_STUCK_SECS.
 
 Deterministic signal: the engine emits a 'G5-HINT:' marker into
@@ -74,26 +75,25 @@ def _run_headless(tmp_path, extra_env):
 @pytest.mark.playtest
 @pytest.mark.serial
 @pytest.mark.slow
-def test_g5_hint_silent_for_players_by_default(tmp_path):
-    """A stuck player gets NO spoiler walkthrough by default (shipped challenge)."""
+def test_g5_hint_fires_for_players_by_default(tmp_path):
+    """A stuck player gets the escalating "what to do" nudge by default."""
     text = _run_headless(tmp_path, {})
     assert text, "atomic_shell_startup.log was not written"
-    assert MARKER not in text, (
-        f"'{MARKER}' must NOT fire by default — the graduated hint is a developer aid that "
-        "spells out the hack; players should get a challenge"
+    assert MARKER in text, (
+        f"expected '{MARKER}' in atomic_shell_startup.log — a stuck player (autoplay, no hacking "
+        "-> 0 captures) should receive the graduated nudge by default"
     )
 
 
 @pytest.mark.playtest
 @pytest.mark.serial
 @pytest.mark.slow
-def test_g5_hint_fires_in_validation_mode_when_stuck(tmp_path):
-    """With the developer hint opt-in, a stuck player receives the escalating nudge."""
-    text = _run_headless(tmp_path, {"DUKE3D_SHOW_HINTS": "1"})
+def test_g5_hint_silenced_by_no_hints(tmp_path):
+    """DUKE3D_NO_HINTS=1 is hard mode: a stuck player gets no nudge."""
+    text = _run_headless(tmp_path, {"DUKE3D_NO_HINTS": "1"})
     assert text, "atomic_shell_startup.log was not written"
-    assert MARKER in text, (
-        f"expected '{MARKER}' in atomic_shell_startup.log — DUKE3D_SHOW_HINTS=1 + a stuck "
-        "player (autoplay, no hacking -> 0 captures) should receive the graduated hint"
+    assert MARKER not in text, (
+        f"DUKE3D_NO_HINTS=1 should suppress the g5-hint nudge, but '{MARKER}' was present"
     )
 
 
@@ -101,9 +101,10 @@ def test_g5_hint_fires_in_validation_mode_when_stuck(tmp_path):
 @pytest.mark.serial
 @pytest.mark.slow
 def test_g5_hint_no_hints_overrides_validation(tmp_path):
-    """DUKE3D_NO_HINTS=1 is a hard override even with the opt-in on."""
-    text = _run_headless(tmp_path, {"DUKE3D_SHOW_HINTS": "1", "DUKE3D_NO_HINTS": "1"})
+    """DUKE3D_NO_HINTS=1 is a hard override even in developer/validation mode."""
+    text = _run_headless(tmp_path, {"DUKE3D_VALIDATE": "1", "DUKE3D_NO_HINTS": "1"})
     assert text, "atomic_shell_startup.log was not written"
     assert MARKER not in text, (
-        f"DUKE3D_NO_HINTS=1 must force-suppress the g5-hint nudge, but '{MARKER}' was present"
+        f"DUKE3D_NO_HINTS=1 must force-suppress the g5-hint nudge even with DUKE3D_VALIDATE=1, "
+        f"but '{MARKER}' was present"
     )
