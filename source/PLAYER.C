@@ -1790,6 +1790,8 @@ long myaimmode = 0, myaimstat = 0, omyaimstat = 0;
 static int autoplay_input = -1;
 static int autoplay_fire = -1;   /* DUKE3D_AUTOPLAY_FIRE=N: force the weapon to fire for N game tics (headless soak) */
 long autoplay_fire_frames = 0;   /* diagnostic: # tics the autoplay soak actually forced fire */
+static int autoplay_use = -1;    /* DUKE3D_AUTOPLAY_USE=N: pulse the Open/USE button (loc.bits bit 29) for N game tics */
+long autoplay_use_frames = 0;    /* diagnostic: # tics the autoplay harness actually forced USE */
 
 static int env_flag_enabled(const char *name)
 {
@@ -1860,10 +1862,57 @@ void getinput(short snum)
 
     if (autoplay_input)
     {
+        /* Deterministic crash-repro mode for the cheatkeys() weapon-select
+         * underflow: stand perfectly still and pulse USE (bit 29) with NO weapon
+         * selected (weapon-select field bits 8-11 = 0). cheatkeys() then computes
+         * j = field-1 = 0xFFFFFFFF and, once the player has settled, indexes
+         * gotweapon[j] ~4GB out of bounds. Standing still lets the player settle
+         * immediately so the path is hit every USE tic (vs. the stochastic
+         * computergetinput weapon randomization). */
+        if (getenv("DUKE3D_USE_NOWEAPON"))
+        {
+            loc.fvel = loc.svel = loc.avel = loc.horz = 0;
+            loc.bits = 0;
+            if (autoplay_use < 0)
+                autoplay_use = compat_env_uint("DUKE3D_AUTOPLAY_USE", 0);
+            if (autoplay_use == 0) autoplay_use = 100000;
+            if (autoplay_use_frames < autoplay_use && snum == myconnectindex)
+            {
+                if ((autoplay_use_frames & 1) == 0)
+                    loc.bits |= (((unsigned long)1)<<29);
+                autoplay_use_frames++;
+            }
+            return;
+        }
+
         computergetinput(snum,&loc);
         loc.bits &= ~(((long)1)<<2);   /* avoid runaway projectile spam in long autoplay runs */
         loc.bits &= ~(((long)1)<<26);  /* keep autoplay runs from triggering quit */
         loc.bits &= ~(((long)1)<<31);  /* ignore escape in scripted movement */
+
+        /* Automated playtest hook: pulse the Open/USE action (bit 29 =
+         * gamefunc_Open, i.e. the spacebar). computergetinput() never presses
+         * USE, so the open/operate handler (SECTOR.C checksectors -> neartag /
+         * operatesectors / checkhitswitch) is never exercised by automation and
+         * a crash on USE (the player's reported spacebar crash) is unreachable
+         * headlessly. DUKE3D_AUTOPLAY_USE=N forces USE for up to N game tics,
+         * pulsed on alternating tics so each press has a clean release edge.
+         * Injected here (on loc.bits, before it is copied into sync[].bits) so
+         * BOTH processinput's sb_snum and checksectors' sync[snum].bits see it.
+         * Works in the windowed GUI build too: autoplay_input already gates on
+         * DUKE3D_HEADLESS *or* DUKE3D_AUTOPLAY_FORCE, so a real on-screen
+         * playtest can be driven without manual keypresses. */
+        if (autoplay_use < 0)
+            autoplay_use = compat_env_uint("DUKE3D_AUTOPLAY_USE", 0);
+        if (autoplay_use > 0 && autoplay_use_frames < autoplay_use &&
+            snum == myconnectindex)
+        {
+            if ((autoplay_use_frames & 1) == 0)
+                loc.bits |= (((unsigned long)1)<<29);
+            else
+                loc.bits &= ~(((unsigned long)1)<<29);
+            autoplay_use_frames++;
+        }
         return;
     }
 

@@ -42,7 +42,7 @@ static spritetype *g_sp;
 
 static int script_ptr_valid(intptr_t *ptr);
 static long script_ptr_to_temp_index(intptr_t *ptr);
-static long script_word_to_temp_index(intptr_t word);
+long script_word_to_temp_index(intptr_t word);
 static intptr_t *temp_index_to_script_ptr(long idx);
 
 #define NUMKEYWORDS     112
@@ -2054,7 +2054,7 @@ static long script_ptr_to_temp_index(intptr_t *ptr)
     return (long)(ptr - script);
 }
 
-static long script_word_to_temp_index(intptr_t word)
+long script_word_to_temp_index(intptr_t word)
 {
     return script_ptr_to_temp_index((intptr_t *)word);
 }

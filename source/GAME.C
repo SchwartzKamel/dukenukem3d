@@ -2262,6 +2262,11 @@ void gameexit(char *t)
         if (autoplay_fire_frames > 0)
             startup_log("autoplay fire frames: %ld", autoplay_fire_frames);
     }
+    {
+        extern long autoplay_use_frames;
+        if (autoplay_use_frames > 0)
+            startup_log("autoplay use frames: %ld", autoplay_use_frames);
+    }
 
     if(has_exit_message) ps[myconnectindex].palette = (char *) &palette[0];
 
@@ -3431,8 +3436,8 @@ short EGS(short whatsect,long s_x,long s_y,long s_z,short s_pn,signed char s_s,s
     if( actorscrptr[s_pn] )
     {
         s->extra = *actorscrptr[s_pn];
-        T5 = *(actorscrptr[s_pn]+1);
-        T2 = *(actorscrptr[s_pn]+2);
+        T5 = script_word_to_temp_index(*(actorscrptr[s_pn]+1));
+        T2 = script_word_to_temp_index(*(actorscrptr[s_pn]+2));
         s->hitag = *(actorscrptr[s_pn]+3);
     }
     else
@@ -3602,8 +3607,8 @@ short spawn( short j, short pn )
         if( actorscrptr[s] )
         {
             SH = *(actorscrptr[s]);
-            T5 = *(actorscrptr[s]+1);
-            T2 = *(actorscrptr[s]+2);
+            T5 = script_word_to_temp_index(*(actorscrptr[s]+1));
+            T2 = script_word_to_temp_index(*(actorscrptr[s]+2));
             if( *(actorscrptr[s]+3) && SHT == 0 )
                 SHT = *(actorscrptr[s]+3);
         }
@@ -5499,7 +5504,10 @@ void animatesprites(long x,long y,short a,long smoothratio)
         }
 
         if( t->statnum == 99 ) continue;
-        if( s->statnum != 1 && s->picnum == APLAYER && ps[s->yvel].newowner == -1 && s->owner >= 0 )
+        /* engine-r14: bound an APLAYER sprite's owning-player index (yvel) before
+         * it is used to deref ps[]; a stray APLAYER moved by an operate/USE action
+         * can carry an out-of-range yvel (a wild read in the original). */
+        if( s->statnum != 1 && s->picnum == APLAYER && (unsigned)s->yvel < (unsigned)MAXPLAYERS && ps[s->yvel].newowner == -1 && s->owner >= 0 )
         {
             t->x -= mulscale16(65536-smoothratio,ps[s->yvel].posx-ps[s->yvel].oposx);
             t->y -= mulscale16(65536-smoothratio,ps[s->yvel].posy-ps[s->yvel].oposy);
@@ -5725,9 +5733,9 @@ void animatesprites(long x,long y,short a,long smoothratio)
 
                 if(ps[p].newowner > -1)
                 {
-                    t4 = *(actorscrptr[APLAYER]+1);
+                    t4 = script_word_to_temp_index(*(actorscrptr[APLAYER]+1));
                     t3 = 0;
-                    t1 = *(actorscrptr[APLAYER]+2);
+                    t1 = script_word_to_temp_index(*(actorscrptr[APLAYER]+2));
                 }
 
                 if(ud.camerasprite == -1 && ps[p].newowner == -1)
@@ -5811,7 +5819,7 @@ void animatesprites(long x,long y,short a,long smoothratio)
 
         if( actorscrptr[s->picnum] )
         {
-            if(t4)
+            if(t4 > 0 && (t4+2) < MAXSCRIPTSIZE)   /* engine-r14: bound script[] index; a truncated action ptr (LLP64) here was a wild read on USE */
             {
                 l = script[t4+2];
 

@@ -415,6 +415,8 @@ extern char peer_game_mode[MAXPLAYERS];  /* net-r15-coop-dm-mode-validation: tra
 extern char sounds[NUM_SOUNDS][14];
 
 extern intptr_t script[MAXSCRIPTSIZE],*scriptptr,*insptr,labelcode[MAXLABELS];
+/* engine-r14: spawn/render-time action/move pointer->offset conversion (LLP64-safe) */
+extern long script_word_to_temp_index(intptr_t word);
 extern long labelcnt;
 extern char *label,*textptr,error,warning,killit_flag;
 extern intptr_t *actorscrptr[MAXTILES],*parsing_actor;
