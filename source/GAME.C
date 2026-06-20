@@ -8424,8 +8424,16 @@ int main(int argc,char **argv)
     {
         srand((unsigned)time(NULL));
         ctf_vault_code = 1000 + (rand() % 9000);
-        startup_log("CTF: vault_code=%d  addr=0x%llX", ctf_vault_code,
-                    (unsigned long long)(uintptr_t)&ctf_vault_code);
+        /* CTF integrity: the vault code is Flag-5's answer — logging its value (or address)
+           hands it to a player who never touches memory, a forbidden non-memory-hack bypass.
+           Restore the full detail only in developer/validation mode; players get a redacted
+           confirmation. The e2e solver reads the code from the memmap log + live process
+           memory (not this file), so gating it never breaks flag capture. */
+        if (_validation_mode())
+            startup_log("CTF: vault_code=%d  addr=0x%llX", ctf_vault_code,
+                        (unsigned long long)(uintptr_t)&ctf_vault_code);
+        else
+            startup_log("CTF: vault code initialised (hidden - hack memory to find it)");
     }
 
     /* CTF-1: sync the Flag-3 ghost teleport target to the *actual* ghost sector
@@ -8452,9 +8460,14 @@ int main(int argc,char **argv)
                     ctf_ghost_target_x = (int32_t)(sx / n);
                     ctf_ghost_target_y = (int32_t)(sy / n);
                     ctf_ghost_target_z = sector[gs].floorz - (24 << 8);
-                    startup_log("CTF-1: ghost target synced to sector %d -> (%d,%d,%d)",
-                                gs, ctf_ghost_target_x, ctf_ghost_target_y,
-                                ctf_ghost_target_z);
+                    /* CTF integrity: these coords are Flag-4's teleport destination — a player
+                       would write them straight into player_pos. Dev/validation only. */
+                    if (_validation_mode())
+                        startup_log("CTF-1: ghost target synced to sector %d -> (%d,%d,%d)",
+                                    gs, ctf_ghost_target_x, ctf_ghost_target_y,
+                                    ctf_ghost_target_z);
+                    else
+                        startup_log("CTF-1: ghost teleport target ready");
                 }
                 break;
             }
@@ -8502,9 +8515,13 @@ int main(int argc,char **argv)
                 }
             }
         }
-        startup_log("CTF G1-A: timer target (%d,%d) vault target (%d,%d)",
-                    ctf_timer_target_x, ctf_timer_target_y,
-                    ctf_vault_target_x, ctf_vault_target_y);
+        /* CTF integrity: Flag-3/Flag-5 room coordinates — dev/validation only (see vault note). */
+        if (_validation_mode())
+            startup_log("CTF G1-A: timer target (%d,%d) vault target (%d,%d)",
+                        ctf_timer_target_x, ctf_timer_target_y,
+                        ctf_vault_target_x, ctf_vault_target_y);
+        else
+            startup_log("CTF G1-A: arena targets synced");
     }
     ctf_reset();
     /* D1: a fresh funnel for this level (truncates atomic_shell_events.jsonl) */
