@@ -1,14 +1,15 @@
-"""G5-HINT (FPE S2): graduated stuck-nudge. When the player makes no capture
-progress for a while, the engine escalates a teaching hint (HUD user-quote) that
-names the mechanic — so a stuck/dying player learns to memory-hack instead of
-ragequitting. Suppressible via DUKE3D_NO_HINTS=1 (shared with memmap-announce);
-stuck threshold tunable via DUKE3D_HINT_STUCK_SECS.
+"""CTF integrity — G5 graduated stuck-nudge. The escalating hint spells out the hack ("freeze
+your health", "set the boss HP to 0", "use Cheat Engine or scouter"), so it is a spoiler
+walkthrough — a DEVELOPER/validation aid, NOT part of the shipped challenge. Off by default;
+fires only in developer/validation mode (DUKE3D_ENABLE_CHEATS / DUKE3D_VALIDATE /
+DUKE3D_SHOW_HINTS). DUKE3D_NO_HINTS=1 force-suppresses; stuck threshold tunable via
+DUKE3D_HINT_STUCK_SECS.
 
 Deterministic signal: the engine emits a 'G5-HINT:' marker into
 atomic_shell_startup.log (compat.h startup_log, flushed per-write) in the same
 guarded block that calls adduserquote(...). Under plain DUKE3D_AUTOPLAY the player
 never hacks, so 0 flags capture (m-hackonly) -> the player is "stuck" -> the nudge
-fires. See docs/plans/2026-06-15_G5-HINT_SPEC.md.
+fires (when enabled).
 """
 import os
 import shutil
@@ -73,23 +74,36 @@ def _run_headless(tmp_path, extra_env):
 @pytest.mark.playtest
 @pytest.mark.serial
 @pytest.mark.slow
-def test_g5_hint_fires_when_stuck(tmp_path):
-    """A player making no capture progress gets an escalating teaching nudge."""
+def test_g5_hint_silent_for_players_by_default(tmp_path):
+    """A stuck player gets NO spoiler walkthrough by default (shipped challenge)."""
     text = _run_headless(tmp_path, {})
     assert text, "atomic_shell_startup.log was not written"
-    assert MARKER in text, (
-        f"expected '{MARKER}' in atomic_shell_startup.log — a stuck player (autoplay, "
-        "no hacking -> 0 captures) should receive the graduated hint"
+    assert MARKER not in text, (
+        f"'{MARKER}' must NOT fire by default — the graduated hint is a developer aid that "
+        "spells out the hack; players should get a challenge"
     )
 
 
 @pytest.mark.playtest
 @pytest.mark.serial
 @pytest.mark.slow
-def test_g5_hint_suppressed_by_no_hints(tmp_path):
-    """DUKE3D_NO_HINTS=1 must suppress the nudge (ladder / replay UX)."""
-    text = _run_headless(tmp_path, {"DUKE3D_NO_HINTS": "1"})
+def test_g5_hint_fires_in_validation_mode_when_stuck(tmp_path):
+    """With the developer hint opt-in, a stuck player receives the escalating nudge."""
+    text = _run_headless(tmp_path, {"DUKE3D_SHOW_HINTS": "1"})
+    assert text, "atomic_shell_startup.log was not written"
+    assert MARKER in text, (
+        f"expected '{MARKER}' in atomic_shell_startup.log — DUKE3D_SHOW_HINTS=1 + a stuck "
+        "player (autoplay, no hacking -> 0 captures) should receive the graduated hint"
+    )
+
+
+@pytest.mark.playtest
+@pytest.mark.serial
+@pytest.mark.slow
+def test_g5_hint_no_hints_overrides_validation(tmp_path):
+    """DUKE3D_NO_HINTS=1 is a hard override even with the opt-in on."""
+    text = _run_headless(tmp_path, {"DUKE3D_SHOW_HINTS": "1", "DUKE3D_NO_HINTS": "1"})
     assert text, "atomic_shell_startup.log was not written"
     assert MARKER not in text, (
-        f"DUKE3D_NO_HINTS=1 must suppress the g5-hint nudge, but '{MARKER}' was present"
+        f"DUKE3D_NO_HINTS=1 must force-suppress the g5-hint nudge, but '{MARKER}' was present"
     )

@@ -1,11 +1,10 @@
-"""I-MUX — tiered memory-map verbosity.
+"""CTF integrity — tiered memory-map verbosity.
 
-DUKE3D_MEMMAP_MODE=spoiler_light must keep every `key = 0xADDR` line (so the solver / a player
-can still find the addresses) while redacting the spoiler hint comments — the `# EASY MODE …`
-cheats and the `# FLAG 1..5 …` per-flag walkthrough. Default (unset / anything else) = full
-"training" verbosity.
-
-See docs/plans/2026-06-15_I-MUX_SPEC.md.
+The memory-map log always lists every `key = 0xADDR` line (the hackable surface). The
+`# EASY MODE …` cheatsheet and `# FLAG 1..6 …` per-flag walkthrough (with the flag strings) are
+SPOILERS, so by DEFAULT (the shipped game) they are REDACTED — the player gets addresses, not
+answers. Full "training" verbosity returns in developer/validation mode or via
+DUKE3D_MEMMAP_MODE=training; DUKE3D_MEMMAP_MODE=spoiler_light forces redaction.
 """
 import os
 import shutil
@@ -76,12 +75,33 @@ def _run_and_read_memmap(tmp_path, mode):
 def test_training_mode_has_keys_and_hints(tmp_path):
     if sys.platform != "win32":
         pytest.skip("native Windows engine launch")
-    text = _run_and_read_memmap(tmp_path, mode=None)  # unset == training
+    # Full verbosity is now a developer opt-in (the shipped default is redacted), so request it.
+    text = _run_and_read_memmap(tmp_path, mode="training")
     for key in REQUIRED_KEYS:
         assert key in text, f"training memmap missing key {key!r}"
     for marker in SPOILER_MARKERS:
         assert marker in text, f"training memmap should contain hint {marker!r}"
     assert "# memmap mode: training" in text
+
+
+@pytest.mark.playtest
+@pytest.mark.serial
+@pytest.mark.slow
+def test_default_is_redacted_for_players(tmp_path):
+    """Unset MEMMAP_MODE with no validation unlock (the shipped player run) => redacted:
+    addresses kept, but the EASY-MODE/per-flag walkthrough and flag strings stripped."""
+    if sys.platform != "win32":
+        pytest.skip("native Windows engine launch")
+    text = _run_and_read_memmap(tmp_path, mode=None)  # unset + no validation == redacted
+    for key in REQUIRED_KEYS:
+        assert key in text, f"default memmap dropped key {key!r} (must keep all addresses)"
+    for marker in SPOILER_MARKERS:
+        assert marker not in text, (
+            f"default memmap leaks spoiler {marker!r} — the shipped game must redact the "
+            "walkthrough so players get a challenge, not the answer"
+        )
+    assert "ghvctf{" not in text, "default memmap leaks a flag string to players"
+    assert "# memmap mode: spoiler_light" in text
 
 
 @pytest.mark.playtest
