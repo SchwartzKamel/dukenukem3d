@@ -889,11 +889,63 @@ static LONG WINAPI crash_handler(EXCEPTION_POINTERS *ep)
             access_type, (void *)target);
     }
 
+    /* === Per-crash capture (survives restarts) ===========================
+     * atomic_shell_startup.log is truncated (fopen "w") on every launch, so a
+     * memory-hacking play session's earlier crashes would be clobbered by the
+     * next run. Persist EVERY crash independently: a timestamped minidump for
+     * post-mortem debugging plus an append-mode one-line record in
+     * crashes\crash_log.txt. Best-effort and self-contained — it does not depend
+     * on _startup_log being open. */
+    {
+        SYSTEMTIME st;
+        char stamp[24];
+        char dmp_path[MAX_PATH];
+        FILE *clog;
+        HANDLE hdmp;
+
+        GetLocalTime(&st);
+        snprintf(stamp, sizeof(stamp), "%04u%02u%02u-%02u%02u%02u",
+            (unsigned)st.wYear, (unsigned)st.wMonth, (unsigned)st.wDay,
+            (unsigned)st.wHour, (unsigned)st.wMinute, (unsigned)st.wSecond);
+        CreateDirectoryA("crashes", NULL);   /* ERROR_ALREADY_EXISTS is fine */
+
+        snprintf(dmp_path, sizeof(dmp_path), "crashes\\crash_%s.dmp", stamp);
+        hdmp = CreateFileA(dmp_path, GENERIC_WRITE, 0, NULL,
+            CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+        if (hdmp != INVALID_HANDLE_VALUE) {
+            MINIDUMP_EXCEPTION_INFORMATION mei;
+            mei.ThreadId = GetCurrentThreadId();
+            mei.ExceptionPointers = ep;
+            mei.ClientPointers = FALSE;
+            /* Normal + thread info + data segments: small dumps that still carry
+               the faulting thread's stack/registers and the globals (CTF state) —
+               enough to triage a memory-hack-induced crash in WinDbg/VS. */
+            MiniDumpWriteDump(GetCurrentProcess(), GetCurrentProcessId(), hdmp,
+                (MINIDUMP_TYPE)(MiniDumpNormal | MiniDumpWithThreadInfo | MiniDumpWithDataSegs),
+                &mei, NULL, NULL);
+            CloseHandle(hdmp);
+        } else {
+            dmp_path[0] = '\0';
+        }
+
+        clog = fopen("crashes\\crash_log.txt", "a");
+        if (clog) {
+            fprintf(clog,
+                "[%04u-%02u-%02u %02u:%02u:%02u] CRASH code=0x%08lX at %p RVA=0x%llX  %s  dump=%s\n",
+                (unsigned)st.wYear, (unsigned)st.wMonth, (unsigned)st.wDay,
+                (unsigned)st.wHour, (unsigned)st.wMinute, (unsigned)st.wSecond,
+                (unsigned long)code, addr, (unsigned long long)exception_rva,
+                access_info[0] ? access_info : "(no access info)",
+                dmp_path[0] ? dmp_path : "(none)");
+            fclose(clog);
+        }
+    }
+
     snprintf(buf, sizeof(buf),
         "Atomic Shell crashed!\n\n"
         "Exception: 0x%08lX at %p (RVA 0x%llX)\n"
         "%s\n\n"
-        "Check atomic_shell_startup.log for details.",
+        "Check crashes\\crash_log.txt (and the .dmp beside it) for details.",
         (unsigned long)code, addr, (unsigned long long)exception_rva, access_info);
 
     if (_startup_log) {

@@ -73,6 +73,7 @@ atomic_shell_startup.log
 atomic_shell_flags.log
 atomic_shell_events.jsonl
 atomic_shell_memory_map.log
+crashes/
 vault_input.txt
 ATOMIC.CFG
 ATOMIC.GRP
