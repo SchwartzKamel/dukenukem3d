@@ -1,6 +1,6 @@
 """G5 graduated stuck-nudge — an in-game "what to do" hint. When the player makes no capture
 progress for a while, the engine escalates a teaching nudge ("this game is won by hacking",
-"freeze your health then set the boss HP to 0", "use Cheat Engine or scouter") so a stuck/dying
+"freeze your health then set the boss HP to 0", "use Cheat Engine or Squalr") so a stuck/dying
 player learns the mechanic instead of ragequitting. It teaches the TECHNIQUE but reveals no flag
 string and no exact address, so it ships ON by default. DUKE3D_NO_HINTS=1 turns it off ("hard
 mode") and is a hard override even in developer/validation mode; stuck threshold is tunable via

@@ -2107,13 +2107,36 @@ void coords(short snum)
  * in the generated GRP, and drawing them crashes the sprite-column renderer
  * (tspritevline reads OOB). The mini font is always present (the menus use it),
  * so this keeps on-screen messages -- including the CTF "FLAG CAPTURED" banner --
- * readable and crash-free. */
+ * readable and crash-free.
+ *
+ * Readability pass: the glyphs are 5px wide, so the old 4px advance overlapped
+ * neighbours by 1px and ran words together ("still hard to read"). We now advance
+ * a uniform 5px (no overlap) and lay down a 1px dark drop-shadow before the bright
+ * text so it stays legible over a busy 3D scene. 5px * our longest directional hint
+ * (59 chars) = 295 < 320, so it still fits centered. gametext is avoided here
+ * because it would overflow 320px for these long hints. */
+static void minihint_pass(int x, int y, char *t, char dashade, char p, char sb)
+{
+     short ac; char c;
+     while (*t)
+     {
+         c = *t; if (c >= 'a' && c <= 'z') c -= 32;  /* uppercase without writing to t */
+         if (c == 32) { x += 5; t++; continue; }
+         ac = c - '!' + MINIFONT;
+         rotatesprite(x<<16, y<<16, 65536L, 0, ac, dashade, p, sb, 0, 0, xdim-1, ydim-1);
+         x += 5;
+         t++;
+     }
+}
+
 static void fta_centered(int y, char *t, char sb)
 {
-     int w = 0, n;
+     int w = 0, n, x;
      if (!t) return;
-     for (n = 0; t[n]; n++) w += (t[n] == ' ') ? 5 : 4;   /* minitext advance */
-     minitext(160 - (w >> 1), y, t, 0, sb);
+     for (n = 0; t[n]; n++) w += 5;          /* uniform 5px advance (un-crammed) */
+     x = 160 - (w >> 1);
+     minihint_pass(x + 1, y + 1, t, 31, 0, sb);   /* dark drop-shadow (shade 31) */
+     minihint_pass(x, y, t, 0, 0, sb);            /* bright text on top */
 }
 
 void operatefta(void)
@@ -8200,7 +8223,7 @@ int main(int argc,char **argv)
                 fprintf(mm, "# ============================================================\n");
                 fprintf(mm, "# No addresses are printed here on purpose: finding them IS the game.\n");
                 fprintf(mm, "#\n");
-                fprintf(mm, "# HOW TO FIND ANY VALUE (Cheat Engine, scouter, or any memory scanner):\n");
+                fprintf(mm, "# HOW TO FIND ANY VALUE (Cheat Engine, Squalr, or any memory scanner):\n");
                 fprintf(mm, "#   1. Attach your scanner to this process.\n");
                 fprintf(mm, "#   2. Pick something you can change in-game (your health, your ammo).\n");
                 fprintf(mm, "#   3. Scan its value, change it in-game, then re-scan for the new value -\n");
@@ -9616,7 +9639,7 @@ char domovethings(void)
                 static const char *g5_msg[3] = {
                     "STUCK? THIS GAME IS WON BY HACKING - READ THE MEMORY MAP LOG",
                     "FREEZE YOUR HEALTH THEN SET THE BOSS HP TO 0",
-                    "USE CHEAT ENGINE OR SCOUTER - SCAN AND FREEZE PLAYER HEALTH",
+                    "USE CHEAT ENGINE OR SQUALR - SCAN AND FREEZE PLAYER HEALTH",
                 };
                 int lvl = g5_level < 3 ? g5_level : 2;
                 adduserquote((char *)g5_msg[lvl]);
