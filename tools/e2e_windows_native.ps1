@@ -22,7 +22,9 @@ $BuiltExeCandidates = @(
     (Join-Path $EngineRoot 'build\Release\duke3d.exe'),
     (Join-Path $EngineRoot 'build\duke3d.exe')
 )
-$BuiltExe = $BuiltExeCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+# $BuiltExe is resolved AFTER the build runs below: on a clean checkout (CI) the
+# build directory does not exist yet, so probing it here would always miss and
+# wrongly fail the post-build existence check even when the build succeeds.
 $EngineExe = Join-Path $EngineRoot 'duke3d.exe'
 $EngineDll = Join-Path $EngineRoot 'SDL2.dll'
 $GeneratedGrp = Join-Path $EngineRoot 'generated_assets\DUKE3D.GRP'
@@ -83,6 +85,7 @@ if ($LASTEXITCODE -ne 0) {
     throw "win_build.ps1 failed with exit code $LASTEXITCODE"
 }
 
+$BuiltExe = $BuiltExeCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
 if (-not $BuiltExe) {
     throw "Built executable not found at build\Release\duke3d.exe or build\duke3d.exe"
 }
