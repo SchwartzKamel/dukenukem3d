@@ -1480,7 +1480,7 @@ static void menutext_bounds(char *t, int *l, int *r)
             default: centre += 5; width += 5; i++; continue;
         }
         centre += tilesizx[ac]-1;     /* menutext's centering width */
-        width  += tilesizx[ac];       /* menutext's draw advance     */
+        width  += tilesizx[(*(t+i) == ':') ? BIGCOLIN : ac];   /* draw advance (':' draws as BIGCOLIN, not BIGSEMI) */
         i++;
     }
     start_x = (320 - centre - 10) >> 1;   /* menutext's own start x */
