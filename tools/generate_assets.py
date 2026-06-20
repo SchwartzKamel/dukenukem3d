@@ -1456,7 +1456,9 @@ def _classify_tile(name, tile_num):
     if 3010 <= tile_num <= 3025:
         return (4, 5, 'font')
     if 3072 <= tile_num <= 3163:
-        return (4, 5, 'font')
+        # MINIFONT glyphs are a 5x7 bitmap; a 4x5 cell clipped the right column
+        # and bottom 2 rows (turning E->F, L->I, D->T) and garbled minitext.
+        return (5, 7, 'font')
     if name in ('BIGPERIOD', 'BIGCOMMA', 'BIGX', 'BIGQ',
                 'BIGSEMI', 'BIGCOLIN', 'BIGAPPOS'):
         return (_bigalpha_width(tile_num), 16, 'font')
@@ -2234,7 +2236,12 @@ def _gen_switch(w, h, name, seed):
 
 def _gen_font_char(w, h, tile_num, seed):
     """Font character tile for STARTALPHANUM / BIGALPHANUM / MINIFONT ranges."""
-    img = Image.new("RGB", (w, h), (0, 0, 0))
+    # MINIFONT (3072-3163) renders on the magenta transparency key so minitext's
+    # 1px kerning overlap (5px-wide glyphs, 4px advance) doesn't clobber the
+    # adjacent glyph with an opaque black box. Other font ranges keep the black
+    # background (the title's BIGALPHANUM is user-locked and must not change).
+    bg = (255, 0, 255) if 3072 <= tile_num <= 3163 else (0, 0, 0)
+    img = Image.new("RGB", (w, h), bg)
     draw = ImageDraw.Draw(img)
     _init_font()
     if 2822 <= tile_num <= 2915:
@@ -2418,7 +2425,7 @@ def generate_game_tiles(palette):
             img = _gen_credits_page(w, h, int(name[-1]) - 1)
         else:
             img = gen(w, h, name, tile_num, seed)
-        if category in _OVERLAY_CATEGORIES:
+        if category in _OVERLAY_CATEGORIES or 3072 <= tile_num <= 3163:
             indexed = _quantize_with_transparency(img, palette)
         else:
             indexed = quantize_image(img, palette)
