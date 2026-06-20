@@ -146,6 +146,11 @@ def launch(extra_env=None):
         "SDL_VIDEODRIVER": "dummy", "DUKE3D_HEADLESS": "1", "DUKE3D_SKIP_LOGO": "1",
         "DUKE3D_SILENT_ERRORS": "1", "DUKE3D_AUTOPLAY": "1",
         "DUKE3D_MENU_KEYS": "28,28,28",   # Enter x3 -> NEW GAME -> CTF1.MAP
+        # Validation harness: the player-facing memmap is redacted (technique only, no
+        # addresses) for CTF integrity; the solver needs the full annotated offsets, so
+        # it runs in developer/validation mode (DUKE3D_VALIDATE) — same offsets the build
+        # validation requires, never shipped on by default.
+        "DUKE3D_VALIDATE": "1",
     })
     if extra_env:
         env.update(extra_env)
