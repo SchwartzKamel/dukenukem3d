@@ -219,16 +219,31 @@ int sdl_init(int xdim, int ydim)
     screen_width  = xdim;
     screen_height = ydim;
 
-    startup_log("  SDL_CreateWindow(%d x %d)...", xdim, ydim);
     {
+        /* engine-r14: windowed-mode override. The renderer upscales the native
+         * 320x200 frame to fill the window via SDL_RenderSetLogicalSize below, so
+         * a windowed launch can be any size. Default stays fullscreen-desktop;
+         * DUKE3D_WINDOWED=1 opens a real resizable window (DUKE3D_WINDOW_SCALE=N,
+         * default 4, sizes it to 320N x 200N). */
+        int windowed = !headless_mode && compat_env_uint("DUKE3D_WINDOWED", 0);
+        int win_w = xdim, win_h = ydim;
         Uint32 win_flags = SDL_WINDOW_RESIZABLE;
         win_flags |= headless_mode ? SDL_WINDOW_HIDDEN : SDL_WINDOW_SHOWN;
-        if (!headless_mode)
+        if (!headless_mode && !windowed)
             win_flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
+        if (windowed) {
+            int scale = (int)compat_env_uint("DUKE3D_WINDOW_SCALE", 4);
+            if (scale < 1) scale = 1;
+            if (scale > 8) scale = 8;
+            win_w = xdim * scale;
+            win_h = ydim * scale;
+        }
 
+        startup_log("  SDL_CreateWindow(%d x %d, %s)...", win_w, win_h,
+                    windowed ? "windowed" : (headless_mode ? "headless" : "fullscreen"));
         window = SDL_CreateWindow("Atomic Shell",
                                   SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-                                  xdim, ydim, win_flags);
+                                  win_w, win_h, win_flags);
     }
     if (!window) {
         startup_log("  FATAL: SDL_CreateWindow failed: %s", SDL_GetError());

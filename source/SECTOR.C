@@ -2708,7 +2708,14 @@ void cheatkeys(short snum)
                     sb_snum |= 1<<19;
                     p->weapon_pos = -9;
                 }
-                else if( p->gotweapon[j] && p->curr_weapon != j ) switch(j)
+                /* fix: j is `unsigned long` and is computed as (weaponfield-1) at the
+                   top of this block; when no weapon is selected the field is 0, so
+                   j underflows to 0xFFFFFFFF. Indexing gotweapon[0xFFFFFFFF] reads
+                   ~4GB past `ps` -> access violation (reproduced deterministically by
+                   pressing USE/open with no weapon selected; see DUKE3D_USE_NOWEAPON).
+                   WEAPON_VALID rejects the underflow sentinel so an invalid selection
+                   simply switches nothing this tic. */
+                else if( WEAPON_VALID(j) && p->gotweapon[j] && p->curr_weapon != j ) switch(j)
                 {
                     case KNEE_WEAPON:
                         addweapon( p, KNEE_WEAPON );

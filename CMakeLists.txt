@@ -126,6 +126,19 @@ if(WIN32)
         # entry via the CRT startup, so we don't need SDL2main's WinMain/SDL_main
         # bridge (which fails to link here).
         target_link_options(duke3d PRIVATE /DYNAMICBASE:NO /FIXED /ENTRY:mainCRTStartup)
+
+        # Opt-in symbolized release build for crash diagnosis. OFF by default so
+        # shipped CTF binaries stay symbol-free; enable with
+        # -DDUKE3D_RELEASE_SYMBOLS=ON to emit duke3d.pdb + duke3d.map beside the
+        # exe while KEEPING /O2 + LTO, so a reproduced crash still faults at the
+        # same logic but the in-engine crash handler (compat.h SymFromAddr /
+        # StackWalk64) prints named backtrace frames. /OPT:REF,ICF are re-asserted
+        # because /DEBUG disables them by default (keeps the binary layout tight).
+        option(DUKE3D_RELEASE_SYMBOLS "Emit PDB + MAP for optimized crash diagnosis" OFF)
+        if(DUKE3D_RELEASE_SYMBOLS)
+            target_compile_options(duke3d PRIVATE /Zi)
+            target_link_options(duke3d PRIVATE /DEBUG /MAP /OPT:REF /OPT:ICF)
+        endif()
     endif()
 endif()
 
