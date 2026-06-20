@@ -4,7 +4,7 @@ Static guardrails for GAME.C menu/opening stability paths.
 These tests lock in:
 1. Deterministic non-game menu background redraw using MENUSCREEN.
 2. Demo slot 0 guard in opendemoread() to avoid accidental demo playback.
-3. MENUSCREEN backdrop usage in Logo() splash screens.
+3. MENUSCREEN backdrop usage in Logo() splash screen.
 """
 
 import re
@@ -74,6 +74,11 @@ class TestLogoBackdropStability:
 
         window = content[pos:pos + 1800]
         matches = re.findall(r"rotatesprite\([^;]*MENUSCREEN[^;]*\);", window, re.S)
-        assert len(matches) >= 2, (
-            "Logo() should draw MENUSCREEN backdrop for both splash/title screens."
+        # The intro was collapsed from two identical splash screens (with a fast
+        # palette fade between them, which read as a "blip in and out") into ONE
+        # steady splash that draws the MENUSCREEN backdrop once and holds. So the
+        # backdrop must still be present (>= 1), but a second draw is no longer
+        # expected — re-introducing one would bring the blip back.
+        assert len(matches) >= 1, (
+            "Logo() should draw the MENUSCREEN backdrop behind the splash/title screen."
         )

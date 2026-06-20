@@ -1142,8 +1142,11 @@ def proc_server_rack(w, h):
 
 
 def proc_sprite_placeholder(w, h, label, seed):
-    """Cyberpunk-themed item sprite placeholder."""
-    img = Image.new("RGB", (w, h), (0, 0, 0))
+    """Cyberpunk-themed item sprite placeholder. Drawn in-world as a sprite, so
+    the background is the magenta transparency key (255,0,255) -> palette index
+    255 via _quantize_with_transparency; an opaque black background would paint a
+    black box around the pickup."""
+    img = Image.new("RGB", (w, h), (255, 0, 255))  # magenta transparency key
     draw = ImageDraw.Draw(img)
     colors = {
         "Stim": (0, 255, 100),
@@ -1225,7 +1228,10 @@ def _generate_sprite_worker(task):
         tile_num, tw, th, desc, palette = task
         
         img = proc_sprite_placeholder(tw, th, desc, 200 + tile_num)
-        indexed = quantize_image(img, palette)
+        # Item/pickup sprites are drawn in-world with the BUILD 255 transparency
+        # key; map the magenta-key background to index 255 instead of an opaque
+        # black box around the sprite.
+        indexed = _quantize_with_transparency(img, palette)
         col_major = rgb_to_column_major(indexed, tw, th)
         return (tile_num, (tw, th, 0, col_major))
     except (ValueError, OSError, KeyError, AttributeError) as e:
@@ -1456,7 +1462,9 @@ def _classify_tile(name, tile_num):
     if 3010 <= tile_num <= 3025:
         return (4, 5, 'font')
     if 3072 <= tile_num <= 3163:
-        return (4, 5, 'font')
+        # MINIFONT glyphs are a 5x7 bitmap; a 4x5 cell clipped the right column
+        # and bottom 2 rows (turning E->F, L->I, D->T) and garbled minitext.
+        return (5, 7, 'font')
     if name in ('BIGPERIOD', 'BIGCOMMA', 'BIGX', 'BIGQ',
                 'BIGSEMI', 'BIGCOLIN', 'BIGAPPOS'):
         return (_bigalpha_width(tile_num), 16, 'font')
@@ -2067,8 +2075,9 @@ def _gen_weapon(w, h, name, seed):
 
 
 def _gen_boss(w, h, name, seed):
-    """Boss sprite with menacing silhouette and red accents."""
-    img = Image.new("RGB", (w, h), (0, 0, 0))
+    """Boss sprite with menacing silhouette and red accents. In-world sprite, so
+    the background is the magenta transparency key (-> index 255), not a black box."""
+    img = Image.new("RGB", (w, h), (255, 0, 255))  # magenta transparency key
     draw = ImageDraw.Draw(img)
     cx, cy = w // 2, h // 2
     bw, bh = w // 3, h // 2
@@ -2087,8 +2096,9 @@ def _gen_boss(w, h, name, seed):
 
 
 def _gen_enemy(w, h, name, seed):
-    """Enemy sprite with color-coded humanoid silhouette."""
-    img = Image.new("RGB", (w, h), (0, 0, 0))
+    """Enemy sprite with color-coded humanoid silhouette. In-world sprite, so the
+    background is the magenta transparency key (-> index 255), not a black box."""
+    img = Image.new("RGB", (w, h), (255, 0, 255))  # magenta transparency key
     draw = ImageDraw.Draw(img)
     cx, cy = w // 2, h // 2
     if 'LIZ' in name:
@@ -2123,8 +2133,9 @@ def _gen_enemy(w, h, name, seed):
 
 
 def _gen_character(w, h, name, seed):
-    """Character / NPC sprite placeholder."""
-    img = Image.new("RGB", (w, h), (0, 0, 0))
+    """Character / NPC sprite placeholder. In-world sprite, so the background is
+    the magenta transparency key (-> index 255), not a black box."""
+    img = Image.new("RGB", (w, h), (255, 0, 255))  # magenta transparency key
     draw = ImageDraw.Draw(img)
     cx, cy = w // 2, h // 2
     draw.ellipse([cx - 4, cy - h // 4, cx + 4, cy - h // 4 + 8],
@@ -2141,8 +2152,11 @@ def _gen_character(w, h, name, seed):
 
 
 def _gen_icon(w, h, name, seed):
-    """Small icon tile with color-coded diamond shape."""
-    img = Image.new("RGB", (w, h), (0, 0, 0))
+    """Small icon tile with color-coded diamond shape. Icons are drawn as
+    masked overlays (menu cursor, HUD pickups), so the background is the magenta
+    transparency key (255,0,255) -> palette index 255 via _quantize_with_transparency;
+    an opaque black background would draw a black box over the menu/scene."""
+    img = Image.new("RGB", (w, h), (255, 0, 255))
     draw = ImageDraw.Draw(img)
     if 'HEALTH' in name or 'FIRSTAID' in name:
         col = (255, 50, 50)
@@ -2172,8 +2186,10 @@ def _gen_icon(w, h, name, seed):
 
 
 def _gen_effect(w, h, name, seed):
-    """Effect / particle placeholder with radial gradient."""
-    img = Image.new("RGB", (w, h), (0, 0, 0))
+    """Effect / particle placeholder with radial gradient. Drawn in-world as a
+    sprite, so the background is the magenta transparency key (-> index 255);
+    an opaque black background would box explosions/blood/fire in black."""
+    img = Image.new("RGB", (w, h), (255, 0, 255))  # magenta transparency key
     draw = ImageDraw.Draw(img)
     cx, cy = w // 2, h // 2
     if 'EXPLO' in name or 'BLAST' in name or 'SPARK' in name:
@@ -2231,7 +2247,12 @@ def _gen_switch(w, h, name, seed):
 
 def _gen_font_char(w, h, tile_num, seed):
     """Font character tile for STARTALPHANUM / BIGALPHANUM / MINIFONT ranges."""
-    img = Image.new("RGB", (w, h), (0, 0, 0))
+    # MINIFONT (3072-3163) renders on the magenta transparency key so minitext's
+    # 1px kerning overlap (5px-wide glyphs, 4px advance) doesn't clobber the
+    # adjacent glyph with an opaque black box. Other font ranges keep the black
+    # background (the title's BIGALPHANUM is user-locked and must not change).
+    bg = (255, 0, 255) if 3072 <= tile_num <= 3163 else (0, 0, 0)
+    img = Image.new("RGB", (w, h), bg)
     draw = ImageDraw.Draw(img)
     _init_font()
     if 2822 <= tile_num <= 2915:
@@ -2271,8 +2292,10 @@ def _gen_font_char(w, h, tile_num, seed):
 
 
 def _gen_default_prop(w, h, name, seed):
-    """Default prop / item placeholder."""
-    img = Image.new("RGB", (w, h), (0, 0, 0))
+    """Default prop / item placeholder (also the fallback for unclassified tiles).
+    Props are in-world sprites, so the background is the magenta transparency key
+    (-> index 255), not a black box."""
+    img = Image.new("RGB", (w, h), (255, 0, 255))  # magenta transparency key
     draw = ImageDraw.Draw(img)
     hue = sum(ord(c) for c in name) % 6
     colors = [
@@ -2320,7 +2343,18 @@ def _quantize_with_transparency(img, palette, key=(255, 0, 255)):
 
 
 # Tile categories drawn as masked overlays (transparent background via the key).
-_OVERLAY_CATEGORIES = {'weapon', 'logo'}
+# 'icon' covers the menu selector cursor (SPINNINGNUKEICON) and HUD pickup icons,
+# which must not paint an opaque box over the menu/scene.
+_OVERLAY_CATEGORIES = {'weapon', 'logo', 'icon'}
+
+# In-world sprite categories (enemies, bosses, NPCs, effects, props/pickups). The
+# BUILD engine draws sprites with the 255 transparency key, so their background
+# must be transparent — an opaque black background paints a black box around every
+# actor/item in the scene. Quantized via _quantize_with_transparency below.
+_SPRITE_CATEGORIES = {'boss', 'enemy', 'character', 'effect', 'prop'}
+
+# Every category whose background becomes the transparent key (palette index 255).
+_TRANSPARENT_CATEGORIES = _OVERLAY_CATEGORIES | _SPRITE_CATEGORIES
 
 
 def generate_game_tiles(palette):
@@ -2413,7 +2447,7 @@ def generate_game_tiles(palette):
             img = _gen_credits_page(w, h, int(name[-1]) - 1)
         else:
             img = gen(w, h, name, tile_num, seed)
-        if category in _OVERLAY_CATEGORIES:
+        if category in _TRANSPARENT_CATEGORIES or 3072 <= tile_num <= 3163:
             indexed = _quantize_with_transparency(img, palette)
         else:
             indexed = quantize_image(img, palette)
@@ -2767,7 +2801,8 @@ def main():
         for tile_num, tw, th, desc in SPRITE_DEFS:
             print(f"  Tile {tile_num:3d} ({tw}x{th}) {desc}")
             img = proc_sprite_placeholder(tw, th, desc, 200 + tile_num)
-            indexed = quantize_image(img, palette)
+            # In-world pickup sprites use the 255 transparency key (no black box).
+            indexed = _quantize_with_transparency(img, palette)
             col_major = rgb_to_column_major(indexed, tw, th)
             tiles[tile_num] = (tw, th, 0, col_major)
 

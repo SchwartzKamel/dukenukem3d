@@ -68,6 +68,25 @@ def _run(tmp_path, extra_env):
 @pytest.mark.playtest
 @pytest.mark.serial
 @pytest.mark.slow
+def test_cheats_lockout_guard_present_static():
+    """Fast static guard (no binary, any OS): cheats() must early-return when the cheat
+    system is disabled. The runtime lockout tests below are slow + Windows-only, so this
+    cheap source assertion fails fast in CI if the `if (!_cheats_enabled()) return;` guard
+    is ever deleted — without it DNCLIP/DNSTUFF would bypass flags 1/3 (CTF integrity)."""
+    import re
+    src = (PROJECT_ROOT / "source" / "GAME.C").read_text(errors="replace")
+    m = re.search(r"\bvoid\s+cheats\s*\(\s*void\s*\)", src)
+    assert m, "cheats(void) definition not found in GAME.C"
+    body = src[m.end():m.end() + 800]
+    assert re.search(r"if\s*\(\s*!\s*_cheats_enabled\s*\(\s*\)\s*\)\s*return", body), (
+        "cheats() lost its `if (!_cheats_enabled()) return;` lockout guard — without it the "
+        "DNCLIP/DNSTUFF cheats bypass flags 1/3 (CTF integrity failure)"
+    )
+
+
+@pytest.mark.playtest
+@pytest.mark.serial
+@pytest.mark.slow
 def test_cheats_locked_by_default(tmp_path):
     """No DUKE3D_ENABLE_CHEATS -> the cheat-code system is locked (flags require hacking)."""
     text = _run(tmp_path, {})

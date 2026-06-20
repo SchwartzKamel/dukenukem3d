@@ -1,10 +1,11 @@
-"""I1 — solve-each-flag E2E (all five flags).
+"""I1 — solve-each-flag E2E (five of the six flags; index 5 / code-exec lives in
+test_ctf_codeexec.py).
 
 Drives the headless game and memory-hacks the flags (the "hackable by design"
 challenge), asserting each `ghvctf{}` actually emits — the project's
 demo-validation backbone and the holdout for the attended intptr_t migration (E1).
 
-Covers all five flags end-to-end: 0 & 1 (boss god-mode), 2 (frozen clock),
+Covers flag indices 0-4 end-to-end: 0 & 1 (boss god-mode), 2 (frozen clock),
 3 (ghost teleport, unblocked by CTF-1), and 4 (vault code + file). The harness
 lives in `engine/tools/e2e_solve_flags.py`.
 """

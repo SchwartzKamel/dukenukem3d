@@ -1298,6 +1298,13 @@ static void probe_cursor_capture(probe_cursor_cache_t *cache, long x, long y, lo
     cache->valid = 1;
 }
 
+/* One-shot diamond x-positions (set by a menu, consumed by probe): when both
+ * are >= 0, probe()'s two flanking selector diamonds are drawn at these x's
+ * instead of the default fixed +-110 from centre -- lets a menu flank a wide
+ * centered name (SELECT MISSION's "GAME HACKING VILLAGE", which overran the
+ * fixed offset) at its true rendered bounds. */
+static int s_probe_diamond_l = -1, s_probe_diamond_r = -1;
+
 int probe(int x,int y,int i,int n)
 {
     short centre, s;
@@ -1369,20 +1376,46 @@ int probe(int x,int y,int i,int n)
 /*         rotatesprite(((320>>1)+(centre)+54)<<16,(y+(probey*i)-4)<<16,65536L,0,SPINNINGNUKEICON+6-((6+(totalclock>>3))%7),sh,0,10,0,0,xdim-1,ydim-1); */
 /*         rotatesprite(((320>>1)-(centre)-54)<<16,(y+(probey*i)-4)<<16,65536L,0,SPINNINGNUKEICON+((totalclock>>3)%7),sh,0,10,0,0,xdim-1,ydim-1); */
 
-        cursor_x = ((320>>1)+(centre>>1)+70);
-        cursor_pic = SPINNINGNUKEICON+6-((6+(totalclock>>3))%7);
-        probe_cursor_capture(&probe_cursor_cache[0], cursor_x, cursor_y, cursor_pic);
-        rotatesprite(cursor_x<<16,cursor_y<<16,65536L,0,cursor_pic,sh,0,10,0,0,xdim-1,ydim-1);
+        /* Selector icon: hold one steady frame — no spin/cycle. Only
+         * SPINNINGNUKEICON (tile 2813) has real art; frames 2814-2819 are empty,
+         * so cycling made the cursor blink in and out. Draw the single real frame
+         * always-on and let the slow "bulb warming" glow (sh shade, above) pulse
+         * its brightness — present and gently glowing, with no motion.
+         *
+         * The two diamonds flank the centered item. By default they sit at a
+         * fixed +-110 from centre; a menu may set s_probe_diamond_l/r (one-shot)
+         * to the menu text's true rendered edges so they clear a wide name
+         * instead of overlapping it (SELECT MISSION's "GAME HACKING VILLAGE"
+         * overran the fixed offset). */
+        {
+            int diamond_l, diamond_r;
+            if (s_probe_diamond_l >= 0 && s_probe_diamond_r >= 0)
+            {
+                diamond_l = s_probe_diamond_l;
+                diamond_r = s_probe_diamond_r;
+                s_probe_diamond_l = s_probe_diamond_r = -1;   /* consume: one-shot */
+            }
+            else
+            {
+                diamond_r = (320>>1)+(centre>>1)+70;       /* original: 270 */
+                diamond_l = (320>>1)-(centre>>1)-70;       /* original: 50  */
+            }
 
-        cursor_x = ((320>>1)-(centre>>1)-70);
-        cursor_pic = SPINNINGNUKEICON+((totalclock>>3)%7);
-        probe_cursor_capture(&probe_cursor_cache[1], cursor_x, cursor_y, cursor_pic);
-        rotatesprite(cursor_x<<16,cursor_y<<16,65536L,0,cursor_pic,sh,0,10,0,0,xdim-1,ydim-1);
+            cursor_x = diamond_r;
+            cursor_pic = SPINNINGNUKEICON;
+            probe_cursor_capture(&probe_cursor_cache[0], cursor_x, cursor_y, cursor_pic);
+            rotatesprite(cursor_x<<16,cursor_y<<16,65536L,0,cursor_pic,sh,0,10,0,0,xdim-1,ydim-1);
+
+            cursor_x = diamond_l;
+            cursor_pic = SPINNINGNUKEICON;
+            probe_cursor_capture(&probe_cursor_cache[1], cursor_x, cursor_y, cursor_pic);
+            rotatesprite(cursor_x<<16,cursor_y<<16,65536L,0,cursor_pic,sh,0,10,0,0,xdim-1,ydim-1);
+        }
     }
     else
     {
         cursor_x = (x-tilesizx[BIGFNTCURSOR]-4);
-        cursor_pic = SPINNINGNUKEICON+(((totalclock>>3))%7);
+        cursor_pic = SPINNINGNUKEICON;
         probe_cursor_capture(&probe_cursor_cache[0], cursor_x, cursor_y, cursor_pic);
         rotatesprite(cursor_x<<16,cursor_y<<16,65536L,0,cursor_pic,sh,0,10,0,0,xdim-1,ydim-1);
     }
@@ -1412,6 +1445,47 @@ int probe(int x,int y,int i,int n)
             return(probey);
         else return(-probey-2);
     }
+}
+
+/* True rendered horizontal bounds [*l,*r] of a BIG-font string as menutext()
+ * lays it out centered (x==160). menutext centers using width=sum(tilesizx-1)
+ * but its draw pass advances by the full tilesizx, so the text extends ~1px
+ * per glyph further right than the centering width implies and is NOT symmetric
+ * about screen centre. Returning the real bounds lets a caller flank the text
+ * with an even gap (see s_probe_diamond_* / SELECT MISSION). */
+static void menutext_bounds(char *t, int *l, int *r)
+{
+    short i = 0, ac;
+    int centre = 0, width = 0, start_x;
+    while( *(t+i) )
+    {
+        if(*(t+i) == ' ') { centre += 5; width += 5; i++; continue; }
+        ac = 0;
+        if(*(t+i) >= '0' && *(t+i) <= '9')
+            ac = *(t+i) - '0' + BIGALPHANUM-10;
+        else if(*(t+i) >= 'a' && *(t+i) <= 'z')
+            ac = toupper(*(t+i)) - 'A' + BIGALPHANUM;
+        else if(*(t+i) >= 'A' && *(t+i) <= 'Z')
+            ac = *(t+i) - 'A' + BIGALPHANUM;
+        else switch(*(t+i))
+        {
+            case '-': ac = BIGALPHANUM-11; break;
+            case '.': ac = BIGPERIOD; break;
+            case '\'': ac = BIGAPPOS; break;
+            case ',': ac = BIGCOMMA; break;
+            case '!': ac = BIGX; break;
+            case '?': ac = BIGQ; break;
+            case ';': ac = BIGSEMI; break;
+            case ':': ac = BIGSEMI; break;
+            default: centre += 5; width += 5; i++; continue;
+        }
+        centre += tilesizx[ac]-1;     /* menutext's centering width */
+        width  += tilesizx[(*(t+i) == ':') ? BIGCOLIN : ac];   /* draw advance (':' draws as BIGCOLIN, not BIGSEMI) */
+        i++;
+    }
+    start_x = (320 - centre - 10) >> 1;   /* menutext's own start x */
+    *l = start_x;
+    *r = start_x + width;
 }
 
 int menutext(int x,int y,short s,short p,char *t)
@@ -1827,7 +1901,12 @@ void menus(void)
 
     x = 0;
 
-    sh = 4-(sintable[(totalclock<<4)&2047]>>11);
+    /* Slow "bulb warming" glow on the selector. The original pulsed this with
+     * totalclock<<4 (full sine cycle ~1.07s at TICRATE 120) — a harsh ~1 Hz
+     * orange strobe that hurt to look at. Keep the same warm brightness ramp
+     * but slow it 8x with totalclock<<1 (cycle ~8.5s, ~0.12 Hz): a gentle
+     * ~4s warm-up then ~4s cool-down, far below any photosensitivity threshold. */
+    sh = 4-(sintable[(totalclock<<1)&2047]>>11);
 
     if(!(current_menu >= 1000 && current_menu <= 2999 && current_menu >= 300 && current_menu <= 369))
         vscrn();
@@ -2291,7 +2370,9 @@ void menus(void)
         case 0:
             c = (320>>1);
             rotatesprite(c<<16,28<<16,65536L,0,INGAMEDUKETHREEDEE,0,0,10,0,0,xdim-1,ydim-1);
-            rotatesprite((c+100)<<16,36<<16,65536L,0,PLUTOPAKSPRITE+2,(sintable[(totalclock<<4)&2047]>>11),0,2+8,0,0,xdim-1,ydim-1);
+            /* Steady shade (was a sintable[totalclock<<4] strobe) — the rapid
+             * orange flash on the logo is a photosensitivity hazard. */
+            rotatesprite((c+100)<<16,36<<16,65536L,0,PLUTOPAKSPRITE+2,0,0,2+8,0,0,xdim-1,ydim-1);
 /*  CTW - MODIFICATION */
 /*           x = probe(c,67,16,7); */
             x = probe(c,67,16,6);
@@ -2414,7 +2495,9 @@ void menus(void)
         case 50:
             c = (320>>1);
             rotatesprite(c<<16,32<<16,65536L,0,INGAMEDUKETHREEDEE,0,0,10,0,0,xdim-1,ydim-1);
-            rotatesprite((c+100)<<16,36<<16,65536L,0,PLUTOPAKSPRITE+2,(sintable[(totalclock<<4)&2047]>>11),0,2+8,0,0,xdim-1,ydim-1);
+            /* Steady shade (was a sintable[totalclock<<4] strobe) — the rapid
+             * orange flash on the logo is a photosensitivity hazard. */
+            rotatesprite((c+100)<<16,36<<16,65536L,0,PLUTOPAKSPRITE+2,0,0,2+8,0,0,xdim-1,ydim-1);
             x = probe(c,67,16,7);
             switch(x)
             {
@@ -2509,10 +2592,18 @@ void menus(void)
             /* Atomic Shell: only the Game Hacking Village CTF mission is
                selectable (plus a USER MAP slot if one was passed on the
                command line). The four stock Duke episodes are gone. */
+            /* Flank the (wide) mission name with the selector diamonds at its
+             * true rendered bounds so they clear the text with an even gap
+             * ("GAME HACKING VILLAGE" overran the old fixed diamond offset). */
+            {
+                int ml, mr;
+                menutext_bounds(volume_names[0], &ml, &mr);
+                s_probe_diamond_l = ml - 14;
+                s_probe_diamond_r = mr + 14;
+            }
             if(boardfilename[0])
                 x = probe(160,60,20,2);
             else x = probe(160,60,20,1);
-
             if(x >= 0)
             {
                 if(boardfilename[0] && x == 1)
@@ -2537,7 +2628,8 @@ void menus(void)
             if(boardfilename[0])
             {
                 menutext(160,60+20,SHX(-6),PHX(-6),"USER MAP");
-                gametextpal(160,60+20+3,boardfilename,16+(sintable[(totalclock<<4)&2047]>>11),2);
+                /* Steady shade (was a sintable[totalclock<<4] strobe) to avoid the rapid flash. */
+                gametextpal(160,60+20+3,boardfilename,16,2);
             }
             break;
 
@@ -2910,7 +3002,7 @@ void menus(void)
 
                 rotatesprite(101<<16,97<<16,65536,512,MAXTILES-1,-32,0,2+4+8+64,0,0,xdim-1,ydim-1);
                 dispnames();
-                rotatesprite((c+67+strlen(&ud.savegame[current_menu-360][0])*4)<<16,(50+12*probey)<<16,32768L-10240,0,SPINNINGNUKEICON+(((totalclock)>>3)%7),0,0,10,0,0,xdim-1,ydim-1);
+                rotatesprite((c+67+strlen(&ud.savegame[current_menu-360][0])*4)<<16,(50+12*probey)<<16,32768L-10240,0,SPINNINGNUKEICON,4-(sintable[(totalclock<<1)&2047]>>11),0,10,0,0,xdim-1,ydim-1);
                 break;
             }
 

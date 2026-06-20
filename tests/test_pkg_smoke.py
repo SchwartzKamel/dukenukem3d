@@ -102,9 +102,12 @@ def test_packaged_layout_boots_and_writes_runtime_logs(tmp_path):
         "packaged headless boot did not write atomic_shell_memory_map.log into the "
         f"packaged CWD; files present: {present}")
     mm = res["memmap"].read_text(errors="replace")
-    # the memmap is only fully written once the CTF level has loaded; these keys
-    # prove the arena booted (not just the menu) and the writer ran to completion.
-    assert "player_struct_cur" in mm and "ctf_boss1_sprite" in mm, mm[:600]
+    # The shipped player memmap is redacted (no addresses), so prove the CTF arena booted
+    # (not just the menu) via the directional self-discovery guide the writer emits at
+    # level entry — and assert it leaks no offsets/flags to players.
+    assert "HACKING ITS MEMORY" in mm and "WHAT TO LOOK FOR" in mm, mm[:600]
+    assert "0x" not in mm, "packaged player memmap must print no raw addresses"
+    assert "ghvctf{" not in mm, "packaged player memmap must not leak a flag string"
 
     assert res["events"].is_file(), (
         "packaged boot did not write the D1 event funnel atomic_shell_events.jsonl; "

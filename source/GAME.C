@@ -2107,13 +2107,36 @@ void coords(short snum)
  * in the generated GRP, and drawing them crashes the sprite-column renderer
  * (tspritevline reads OOB). The mini font is always present (the menus use it),
  * so this keeps on-screen messages -- including the CTF "FLAG CAPTURED" banner --
- * readable and crash-free. */
+ * readable and crash-free.
+ *
+ * Readability pass: the glyphs are 5px wide, so the old 4px advance overlapped
+ * neighbours by 1px and ran words together ("still hard to read"). We now advance
+ * a uniform 5px (no overlap) and lay down a 1px dark drop-shadow before the bright
+ * text so it stays legible over a busy 3D scene. 5px * our longest directional hint
+ * (59 chars) = 295 < 320, so it still fits centered. gametext is avoided here
+ * because it would overflow 320px for these long hints. */
+static void minihint_pass(int x, int y, char *t, char dashade, char p, char sb)
+{
+     short ac; char c;
+     while (*t)
+     {
+         c = *t; if (c >= 'a' && c <= 'z') c -= 32;  /* uppercase without writing to t */
+         if (c == 32) { x += 5; t++; continue; }
+         ac = c - '!' + MINIFONT;
+         rotatesprite(x<<16, y<<16, 65536L, 0, ac, dashade, p, sb, 0, 0, xdim-1, ydim-1);
+         x += 5;
+         t++;
+     }
+}
+
 static void fta_centered(int y, char *t, char sb)
 {
-     int w = 0, n;
+     int w = 0, n, x;
      if (!t) return;
-     for (n = 0; t[n]; n++) w += (t[n] == ' ') ? 5 : 4;   /* minitext advance */
-     minitext(160 - (w >> 1), y, t, 0, sb);
+     for (n = 0; t[n]; n++) w += 5;          /* uniform 5px advance (un-crammed) */
+     x = 160 - (w >> 1);
+     minihint_pass(x + 1, y + 1, t, 31, 0, sb);   /* dark drop-shadow (shade 31) */
+     minihint_pass(x, y, t, 0, 0, sb);            /* bright text on top */
 }
 
 void operatefta(void)
@@ -2262,6 +2285,11 @@ void gameexit(char *t)
         if (autoplay_fire_frames > 0)
             startup_log("autoplay fire frames: %ld", autoplay_fire_frames);
     }
+    {
+        extern long autoplay_use_frames;
+        if (autoplay_use_frames > 0)
+            startup_log("autoplay use frames: %ld", autoplay_use_frames);
+    }
 
     if(has_exit_message) ps[myconnectindex].palette = (char *) &palette[0];
 
@@ -2404,8 +2432,11 @@ short strget(short x,short y,char *t,short dalen,short c)
         x = gametext(x,y,b,c,2+8+16);
     }
     else x = gametext(x,y,t,c,2+8+16);
-    c = 4-(sintable[(totalclock<<4)&2047]>>11);
-    rotatesprite((x+8)<<16,(y+4)<<16,32768L,0,SPINNINGNUKEICON+((totalclock>>3)%7),c,0,2+8,0,0,xdim-1,ydim-1);
+    /* Slow "bulb warming" glow on the text-entry cursor, matching the menu
+     * selector. Hold one steady frame (no spin/cycle): only SPINNINGNUKEICON has
+     * real art, so cycling 2814-2819 made it blink in and out. <<1 = ~8.5s glow. */
+    c = 4-(sintable[(totalclock<<1)&2047]>>11);
+    rotatesprite((x+8)<<16,(y+4)<<16,32768L,0,SPINNINGNUKEICON,c,0,2+8,0,0,xdim-1,ydim-1);
 
     return (0);
 }
@@ -3431,8 +3462,8 @@ short EGS(short whatsect,long s_x,long s_y,long s_z,short s_pn,signed char s_s,s
     if( actorscrptr[s_pn] )
     {
         s->extra = *actorscrptr[s_pn];
-        T5 = *(actorscrptr[s_pn]+1);
-        T2 = *(actorscrptr[s_pn]+2);
+        T5 = script_word_to_temp_index(*(actorscrptr[s_pn]+1));
+        T2 = script_word_to_temp_index(*(actorscrptr[s_pn]+2));
         s->hitag = *(actorscrptr[s_pn]+3);
     }
     else
@@ -3602,8 +3633,8 @@ short spawn( short j, short pn )
         if( actorscrptr[s] )
         {
             SH = *(actorscrptr[s]);
-            T5 = *(actorscrptr[s]+1);
-            T2 = *(actorscrptr[s]+2);
+            T5 = script_word_to_temp_index(*(actorscrptr[s]+1));
+            T2 = script_word_to_temp_index(*(actorscrptr[s]+2));
             if( *(actorscrptr[s]+3) && SHT == 0 )
                 SHT = *(actorscrptr[s]+3);
         }
@@ -5499,7 +5530,10 @@ void animatesprites(long x,long y,short a,long smoothratio)
         }
 
         if( t->statnum == 99 ) continue;
-        if( s->statnum != 1 && s->picnum == APLAYER && ps[s->yvel].newowner == -1 && s->owner >= 0 )
+        /* engine-r14: bound an APLAYER sprite's owning-player index (yvel) before
+         * it is used to deref ps[]; a stray APLAYER moved by an operate/USE action
+         * can carry an out-of-range yvel (a wild read in the original). */
+        if( s->statnum != 1 && s->picnum == APLAYER && (unsigned)s->yvel < (unsigned)MAXPLAYERS && ps[s->yvel].newowner == -1 && s->owner >= 0 )
         {
             t->x -= mulscale16(65536-smoothratio,ps[s->yvel].posx-ps[s->yvel].oposx);
             t->y -= mulscale16(65536-smoothratio,ps[s->yvel].posy-ps[s->yvel].oposy);
@@ -5725,9 +5759,9 @@ void animatesprites(long x,long y,short a,long smoothratio)
 
                 if(ps[p].newowner > -1)
                 {
-                    t4 = *(actorscrptr[APLAYER]+1);
+                    t4 = script_word_to_temp_index(*(actorscrptr[APLAYER]+1));
                     t3 = 0;
-                    t1 = *(actorscrptr[APLAYER]+2);
+                    t1 = script_word_to_temp_index(*(actorscrptr[APLAYER]+2));
                 }
 
                 if(ud.camerasprite == -1 && ps[p].newowner == -1)
@@ -5811,7 +5845,7 @@ void animatesprites(long x,long y,short a,long smoothratio)
 
         if( actorscrptr[s->picnum] )
         {
-            if(t4)
+            if(t4 > 0 && (t4+2) < MAXSCRIPTSIZE)   /* engine-r14: bound script[] index; a truncated action ptr (LLP64) here was a wild read on USE */
             {
                 l = script[t4+2];
 
@@ -7416,16 +7450,17 @@ void cacheicon(void)
  * (254 = white); the stock LOOKUP.DAT colour swaps (1-25, including the 9-16
  * player colours) do NOT remap index 254, so passing them to menutext leaves
  * the title white. make_title_palookups() builds dedicated palookups that remap
- * the white ink (254) to red/green/blue/cyan so each splash line is a solid
+ * the white ink (254) to cyan/yellow/green so each splash line is a solid
  * colour. The palookup *numbers* must stay < 128: rotatesprite() takes dapalnum
  * as a signed char, so a palette >= 128 wraps negative and silently falls back
- * to palookup[0] (white). 28-31 are free (LOOKUP.DAT only defines 1-25). The
+ * to palookup[0] (white). 27-31 are free (LOOKUP.DAT only defines 1-25). The
  * remap *target* indices also stay < 128 to avoid the signed-char pointer-offset
  * hazard in makepalookup(). */
-#define TITLEPAL_RED   28
-#define TITLEPAL_GREEN 29
-#define TITLEPAL_BLUE  30
-#define TITLEPAL_CYAN  31
+#define TITLEPAL_RED    28
+#define TITLEPAL_GREEN  29
+#define TITLEPAL_BLUE   30
+#define TITLEPAL_CYAN   31
+#define TITLEPAL_YELLOW 27
 
 static void make_title_palookups(void)
 {
@@ -7437,10 +7472,11 @@ static void make_title_palookups(void)
      * < 128 (no out-of-bounds palookup read in makepalookup). */
     for(i=0;i<256;i++) remap[i] = 0;
 
-    remap[254] = 47;  makepalookup(TITLEPAL_RED,  remap,0,0,0,1);  /* 47  = bright red   */
-    remap[254] = 95;  makepalookup(TITLEPAL_GREEN,remap,0,0,0,1);  /* 95  = bright green */
-    remap[254] = 127; makepalookup(TITLEPAL_BLUE, remap,0,0,0,1);  /* 127 = bright blue  */
-    remap[254] = 111; makepalookup(TITLEPAL_CYAN, remap,0,0,0,1);  /* 111 = bright cyan  */
+    remap[254] = 47;  makepalookup(TITLEPAL_RED,   remap,0,0,0,1);  /* 47  = bright red    */
+    remap[254] = 92;  makepalookup(TITLEPAL_GREEN, remap,0,0,0,1);  /* 92  = bright green  */
+    remap[254] = 127; makepalookup(TITLEPAL_BLUE,  remap,0,0,0,1);  /* 127 = bright blue   */
+    remap[254] = 108; makepalookup(TITLEPAL_CYAN,  remap,0,0,0,1);  /* 108 = bright cyan   */
+    remap[254] = 76;  makepalookup(TITLEPAL_YELLOW,remap,0,0,0,1);  /* 76  = gold/yellow   */
 }
 
 /* Draw one centered splash/title line over the MENUSCREEN banner using the
@@ -7473,43 +7509,26 @@ void Logo(void)
 
     MUSIC_StopSong();
 
-    /* ── Splash Screen 1: LLM Generated Assets ────────────────── */
+    /* ── Splash Screen: Title (single, steady — 1:1 with goal) ──── */
     ps[myconnectindex].palette = palette;
     setbrightness(0,&palette[0]);
 
     clearview(0L);
     rotatesprite(160<<16,200<<15,65536L,0,MENUSCREEN,16,0,10+64,0,0,xdim-1,ydim-1);
-    splash_title_line(58,  TITLEPAL_RED,   "ATOMIC SHELL");
-    splash_title_line(82,  TITLEPAL_GREEN, "PRESENTED BY LAFIAMAFIA");
-    splash_title_line(106, TITLEPAL_BLUE,  "GAME HACKING VILLAGE");
-    splash_title_line(180, TITLEPAL_CYAN,  "PRESS ANY KEY");
-    nextpage();
-    for(i=63;i>0;i-=7) palto(0,0,0,i);
-
-    totalclock = 0;
-    while( totalclock < (120*7) && !KB_KeyWaiting() )
-    {
-        if (sdl_checkquit()) break;
-        getpackets();
-        sdl_delay(1);
-    }
-
-    /* ── Splash Screen 2: Title ────────────────────────────────── */
-    for(i=0;i<64;i+=7) palto(0,0,0,i);
-
-    clearview(0L);
-    rotatesprite(160<<16,200<<15,65536L,0,MENUSCREEN,16,0,10+64,0,0,xdim-1,ydim-1);
-    splash_title_line(58,  TITLEPAL_RED,   "ATOMIC SHELL");
-    splash_title_line(82,  TITLEPAL_GREEN, "PRESENTED BY LAFIAMAFIA");
-    splash_title_line(106, TITLEPAL_BLUE,  "GAME HACKING VILLAGE");
-    splash_title_line(180, TITLEPAL_CYAN,  "PRESS ANY KEY");
+    splash_title_line(152, TITLEPAL_CYAN,   "ATOMIC SHELL");
+    splash_title_line(170, TITLEPAL_YELLOW, "PRESENTED BY LAFIAMAFIA");
+    splash_title_line(188, TITLEPAL_GREEN,  "GAME HACKING VILLAGE");
 
     KB_FlushKeyboardQueue();
     nextpage();
-    for(i=63;i>0;i-=7) palto(0,0,0,i);
+    for(i=63;i>0;i-=7) palto(0,0,0,i);   /* fade in once, then hold steady */
     totalclock = 0;
 
-    while(totalclock < (860+120) && !KB_KeyWaiting())
+    /* Hold the title steady for the full intro window. Drawing it once
+     * (no second splash, no mid-sequence fade-out/in) removes the
+     * "blip in and out". A keypress skips; duration preserves the
+     * original splash-1 + splash-2 timing. */
+    while( totalclock < (120*7 + 860+120) && !KB_KeyWaiting() )
     {
         if (sdl_checkquit()) break;
         getpackets();
@@ -8189,6 +8208,41 @@ int main(int argc,char **argv)
             fprintf(mm, "# Build: " __DATE__ " " __TIME__ "\n");
             fprintf(mm, "# Player index: %d\n", pi);
             fprintf(mm, "#\n");
+
+            /* CTF integrity (offsets are DEVELOPER-ONLY): the shipped (player) game must NOT hand
+               out addresses — the challenge is for the player to FIND the values themselves. So in
+               the default / spoiler_light path we write a directional TECHNIQUE guide with no
+               offsets and no flag strings. The full annotated answer key (every `key = 0xADDR`
+               line, the EASY-MODE cheatsheet, the per-flag walkthrough) is a developer aid,
+               restored only in developer/validation mode (DUKE3D_VALIDATE=1, or the explicit
+               DUKE3D_MEMMAP_MODE=training). */
+            if (mm_spoiler_light)
+            {
+                fprintf(mm, "# ============================================================\n");
+                fprintf(mm, "# THIS IS A CHALLENGE - you win by HACKING ITS MEMORY yourself.\n");
+                fprintf(mm, "# ============================================================\n");
+                fprintf(mm, "# No addresses are printed here on purpose: finding them IS the game.\n");
+                fprintf(mm, "#\n");
+                fprintf(mm, "# HOW TO FIND ANY VALUE (Cheat Engine, Squalr, or any memory scanner):\n");
+                fprintf(mm, "#   1. Attach your scanner to this process.\n");
+                fprintf(mm, "#   2. Pick something you can change in-game (your health, your ammo).\n");
+                fprintf(mm, "#   3. Scan its value, change it in-game, then re-scan for the new value -\n");
+                fprintf(mm, "#      repeat until a single address remains. That address is yours.\n");
+                fprintf(mm, "#   4. Freeze it or edit it to bend the rules in your favour.\n");
+                fprintf(mm, "#\n");
+                fprintf(mm, "# WHAT TO LOOK FOR (each value lives somewhere in this process - go get it):\n");
+                fprintf(mm, "#   * YOUR HEALTH   - a number that DROPS when you take damage. Freeze it.\n");
+                fprintf(mm, "#   * BOSS HEALTH   - the boss has one too. Drop it to win the fight.\n");
+                fprintf(mm, "#   * A COUNTDOWN   - one room arms a timer that ticks toward zero.\n");
+                fprintf(mm, "#   * YOUR POSITION - your coordinates; overwrite them to reach a sealed room.\n");
+                fprintf(mm, "#   * A VAULT CODE  - a 4-digit number hidden in memory; read it, then enter it.\n");
+                fprintf(mm, "#   * A TICK HOOK   - advanced: a pointer the engine calls every game tick.\n");
+                fprintf(mm, "#\n");
+                fprintf(mm, "# This build keeps addresses stable across runs (no ASLR), so notes pay off.\n");
+                fprintf(mm, "# Good luck, hacker.\n");
+            }
+            else
+            {
             fprintf(mm, "# Format: KEY = 0xADDRESS  (type, size in bytes)\n");
             fprintf(mm, "#\n");
 
@@ -8340,6 +8394,7 @@ int main(int argc,char **argv)
                     (unsigned long long)(uintptr_t)&sprite[0]);
             fprintf(mm, "# boss_health offset within sprite = %u bytes (extra field, int16)\n",
                     (unsigned)(offsetof(spritetype, extra)));
+            }   /* end developer/validation full annotated map */
 
             fclose(mm);
             startup_log("MEMMAP: wrote atomic_shell_memory_map.log (no-ASLR build - addresses are stable)");
@@ -8369,8 +8424,16 @@ int main(int argc,char **argv)
     {
         srand((unsigned)time(NULL));
         ctf_vault_code = 1000 + (rand() % 9000);
-        startup_log("CTF: vault_code=%d  addr=0x%llX", ctf_vault_code,
-                    (unsigned long long)(uintptr_t)&ctf_vault_code);
+        /* CTF integrity: the vault code is Flag-5's answer — logging its value (or address)
+           hands it to a player who never touches memory, a forbidden non-memory-hack bypass.
+           Restore the full detail only in developer/validation mode; players get a redacted
+           confirmation. The e2e solver reads the code from the memmap log + live process
+           memory (not this file), so gating it never breaks flag capture. */
+        if (_validation_mode())
+            startup_log("CTF: vault_code=%d  addr=0x%llX", ctf_vault_code,
+                        (unsigned long long)(uintptr_t)&ctf_vault_code);
+        else
+            startup_log("CTF: vault code initialised (hidden - hack memory to find it)");
     }
 
     /* CTF-1: sync the Flag-3 ghost teleport target to the *actual* ghost sector
@@ -8397,9 +8460,14 @@ int main(int argc,char **argv)
                     ctf_ghost_target_x = (int32_t)(sx / n);
                     ctf_ghost_target_y = (int32_t)(sy / n);
                     ctf_ghost_target_z = sector[gs].floorz - (24 << 8);
-                    startup_log("CTF-1: ghost target synced to sector %d -> (%d,%d,%d)",
-                                gs, ctf_ghost_target_x, ctf_ghost_target_y,
-                                ctf_ghost_target_z);
+                    /* CTF integrity: these coords are Flag-4's teleport destination — a player
+                       would write them straight into player_pos. Dev/validation only. */
+                    if (_validation_mode())
+                        startup_log("CTF-1: ghost target synced to sector %d -> (%d,%d,%d)",
+                                    gs, ctf_ghost_target_x, ctf_ghost_target_y,
+                                    ctf_ghost_target_z);
+                    else
+                        startup_log("CTF-1: ghost teleport target ready");
                 }
                 break;
             }
@@ -8447,9 +8515,13 @@ int main(int argc,char **argv)
                 }
             }
         }
-        startup_log("CTF G1-A: timer target (%d,%d) vault target (%d,%d)",
-                    ctf_timer_target_x, ctf_timer_target_y,
-                    ctf_vault_target_x, ctf_vault_target_y);
+        /* CTF integrity: Flag-3/Flag-5 room coordinates — dev/validation only (see vault note). */
+        if (_validation_mode())
+            startup_log("CTF G1-A: timer target (%d,%d) vault target (%d,%d)",
+                        ctf_timer_target_x, ctf_timer_target_y,
+                        ctf_vault_target_x, ctf_vault_target_y);
+        else
+            startup_log("CTF G1-A: arena targets synced");
     }
     ctf_reset();
     /* D1: a fresh funnel for this level (truncates atomic_shell_events.jsonl) */
@@ -9584,7 +9656,7 @@ char domovethings(void)
                 static const char *g5_msg[3] = {
                     "STUCK? THIS GAME IS WON BY HACKING - READ THE MEMORY MAP LOG",
                     "FREEZE YOUR HEALTH THEN SET THE BOSS HP TO 0",
-                    "USE CHEAT ENGINE OR SCOUTER - SCAN AND FREEZE PLAYER HEALTH",
+                    "USE CHEAT ENGINE OR SQUALR - SCAN AND FREEZE PLAYER HEALTH",
                 };
                 int lvl = g5_level < 3 ? g5_level : 2;
                 adduserquote((char *)g5_msg[lvl]);
