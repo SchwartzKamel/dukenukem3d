@@ -50,13 +50,28 @@ if (-not (Test-Path (Join-Path $EngineRoot 'CMakeLists.txt'))) {
 }
 
 # --- Locate vcvars64.bat ----------------------------------------------------
-$vcCandidates = @(
-    "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat",
-    "C:\Program Files\Microsoft Visual Studio\2022\Professional\VC\Auxiliary\Build\vcvars64.bat",
-    "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat",
-    "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvars64.bat"
-)
-$vcvars = $vcCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+# Prefer vswhere (the same discovery win_build.ps1 uses): hosted CI runners and
+# many dev boxes install Visual Studio at a path that is NOT in the fixed
+# candidate list below, so a hardcoded-only probe wrongly fails on CI even though
+# the toolchain is present. Fall back to the fixed list when vswhere is absent.
+$vcvars = $null
+$vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+if (Test-Path $vswhere) {
+    $vsPath = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Workload.NativeDesktop -property installationPath
+    if ($vsPath) {
+        $candidate = Join-Path $vsPath.Trim() 'VC\Auxiliary\Build\vcvars64.bat'
+        if (Test-Path $candidate) { $vcvars = $candidate }
+    }
+}
+if (-not $vcvars) {
+    $vcCandidates = @(
+        "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat",
+        "C:\Program Files\Microsoft Visual Studio\2022\Professional\VC\Auxiliary\Build\vcvars64.bat",
+        "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat",
+        "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvars64.bat"
+    )
+    $vcvars = $vcCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+}
 if (-not $vcvars) { throw "vcvars64.bat not found. Install MSVC Build Tools." }
 
 # --- Configure + build (Debug => no LTO => fast; warnings still emit) --------
