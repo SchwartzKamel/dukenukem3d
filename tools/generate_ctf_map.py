@@ -33,6 +33,7 @@ from map_format import _pack_sector, _pack_wall, _pack_sprite, _pack_map
 BOSS1       = 2630   # The Meatbag
 BOSS2       = 2710   # The Warden
 APLAYER     = 1405   # Player start marker (picnum)
+LIZTROOP    = 1680   # Standard weak grunt (TROOPSTRENGTH=30) — warm-up fight
 
 # Wall / floor textures  (using procedurally generated tiles 0-16)
 WALL_STEEL   = 0
@@ -151,10 +152,12 @@ def assemble_map(seed=None):
     connected slots 2-3 (spawn stays slot 0, BOSS stays slot 1, ghost stays isolated)
     via random.Random(seed) — replay value + anti-spoiler. The boss is kept adjacent
     to spawn on purpose (a distant boss is culled to STAT_ZOMBIEACTOR and never runs
-    its CTF CON). The CTF contract (exactly one of each lotag, both bosses, the fixed
-    ghost centroid) is preserved (G1-B), and the engine publishes the moved
-    timer/vault targets (G1-A) so the harness adapts (G1-C). seed=None is
-    byte-identical to the pre-G1-B map."""
+    its CTF CON). The spawn room also holds a weak warm-up grunt (LIZTROOP) so the
+    player gets an easy first fight to locate health vars before reaching the bosses.
+    The CTF contract (exactly one of each lotag, both bosses, the fixed ghost
+    centroid) is preserved (G1-B), and the engine publishes the moved timer/vault
+    targets (G1-A) so the harness adapts (G1-C). The warm-up grunt carries no CTF
+    hitag, so it does not affect the contract or any flag."""
 
     # G1-B: shuffle the TIMER and VAULT roles across the two far connected slots
     # (2, 3). The BOSS stays at slot 1 (adjacent to spawn) on purpose: Duke flips
@@ -282,6 +285,25 @@ def assemble_map(seed=None):
         ang=512,
     ))
 
+    # Warm-up enemy (spawn room, sector 0) — an easy "first fight" BEFORE the
+    # boss arena. The bosses kill too fast to give the player time to locate the
+    # health vars in memory, so this weak grunt (LIZTROOP, TROOPSTRENGTH=30, low
+    # damage) lets the player take a few survivable hits to find player_health,
+    # and watch its own `extra` drop to practice finding enemy health — then they
+    # "roll in" east through the portal to the bosses. No CTF hitag (not a flag
+    # actor); placed in the spawn room so it engages immediately and is never
+    # culled (the player is right there).
+    all_sprites.append(_pack_sprite(
+        x=spawn_cx + 1536, y=spawn_cy,   # ~1.5 tiles east, between player and boss portal
+        z=FLOOR_Z,                        # feet on the floor
+        picnum=LIZTROOP,
+        cstat=0, shade=0,
+        xrepeat=40, yrepeat=40,
+        sectnum=0, statnum=1,             # statnum=1 → active actor
+        ang=1024,                         # face the player (west)
+        extra=30,                         # TROOPSTRENGTH — weak, dies in a few shots
+    ))
+
     # Boss arena sprites (the boss-role slot)
     boss_slot = role_slot['boss']
     boss_cx = ROOMS_X[boss_slot] + ROOM_W // 2
@@ -395,10 +417,10 @@ if __name__ == "__main__":
         f.write(data)
 
     print(f"CTF1.MAP written: {out_path}  ({len(data)} bytes)")
-    print(f"Sectors: 5  Walls: {5*4}  Sprites: 6")
+    print(f"Sectors: 5  Walls: {5*4}  Sprites: 7")
     print()
     print("Room layout:")
-    print("  Sector 0: Spawn room")
+    print("  Sector 0: Spawn room  (+ LIZTROOP warm-up grunt — easy first fight)")
     print("  Sector 1: Boss Arena  (BOSS1 hitag=0xCF1, BOSS2 hitag=0xCF2)")
     print("  Sector 2: Timer Room  (lotag=0x544D)")
     print("  Sector 3: Vault Room  (lotag=0x5641)")
