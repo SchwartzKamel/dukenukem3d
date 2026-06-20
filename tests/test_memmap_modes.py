@@ -1,10 +1,12 @@
 """CTF integrity — tiered memory-map verbosity.
 
-The memory-map log always lists every `key = 0xADDR` line (the hackable surface). The
-`# EASY MODE …` cheatsheet and `# FLAG 1..6 …` per-flag walkthrough (with the flag strings) are
-SPOILERS, so by DEFAULT (the shipped game) they are REDACTED — the player gets addresses, not
-answers. Full "training" verbosity returns in developer/validation mode or via
-DUKE3D_MEMMAP_MODE=training; DUKE3D_MEMMAP_MODE=spoiler_light forces redaction.
+For CTF integrity the SHIPPED (player) memory-map log prints NO addresses or flag
+strings at all — only a directional "how to find any value yourself" guide, because
+finding the offsets IS the challenge. The full annotated map (`key = 0xADDR` lines, the
+`# EASY MODE …` cheatsheet, and the `# FLAG 1..6 …` walkthrough with flag strings) is a
+developer/validation aid, restored only in validation mode (DUKE3D_VALIDATE=1) or via
+DUKE3D_MEMMAP_MODE=training. DUKE3D_MEMMAP_MODE=spoiler_light forces the redacted player
+view regardless.
 """
 import os
 import shutil
@@ -16,11 +18,14 @@ import pytest
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
-# Address keys that MUST survive in both modes (the solver/players need them).
+# Address keys present ONLY in the developer/training map. The redacted player map must
+# NOT leak any of them — finding the offsets yourself is the game.
 REQUIRED_KEYS = ["player_posx", "player_health", "ctf_timer",
                  "ctf_vault_code", "ctf_boss1_sprite"]
-# Spoiler hint markers that must be present in training and ABSENT in spoiler_light.
+# Spoiler hint markers — present in training, ABSENT in the redacted player map.
 SPOILER_MARKERS = ["EASY MODE", "FLAG 1"]
+# Directional self-discovery guide markers — present ONLY in the redacted player map.
+GUIDE_MARKERS = ["HACKING ITS MEMORY", "WHAT TO LOOK FOR"]
 
 
 def _solver():
@@ -52,6 +57,9 @@ def _run_and_read_memmap(tmp_path, mode):
         "DUKE3D_SILENT_ERRORS": "1", "DUKE3D_AUTOPLAY": "1",
         "DUKE3D_MENU_KEYS": "28,28,28", "DUKE3D_FRAME_LIMIT": "600",
     })
+    # The player-default (mode=None) path depends on validation mode, so ensure the
+    # harness's own environment never silently unlocks the full map.
+    env.pop("DUKE3D_VALIDATE", None)
     if mode is not None:
         env["DUKE3D_MEMMAP_MODE"] = mode
 
@@ -88,36 +96,46 @@ def test_training_mode_has_keys_and_hints(tmp_path):
 @pytest.mark.serial
 @pytest.mark.slow
 def test_default_is_redacted_for_players(tmp_path):
-    """Unset MEMMAP_MODE with no validation unlock (the shipped player run) => redacted:
-    addresses kept, but the EASY-MODE/per-flag walkthrough and flag strings stripped."""
+    """Unset MEMMAP_MODE with no validation unlock (the shipped player run) => fully
+    redacted: NO addresses, NO flag strings, NO walkthrough — only the directional
+    self-discovery guide, because finding the offsets yourself IS the challenge."""
     if sys.platform != "win32":
         pytest.skip("native Windows engine launch")
     text = _run_and_read_memmap(tmp_path, mode=None)  # unset + no validation == redacted
     for key in REQUIRED_KEYS:
-        assert key in text, f"default memmap dropped key {key!r} (must keep all addresses)"
+        assert key not in text, (
+            f"player memmap leaks address key {key!r} — offsets must be developer-only "
+            "(DUKE3D_VALIDATE), never shipped to players"
+        )
     for marker in SPOILER_MARKERS:
         assert marker not in text, (
-            f"default memmap leaks spoiler {marker!r} — the shipped game must redact the "
+            f"player memmap leaks spoiler {marker!r} — the shipped game must redact the "
             "walkthrough so players get a challenge, not the answer"
         )
-    assert "ghvctf{" not in text, "default memmap leaks a flag string to players"
+    assert "ghvctf{" not in text, "player memmap leaks a flag string to players"
+    assert "0x" not in text, "player memmap must print no raw addresses"
+    for guide in GUIDE_MARKERS:
+        assert guide in text, f"player memmap missing directional guide marker {guide!r}"
     assert "# memmap mode: spoiler_light" in text
 
 
 @pytest.mark.playtest
 @pytest.mark.serial
 @pytest.mark.slow
-def test_spoiler_light_keeps_keys_drops_hints(tmp_path):
+def test_spoiler_light_redacts_addresses(tmp_path):
     if sys.platform != "win32":
         pytest.skip("native Windows engine launch")
     text = _run_and_read_memmap(tmp_path, mode="spoiler_light")
-    # keys preserved …
+    # addresses + walkthrough stripped …
     for key in REQUIRED_KEYS:
-        assert key in text, f"spoiler_light memmap dropped key {key!r} (must keep all keys)"
-    # … but the spoiler hints redacted.
+        assert key not in text, \
+            f"spoiler_light memmap leaks address key {key!r} (must redact all offsets)"
     for marker in SPOILER_MARKERS:
         assert marker not in text, \
             f"spoiler_light memmap still leaks hint {marker!r} (should be redacted)"
-    # no flag strings either
     assert "ghvctf{" not in text, "spoiler_light memmap leaks a flag string"
+    assert "0x" not in text, "spoiler_light memmap must print no raw addresses"
+    # … and the directional self-discovery guide present instead.
+    for guide in GUIDE_MARKERS:
+        assert guide in text, f"spoiler_light memmap missing directional guide {guide!r}"
     assert "# memmap mode: spoiler_light" in text

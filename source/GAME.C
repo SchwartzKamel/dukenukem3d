@@ -8151,6 +8151,41 @@ int main(int argc,char **argv)
             fprintf(mm, "# Build: " __DATE__ " " __TIME__ "\n");
             fprintf(mm, "# Player index: %d\n", pi);
             fprintf(mm, "#\n");
+
+            /* CTF integrity (offsets are DEVELOPER-ONLY): the shipped (player) game must NOT hand
+               out addresses — the challenge is for the player to FIND the values themselves. So in
+               the default / spoiler_light path we write a directional TECHNIQUE guide with no
+               offsets and no flag strings. The full annotated answer key (every `key = 0xADDR`
+               line, the EASY-MODE cheatsheet, the per-flag walkthrough) is a developer aid,
+               restored only in developer/validation mode (DUKE3D_VALIDATE=1, or the explicit
+               DUKE3D_MEMMAP_MODE=training). */
+            if (mm_spoiler_light)
+            {
+                fprintf(mm, "# ============================================================\n");
+                fprintf(mm, "# THIS IS A CHALLENGE - you win by HACKING ITS MEMORY yourself.\n");
+                fprintf(mm, "# ============================================================\n");
+                fprintf(mm, "# No addresses are printed here on purpose: finding them IS the game.\n");
+                fprintf(mm, "#\n");
+                fprintf(mm, "# HOW TO FIND ANY VALUE (Cheat Engine, scouter, or any memory scanner):\n");
+                fprintf(mm, "#   1. Attach your scanner to this process.\n");
+                fprintf(mm, "#   2. Pick something you can change in-game (your health, your ammo).\n");
+                fprintf(mm, "#   3. Scan its value, change it in-game, then re-scan for the new value -\n");
+                fprintf(mm, "#      repeat until a single address remains. That address is yours.\n");
+                fprintf(mm, "#   4. Freeze it or edit it to bend the rules in your favour.\n");
+                fprintf(mm, "#\n");
+                fprintf(mm, "# WHAT TO LOOK FOR (each value lives somewhere in this process - go get it):\n");
+                fprintf(mm, "#   * YOUR HEALTH   - a number that DROPS when you take damage. Freeze it.\n");
+                fprintf(mm, "#   * BOSS HEALTH   - the boss has one too. Drop it to win the fight.\n");
+                fprintf(mm, "#   * A COUNTDOWN   - one room arms a timer that ticks toward zero.\n");
+                fprintf(mm, "#   * YOUR POSITION - your coordinates; overwrite them to reach a sealed room.\n");
+                fprintf(mm, "#   * A VAULT CODE  - a 4-digit number hidden in memory; read it, then enter it.\n");
+                fprintf(mm, "#   * A TICK HOOK   - advanced: a pointer the engine calls every game tick.\n");
+                fprintf(mm, "#\n");
+                fprintf(mm, "# This build keeps addresses stable across runs (no ASLR), so notes pay off.\n");
+                fprintf(mm, "# Good luck, hacker.\n");
+            }
+            else
+            {
             fprintf(mm, "# Format: KEY = 0xADDRESS  (type, size in bytes)\n");
             fprintf(mm, "#\n");
 
@@ -8302,6 +8337,7 @@ int main(int argc,char **argv)
                     (unsigned long long)(uintptr_t)&sprite[0]);
             fprintf(mm, "# boss_health offset within sprite = %u bytes (extra field, int16)\n",
                     (unsigned)(offsetof(spritetype, extra)));
+            }   /* end developer/validation full annotated map */
 
             fclose(mm);
             startup_log("MEMMAP: wrote atomic_shell_memory_map.log (no-ASLR build - addresses are stable)");
