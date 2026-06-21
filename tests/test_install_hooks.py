@@ -13,6 +13,7 @@ Tests idempotent installation of the git pre-commit hook:
 import os
 import subprocess
 import shutil
+import sys
 from pathlib import Path
 import pytest
 
@@ -26,6 +27,11 @@ class TestInstallHooks:
         assert script.exists(), f"{script} does not exist"
         assert os.access(script, os.X_OK), f"{script} is not executable"
 
+    @pytest.mark.skipif(
+        sys.platform != "linux",
+        reason="runs tools/install_hooks.sh via bash; the Windows WSL bash stub "
+               "has no distro on hosted CI. Validated in CI.",
+    )
     def test_install_hooks_creates_pre_commit_hook(self, tmp_path):
         """Test that install_hooks.sh configures git core.hooksPath in a temp repo."""
         # Get paths before any directory changes
@@ -71,6 +77,11 @@ class TestInstallHooks:
         )
         assert config_result.stdout.strip() == ".githooks", "core.hooksPath not set to .githooks"
 
+    @pytest.mark.skipif(
+        sys.platform != "linux",
+        reason="runs tools/install_hooks.sh via bash; the Windows WSL bash stub "
+               "has no distro on hosted CI. Validated in CI.",
+    )
     def test_install_hooks_is_idempotent(self, tmp_path):
         """Test that running install_hooks.sh twice does not error."""
         # Get paths before any directory changes

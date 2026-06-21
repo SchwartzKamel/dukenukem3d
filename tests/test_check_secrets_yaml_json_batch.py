@@ -6,10 +6,20 @@ JSON (.json), and batch (.bat) files, not just traditional config files.
 """
 import os
 import subprocess
+import sys
 import tempfile
 import shutil
 from pathlib import Path
 import pytest
+
+# These tests invoke tools/check_secrets.sh through `bash`. On Windows `bash`
+# resolves to the WSL stub, which has no distro on hosted CI runners and cannot
+# execute the script, so skip the whole module off Linux (validated in CI).
+pytestmark = pytest.mark.skipif(
+    sys.platform != "linux",
+    reason="check_secrets.sh secret-scanner tests require a real bash; "
+           "skipped off Linux (validated in CI).",
+)
 
 
 @pytest.fixture
