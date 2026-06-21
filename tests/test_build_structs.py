@@ -126,6 +126,11 @@ int main() {
 
 
 @pytest.mark.slow
+@pytest.mark.skipif(
+    sys.platform != "linux",
+    reason="weaponhit has long[13]; sizeof==128 only on LP64 (64-bit Linux). "
+           "Windows is LLP64 (long=4) -> 72. Validated in CI.",
+)
 def test_weaponhit_struct_size():
     """Compile and run a C program to verify weaponhit (hittype) struct size.
     
@@ -244,6 +249,11 @@ int main() {
             os.unlink(out_file)
 
 
+@pytest.mark.skipif(
+    sys.platform != "linux",
+    reason="weaponhit has long[13]; sizeof==128 only on LP64 (64-bit Linux). "
+           "Windows is LLP64 (long=4) -> 72. Validated in CI.",
+)
 def test_hittype_weaponhit_size():
     """Compile and run a C program to verify weaponhit struct size for hittype array.
     

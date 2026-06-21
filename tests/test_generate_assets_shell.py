@@ -5,6 +5,7 @@ in parallel with proper exit code handling.
 """
 import subprocess
 import os
+import sys
 import pytest
 
 
@@ -23,6 +24,11 @@ class TestGenerateAssetsShellParallelization:
         """Script should be executable."""
         assert os.access(SCRIPT_PATH, os.X_OK), f"Script not executable: {SCRIPT_PATH}"
 
+    @pytest.mark.skipif(
+        sys.platform != "linux",
+        reason="runs `bash -n`; the Windows WSL bash stub has no distro on "
+               "hosted CI. Validated in CI.",
+    )
     def test_script_syntax_valid(self):
         """Script should pass bash syntax check."""
         result = subprocess.run(
